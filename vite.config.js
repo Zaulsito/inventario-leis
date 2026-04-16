@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
-        name: 'Inventario App',
-        short_name: 'Inventario',
-        description: 'Control de inventario con conteo semanal',
+        name: 'Leis Belleza',
+        short_name: 'Leis',
+        description: 'Control de inventario de belleza y cuidado personal',
         theme_color: '#8e6d3c',
         background_color: '#fdfaf5',
         display: 'standalone',
