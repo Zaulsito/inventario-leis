@@ -99,7 +99,7 @@ export default function Layout() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center px-4 py-2 rounded-xl transition-transform font-label text-[10px] uppercase tracking-widest font-bold
+              `flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-transform font-label text-[9px] uppercase tracking-widest font-bold
               ${isActive
                 ? 'bg-primary-container text-on-primary-container scale-105 shadow-sm'
                 : 'text-on-surface-variant opacity-70'
@@ -114,6 +114,15 @@ export default function Layout() {
             )}
           </NavLink>
         ))}
+        
+        {/* Mobile Logout Button */}
+        <button
+          onClick={() => logout()}
+          className="flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-transform font-label text-[9px] uppercase tracking-widest font-bold text-error opacity-80"
+        >
+          <Icon name="logout" filled={false} />
+          <span className="mt-1">Salir</span>
+        </button>
       </nav>
     </div>
   )
