@@ -1,21 +1,7 @@
 // src/pages/Registro.jsx
-import { useState } from 'react'
-
-const productosDisponibles = [
-  'Aceite de Oro Rosa',
-  'Sérum Regenerador Nocturno',
-  'Crema Hidratante Esencial',
-  'Tónico Esencial Rosas',
-  'Bálsamo Labial Heritage',
-  'Mascarilla Renovadora',
-  'Agua Micelar Purificante',
-]
-
-const historialInicial = [
-  { producto: 'Crema Hidratante Esencial', fecha: 'Hace 2h',   proveedor: 'DistCorp',  qty: 120 },
-  { producto: 'Aceite de Oro Rosa',        fecha: 'Ayer',      proveedor: 'NaturaPro', qty: 48  },
-  { producto: 'Mascarilla Renovadora',     fecha: 'Lunes',     proveedor: 'BelCo',     qty: 96  },
-]
+import { useState, useEffect } from 'react'
+import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore'
+import { db } from '../config/firebase'
 
 function Campo({ label, children }) {
   return (
@@ -32,31 +18,82 @@ export default function Registro() {
   const today = new Date().toISOString().split('T')[0]
 
   const [form, setForm] = useState({
-    producto:   productosDisponibles[0],
+    productoId: '', // Guarda el ID para actualizar stock fácilmente
     cantidad:   '',
     fecha:      today,
     proveedor:  '',
     nota:       '',
   })
-  const [historial, setHistorial] = useState(historialInicial)
+  
+  const [productosDisponibles, setProductosDisponibles] = useState([])
+  const [historial, setHistorial] = useState([])
   const [enviado, setEnviado]     = useState(false)
+  const [procesando, setProcesando] = useState(false)
+
+  // 1. Cargar productos para el select
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'productos'), (snapshot) => {
+      const prods = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      setProductosDisponibles(prods)
+      if (prods.length > 0 && !form.productoId) {
+        setForm(f => ({ ...f, productoId: prods[0].id }))
+      }
+    })
+    return unsub
+  }, [])
+
+  // 2. Cargar historial de movimientos
+  useEffect(() => {
+    const q = query(collection(db, 'movimientos'), orderBy('createdAt', 'desc'))
+    const unsub = onSnapshot(q, (snapshot) => {
+      const movs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      setHistorial(movs)
+    })
+    return unsub
+  }, [])
 
   function handleChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
   }
 
-  function handleSubmit() {
-    if (!form.cantidad || Number(form.cantidad) <= 0) return
-    const nuevo = {
-      producto:  form.producto,
-      fecha:     'Ahora',
-      proveedor: form.proveedor || '—',
-      qty:       Number(form.cantidad),
+  async function handleSubmit() {
+    if (!form.cantidad || Number(form.cantidad) <= 0 || !form.productoId) return
+    setProcesando(true)
+
+    try {
+      // Obtener nombre del producto seleccionado para el UI
+      const prodSelect = productosDisponibles.find(p => p.id === form.productoId)
+      
+      const qty = Number(form.cantidad)
+
+      // Guardar movimiento
+      await addDoc(collection(db, 'movimientos'), {
+        productoId: form.productoId,
+        producto: prodSelect.nombre,
+        fecha: form.fecha, // Fecha input
+        proveedor: form.proveedor || '—',
+        qty: qty,
+        nota: form.nota,
+        createdAt: serverTimestamp() // Tiempo real de creación
+      })
+
+      // Actualizar stock del producto
+      const prodRef = doc(db, 'productos', form.productoId)
+      await updateDoc(prodRef, {
+        stock: prodSelect.stock + qty,
+        // Pequeña lógica para actualizar el estado visual
+        estado: (prodSelect.stock + qty) < 20 ? 'bajo' : 'disponible' 
+      })
+
+      setForm(f => ({ ...f, cantidad: '', proveedor: '', nota: '' }))
+      setEnviado(true)
+      setTimeout(() => setEnviado(false), 2500)
+    } catch (err) {
+      console.error(err)
+      alert("Error al guardar el ingreso.")
+    } finally {
+      setProcesando(false)
     }
-    setHistorial(h => [nuevo, ...h])
-    setForm(f => ({ ...f, cantidad: '', proveedor: '', nota: '' }))
-    setEnviado(true)
-    setTimeout(() => setEnviado(false), 2500)
   }
 
   return (
@@ -90,9 +127,9 @@ export default function Registro() {
           <div className="space-y-6">
             {/* Producto */}
             <Campo label="Producto">
-              <select name="producto" value={form.producto} onChange={handleChange} className={inputCls}>
+              <select name="productoId" value={form.productoId} onChange={handleChange} className={inputCls}>
                 {productosDisponibles.map(p => (
-                  <option key={p}>{p}</option>
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
                 ))}
               </select>
             </Campo>
@@ -162,9 +199,10 @@ export default function Registro() {
               )}
               <button
                 onClick={handleSubmit}
-                className="bg-primary-container text-on-primary-container px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl hover:scale-105 active:scale-95 transition-all duration-300"
+                disabled={procesando}
+                className="bg-primary-container text-on-primary-container px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:active:scale-100 disabled:hover:scale-100"
               >
-                Registrar Ingreso
+                {procesando ? 'Procesando...' : 'Registrar Ingreso'}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const navItems = [
   { to: '/dashboard',  icon: 'dashboard',        label: 'Panel' },
@@ -19,6 +20,8 @@ function Icon({ name, filled = false }) {
 }
 
 export default function Layout() {
+  const { currentUser, logout } = useAuth();
+
   return (
     <div className="flex min-h-screen bg-background">
 
@@ -65,12 +68,21 @@ export default function Layout() {
 
         {/* Footer sidebar */}
         <div className="mt-auto p-8 border-t border-outline-variant/10">
-          <div className="flex items-center space-x-3 p-3 rounded-xl bg-surface-container-highest/40">
-            <span className="material-symbols-outlined text-primary">account_circle</span>
-            <div>
-              <p className="text-sm font-bold text-on-surface">Admin</p>
-              <p className="text-xs text-on-surface-variant">Inventario v1.0</p>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-surface-container-highest/40">
+              <span className="material-symbols-outlined text-primary">account_circle</span>
+              <div className="overflow-hidden">
+                <p className="text-sm font-bold text-on-surface truncate">{currentUser?.email}</p>
+                <p className="text-xs text-on-surface-variant">Inventario v1.0</p>
+              </div>
             </div>
+            <button 
+              onClick={() => logout()}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-on-surface-variant hover:bg-error-container hover:text-error transition-colors text-xs font-bold uppercase tracking-widest"
+            >
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+              Cerrar sesión
+            </button>
           </div>
         </div>
       </aside>

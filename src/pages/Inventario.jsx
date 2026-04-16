@@ -1,16 +1,7 @@
 // src/pages/Inventario.jsx
-import { useState } from 'react'
-
-// Datos de ejemplo — se reemplazarán con Firestore
-const productosIniciales = [
-  { id: 1, nombre: 'Aceite de Oro Rosa',          sku: 'INV-001', coleccion: 'Premium',  stock: 428,  precio: 85,   estado: 'disponible' },
-  { id: 2, nombre: 'Sérum Regenerador Nocturno',   sku: 'INV-014', coleccion: 'Premium',  stock: 8,    precio: 120,  estado: 'bajo' },
-  { id: 3, nombre: 'Crema Hidratante Esencial',    sku: 'INV-089', coleccion: 'Esencial', stock: 1120, precio: 45,   estado: 'disponible' },
-  { id: 4, nombre: 'Tónico Esencial Rosas',        sku: 'INV-022', coleccion: 'Esencial', stock: 24,   precio: 38,   estado: 'bajo' },
-  { id: 5, nombre: 'Bálsamo Labial Heritage',      sku: 'INV-044', coleccion: 'Premium',  stock: 5,    precio: 25,   estado: 'critico' },
-  { id: 6, nombre: 'Mascarilla Renovadora',        sku: 'INV-067', coleccion: 'Esencial', stock: 92,   precio: 55,   estado: 'disponible' },
-  { id: 7, nombre: 'Agua Micelar Purificante',     sku: 'INV-033', coleccion: 'Base',     stock: 310,  precio: 22,   estado: 'disponible' },
-]
+import { useState, useEffect } from 'react'
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
+import { db } from '../config/firebase'
 
 const estadoConfig = {
   disponible: { label: 'Disponible', cls: 'bg-green-100 text-green-700' },
@@ -18,30 +9,109 @@ const estadoConfig = {
   critico:    { label: 'Crítico',    cls: 'bg-error/15 text-error font-extrabold' },
 }
 
+const formInicial = { nombre: '', sku: '', coleccion: '', precio: 0, stock: 0, fechaIngreso: new Date().toISOString().split('T')[0] }
+
 export default function Inventario() {
   const [busqueda, setBusqueda]   = useState('')
   const [filtroCol, setFiltroCol] = useState('Todos')
+  const [productos, setProductos] = useState([])
+  const [loading, setLoading]     = useState(true)
 
-  const colecciones = ['Todos', ...new Set(productosIniciales.map(p => p.coleccion))]
+  // Estados del CRUD
+  const [showModal, setShowModal] = useState(false)
+  const [form, setForm] = useState(formInicial)
+  const [editingId, setEditingId] = useState(null)
+  const [errorMsg, setErrorMsg] = useState('')
 
-  const filtrados = productosIniciales.filter(p => {
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'productos'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setProductos(data)
+      setLoading(false)
+    })
+    return unsub
+  }, [])
+
+  // Handlers del CRUD
+  function openNew() {
+    setForm(formInicial)
+    setEditingId(null)
+    setErrorMsg('')
+    setShowModal(true)
+  }
+
+  function openEdit(p) {
+    setForm({ nombre: p.nombre, sku: p.sku, coleccion: p.coleccion, precio: p.precio, stock: p.stock, fechaIngreso: p.fechaIngreso || new Date().toISOString().split('T')[0] })
+    setEditingId(p.id)
+    setErrorMsg('')
+    setShowModal(true)
+  }
+
+  async function handleDelete(id) {
+    if (window.confirm("¿Estás seguro de eliminar este producto de la base de datos?")) {
+      await deleteDoc(doc(db, 'productos', id))
+    }
+  }
+
+  async function handleSave() {
+    setErrorMsg('')
+    if (!form.nombre || !form.sku || !form.coleccion) {
+      return setErrorMsg('Nombre, SKU y Colección son obligatorios.')
+    }
+    
+    // Validar duplicados
+    const duplicate = productos.find(p => 
+      p.id !== editingId && 
+      (p.sku.toLowerCase() === form.sku.toLowerCase() || p.nombre.toLowerCase() === form.nombre.toLowerCase())
+    )
+
+    if (duplicate) {
+      return setErrorMsg('Ya existe un producto con el mismo Nombre o SKU.')
+    }
+
+    const estadoFinal = form.stock < 20 ? (form.stock < 10 ? 'critico' : 'bajo') : 'disponible'
+    
+    const payload = {
+      nombre: form.nombre,
+      sku: form.sku,
+      coleccion: form.coleccion,
+      precio: Number(form.precio) || 0,
+      stock: Number(form.stock) || 0,
+      estado: estadoFinal,
+      fechaIngreso: form.fechaIngreso
+    }
+
+    try {
+      if (editingId)  await updateDoc(doc(db, 'productos', editingId), payload)
+      else            await addDoc(collection(db, 'productos'), payload)
+      setShowModal(false)
+    } catch (e) {
+      setErrorMsg('Error al guardar: ' + e.message)
+    }
+  }
+
+  // Calculos de tabla
+  const colecciones = ['Todos', ...new Set(productos.map(p => p.coleccion))]
+
+  const filtrados = productos.filter(p => {
     const matchBusq = p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.sku.toLowerCase().includes(busqueda.toLowerCase())
     const matchCol  = filtroCol === 'Todos' || p.coleccion === filtroCol
     return matchBusq && matchCol
   })
 
-  const totalSKUs    = productosIniciales.length
-  const bajosDeStock = productosIniciales.filter(p => p.estado === 'bajo' || p.estado === 'critico').length
-  const valorTotal   = productosIniciales.reduce((acc, p) => acc + p.stock * p.precio, 0)
-  const stockTotal   = productosIniciales.reduce((acc, p) => acc + p.stock, 0)
+  const totalSKUs    = productos.length
+  const bajosDeStock = productos.filter(p => p.estado === 'bajo' || p.estado === 'critico').length
+  const valorTotal   = productos.reduce((acc, p) => acc + (p.stock * p.precio), 0)
+  const stockTotal   = productos.reduce((acc, p) => acc + p.stock, 0)
 
   function porcBarra(stock) {
-    const max = Math.max(...productosIniciales.map(p => p.stock))
+    if (productos.length === 0) return 0
+    const max = Math.max(...productos.map(p => p.stock))
     return Math.round((stock / max) * 100)
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
 
       {/* Header sticky */}
       <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-8 md:px-10 py-7 flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-outline-variant/20">
@@ -59,7 +129,7 @@ export default function Inventario() {
               className="bg-surface-container-low rounded-full pl-10 pr-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container w-56 border border-outline-variant/20"
             />
           </div>
-          <button className="flex items-center gap-2 bg-secondary text-white px-5 py-2.5 rounded-xl font-label font-bold uppercase text-[11px] tracking-widest hover:shadow-xl transition-shadow shadow-md">
+          <button onClick={openNew} className="flex items-center gap-2 bg-secondary text-white px-5 py-2.5 rounded-xl font-label font-bold uppercase text-[11px] tracking-widest hover:shadow-xl transition-shadow shadow-md">
             <span className="material-symbols-outlined text-sm">add</span>
             Nuevo Producto
           </button>
@@ -74,7 +144,7 @@ export default function Inventario() {
             <span className="material-symbols-outlined text-primary text-3xl">deployed_code</span>
             <div>
               <p className="text-3xl font-headline italic font-bold">{totalSKUs.toLocaleString()}</p>
-              <p className="text-[10px] uppercase tracking-widest font-extrabold text-outline">Total SKUs</p>
+              <p className="text-[10px] uppercase tracking-widest font-extrabold text-outline">Total Productos</p>
             </div>
           </div>
           <div className="bg-primary-container p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border border-primary/10">
@@ -87,7 +157,7 @@ export default function Inventario() {
           <div className="bg-surface-container-highest p-6 rounded-xl flex flex-col justify-between h-36">
             <span className="material-symbols-outlined text-secondary text-3xl">payments</span>
             <div>
-              <p className="text-3xl font-headline italic font-bold">${(valorTotal / 1000).toFixed(0)}k</p>
+              <p className="text-2xl font-headline italic font-bold truncate">${valorTotal.toLocaleString('es-CL')} CLP</p>
               <p className="text-[10px] uppercase tracking-widest font-extrabold text-outline">Valor Inventario</p>
             </div>
           </div>
@@ -140,7 +210,7 @@ export default function Inventario() {
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
                 {filtrados.map(p => {
-                  const est = estadoConfig[p.estado]
+                  const est = estadoConfig[p.estado] || estadoConfig.disponible
                   return (
                     <tr key={p.id} className="hover:bg-surface-container-high transition-colors group">
                       <td className="px-7 py-5">
@@ -151,6 +221,9 @@ export default function Inventario() {
                         <span className="px-3 py-1 bg-surface-variant text-on-surface-variant text-[10px] font-bold uppercase rounded-full">
                           {p.coleccion}
                         </span>
+                        {p.fechaIngreso && (
+                          <p className="text-[10px] font-bold text-outline uppercase tracking-widest mt-2">{p.fechaIngreso}</p>
+                        )}
                       </td>
                       <td className="px-7 py-5">
                         <p className={`text-sm font-bold mb-1 ${p.estado !== 'disponible' ? 'text-error' : ''}`}>
@@ -164,16 +237,19 @@ export default function Inventario() {
                         </div>
                       </td>
                       <td className="px-7 py-5">
-                        <p className="text-sm font-bold text-secondary">${p.precio.toFixed(2)}</p>
+                        <p className="text-sm font-bold text-secondary">${(p.precio || 0).toLocaleString('es-CL')}</p>
                       </td>
                       <td className="px-7 py-5">
                         <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-lg ${est.cls}`}>
                           {est.label.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-7 py-5 text-right">
-                        <button className="text-outline hover:text-secondary p-2 transition-colors opacity-0 group-hover:opacity-100">
-                          <span className="material-symbols-outlined">more_vert</span>
+                      <td className="px-7 py-5 text-right space-x-1">
+                        <button onClick={() => openEdit(p)} className="text-outline hover:text-primary p-2 transition-colors opacity-0 group-hover:opacity-100" title="Editar">
+                          <span className="material-symbols-outlined text-xl">edit</span>
+                        </button>
+                        <button onClick={() => handleDelete(p.id)} className="text-outline hover:text-error p-2 transition-colors opacity-0 group-hover:opacity-100" title="Eliminar">
+                          <span className="material-symbols-outlined text-xl">delete</span>
                         </button>
                       </td>
                     </tr>
@@ -182,32 +258,121 @@ export default function Inventario() {
                 {filtrados.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-7 py-12 text-center text-on-surface-variant text-sm">
-                      No se encontraron productos.
+                      No se encontraron productos. Crea uno nuevo usando el botón de arriba.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
 
-          {/* Paginación */}
-          <div className="px-7 py-5 bg-surface-container/30 flex justify-between items-center border-t border-outline-variant/10">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-outline">
-              Mostrando {filtrados.length} de {productosIniciales.length} productos
-            </p>
-            <div className="flex gap-1">
-              {[1, 2, 3].map(n => (
-                <button
-                  key={n}
-                  className={`w-9 h-9 rounded-lg text-xs font-bold transition-colors ${n === 1 ? 'bg-secondary text-white' : 'hover:bg-surface-container-highest'}`}
-                >
-                  {n}
-                </button>
-              ))}
+      {/* Modal CRUD */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-surface w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-outline-variant/20">
+            <div className="bg-surface-container-low px-6 py-4 flex justify-between items-center border-b border-outline-variant/20">
+              <h3 className="font-headline font-bold text-xl text-primary flex items-center gap-2">
+                <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
+                {editingId ? 'Editar Producto' : 'Nuevo Producto'}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="text-outline hover:text-on-surface">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {errorMsg && (
+                <div className="bg-error-container text-error text-sm px-4 py-3 rounded-xl flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Nombre</label>
+                <input 
+                  type="text" 
+                  value={form.nombre} 
+                  onChange={e => setForm({...form, nombre: e.target.value})}
+                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                  placeholder="Ej. Crema Hidratante"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">SKU</label>
+                  <input 
+                    type="text" 
+                    value={form.sku} 
+                    onChange={e => setForm({...form, sku: e.target.value})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase"
+                    placeholder="INV-001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Colección</label>
+                  <input 
+                    type="text" 
+                    value={form.coleccion} 
+                    onChange={e => setForm({...form, coleccion: e.target.value})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase"
+                    placeholder="Ej. ESENCIAL"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Precio Unit. ($)</label>
+                  <input 
+                    type="number" 
+                    value={form.precio} 
+                    onChange={e => setForm({...form, precio: e.target.value})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Stock Inicial</label>
+                  <input 
+                    type="number" 
+                    value={form.stock} 
+                    onChange={e => setForm({...form, stock: e.target.value})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Fecha de Ingreso</label>
+                <input 
+                  type="date" 
+                  value={form.fechaIngreso} 
+                  onChange={e => setForm({...form, fechaIngreso: e.target.value})}
+                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            <div className="bg-surface-container-low px-6 py-4 flex justify-end gap-3 border-t border-outline-variant/20">
+              <button 
+                onClick={() => setShowModal(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleSave}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest bg-primary text-on-primary shadow-md hover:scale-105 transition-transform"
+              >
+                {editingId ? 'Guardar Cambios' : 'Crear Producto'}
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
