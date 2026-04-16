@@ -234,10 +234,32 @@ export default function Inventario() {
                   className="w-full md:w-64 bg-surface-container rounded-full pl-10 pr-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/20 transition-all"
                 />
               </div>
-              <button onClick={openNew} className="w-full md:w-auto flex items-center justify-center gap-2 bg-secondary text-white px-6 py-2.5 rounded-xl font-label font-bold uppercase text-[11px] tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all">
-                <span className="material-symbols-outlined text-sm">add</span>
-                Nuevo Producto
-              </button>
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <button onClick={openNew} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-secondary text-white px-6 py-2.5 rounded-xl font-label font-bold uppercase text-[11px] tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all">
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  Nuevo Producto
+                </button>
+                <div className="relative">
+                  <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2 border border-outline-variant rounded-xl hover:bg-surface transition-colors flex items-center justify-center text-on-surface-variant min-h-[40px]">
+                    <span className="material-symbols-outlined text-lg">more_horiz</span>
+                  </button>
+                  {showExportMenu && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                      <div className="absolute right-0 mt-2 w-48 bg-surface-container-lowest border border-outline-variant/20 rounded-xl shadow-xl z-20 py-2 overflow-hidden overflow-y-auto">
+                        <button onClick={() => { exportarPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
+                          <span className="material-symbols-outlined text-error text-lg">picture_as_pdf</span>
+                          Exportar a PDF
+                        </button>
+                        <button onClick={() => { exportarCSV(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
+                          <span className="material-symbols-outlined text-green-600 text-lg">csv</span>
+                          Exportar a CSV
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
             
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pt-2 border-t border-outline-variant/10">
@@ -255,26 +277,6 @@ export default function Inventario() {
                     {c}
                   </button>
                 ))}
-              </div>
-              <div className="relative">
-                <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2 border border-outline-variant rounded-xl hover:bg-surface transition-colors flex items-center justify-center text-on-surface-variant">
-                  <span className="material-symbols-outlined text-lg">more_horiz</span>
-                </button>
-                {showExportMenu && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-48 bg-surface-container-lowest border border-outline-variant/20 rounded-xl shadow-xl z-20 py-2 overflow-hidden overflow-y-auto">
-                      <button onClick={() => { exportarPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
-                        <span className="material-symbols-outlined text-error text-lg">picture_as_pdf</span>
-                        Exportar a PDF
-                      </button>
-                      <button onClick={() => { exportarCSV(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
-                        <span className="material-symbols-outlined text-green-600 text-lg">csv</span>
-                        Exportar a CSV
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           </div>

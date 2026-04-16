@@ -74,10 +74,10 @@ export default function Dashboard() {
           <h1 className="font-headline italic text-4xl md:text-5xl text-primary leading-tight">Este es tu resumen actual.</h1>
         </div>
         <div className="flex gap-3">
-          <Link to="/registro" className="flex items-center gap-2 px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-xs tracking-wide shadow-lg hover:scale-105 transition-transform">
+          {/* <Link to="/registro" className="flex items-center gap-2 px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-xs tracking-wide shadow-lg hover:scale-105 transition-transform">
             <span className="material-symbols-outlined text-xl">add</span>
             Nuevo Registro
-          </Link>
+          </Link> */}
         </div>
       </header>
 
@@ -153,9 +153,9 @@ export default function Dashboard() {
 
       {/* Tabla stock bajo */}
       <section className="mb-10">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="font-headline italic text-3xl text-primary">Inventario Bajo en Stock</h2>
-          <Link to="/inventario" className="text-secondary font-label text-xs font-bold uppercase tracking-widest hover:underline decoration-2 underline-offset-8">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-6">
+          <h2 className="font-headline italic text-3xl md:text-3xl text-primary leading-tight">Inventario Bajo en Stock</h2>
+          <Link to="/inventario" className="text-secondary font-label text-xs font-bold uppercase tracking-widest hover:underline decoration-2 underline-offset-8 self-start md:self-auto pb-1 block">
             Ver todo el catálogo
           </Link>
         </div>
@@ -185,8 +185,10 @@ export default function Dashboard() {
                   </td>
                   <td className="px-6 py-5 text-sm text-on-surface-variant">{(p.coleccion || '').toUpperCase()}</td>
                   <td className="px-6 py-5">
-                    <BadgeStock nivel={p.estado} />
-                    <span className="ml-2 text-sm font-bold">{p.stock} u.</span>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <BadgeStock nivel={p.estado} />
+                      <span className="text-sm font-bold">{p.stock} u.</span>
+                    </div>
                   </td>
                   <td className="px-6 py-5 text-sm text-on-surface-variant">10</td>
                   <td className="px-6 py-5">
