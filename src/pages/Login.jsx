@@ -30,13 +30,11 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-surface-container py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-surface-container-lowest p-10 rounded-3xl shadow-xl border border-outline-variant/20">
         <div>
-          <div className="w-16 h-16 rounded-2xl bg-primary-container mx-auto flex items-center justify-center shadow-sm mb-6">
-            <span className="material-symbols-outlined text-on-primary-container text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-              inventory
-            </span>
+          <div className="w-28 h-28 mx-auto flex items-center justify-center mb-6 bg-white rounded-3xl shadow-md p-2">
+            <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-2xl" />
           </div>
-          <h2 className="mt-6 text-center text-4xl font-headline italic font-bold text-primary">
-            Stock
+          <h2 className="mt-6 text-center text-5xl italic text-primary" style={{ fontFamily: "'Noto Serif', serif" }}>
+            Leis
           </h2>
           <p className="mt-2 text-center text-[10px] text-on-surface-variant font-label uppercase tracking-widest">
             Control de inventario

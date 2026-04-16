@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
-  { to: '/dashboard',  icon: 'dashboard',        label: 'Panel' },
+  { to: '/dashboard',  icon: 'dashboard',        label: 'Inicio' },
   { to: '/inventario', icon: 'inventory_2',       label: 'Inventario' },
   { to: '/registro',   icon: 'app_registration',  label: 'Registro' },
   { to: '/reportes',   icon: 'analytics',         label: 'Reportes' },
@@ -30,14 +30,12 @@ export default function Layout() {
         <div className="p-8">
           {/* Logo / Brand */}
           <div className="flex items-center space-x-3 mb-12">
-            <div className="w-12 h-12 rounded-2xl bg-primary-container flex items-center justify-center shadow-sm">
-              <span className="material-symbols-outlined text-on-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>
-                inventory
-              </span>
+            <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center p-1 shrink-0">
+              <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-lg" />
             </div>
             <div>
-              <p className="font-headline italic text-xl font-bold text-primary tracking-widest uppercase leading-none">Stock</p>
-              <p className="text-[10px] text-on-surface-variant font-label uppercase tracking-widest">Control de inventario</p>
+              <p className="italic text-3xl text-primary leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
+              <p className="text-[9px] text-on-surface-variant font-label uppercase tracking-widest mt-1.5 leading-tight">Control de inventario</p>
             </div>
           </div>
 
