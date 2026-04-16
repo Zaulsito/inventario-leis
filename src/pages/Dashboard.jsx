@@ -1,6 +1,6 @@
 // src/pages/Dashboard.jsx
-import { useState, useEffect } from 'react'
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore'
+import { useState, useEffect, useRef } from 'react'
+import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { Link } from 'react-router-dom'
 
@@ -9,7 +9,10 @@ function BadgeStock({ nivel }) {
     ? 'bg-error/10 text-error'
     : 'bg-secondary-container/20 text-secondary'
   return (
-    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${cls}`}>
+    <span 
+      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${cls} ${nivel === 'critico' ? 'cursor-help' : ''}`}
+      title={nivel === 'critico' ? 'El producto debe tener mínimo 10 para no estar bajo de stock' : ''}
+    >
       {nivel === 'critico' ? 'Crítico' : 'Stock bajo'}
     </span>
   )
@@ -17,39 +20,49 @@ function BadgeStock({ nivel }) {
 
 export default function Dashboard() {
   const [productos, setProductos] = useState([])
-  const [movimientos, setMovimientos] = useState([])
+  const [showAlerta, setShowAlerta] = useState(true)
+  const prevCriticos = useRef(0)
 
   useEffect(() => {
     const unsubProd = onSnapshot(collection(db, 'productos'), (snapshot) => {
       setProductos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     })
-    
-    const qMovs = query(collection(db, 'movimientos'), orderBy('createdAt', 'desc'), limit(10))
-    const unsubMovs = onSnapshot(qMovs, (snapshot) => {
-      setMovimientos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
-    })
-
-    return () => { unsubProd(); unsubMovs() }
+    return () => unsubProd()
   }, [])
 
   // Calculos
   const stockActual = productos.reduce((acc, p) => acc + p.stock, 0)
-  const ingresado = movimientos.reduce((acc, m) => acc + m.qty, 0)
+  const productCount = productos.length
   const valorTotal = productos.reduce((acc, p) => acc + (p.stock * p.precio), 0)
 
   const bajosDeStock = productos.filter(p => (p.estado === 'bajo' || p.estado === 'critico'))
   const criticos = bajosDeStock.filter(p => p.estado === 'critico').length
 
+  useEffect(() => {
+    if (criticos > 0 && criticos !== prevCriticos.current) {
+      setShowAlerta(true)
+    }
+    prevCriticos.current = criticos
+  }, [criticos])
+
   const metricas = [
     { icon: 'trending_up',  label: 'Valor inventario', valor: `$${valorTotal.toLocaleString()}`, sub: 'Actual' },
     { icon: 'inventory',    label: 'Stock actual',     valor: stockActual.toLocaleString(), sub: 'unidades' },
-    { icon: 'move_to_inbox',label: 'Ingresado',        valor: ingresado.toLocaleString(), sub: 'Movimientos leidos' },
+    { icon: 'deployed_code',label: 'Productos (SKUs)', valor: productCount.toLocaleString(), sub: 'Registrados' },
     { icon: 'priority_high',label: 'Elementos críticos', valor: criticos, sub: 'Requieren atención' },
   ]
 
   const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
   const entradas   = [35, 55, 45, 80, 60, 75]
   const salidas    = [50, 30, 60, 20, 45, 35]
+
+  const getPoints = (dataArray) => {
+    return dataArray.map((val, i) => {
+      const x = (i / (diasSemana.length - 1)) * 100
+      const y = 100 - (val / 100 * 100)
+      return `${x},${y}`
+    }).join(' ')
+  }
 
   return (
     <div className="p-6 md:p-12">
@@ -58,7 +71,7 @@ export default function Dashboard() {
       <header className="flex flex-col md:flex-row md:justify-between md:items-end mb-10 gap-4">
         <div>
           <p className="text-secondary font-label text-xs font-bold uppercase tracking-[0.2em] mb-1">Resumen General</p>
-          <h1 className="font-headline italic text-4xl md:text-5xl text-primary leading-tight">Panel de Control</h1>
+          <h1 className="font-headline italic text-4xl md:text-5xl text-primary leading-tight">Este es tu resumen actual.</h1>
         </div>
         <div className="flex gap-3">
           <Link to="/registro" className="flex items-center gap-2 px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-xs tracking-wide shadow-lg hover:scale-105 transition-transform">
@@ -85,8 +98,8 @@ export default function Dashboard() {
       {/* Gráfico + Alertas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
 
-        {/* Gráfico barras */}
-        <div className="lg:col-span-2 p-8 rounded-3xl bg-surface-container-lowest border border-outline-variant/20 shadow-sm">
+        {/* Gráfico lineal */}
+        <div className="lg:col-span-2 p-8 rounded-3xl bg-surface-container-lowest border border-outline-variant/20 shadow-sm flex flex-col">
           <div className="flex justify-between items-center mb-8">
             <h2 className="font-headline italic text-2xl text-primary">Movimientos Recientes</h2>
             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
@@ -95,21 +108,13 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="h-48 flex items-end justify-between gap-3 px-2 mb-6">
-            {diasSemana.map((dia, i) => (
-              <div key={dia} className="flex-1 flex flex-col items-center gap-1">
-                <div
-                  className="w-full bg-primary/25 rounded-t-lg hover:bg-primary/40 transition-colors"
-                  style={{ height: `${entradas[i]}%` }}
-                />
-                <div
-                  className="w-full bg-secondary/40 rounded-t-lg"
-                  style={{ height: `${salidas[i]}%` }}
-                />
-              </div>
-            ))}
+          <div className="flex-1 w-full relative mb-4 min-h-[150px]">
+            <svg viewBox="0 -5 100 110" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
+              <polyline points={getPoints(entradas)} fill="none" stroke="#a78b5e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points={getPoints(salidas)} fill="none" stroke="#524430" strokeWidth="2.5" strokeDasharray="4 4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
-          <div className="flex justify-between px-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          <div className="flex justify-between w-full text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
             {diasSemana.map(d => <span key={d}>{d}</span>)}
           </div>
         </div>
@@ -117,35 +122,30 @@ export default function Dashboard() {
         {/* Panel derecho */}
         <div className="space-y-4">
           {/* Alerta */}
-          <div className="p-7 rounded-3xl bg-secondary text-white relative overflow-hidden">
-            <h3 className="font-headline text-xl mb-3 relative z-10">Alerta de Stock</h3>
-            <p className="text-sm opacity-80 mb-5 relative z-10">5 productos han alcanzado el nivel crítico de reposición.</p>
-            <button className="px-5 py-2 bg-primary-container text-on-primary-container rounded-full font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform relative z-10 shadow-lg">
-              Gestionar
-            </button>
-            <div className="absolute -right-6 -bottom-6 opacity-10">
-              <span className="material-symbols-outlined text-[120px]">warning</span>
+          {criticos > 0 && showAlerta && (
+            <div className="p-7 rounded-3xl bg-secondary text-white relative overflow-hidden">
+              <div className="flex justify-between items-start relative z-10">
+                <h3 className="font-headline text-xl mb-3">Alerta de Stock</h3>
+                <button onClick={() => setShowAlerta(false)} className="text-white/60 hover:text-white transition-colors" title="Cerrar alerta">
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+              <p className="text-sm opacity-80 mb-5 relative z-10">{criticos} {criticos === 1 ? 'producto ha' : 'productos han'} alcanzado el nivel crítico de reposición.</p>
+              <Link to="/inventario" className="inline-block px-5 py-2 bg-primary-container text-on-primary-container rounded-full font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform relative z-10 shadow-lg">
+                Gestionar
+              </Link>
+              <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
+                <span className="material-symbols-outlined text-[120px]">warning</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Próximas entregas */}
-          <div className="p-7 rounded-3xl bg-surface-container-low border border-outline-variant/20">
-            <h4 className="font-label font-bold text-[10px] uppercase tracking-[0.15em] text-on-surface-variant mb-5">Próximas Entregas</h4>
-            <div className="space-y-4">
-              {[
-                { nombre: 'Crema Renovadora', fecha: 'Mañana, 10:00 AM' },
-                { nombre: 'Serum Vitamina C+', fecha: '18 Abr, 2:00 PM' },
-              ].map(e => (
-                <div key={e.nombre} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-surface-variant flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-primary">local_shipping</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-on-surface">{e.nombre}</p>
-                    <p className="text-xs text-on-surface-variant">{e.fecha}</p>
-                  </div>
-                </div>
-              ))}
+          <div className="p-7 rounded-3xl bg-surface-container-low border border-outline-variant/20 flex flex-col justify-center items-center min-h-[180px]">
+            <h4 className="font-label font-bold text-[10px] uppercase tracking-[0.15em] text-on-surface-variant mb-4 self-start">Próximas Entregas</h4>
+            <div className="flex flex-col items-center justify-center opacity-60 flex-1 w-full text-center">
+              <span className="material-symbols-outlined text-4xl mb-2 text-outline">hourglass_empty</span>
+              <p className="text-xs font-bold text-on-surface-variant mb-3">Próximamente...</p>
             </div>
           </div>
         </div>
@@ -155,9 +155,9 @@ export default function Dashboard() {
       <section className="mb-10">
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-headline italic text-3xl text-primary">Inventario Bajo en Stock</h2>
-          <button className="text-secondary font-label text-xs font-bold uppercase tracking-widest hover:underline decoration-2 underline-offset-8">
+          <Link to="/inventario" className="text-secondary font-label text-xs font-bold uppercase tracking-widest hover:underline decoration-2 underline-offset-8">
             Ver todo el catálogo
-          </button>
+          </Link>
         </div>
         <div className="overflow-x-auto rounded-3xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
           <table className="w-full text-left border-collapse min-w-[500px]">
@@ -173,22 +173,26 @@ export default function Dashboard() {
                 <tr key={p.id} className="hover:bg-surface-container-low transition-colors group">
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center">
-                        <span className="material-symbols-outlined text-primary text-sm">inventory_2</span>
-                      </div>
+                      {p.fotoUrl ? (
+                        <img src={p.fotoUrl} alt={p.nombre} className="w-10 h-10 rounded-xl object-cover bg-surface-variant flex-shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center flex-shrink-0">
+                          <span className="material-symbols-outlined text-primary text-sm">inventory_2</span>
+                        </div>
+                      )}
                       <span className="font-headline font-bold text-on-surface">{p.nombre}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5 text-sm text-on-surface-variant">{p.coleccion}</td>
+                  <td className="px-6 py-5 text-sm text-on-surface-variant">{(p.coleccion || '').toUpperCase()}</td>
                   <td className="px-6 py-5">
                     <BadgeStock nivel={p.estado} />
                     <span className="ml-2 text-sm font-bold">{p.stock} u.</span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-on-surface-variant">20</td>
+                  <td className="px-6 py-5 text-sm text-on-surface-variant">10</td>
                   <td className="px-6 py-5">
-                    <button className="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary-container/20 rounded-full">
-                      shopping_cart_checkout
-                    </button>
+                    <Link to="/inventario" className="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary-container/20 rounded-full inline-block" title="Modificar">
+                      edit
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -202,24 +206,32 @@ export default function Dashboard() {
 
       {/* Últimos ingresos */}
       <section>
-        <h2 className="font-headline italic text-2xl text-primary mb-5">Últimos Ingresos</h2>
+        <h2 className="font-headline italic text-2xl text-primary mb-5">Productos Agregados Recientemente</h2>
         <div className="space-y-3">
-          {movimientos.slice(0, 5).map(i => (
-            <div key={i.id} className="flex items-center justify-between p-5 bg-surface-container-low rounded-2xl border border-outline-variant/20 hover:bg-surface-container transition-colors">
+          {[...productos]
+            .sort((a, b) => new Date(b.fechaIngreso || 0) - new Date(a.fechaIngreso || 0))
+            .slice(0, 10).map(p => (
+            <div key={p.id} className="flex items-center justify-between p-5 bg-surface-container-low rounded-2xl border border-outline-variant/20 hover:bg-surface-container transition-colors group">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-primary text-sm">move_to_inbox</span>
+                <div className="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center shrink-0 overflow-hidden">
+                  {p.fotoUrl ? (
+                    <img src={p.fotoUrl} alt={p.nombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-primary text-sm">inventory_2</span>
+                  )}
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-on-surface">{i.producto}</p>
-                  <p className="text-xs text-on-surface-variant">{i.fecha} · {i.proveedor}</p>
+                  <p className="font-bold text-sm text-on-surface">{p.nombre}</p>
+                  <p className="text-xs text-on-surface-variant">Agregado: {p.fechaIngreso || 'Semana actual'} · {(p.coleccion || '').toUpperCase()}</p>
                 </div>
               </div>
-              <span className="font-headline font-bold text-primary text-lg">+{i.qty}</span>
+              <Link to="/inventario" className="material-symbols-outlined text-outline group-hover:text-primary transition-colors" title="Modificar">
+                edit
+              </Link>
             </div>
           ))}
-          {movimientos.length === 0 && (
-            <p className="text-sm text-on-surface-variant">No hay movimientos recientes.</p>
+          {productos.length === 0 && (
+            <p className="text-sm text-on-surface-variant">No hay productos en tu inventario aún.</p>
           )}
         </div>
       </section>
