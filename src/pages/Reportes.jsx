@@ -1,24 +1,37 @@
 // src/pages/Reportes.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { collection, getDocs, doc, writeBatch } from 'firebase/firestore'
+import { db } from '../config/firebase'
 
-const SEMANAS = ['Semana 15 · 7–13 Abr', 'Semana 14 · 31 Mar–6 Abr', 'Semana 13 · 24–30 Mar']
-
-const conteoInicial = [
-  { producto: 'Aceite de Oro Rosa',        stockIni: 460,  vendido: 32,  stockFin: 428 },
-  { producto: 'Sérum Regenerador Nocturno',stockIni: 40,   vendido: 32,  stockFin: 8   },
-  { producto: 'Crema Hidratante Esencial', stockIni: 1190, vendido: 70,  stockFin: 1120 },
-  { producto: 'Tónico Esencial Rosas',     stockIni: 50,   vendido: 26,  stockFin: 24  },
-  { producto: 'Mascarilla Renovadora',     stockIni: 110,  vendido: 18,  stockFin: 92  },
-  { producto: 'Agua Micelar Purificante',  stockIni: 340,  vendido: 30,  stockFin: 310 },
-]
+const SEMANAS = ['Semana Actual']
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 const barras = [35, 55, 45, 80, 60, 75, 40]
 
 export default function Reportes() {
   const [semana, setSemana]   = useState(0)
-  const [conteo, setConteo]   = useState(conteoInicial)
+  const [conteo, setConteo]   = useState([])
   const [guardado, setGuardado] = useState(false)
+  const [procesando, setProcesando] = useState(false)
+
+  useEffect(() => {
+    cargarProductos()
+  }, [])
+
+  async function cargarProductos() {
+    const snap = await getDocs(collection(db, 'productos'))
+    const prods = snap.docs.map(d => {
+      const data = d.data()
+      return {
+        id: d.id,
+        producto: data.nombre,
+        stockIni: data.stock,
+        vendido: 0,
+        stockFin: data.stock
+      }
+    })
+    setConteo(prods)
+  }
 
   function handleVendido(i, val) {
     setConteo(c => c.map((item, idx) => {
@@ -28,9 +41,30 @@ export default function Reportes() {
     }))
   }
 
-  function guardar() {
-    setGuardado(true)
-    setTimeout(() => setGuardado(false), 2500)
+  async function guardar() {
+    if (procesando) return
+    setProcesando(true)
+    try {
+      const batch = writeBatch(db)
+      conteo.forEach(item => {
+        if (item.vendido > 0) {
+          const ref = doc(db, 'productos', item.id)
+          batch.update(ref, { 
+            stock: item.stockFin,
+            estado: item.stockFin < 20 ? 'bajo' : 'disponible'
+          })
+        }
+      })
+      await batch.commit()
+      setGuardado(true)
+      await cargarProductos() // Recargar para limpiar 'vendido' 
+      setTimeout(() => setGuardado(false), 2500)
+    } catch (e) {
+      console.error(e)
+      alert('Error guardando')
+    } finally {
+      setProcesando(false)
+    }
   }
 
   const totalVendido = conteo.reduce((a, p) => a + p.vendido, 0)

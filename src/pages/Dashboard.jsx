@@ -1,28 +1,8 @@
 // src/pages/Dashboard.jsx
-// Datos de ejemplo — se reemplazarán con Firestore
-
-const metricas = [
-  { icon: 'trending_up',  label: 'Ventas totales',  valor: '$124.500',  sub: 'Últimos 30 días' },
-  { icon: 'inventory',    label: 'Stock actual',     valor: '1.240',     sub: 'unidades' },
-  { icon: 'move_to_inbox',label: 'Ingresado',        valor: '480',       sub: 'Esta semana' },
-  { icon: 'shopping_bag', label: 'Vendido',          valor: '312',       sub: 'Esta semana' },
-]
-
-const bajosDeStock = [
-  { nombre: 'Serum Vitamina C+',     categoria: 'Tratamiento Facial', stock: 12, min: 50,  nivel: 'critico' },
-  { nombre: 'Tónico Esencial Rosas', categoria: 'Limpieza',           stock: 24, min: 40,  nivel: 'bajo' },
-  { nombre: 'Bálsamo Labial',        categoria: 'Cuidado Labial',     stock: 5,  min: 20,  nivel: 'critico' },
-]
-
-const ultimosIngresos = [
-  { producto: 'Crema Hidratante Esencial', fecha: 'Hoy · 09:32',    proveedor: 'DistCorp',  qty: '+120' },
-  { producto: 'Serum Vitamina C+',         fecha: 'Ayer · 14:10',   proveedor: 'BelCo',     qty: '+96' },
-  { producto: 'Aceite de Rosa',            fecha: 'Lun 13 · 11:00', proveedor: 'NaturaPro', qty: '+48' },
-]
-
-const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-const entradas   = [35, 55, 45, 80, 60, 75]
-const salidas    = [50, 30, 60, 20, 45, 35]
+import { useState, useEffect } from 'react'
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore'
+import { db } from '../config/firebase'
+import { Link } from 'react-router-dom'
 
 function BadgeStock({ nivel }) {
   const cls = nivel === 'critico'
@@ -36,6 +16,41 @@ function BadgeStock({ nivel }) {
 }
 
 export default function Dashboard() {
+  const [productos, setProductos] = useState([])
+  const [movimientos, setMovimientos] = useState([])
+
+  useEffect(() => {
+    const unsubProd = onSnapshot(collection(db, 'productos'), (snapshot) => {
+      setProductos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    })
+    
+    const qMovs = query(collection(db, 'movimientos'), orderBy('createdAt', 'desc'), limit(10))
+    const unsubMovs = onSnapshot(qMovs, (snapshot) => {
+      setMovimientos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    })
+
+    return () => { unsubProd(); unsubMovs() }
+  }, [])
+
+  // Calculos
+  const stockActual = productos.reduce((acc, p) => acc + p.stock, 0)
+  const ingresado = movimientos.reduce((acc, m) => acc + m.qty, 0)
+  const valorTotal = productos.reduce((acc, p) => acc + (p.stock * p.precio), 0)
+
+  const bajosDeStock = productos.filter(p => (p.estado === 'bajo' || p.estado === 'critico'))
+  const criticos = bajosDeStock.filter(p => p.estado === 'critico').length
+
+  const metricas = [
+    { icon: 'trending_up',  label: 'Valor inventario', valor: `$${valorTotal.toLocaleString()}`, sub: 'Actual' },
+    { icon: 'inventory',    label: 'Stock actual',     valor: stockActual.toLocaleString(), sub: 'unidades' },
+    { icon: 'move_to_inbox',label: 'Ingresado',        valor: ingresado.toLocaleString(), sub: 'Movimientos leidos' },
+    { icon: 'priority_high',label: 'Elementos críticos', valor: criticos, sub: 'Requieren atención' },
+  ]
+
+  const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  const entradas   = [35, 55, 45, 80, 60, 75]
+  const salidas    = [50, 30, 60, 20, 45, 35]
+
   return (
     <div className="p-6 md:p-12">
 
@@ -46,14 +61,10 @@ export default function Dashboard() {
           <h1 className="font-headline italic text-4xl md:text-5xl text-primary leading-tight">Panel de Control</h1>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-5 py-3 bg-surface-container-highest text-on-surface rounded-xl font-bold text-xs tracking-wide hover:bg-surface-variant transition-colors">
-            <span className="material-symbols-outlined text-xl">calendar_today</span>
-            Últimos 30 días
-          </button>
-          <button className="flex items-center gap-2 px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-xs tracking-wide shadow-lg hover:scale-105 transition-transform">
+          <Link to="/registro" className="flex items-center gap-2 px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-xs tracking-wide shadow-lg hover:scale-105 transition-transform">
             <span className="material-symbols-outlined text-xl">add</span>
             Nuevo Registro
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -159,7 +170,7 @@ export default function Dashboard() {
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {bajosDeStock.map(p => (
-                <tr key={p.nombre} className="hover:bg-surface-container-low transition-colors group">
+                <tr key={p.id} className="hover:bg-surface-container-low transition-colors group">
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center">
@@ -168,12 +179,12 @@ export default function Dashboard() {
                       <span className="font-headline font-bold text-on-surface">{p.nombre}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5 text-sm text-on-surface-variant">{p.categoria}</td>
+                  <td className="px-6 py-5 text-sm text-on-surface-variant">{p.coleccion}</td>
                   <td className="px-6 py-5">
-                    <BadgeStock nivel={p.nivel} />
+                    <BadgeStock nivel={p.estado} />
                     <span className="ml-2 text-sm font-bold">{p.stock} u.</span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-on-surface-variant">{p.min}</td>
+                  <td className="px-6 py-5 text-sm text-on-surface-variant">20</td>
                   <td className="px-6 py-5">
                     <button className="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-primary-container/20 rounded-full">
                       shopping_cart_checkout
@@ -181,6 +192,9 @@ export default function Dashboard() {
                   </td>
                 </tr>
               ))}
+              {bajosDeStock.length === 0 && (
+                <tr><td colSpan="5" className="text-center py-6 text-sm text-on-surface-variant">No hay inventario bajo.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -190,8 +204,8 @@ export default function Dashboard() {
       <section>
         <h2 className="font-headline italic text-2xl text-primary mb-5">Últimos Ingresos</h2>
         <div className="space-y-3">
-          {ultimosIngresos.map(i => (
-            <div key={i.producto} className="flex items-center justify-between p-5 bg-surface-container-low rounded-2xl border border-outline-variant/20 hover:bg-surface-container transition-colors">
+          {movimientos.slice(0, 5).map(i => (
+            <div key={i.id} className="flex items-center justify-between p-5 bg-surface-container-low rounded-2xl border border-outline-variant/20 hover:bg-surface-container transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-surface-variant flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined text-primary text-sm">move_to_inbox</span>
@@ -201,9 +215,12 @@ export default function Dashboard() {
                   <p className="text-xs text-on-surface-variant">{i.fecha} · {i.proveedor}</p>
                 </div>
               </div>
-              <span className="font-headline font-bold text-primary text-lg">{i.qty}</span>
+              <span className="font-headline font-bold text-primary text-lg">+{i.qty}</span>
             </div>
           ))}
+          {movimientos.length === 0 && (
+            <p className="text-sm text-on-surface-variant">No hay movimientos recientes.</p>
+          )}
         </div>
       </section>
     </div>
