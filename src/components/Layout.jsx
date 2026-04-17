@@ -89,17 +89,13 @@ export default function Layout() {
       {/* ── Main content ── */}
       <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative">
         {/* Marca de agua / Watermark */}
-        <div 
-          className="absolute inset-0 pointer-events-none z-0 opacity-[0.03] mix-blend-multiply"
-          style={{
-            backgroundImage: "url('/logo.jpeg')",
-            backgroundSize: "40%",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-            backgroundAttachment: "fixed",
-            filter: "grayscale(100%)"
-          }}
-        />
+        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-[0.12]">
+          <img 
+            src="/logo.jpeg" 
+            alt="Watermark" 
+            className="w-[60%] md:w-[35%] max-w-sm rounded-[3rem] shadow-sm mix-blend-darken"
+          />
+        </div>
         
         {/* Contenido flotante sobre la marca de agua */}
         <div className="relative z-10 h-full">
