@@ -22,11 +22,25 @@ function getStartOfMonth() {
   return d
 }
 
-function formatMoney(value) {
-  if (value >= 1000) {
-    return '$' + (value / 1000).toFixed(0) + 'k'
+function getLocalStr(p) {
+  if (p.fechaCreacion) {
+    const cDate = new Date(p.fechaCreacion)
+    return cDate.getFullYear() + '-' + String(cDate.getMonth() + 1).padStart(2, '0') + '-' + String(cDate.getDate()).padStart(2, '0')
   }
-  return '$' + value
+  return p.fechaEntrega
+}
+
+function formatMoney(value) {
+  // Manejo de valores negativos
+  const neg = value < 0
+  const abs = Math.abs(value)
+  let f = ''
+  if (abs >= 1000) {
+    f = '$' + (abs / 1000).toFixed(0) + 'k'
+  } else {
+    f = '$' + abs
+  }
+  return neg ? '-' + f : f
 }
 
 export default function Reportes() {
@@ -36,10 +50,16 @@ export default function Reportes() {
   
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
+  const [mermas, setMermas] = useState([])
   
   // Para la tabla manual "Conteo Semanal de Ventas"
   const [conteo, setConteo] = useState([])
   const [guardado, setGuardado] = useState(false)
+  
+  // Para el módulo de "Mermas"
+  const [conteoMerma, setConteoMerma] = useState([])
+  const [guardadoMerma, setGuardadoMerma] = useState(false)
+
   const [procesando, setProcesando] = useState(false)
 
   useEffect(() => {
@@ -61,6 +81,20 @@ export default function Reportes() {
           }
         })
       })
+
+      setConteoMerma(prev => {
+        return prods.map(p => {
+          const exists = prev.find(xp => xp.id === p.id)
+          return {
+            id: p.id,
+            producto: p.nombre,
+            stockIni: p.stock,
+            vendido: exists ? exists.vendido : 0,
+            stockFin: p.stock - (exists ? exists.vendido : 0),
+            precio: p.precio || 0
+          }
+        })
+      })
     })
 
     const unsubPed = onSnapshot(collection(db, 'pedidos'), snap => {
@@ -68,12 +102,22 @@ export default function Reportes() {
       setPedidos(data)
     })
 
-    return () => { unsubProd(); unsubPed(); }
+    const unsubMerma = onSnapshot(collection(db, 'mermas'), snap => {
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setMermas(data)
+    })
+
+    return () => { unsubProd(); unsubPed(); unsubMerma(); }
   }, [])
 
-  // Filtrado de pedidos según periodo
-  const ventasFiltradas = useMemo(() => {
-    return pedidos.filter(p => {
+  // Filtrado de pedidos y mermas combinados
+  const registrosFiltrados = useMemo(() => {
+    const combinados = [
+      ...pedidos.map(p => ({ ...p, _tipo: 'venta' })),
+      ...mermas.map(m => ({ ...m, _tipo: 'merma' }))
+    ]
+
+    return combinados.filter(p => {
       const fString = p.fechaCreacion || p.fechaEntrega
       if (!fString) return false
       
@@ -96,62 +140,70 @@ export default function Reportes() {
       const fB = new Date(b.fechaCreacion || b.fechaEntrega)
       return fB - fA // Más recientes primero
     })
-  }, [pedidos, periodo, fechaInicio, fechaFin])
+  }, [pedidos, mermas, periodo, fechaInicio, fechaFin])
 
   // Cálculo del gráfico
   const chartData = useMemo(() => {
     const map = {}
     
-    // Preparar dominios vacíos para que la gráfica no se vea pelona
+    // Preparar dominios vacíos
     if (periodo === 0) {
       const start = getStartOfWeek()
       for(let i=0; i<7; i++) {
         const temp = new Date(start)
         temp.setDate(temp.getDate() + i)
-        map[temp.toISOString().split('T')[0]] = 0
+        map[temp.getFullYear() + '-' + String(temp.getMonth() + 1).padStart(2, '0') + '-' + String(temp.getDate()).padStart(2, '0')] = { Ganancia: 0, Pérdida: 0 }
       }
     }
 
-    ventasFiltradas.forEach(p => {
-      const dateStr = (p.fechaCreacion ? p.fechaCreacion.split('T')[0] : p.fechaEntrega)
+    registrosFiltrados.forEach(p => {
+      const dateStr = getLocalStr(p)
       let sum = 0
       p.productos.forEach(item => {
         const prod = productos.find(x => x.id === item.productoId)
         if (prod) sum += (prod.precio || 0) * item.cantidad
       })
-      if (map[dateStr] === undefined) map[dateStr] = 0
-      map[dateStr] += sum
+      if (map[dateStr] === undefined) map[dateStr] = { Ganancia: 0, Pérdida: 0 }
+      
+      if (p._tipo === 'venta') {
+        map[dateStr].Ganancia += sum
+      } else {
+        map[dateStr].Pérdida += sum
+      }
     })
 
     return Object.keys(map).sort().map(dateStr => {
-      // Intentar sacar un nombre corto (ej: "Lun", "Mar")
       const d = new Date(dateStr + 'T12:00:00')
       const nombreDia = d.toLocaleDateString('es-ES', { weekday: 'short' })
       return {
         fechaReal: dateStr,
         label: periodo === 0 ? nombreDia.toUpperCase() : dateStr.split('-').slice(1).reverse().join('/'),
-        Ganancia: map[dateStr]
+        Ganancia: map[dateStr].Ganancia,
+        Pérdida: -map[dateStr].Pérdida // Mostramos en el gráfico como negativo para visualizarlas hacia abajo o separadas
       }
     })
-  }, [ventasFiltradas, productos, periodo])
+  }, [registrosFiltrados, productos, periodo])
 
   const totalMonetario = chartData.reduce((acc, curr) => acc + curr.Ganancia, 0)
+  const totalPerdidaMonetario = chartData.reduce((acc, curr) => acc + Math.abs(curr.Pérdida), 0)
 
-  // Metricas extraídas de ventasFiltradas (los productos totales de esas órdenes)
+  // Metricas extraídas
   const totalVendidosUnidades = useMemo(() => {
     let cant = 0
-    ventasFiltradas.forEach(ped => {
+    registrosFiltrados.filter(x => x._tipo === 'venta').forEach(ped => {
       ped.productos.forEach(prod => { cant += Number(prod.cantidad) })
     })
     return cant
-  }, [ventasFiltradas])
+  }, [registrosFiltrados])
 
-  // --- Handlers de la tabla de Conteo Semanal (Manual) ---
+  // --- Handlers de Venta Directa ---
   function handleVendido(idProd, val) {
     setConteo(prev => prev.map(item => {
       if (item.id !== idProd) return item
       const v = Math.max(0, Number(val))
-      return { ...item, vendido: v, stockFin: item.stockIni - v }
+      // Considerar inventario real. Limitamos por su stock ini.
+      const vSafe = Math.min(v, item.stockIni)
+      return { ...item, vendido: vSafe, stockFin: item.stockIni - vSafe }
     }))
   }
 
@@ -164,23 +216,14 @@ export default function Reportes() {
     try {
       const batch = writeBatch(db)
       
-      // 1. Restar stock
       itemsAVender.forEach(item => {
         const ref = doc(db, 'productos', item.id)
         const nuevoEstado = item.stockFin <= 10 ? (item.stockFin <= 5 ? 'critico' : 'bajo') : 'disponible'
-        batch.update(ref, { 
-          stock: item.stockFin,
-          estado: nuevoEstado
-        })
+        batch.update(ref, { stock: item.stockFin, estado: nuevoEstado })
       })
 
-      // 2. Registrar Venta Directa ficticia
       const ventaRef = doc(collection(db, 'pedidos'))
-      const payloadProductos = itemsAVender.map(i => ({
-        productoId: i.id,
-        nombre: i.producto,
-        cantidad: i.vendido
-      }))
+      const payloadProductos = itemsAVender.map(i => ({ productoId: i.id, nombre: i.producto, cantidad: i.vendido }))
 
       batch.set(ventaRef, {
         cliente: 'Venta Directa',
@@ -192,14 +235,103 @@ export default function Reportes() {
 
       await batch.commit()
       setGuardado(true)
-
-      // Limpiar inputs
       setConteo(prev => prev.map(item => ({...item, vendido: 0, stockIni: item.stockFin})))
       
+      // Sincronizar el otro formulario de merma
+      setConteoMerma(prev => prev.map(item => ({
+        ...item, 
+        stockIni: item.id ? (productos.find(p=>p.id===item.id)?.stock - (itemsAVender.find(x=>x.id===item.id)?.vendido || 0)) : item.stockIni
+      })))
+
       setTimeout(() => setGuardado(false), 2500)
     } catch (e) {
       console.error(e)
-      alert('Error guardando')
+      alert('Error guardando venta')
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  // --- Handlers de Mermas ---
+  function handleMermado(idProd, val) {
+    setConteoMerma(prev => prev.map(item => {
+      if (item.id !== idProd) return item
+      const v = Math.max(0, Number(val))
+      const vSafe = Math.min(v, item.stockIni)
+      return { ...item, vendido: vSafe, stockFin: item.stockIni - vSafe }
+    }))
+  }
+
+  async function guardarMerma() {
+    if (procesando) return
+    const itemsAMermar = conteoMerma.filter(item => item.vendido > 0)
+    if (itemsAMermar.length === 0) return alert('No hay mermas que registrar.')
+    
+    setProcesando(true)
+    try {
+      const batch = writeBatch(db)
+      
+      itemsAMermar.forEach(item => {
+        const ref = doc(db, 'productos', item.id)
+        const nuevoEstado = item.stockFin <= 10 ? (item.stockFin <= 5 ? 'critico' : 'bajo') : 'disponible'
+        batch.update(ref, { stock: item.stockFin, estado: nuevoEstado })
+      })
+
+      const mermaRef = doc(collection(db, 'mermas'))
+      const payloadProductos = itemsAMermar.map(i => ({ productoId: i.id, nombre: i.producto, cantidad: i.vendido }))
+
+      batch.set(mermaRef, {
+        motivo: 'Producto Mermado',
+        fechaEntrega: new Date().toISOString().split('T')[0],
+        productos: payloadProductos,
+        fechaCreacion: new Date().toISOString(),
+      })
+
+      await batch.commit()
+      setGuardadoMerma(true)
+      setConteoMerma(prev => prev.map(item => ({...item, vendido: 0, stockIni: item.stockFin})))
+      
+      // Sincronizar conteo principal
+      setConteo(prev => prev.map(item => ({
+        ...item, 
+        stockIni: item.id ? (productos.find(p=>p.id===item.id)?.stock - (itemsAMermar.find(x=>x.id===item.id)?.vendido || 0)) : item.stockIni
+      })))
+
+      setTimeout(() => setGuardadoMerma(false), 2500)
+    } catch (e) {
+      console.error(e)
+      alert('Error guardando merma')
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  // --- Deshacer Registro ---
+  async function deshacerRegistro(registro) {
+    if (!window.confirm(`¿Seguro que deseas deshacer este movimiento de ${registro._tipo} y devolver los productos al inventario?`)) return
+    
+    setProcesando(true)
+    try {
+      const batch = writeBatch(db)
+
+      registro.productos.forEach(itemInfo => {
+        const pLoc = productos.find(p => p.id === itemInfo.productoId)
+        if (pLoc) {
+          const ref = doc(db, 'productos', itemInfo.productoId)
+          const nuevoStock = pLoc.stock + itemInfo.cantidad
+          const nuevoEstado = nuevoStock <= 10 ? (nuevoStock <= 5 ? 'critico' : 'bajo') : 'disponible'
+          batch.update(ref, { stock: nuevoStock, estado: nuevoEstado })
+        }
+      })
+
+      const colName = registro._tipo === 'merma' ? 'mermas' : 'pedidos'
+      const docRef = doc(db, colName, registro.id)
+      batch.delete(docRef)
+
+      await batch.commit()
+    } catch (e) {
+      console.error(e)
+      alert('Error al intentar deshacer el registro.')
     } finally {
       setProcesando(false)
     }
@@ -207,47 +339,49 @@ export default function Reportes() {
 
   // --- Reporte y PDF ---
   function exportarPDF() {
-    const doc = new jsPDF()
-    doc.text("Reporte de Desempeño Leis", 14, 15)
-    doc.setFontSize(10)
-    doc.text(`Periodo: ${PERIODOS[periodo]} (${fechaInicio} - ${fechaFin})`, 14, 22)
-    doc.text(`Total Unidades: ${totalVendidosUnidades} | Ganancia: $${totalMonetario.toLocaleString('es-CL')}`, 14, 28)
+    const docPdf = new jsPDF()
+    docPdf.text("Reporte de Desempeño Leis", 14, 15)
+    docPdf.setFontSize(10)
+    docPdf.text(`Periodo: ${PERIODOS[periodo]} (${fechaInicio} - ${fechaFin})`, 14, 22)
+    docPdf.text(`Ganancia Generada: $${totalMonetario.toLocaleString('es-CL')} | Pérdidas: -$${totalPerdidaMonetario.toLocaleString('es-CL')}`, 14, 28)
     
-    const tableData = ventasFiltradas.map(p => {
-      const fecha = (p.fechaCreacion || p.fechaEntrega).split('T')[0]
+    const tableData = registrosFiltrados.map(p => {
+      const fecha = getLocalStr(p)
       const desc = p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(', ')
       let gananciaVenta = 0
       p.productos.forEach(item => {
         const pr = productos.find(xd => xd.id === item.productoId)
         if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
       })
-      return [fecha, p.cliente, desc, `$${gananciaVenta.toLocaleString('es-CL')}`]
+      const isMerma = p._tipo === 'merma'
+      return [fecha, isMerma ? p.motivo : p.cliente, desc, isMerma ? `-$${gananciaVenta.toLocaleString('es-CL')}` : `$${gananciaVenta.toLocaleString('es-CL')}`]
     })
 
-    autoTable(doc, {
+    autoTable(docPdf, {
       startY: 35,
-      head: [['Fecha', 'Tipo/Cliente', 'Productos', 'Monto ($)']],
+      head: [['Fecha', 'Tipo/Cliente', 'Productos', 'Flujo ($)']],
       body: tableData,
     })
 
-    doc.save("reporte_ventas_leis.pdf")
+    docPdf.save("reporte_ventas_leis.pdf")
   }
 
   function exportarCSV() {
-    const encabezados = ['Fecha', 'Cliente/Tipo', 'Detalle Productos', 'Monto Generado ($)']
-    const filas = ventasFiltradas.map(p => {
-      const fecha = (p.fechaCreacion || p.fechaEntrega).split('T')[0]
+    const encabezados = ['Fecha', 'Cliente/Tipo', 'Detalle Productos', 'Flujo de Dinero ($)']
+    const filas = registrosFiltrados.map(p => {
+      const fecha = getLocalStr(p)
       const desc = p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(' | ')
       let gananciaVenta = 0
       p.productos.forEach(item => {
         const pr = productos.find(xd => xd.id === item.productoId)
         if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
       })
+      const isMerma = p._tipo === 'merma'
       return [
         `"${fecha}"`, 
-        `"${p.cliente}"`, 
+        `"${isMerma ? p.motivo : p.cliente}"`, 
         `"${desc}"`, 
-        gananciaVenta
+        isMerma ? -gananciaVenta : gananciaVenta
       ]
     })
 
@@ -268,15 +402,15 @@ export default function Reportes() {
       {/* Header */}
       <header className="mb-10 flex flex-col xl:flex-row xl:justify-between xl:items-end gap-5">
         <div>
-          <span className="font-label text-xs uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">Análisis Financiero</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-on-tertiary-fixed-variant leading-tight">Métricas de Ventas</h2>
+          <span className="font-label text-xs uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">Centro de Control Financiero</span>
+          <h2 className="font-headline text-4xl md:text-5xl text-on-tertiary-fixed-variant leading-tight">Métricas y Mermas</h2>
           <p className="mt-3 text-outline font-body max-w-lg leading-relaxed text-sm">
-            Supervisa el crecimiento, exporta reportes y sincroniza salidas.
+            Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.
           </p>
         </div>
         
         <div className="flex flex-col md:flex-row md:items-end gap-3 self-start xl:self-auto">
-          {/* Selector de periodo y controles Date */}
+          {/* Selector de periodo */}
           <div className="flex gap-2 bg-surface-container-[0.2] p-2 rounded-2xl border border-outline-variant/10">
             <select
               value={periodo}
@@ -321,14 +455,20 @@ export default function Reportes() {
 
       {/* Gráfico principal */}
       <section className="mb-10 w-full h-[400px] bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col relative z-0">
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex justify-between items-start mb-6 w-full">
           <div>
-            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Gráfica de Ganancias</h3>
-            <p className="text-xs text-outline font-label uppercase tracking-widest mt-1">Evolución de ingresos en el periodo</p>
+            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Gráfica Comercial</h3>
+            <p className="text-xs text-outline font-label uppercase tracking-widest mt-1">Evolución de Ganancias vs Pérdidas</p>
           </div>
-          <div className="bg-surface-container px-5 py-3 rounded-2xl flex flex-col items-end border border-outline-variant/20">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Cálculo Total Neto</span>
-            <span className="font-headline font-bold text-2xl text-secondary">${totalMonetario.toLocaleString('es-CL')}</span>
+          <div className="flex gap-4">
+            <div className="bg-surface-container px-5 py-3 rounded-2xl flex flex-col items-end border border-outline-variant/20">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Ganancias Brutas</span>
+              <span className="font-headline font-bold text-2xl text-secondary">+${totalMonetario.toLocaleString('es-CL')}</span>
+            </div>
+            <div className="bg-error/10 px-5 py-3 rounded-2xl flex flex-col items-end border border-error/20">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-error mb-1">Mermas / Pérdidas</span>
+              <span className="font-headline font-bold text-2xl text-error">-${totalPerdidaMonetario.toLocaleString('es-CL')}</span>
+            </div>
           </div>
         </div>
 
@@ -339,6 +479,10 @@ export default function Reportes() {
                 <linearGradient id="colorGanancia" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#a78b5e" stopOpacity={0.3}/>
                   <stop offset="95%" stopColor="#a78b5e" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorPerdida" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ba1a1a" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#ba1a1a" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" opacity={0.5} />
@@ -358,38 +502,40 @@ export default function Reportes() {
                 dx={-5} 
               />
               <Tooltip 
-                formatter={(value) => [`$${value.toLocaleString('es-CL')}`, 'Ganancias']}
+                formatter={(value, name) => {
+                  if (name === 'Pérdida') return [`-$${Math.abs(value).toLocaleString('es-CL')}`, 'Pérdida Mermas']
+                  return [`+$${value.toLocaleString('es-CL')}`, 'Ingresos Venta']
+                }}
                 labelStyle={{ fontWeight: 'bold', color: '#524430' }}
                 contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
               />
               <Area type="monotone" dataKey="Ganancia" stroke="#524430" strokeWidth={3} fillOpacity={1} fill="url(#colorGanancia)" />
+              <Area type="monotone" dataKey="Pérdida" stroke="#ba1a1a" strokeWidth={3} fillOpacity={1} fill="url(#colorPerdida)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </section>
 
-      {/* Tabla Manual y Historial unificados */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16 relative z-10">
+      {/* Formularios manuales de stock paralelos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 relative z-10 w-full">
         
         {/* Conteo semanal MANUAL (para Venta Directa) */}
-        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[500px]">
+        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[400px]">
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
               <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Registrar Venta Directa</h3>
-              <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">
-                Registra ventas manuales.
-              </p>
+              <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">Registra salidas al cliente final.</p>
             </div>
             <div className="flex items-center gap-3">
               {guardado && (
-                <span className="flex items-center gap-1 text-xs text-green-700 font-bold animate-pulse">
-                  <span className="material-symbols-outlined text-green-700 text-sm">check_circle</span>
+                <span className="flex items-center gap-1 text-[10px] text-green-700 font-bold uppercase tracking-widest animate-pulse">
+                  <span className="material-symbols-outlined text-green-700 text-[14px]">check_circle</span>
                   Guardado
                 </span>
               )}
               <button
                 onClick={guardar}
-                className="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-sm"
+                className="bg-primary-container text-on-primary-container px-5 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-sm"
               >
                 Guardar conteo
               </button>
@@ -398,11 +544,11 @@ export default function Reportes() {
 
           <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 rounded-2xl border border-outline-variant/20 relative z-10 p-1">
             <table className="w-full text-left">
-              <thead className="sticky top-0 bg-surface-container-low/90 backdrop-blur-md px-2 z-20">
+              <thead className="sticky top-0 bg-[#f1efe9]/90 backdrop-blur-md px-2 z-20">
                 <tr>
                   <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Producto</th>
                   <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Stock Disp.</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Cant. Extendida</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Cant. Extraída</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
@@ -412,10 +558,7 @@ export default function Reportes() {
                     <td className="py-3 text-center font-body text-[11px] font-bold">{p.stockFin.toLocaleString()}</td>
                     <td className="py-3 text-center">
                       <input
-                        type="number"
-                        min="0"
-                        max={p.stockIni}
-                        value={p.vendido}
+                        type="number" min="0" max={p.stockIni} value={p.vendido}
                         onChange={e => handleVendido(p.id, e.target.value)}
                         className="w-14 bg-surface border border-outline-variant/30 rounded-md px-2 py-1 text-[11px] font-bold text-on-surface focus:outline-none focus:border-primary text-center"
                       />
@@ -427,63 +570,135 @@ export default function Reportes() {
           </div>
         </section>
 
-        {/* HISTORIAL GENERAL */}
-        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[500px]">
+        {/* Mermas MANUAL */}
+        <section className="bg-error/5 rounded-[2rem] p-8 border border-error/20 flex flex-col h-[400px]">
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
-              <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Historial Periodo</h3>
-              <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">
-                Total sincronizado: <strong className="text-secondary">{totalVendidosUnidades} unidades</strong>
-              </p>
+              <h3 className="font-headline text-2xl text-error">Registrar Pérdida</h3>
+              <p className="text-[10px] text-error/70 font-label uppercase tracking-widest mt-1">Registra productos dañados o mermas.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {guardadoMerma && (
+                <span className="flex items-center gap-1 text-[10px] text-error font-bold uppercase tracking-widest animate-pulse">
+                  <span className="material-symbols-outlined text-error text-[14px]">check_circle</span>
+                  Restado
+                </span>
+              )}
+              <button
+                onClick={guardarMerma}
+                className="bg-error text-on-error px-5 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-md"
+              >
+                Eliminar Stock
+              </button>
             </div>
           </div>
-          
-          <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 rounded-2xl border border-outline-variant/20 relative z-10 px-4 py-2 space-y-3">
-            {ventasFiltradas.map((v) => {
-              const esVentaDirecta = v.cliente === "Venta Directa"
-              let gananciaVenta = 0
-              v.productos.forEach(item => {
-                const prod = productos.find(xd => xd.id === item.productoId)
-                if(prod) gananciaVenta += (prod.precio || 0) * item.cantidad
-              })
 
-              return (
-                <div key={v.id} className="bg-surface p-4 rounded-2xl shadow-sm border border-outline-variant/10 flex flex-col gap-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                       <span className={`material-symbols-outlined text-sm ${esVentaDirecta ? 'text-primary' : 'text-secondary'}`}>
-                         {esVentaDirecta ? 'storefront' : 'local_shipping'}
-                       </span>
-                       <span className="font-bold text-xs uppercase tracking-widest text-on-surface-variant">
-                         {esVentaDirecta ? 'Ajuste / Venta Directa' : v.cliente}
-                       </span>
-                    </div>
-                    <span className="text-[10px] font-extrabold uppercase text-outline">
-                       {(v.fechaCreacion || v.fechaEntrega).split('T')[0]}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-end">
-                     <ul className="text-xs space-y-0.5 opacity-80">
-                        {v.productos.map((prod, idx) => (
-                           <li key={idx}><strong className="text-secondary">{prod.cantidad}x</strong> {prod.nombre}</li>
-                        ))}
-                     </ul>
-                     <span className="font-headline font-bold text-lg text-secondary">+${gananciaVenta.toLocaleString('es-CL')}</span>
-                  </div>
-                </div>
-              )
-            })}
-            
-            {ventasFiltradas.length === 0 && (
-              <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center mt-10">
-                <span className="material-symbols-outlined text-4xl mb-2 text-outline">analytics</span>
-                <p className="text-[10px] font-bold text-outline uppercase tracking-widest">Aún no hay reportes de ventas para esta fecha</p>
-              </div>
-            )}
+          <div className="overflow-y-auto flex-1 bg-surface-container-lowest/50 rounded-2xl border border-error/10 relative z-10 p-1">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-[#faeeed]/90 backdrop-blur-md px-2 z-20">
+                <tr>
+                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Producto</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Stock Disp.</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Cant. Perdida</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-error/5">
+                {conteoMerma.map((p) => (
+                  <tr key={p.id} className="hover:bg-error/5 transition-colors">
+                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px] text-[#5e2220]">{p.producto}</td>
+                    <td className="py-3 text-center font-body text-[11px] font-bold text-[#5e2220]">{p.stockFin.toLocaleString()}</td>
+                    <td className="py-3 text-center">
+                      <input
+                        type="number" min="0" max={p.stockIni} value={p.vendido}
+                        onChange={e => handleMermado(p.id, e.target.value)}
+                        className="w-14 bg-surface border border-error/30 rounded-md px-2 py-1 text-[11px] font-bold text-error focus:outline-none focus:border-error text-center"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
-
       </div>
+
+      {/* HISTORIAL GENERAL (ANCHO COMPLETO) */}
+      <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col mb-16 relative z-10">
+        <div className="flex justify-between items-center mb-6 shrink-0">
+          <div>
+            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Historial Consolidado del Periodo</h3>
+            <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">
+              Eventos totales: <strong className="text-secondary">{registrosFiltrados.length} registros</strong>
+            </p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max">
+          {registrosFiltrados.map((v) => {
+            const isMerma = v._tipo === 'merma'
+            const esVentaDirecta = v.cliente === "Venta Directa" && !isMerma
+            
+            let flujoMonetario = 0
+            v.productos.forEach(item => {
+              const prod = productos.find(xd => xd.id === item.productoId)
+              if(prod) flujoMonetario += (prod.precio || 0) * item.cantidad
+            })
+
+            return (
+              <div 
+                key={v.id} 
+                className={`p-5 rounded-2xl shadow-sm border flex flex-col gap-3 transition-colors hover:shadow-md ${isMerma ? 'bg-error/5 border-error/20' : 'bg-surface border-outline-variant/10'}`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                     <span className={`material-symbols-outlined text-[16px] ${isMerma ? 'text-error' : (esVentaDirecta ? 'text-primary' : 'text-secondary')}`}>
+                       {isMerma ? 'remove_shopping_cart' : (esVentaDirecta ? 'storefront' : 'local_shipping')}
+                     </span>
+                     <span className={`font-bold text-[11px] uppercase tracking-widest ${isMerma ? 'text-error' : 'text-on-surface-variant'}`}>
+                       {isMerma ? v.motivo : (esVentaDirecta ? 'Venta Directa' : v.cliente)}
+                     </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-extrabold uppercase text-outline/80">
+                       {getLocalStr(v)}
+                    </span>
+                    <button 
+                      onClick={() => deshacerRegistro(v)}
+                      disabled={procesando}
+                      className={`transition-colors focus:outline-none ${procesando ? 'opacity-50 cursor-not-allowed' : 'text-outline/40 hover:text-error'}`}
+                      title="Deshacer registro y devolver al inventario"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">undo</span>
+                    </button>
+                  </div>
+                </div>
+
+                <ul className="text-xs space-y-1 opacity-80 pl-6 mt-1 mb-2">
+                  {v.productos.map((prod, idx) => (
+                    <li key={idx} className={isMerma ? 'text-[#82322e]' : ''}>
+                      <strong className={isMerma ? 'text-error' : 'text-secondary'}>{prod.cantidad}x</strong> {prod.nombre}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-auto flex justify-end">
+                   <span className={`font-headline font-bold text-lg ${isMerma ? 'text-error' : 'text-secondary'}`}>
+                     {isMerma ? `-$${flujoMonetario.toLocaleString('es-CL')}` : `+$${flujoMonetario.toLocaleString('es-CL')}`}
+                   </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        
+        {registrosFiltrados.length === 0 && (
+          <div className="flex flex-col items-center justify-center opacity-60 w-full text-center py-20">
+            <span className="material-symbols-outlined text-4xl mb-4 text-outline/60">pending_actions</span>
+            <p className="text-[11px] font-bold text-outline uppercase tracking-widest">No hay historial de movimientos</p>
+          </div>
+        )}
+      </section>
+
     </div>
   )
 }

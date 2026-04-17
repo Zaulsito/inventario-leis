@@ -54,7 +54,7 @@ export default function Dashboard() {
     { icon: 'trending_up',  label: 'Valor inventario', valor: `$${valorTotal.toLocaleString()}`, sub: 'Actual' },
     { icon: 'inventory',    label: 'Stock actual',     valor: stockActual.toLocaleString(), sub: 'unidades' },
     { icon: 'deployed_code',label: 'Productos (SKUs)', valor: productCount.toLocaleString(), sub: 'Registrados' },
-    { icon: 'priority_high',label: 'Elementos críticos', valor: criticos, sub: 'Requieren atención' },
+    { icon: 'priority_high',label: 'Stock Bajo',       valor: bajosDeStock.length, sub: 'Elementos críticos', isAlert: true },
   ]
 
   // Generar datos reales para los últimos 7 días basado en 'pedidos'
@@ -63,12 +63,17 @@ export default function Dashboard() {
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
-      last7Days.push(d.toISOString().split('T')[0])
+      const locStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+      last7Days.push(locStr)
     }
 
     return last7Days.map(dateStr => {
       const pedidosDay = pedidos.filter(p => {
-        const pDateStr = (p.fechaCreacion ? p.fechaCreacion.split('T')[0] : p.fechaEntrega)
+        let pDateStr = p.fechaEntrega
+        if (p.fechaCreacion) {
+          const cDate = new Date(p.fechaCreacion)
+          pDateStr = cDate.getFullYear() + '-' + String(cDate.getMonth() + 1).padStart(2, '0') + '-' + String(cDate.getDate()).padStart(2, '0')
+        }
         return pDateStr === dateStr
       })
 
@@ -112,12 +117,27 @@ export default function Dashboard() {
       {/* Métricas */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         {metricas.map((m) => (
-          <div key={m.label} className="p-6 rounded-3xl bg-surface-container-low border border-outline-variant/20 flex flex-col justify-between h-40">
-            <span className="material-symbols-outlined text-secondary text-3xl">{m.icon}</span>
+          <div 
+            key={m.label} 
+            className={`p-6 rounded-3xl border flex flex-col justify-between h-40 transition-colors ${
+              m.isAlert && m.valor > 0 
+                ? 'bg-error text-on-error border-error' 
+                : 'bg-surface-container-low border-outline-variant/20'
+            }`}
+          >
+            <span className={`material-symbols-outlined text-3xl ${m.isAlert && m.valor > 0 ? 'opacity-90' : 'text-secondary'}`}>
+              {m.icon}
+            </span>
             <div>
-              <p className="text-on-surface-variant font-label text-[10px] uppercase tracking-widest mb-1">{m.label}</p>
-              <p className="text-2xl font-headline font-bold text-primary">{m.valor}</p>
-              <p className="text-[10px] text-on-surface-variant">{m.sub}</p>
+              <p className={`font-label text-[10px] uppercase tracking-widest mb-1 ${m.isAlert && m.valor > 0 ? 'opacity-80' : 'text-on-surface-variant'}`}>
+                {m.label}
+              </p>
+              <p className={`text-2xl font-headline font-bold ${m.isAlert && m.valor > 0 ? '' : 'text-primary'}`}>
+                {m.valor}
+              </p>
+              <p className={`text-[10px] ${m.isAlert && m.valor > 0 ? 'opacity-70' : 'text-on-surface-variant'}`}>
+                {m.sub}
+              </p>
             </div>
           </div>
         ))}
