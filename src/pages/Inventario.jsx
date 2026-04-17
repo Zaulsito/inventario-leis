@@ -316,7 +316,7 @@ export default function Inventario() {
                         </div>
                       </td>
                       <td className="px-7 py-5">
-                        <span className="px-3 py-1 bg-surface-variant text-on-surface-variant text-[10px] font-bold uppercase rounded-full">
+                        <span className="px-3 py-1 bg-surface-variant text-on-surface-variant text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center">
                           {(p.coleccion || '').toUpperCase()}
                         </span>
                       </td>

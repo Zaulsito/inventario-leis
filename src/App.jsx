@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Inventario from './pages/Inventario'
+import Pedidos from './pages/Pedidos'
 import Registro from './pages/Registro'
 import Reportes from './pages/Reportes'
 import Login from './pages/Login'
@@ -26,6 +27,7 @@ export default function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard"  element={<Dashboard />} />
           <Route path="inventario" element={<Inventario />} />
+          <Route path="pedidos"    element={<Pedidos />} />
           <Route path="registro"   element={<Registro />} />
           <Route path="reportes"   element={<Reportes />} />
         </Route>
