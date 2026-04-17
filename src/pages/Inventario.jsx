@@ -6,9 +6,9 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 const estadoConfig = {
-  disponible: { label: 'Disponible', cls: 'bg-green-100 text-green-700' },
-  bajo:       { label: 'Stock bajo', cls: 'bg-error-container text-error' },
-  critico:    { label: 'Crítico',    cls: 'bg-error/15 text-error font-extrabold' },
+  disponible: { label: 'Disponible', cls: 'bg-green-100 text-green-700 font-bold' },
+  bajo:       { label: 'Stock bajo', cls: 'bg-yellow-100 text-yellow-800 font-bold' },
+  critico:    { label: 'Crítico',    cls: 'bg-error text-on-error font-bold shadow-sm' },
 }
 
 const formInicial = { nombre: '', sku: '', coleccion: '', precio: 0, stock: 0, fechaIngreso: new Date().toISOString().split('T')[0], fotoUrl: '' }
@@ -197,11 +197,11 @@ export default function Inventario() {
               <p className="text-[10px] uppercase tracking-widest font-extrabold text-outline">Total Productos</p>
             </div>
           </div>
-          <div className="bg-primary-container p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border border-primary/10">
-            <span className="material-symbols-outlined text-on-primary-container text-3xl">priority_high</span>
+          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border transition-colors ${bajosDeStock > 0 ? 'bg-error border-error' : 'bg-primary-container border-primary/10'}`}>
+            <span className={`material-symbols-outlined text-3xl ${bajosDeStock > 0 ? 'text-on-error opacity-90' : 'text-on-primary-container'}`}>priority_high</span>
             <div>
-              <p className="text-3xl font-headline italic font-bold text-on-primary-container">{bajosDeStock}</p>
-              <p className="text-[10px] uppercase tracking-widest font-extrabold text-on-primary-container">Stock Bajo</p>
+              <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-on-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
+              <p className={`text-[10px] uppercase tracking-widest font-extrabold ${bajosDeStock > 0 ? 'text-on-error opacity-80' : 'text-on-primary-container'}`}>Stock Bajo</p>
             </div>
           </div>
           <div className="bg-surface-container-highest p-6 rounded-xl flex flex-col justify-between h-36">
