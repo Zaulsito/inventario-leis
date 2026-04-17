@@ -4,6 +4,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'fireb
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import BarcodeScanner from '../components/BarcodeScanner'
 
 const estadoConfig = {
   disponible: { label: 'Disponible', cls: 'bg-green-100 text-green-700 font-bold' },
@@ -24,6 +25,7 @@ export default function Inventario() {
 
   // Estados del CRUD
   const [showModal, setShowModal] = useState(false)
+  const [isScanning, setIsScanning] = useState(false)
   const [form, setForm] = useState(formInicial)
   const [editingId, setEditingId] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
@@ -422,13 +424,23 @@ export default function Inventario() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Cód. Barra</label>
-                  <input 
-                    type="text" 
-                    value={form.sku} 
-                    onChange={e => setForm({...form, sku: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
-                    placeholder="Ej. 789123456"
-                  />
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={form.sku} 
+                      onChange={e => setForm({...form, sku: e.target.value})}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-12 py-2 text-sm focus:outline-none focus:border-primary"
+                      placeholder="Ej. 789123456"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setIsScanning(true)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-secondary bg-primary-container p-1.5 rounded-lg transition-colors flex items-center justify-center shadow-sm"
+                      title="Escanear Código de Barras"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Categoría</label>
@@ -537,6 +549,19 @@ export default function Inventario() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Visor de Escaneo de Cámara */}
+      {isScanning && (
+        <BarcodeScanner 
+          onScan={(decodedText) => {
+            setForm({ ...form, sku: decodedText })
+            setIsScanning(false)
+            // Pequeña notificación web nativa si soporta vibración
+            if (window.navigator?.vibrate) window.navigator.vibrate(200)
+          }}
+          onClose={() => setIsScanning(false)}
+        />
       )}
     </div>
   )
