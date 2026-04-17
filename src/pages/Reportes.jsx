@@ -454,20 +454,20 @@ export default function Reportes() {
       </header>
 
       {/* Gráfico principal */}
-      <section className="mb-10 w-full h-[400px] bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col relative z-0">
-        <div className="flex justify-between items-start mb-6 w-full">
+      <section className="mb-10 w-full h-[400px] md:h-[450px] bg-surface-container-low rounded-[2rem] p-6 md:p-8 border border-outline-variant/10 flex flex-col relative z-0">
+        <div className="flex flex-col xl:flex-row justify-between items-start mb-6 w-full gap-4">
           <div>
             <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Gráfica Comercial</h3>
             <p className="text-xs text-outline font-label uppercase tracking-widest mt-1">Evolución de Ganancias vs Pérdidas</p>
           </div>
-          <div className="flex gap-4">
-            <div className="bg-surface-container px-5 py-3 rounded-2xl flex flex-col items-end border border-outline-variant/20">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Ganancias Brutas</span>
-              <span className="font-headline font-bold text-2xl text-secondary">+${totalMonetario.toLocaleString('es-CL')}</span>
+          <div className="flex flex-row md:gap-4 gap-2 w-full xl:w-auto">
+            <div className="bg-surface-container px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 flex-1 xl:flex-none">
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Ganancias Brutas</span>
+              <span className="font-headline font-bold text-lg md:text-2xl text-secondary">+${totalMonetario.toLocaleString('es-CL')}</span>
             </div>
-            <div className="bg-error/10 px-5 py-3 rounded-2xl flex flex-col items-end border border-error/20">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-error mb-1">Mermas / Pérdidas</span>
-              <span className="font-headline font-bold text-2xl text-error">-${totalPerdidaMonetario.toLocaleString('es-CL')}</span>
+            <div className="bg-error/10 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-error/20 flex-1 xl:flex-none overflow-hidden">
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-error mb-1 truncate w-full">Mermas / Pérdidas</span>
+              <span className="font-headline font-bold text-lg md:text-2xl text-error">-${totalPerdidaMonetario.toLocaleString('es-CL')}</span>
             </div>
           </div>
         </div>
