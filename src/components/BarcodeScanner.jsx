@@ -66,32 +66,34 @@ export default function BarcodeScanner({ onScan, onClose }) {
           </button>
         </div>
         
-        {/* Contenedor oficial del lector nativo (solo inserta video) */}
+        {/* Contenedor oficial del lector nativo */}
         <div className="p-4 bg-white/5 relative min-h-[300px] flex items-center justify-center flex-col">
-          {!hasPermission ? (
-             <div className="text-center space-y-4 px-4 w-full">
-               <div className="w-16 h-16 bg-primary-container text-primary rounded-2xl flex items-center justify-center mx-auto mb-2 opacity-80">
-                 <span className="material-symbols-outlined text-3xl">photo_camera</span>
-               </div>
-               <p className="text-sm text-on-surface-variant font-label">Para que esta app pueda leer los códigos de barra automáticamente, necesita acceso temporal a tu cámara.</p>
-               {errorMsg && (
-                 <div className="bg-error-container text-error text-[11px] p-3 rounded-lg font-bold">
-                   {errorMsg}
-                 </div>
-               )}
-               <button 
-                 onClick={requestPermissionAndStart}
-                 className="w-full flex justify-center items-center gap-2 bg-primary text-on-primary py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors"
-               >
-                 Aceptar y encender cámara
-               </button>
-             </div>
-          ) : (
-            <>
-              {/* Este div será reemplazado visualmente por el stream de video */}
-              <div id="reader" className="w-full h-full overflow-hidden rounded-xl bg-black border border-outline-variant/20"></div>
-            </>
-          )}
+          
+          {/* Pantalla de permisos (Solo visible si NO hay permisos) */}
+          <div className={`text-center space-y-4 px-4 w-full ${hasPermission ? 'hidden' : 'block'}`}>
+            <div className="w-16 h-16 bg-primary-container text-primary rounded-2xl flex items-center justify-center mx-auto mb-2 opacity-80">
+              <span className="material-symbols-outlined text-3xl">photo_camera</span>
+            </div>
+            <p className="text-sm text-on-surface-variant font-label">Para que esta app pueda leer los códigos de barra automáticamente, necesita acceso temporal a tu cámara.</p>
+            {errorMsg && (
+              <div className="bg-error-container text-error text-[11px] p-3 rounded-lg font-bold">
+                {errorMsg}
+              </div>
+            )}
+            <button 
+              onClick={requestPermissionAndStart}
+              className="w-full flex justify-center items-center gap-2 bg-primary text-on-primary py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors"
+            >
+              Aceptar y encender cámara
+            </button>
+          </div>
+
+          {/* Div siempre presente en el DOM para que la librería no de crash al buscarlo. Se oculta si no tiene permisos. */}
+          <div 
+            id="reader" 
+            className={`w-full overflow-hidden rounded-xl bg-black border border-outline-variant/20 ${hasPermission ? 'block' : 'hidden'}`}
+            style={{ minHeight: '250px' }}
+          ></div>
         </div>
 
         {hasPermission && (
@@ -100,6 +102,16 @@ export default function BarcodeScanner({ onScan, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Forzar tamaño del video inyectado por html5-qrcode para evitar cajas blancas o colapsos */}
+      <style dangerouslySetInnerHTML={{__html: `
+        #reader video {
+          width: 100% !important;
+          height: auto !important;
+          min-height: 250px;
+          object-fit: cover !important;
+        }
+      `}} />
     </div>
   );
 }
