@@ -87,8 +87,24 @@ export default function Layout() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 overflow-x-hidden pb-24 md:pb-0">
-        <Outlet />
+      <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative">
+        {/* Marca de agua / Watermark */}
+        <div 
+          className="absolute inset-0 pointer-events-none z-0 opacity-[0.03] mix-blend-multiply"
+          style={{
+            backgroundImage: "url('/logo.jpeg')",
+            backgroundSize: "40%",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundAttachment: "fixed",
+            filter: "grayscale(100%)"
+          }}
+        />
+        
+        {/* Contenido flotante sobre la marca de agua */}
+        <div className="relative z-10 h-full">
+          <Outlet />
+        </div>
       </main>
 
       {/* ── Bottom nav mobile ── */}
