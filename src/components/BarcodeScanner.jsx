@@ -17,45 +17,39 @@ export default function BarcodeScanner({ onScan, onClose }) {
 
   const requestPermissionAndStart = async () => {
     setErrorMsg('');
+    // Asumimos que intentaremos abrirla directamente. Esto obliga al navegador a pedir permiso automáticamente.
     try {
-      // Solicitar acceso. Esto levanta el aviso nativo del navegador si es la primera vez.
-      const devices = await Html5Qrcode.getCameras();
-      if (devices && devices.length > 0) {
-        setHasPermission(true);
-        
-        // Inicializar instancia base pura sin UI fea
-        const html5QrCode = new Html5Qrcode("reader");
-        scannerRef.current = html5QrCode;
-        
-        // Iniciar escaneo forzando cámara trasera (facingMode: environment)
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { 
-            fps: 10, 
-            qrbox: { width: 250, height: 100 },
-            aspectRatio: 1.0 
-          },
-          (decodedText) => {
-            // Al escuchar éxito, detener todo y enviar string
-            if (scannerRef.current) {
-              scannerRef.current.stop().then(() => {
-                onScan(decodedText);
-              }).catch(() => {
-                onScan(decodedText);
-              });
-              scannerRef.current = null;
-            }
-          },
-          (errorMessage) => {
-            // Ignorado, html5qrcode lanza esto en cada frame que no lee nada
+      setHasPermission(true); // Cambiamos la UI al espacio negro del lector
+      
+      const html5QrCode = new Html5Qrcode("reader");
+      scannerRef.current = html5QrCode;
+      
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 100 },
+          aspectRatio: 1.0 
+        },
+        (decodedText) => {
+          if (scannerRef.current) {
+            scannerRef.current.stop().then(() => {
+              onScan(decodedText);
+            }).catch(() => {
+              onScan(decodedText);
+            });
+            scannerRef.current = null;
           }
-        );
-      } else {
-        setErrorMsg('No se detectaron cámaras en tu dispositivo.');
-      }
+        },
+        (errorMessage) => {
+          // console.log(errorMessage)
+        }
+      );
     } catch (err) {
-      setErrorMsg('Debes otorgar permisos de cámara para poder escanear.');
-      console.error(err);
+      // Si el usuario deniega el permiso explícitamente o el teléfono no logra abrirla
+      setHasPermission(false);
+      setErrorMsg('Permiso de cámara denegado o no soportado por tu navegador.');
+      console.error("Error al iniciar cámara:", err);
     }
   };
 
