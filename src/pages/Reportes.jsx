@@ -1,41 +1,155 @@
-// src/pages/Reportes.jsx
-import { useState, useEffect } from 'react'
-import { collection, getDocs, doc, writeBatch } from 'firebase/firestore'
+import { useState, useEffect, useMemo } from 'react'
+import { collection, onSnapshot, doc, writeBatch } from 'firebase/firestore'
 import { db } from '../config/firebase'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
-const SEMANAS = ['Semana Actual']
+const PERIODOS = ['Semana Actual', 'Mes Actual', 'Personalizado']
 
-const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-const barras = [35, 55, 45, 80, 60, 75, 40]
+function getStartOfWeek() {
+  const d = new Date()
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() - day + 1)
+  d.setHours(0,0,0,0)
+  return d
+}
+
+function getStartOfMonth() {
+  const d = new Date()
+  d.setDate(1)
+  d.setHours(0,0,0,0)
+  return d
+}
+
+function formatMoney(value) {
+  if (value >= 1000) {
+    return '$' + (value / 1000).toFixed(0) + 'k'
+  }
+  return '$' + value
+}
 
 export default function Reportes() {
-  const [semana, setSemana]   = useState(0)
-  const [conteo, setConteo]   = useState([])
+  const [periodo, setPeriodo] = useState(0)
+  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0])
+  const [fechaFin, setFechaFin] = useState(new Date().toISOString().split('T')[0])
+  
+  const [productos, setProductos] = useState([])
+  const [pedidos, setPedidos] = useState([])
+  
+  // Para la tabla manual "Conteo Semanal de Ventas"
+  const [conteo, setConteo] = useState([])
   const [guardado, setGuardado] = useState(false)
   const [procesando, setProcesando] = useState(false)
 
   useEffect(() => {
-    cargarProductos()
+    const unsubProd = onSnapshot(collection(db, 'productos'), snap => {
+      const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setProductos(prods)
+      
+      // Update conteo manually only if not already initialized
+      setConteo(prev => {
+        return prods.map(p => {
+          const exists = prev.find(xp => xp.id === p.id)
+          return {
+            id: p.id,
+            producto: p.nombre,
+            stockIni: p.stock,
+            vendido: exists ? exists.vendido : 0,
+            stockFin: p.stock - (exists ? exists.vendido : 0),
+            precio: p.precio || 0
+          }
+        })
+      })
+    })
+
+    const unsubPed = onSnapshot(collection(db, 'pedidos'), snap => {
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setPedidos(data)
+    })
+
+    return () => { unsubProd(); unsubPed(); }
   }, [])
 
-  async function cargarProductos() {
-    const snap = await getDocs(collection(db, 'productos'))
-    const prods = snap.docs.map(d => {
-      const data = d.data()
+  // Filtrado de pedidos según periodo
+  const ventasFiltradas = useMemo(() => {
+    return pedidos.filter(p => {
+      const fString = p.fechaCreacion || p.fechaEntrega
+      if (!fString) return false
+      
+      const pxDate = new Date(fString)
+      pxDate.setHours(0,0,0,0)
+
+      if (periodo === 0) { // Semana Actual
+        const start = getStartOfWeek()
+        return pxDate >= start
+      } else if (periodo === 1) { // Mes Actual
+        const start = getStartOfMonth()
+        return pxDate >= start
+      } else { // Personalizado
+        const start = new Date(fechaInicio + 'T00:00:00')
+        const end = new Date(fechaFin + 'T23:59:59')
+        return pxDate >= start && pxDate <= end
+      }
+    }).sort((a,b) => {
+      const fA = new Date(a.fechaCreacion || a.fechaEntrega)
+      const fB = new Date(b.fechaCreacion || b.fechaEntrega)
+      return fB - fA // Más recientes primero
+    })
+  }, [pedidos, periodo, fechaInicio, fechaFin])
+
+  // Cálculo del gráfico
+  const chartData = useMemo(() => {
+    const map = {}
+    
+    // Preparar dominios vacíos para que la gráfica no se vea pelona
+    if (periodo === 0) {
+      const start = getStartOfWeek()
+      for(let i=0; i<7; i++) {
+        const temp = new Date(start)
+        temp.setDate(temp.getDate() + i)
+        map[temp.toISOString().split('T')[0]] = 0
+      }
+    }
+
+    ventasFiltradas.forEach(p => {
+      const dateStr = (p.fechaCreacion ? p.fechaCreacion.split('T')[0] : p.fechaEntrega)
+      let sum = 0
+      p.productos.forEach(item => {
+        const prod = productos.find(x => x.id === item.productoId)
+        if (prod) sum += (prod.precio || 0) * item.cantidad
+      })
+      if (map[dateStr] === undefined) map[dateStr] = 0
+      map[dateStr] += sum
+    })
+
+    return Object.keys(map).sort().map(dateStr => {
+      // Intentar sacar un nombre corto (ej: "Lun", "Mar")
+      const d = new Date(dateStr + 'T12:00:00')
+      const nombreDia = d.toLocaleDateString('es-ES', { weekday: 'short' })
       return {
-        id: d.id,
-        producto: data.nombre,
-        stockIni: data.stock,
-        vendido: 0,
-        stockFin: data.stock
+        fechaReal: dateStr,
+        label: periodo === 0 ? nombreDia.toUpperCase() : dateStr.split('-').slice(1).reverse().join('/'),
+        Ganancia: map[dateStr]
       }
     })
-    setConteo(prods)
-  }
+  }, [ventasFiltradas, productos, periodo])
 
-  function handleVendido(i, val) {
-    setConteo(c => c.map((item, idx) => {
-      if (idx !== i) return item
+  const totalMonetario = chartData.reduce((acc, curr) => acc + curr.Ganancia, 0)
+
+  // Metricas extraídas de ventasFiltradas (los productos totales de esas órdenes)
+  const totalVendidosUnidades = useMemo(() => {
+    let cant = 0
+    ventasFiltradas.forEach(ped => {
+      ped.productos.forEach(prod => { cant += Number(prod.cantidad) })
+    })
+    return cant
+  }, [ventasFiltradas])
+
+  // --- Handlers de la tabla de Conteo Semanal (Manual) ---
+  function handleVendido(idProd, val) {
+    setConteo(prev => prev.map(item => {
+      if (item.id !== idProd) return item
       const v = Math.max(0, Number(val))
       return { ...item, vendido: v, stockFin: item.stockIni - v }
     }))
@@ -43,21 +157,45 @@ export default function Reportes() {
 
   async function guardar() {
     if (procesando) return
+    const itemsAVender = conteo.filter(item => item.vendido > 0)
+    if (itemsAVender.length === 0) return alert('No hay ventas manuales que registrar.')
+    
     setProcesando(true)
     try {
       const batch = writeBatch(db)
-      conteo.forEach(item => {
-        if (item.vendido > 0) {
-          const ref = doc(db, 'productos', item.id)
-          batch.update(ref, { 
-            stock: item.stockFin,
-            estado: item.stockFin < 20 ? 'bajo' : 'disponible'
-          })
-        }
+      
+      // 1. Restar stock
+      itemsAVender.forEach(item => {
+        const ref = doc(db, 'productos', item.id)
+        const nuevoEstado = item.stockFin <= 10 ? (item.stockFin <= 5 ? 'critico' : 'bajo') : 'disponible'
+        batch.update(ref, { 
+          stock: item.stockFin,
+          estado: nuevoEstado
+        })
       })
+
+      // 2. Registrar Venta Directa ficticia
+      const ventaRef = doc(collection(db, 'pedidos'))
+      const payloadProductos = itemsAVender.map(i => ({
+        productoId: i.id,
+        nombre: i.producto,
+        cantidad: i.vendido
+      }))
+
+      batch.set(ventaRef, {
+        cliente: 'Venta Directa',
+        fechaEntrega: new Date().toISOString().split('T')[0],
+        productos: payloadProductos,
+        fechaCreacion: new Date().toISOString(),
+        estado: 'completado'
+      })
+
       await batch.commit()
       setGuardado(true)
-      await cargarProductos() // Recargar para limpiar 'vendido' 
+
+      // Limpiar inputs
+      setConteo(prev => prev.map(item => ({...item, vendido: 0, stockIni: item.stockFin})))
+      
       setTimeout(() => setGuardado(false), 2500)
     } catch (e) {
       console.error(e)
@@ -67,198 +205,285 @@ export default function Reportes() {
     }
   }
 
-  const totalVendido = conteo.reduce((a, p) => a + p.vendido, 0)
-  const bajoStock    = conteo.filter(p => p.stockFin < 20).length
-  const saludable    = conteo.filter(p => p.stockFin >= 20).length
-  const maxBarra     = Math.max(...barras)
+  // --- Reporte y PDF ---
+  function exportarPDF() {
+    const doc = new jsPDF()
+    doc.text("Reporte de Desempeño Leis", 14, 15)
+    doc.setFontSize(10)
+    doc.text(`Periodo: ${PERIODOS[periodo]} (${fechaInicio} - ${fechaFin})`, 14, 22)
+    doc.text(`Total Unidades: ${totalVendidosUnidades} | Ganancia: $${totalMonetario.toLocaleString('es-CL')}`, 14, 28)
+    
+    const tableData = ventasFiltradas.map(p => {
+      const fecha = (p.fechaCreacion || p.fechaEntrega).split('T')[0]
+      const desc = p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(', ')
+      let gananciaVenta = 0
+      p.productos.forEach(item => {
+        const pr = productos.find(xd => xd.id === item.productoId)
+        if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+      })
+      return [fecha, p.cliente, desc, `$${gananciaVenta.toLocaleString('es-CL')}`]
+    })
+
+    autoTable(doc, {
+      startY: 35,
+      head: [['Fecha', 'Tipo/Cliente', 'Productos', 'Monto ($)']],
+      body: tableData,
+    })
+
+    doc.save("reporte_ventas_leis.pdf")
+  }
+
+  function exportarCSV() {
+    const encabezados = ['Fecha', 'Cliente/Tipo', 'Detalle Productos', 'Monto Generado ($)']
+    const filas = ventasFiltradas.map(p => {
+      const fecha = (p.fechaCreacion || p.fechaEntrega).split('T')[0]
+      const desc = p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(' | ')
+      let gananciaVenta = 0
+      p.productos.forEach(item => {
+        const pr = productos.find(xd => xd.id === item.productoId)
+        if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+      })
+      return [
+        `"${fecha}"`, 
+        `"${p.cliente}"`, 
+        `"${desc}"`, 
+        gananciaVenta
+      ]
+    })
+
+    const csvContent = "\uFEFF" + encabezados.join(";") + "\n" + filas.map(e => e.join(";")).join("\n")
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", "reporte_ventas.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   return (
-    <div className="p-8 md:p-10">
+    <div className="p-8 md:p-10 relative h-full overflow-y-auto">
 
       {/* Header */}
-      <header className="mb-10 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+      <header className="mb-10 flex flex-col xl:flex-row xl:justify-between xl:items-end gap-5">
         <div>
-          <span className="font-label text-xs uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">Análisis de Desempeño</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-on-tertiary-fixed-variant leading-tight">Informe Semanal</h2>
+          <span className="font-label text-xs uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">Análisis Financiero</span>
+          <h2 className="font-headline text-4xl md:text-5xl text-on-tertiary-fixed-variant leading-tight">Métricas de Ventas</h2>
           <p className="mt-3 text-outline font-body max-w-lg leading-relaxed text-sm">
-            Resumen de inventario y ventas para la {SEMANAS[semana]}.
+            Supervisa el crecimiento, exporta reportes y sincroniza salidas.
           </p>
         </div>
-        <div className="flex gap-3">
-          {/* Selector de semana */}
-          <select
-            value={semana}
-            onChange={e => setSemana(Number(e.target.value))}
-            className="bg-surface-container-highest px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest border-0 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container"
-          >
-            {SEMANAS.map((s, i) => <option key={s} value={i}>{s}</option>)}
-          </select>
-          <button className="bg-surface-container-highest px-5 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-variant transition-colors">
-            Exportar PDF
-          </button>
-          <button className="bg-primary-container text-on-primary-container px-7 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest shadow-lg hover:scale-105 transition-all">
-            Generar Reporte
-          </button>
-        </div>
-      </header>
+        
+        <div className="flex flex-col md:flex-row md:items-end gap-3 self-start xl:self-auto">
+          {/* Selector de periodo y controles Date */}
+          <div className="flex gap-2 bg-surface-container-[0.2] p-2 rounded-2xl border border-outline-variant/10">
+            <select
+              value={periodo}
+              onChange={e => setPeriodo(Number(e.target.value))}
+              className="bg-surface-container-highest px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest border-0 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container"
+            >
+              {PERIODOS.map((s, i) => <option key={s} value={i}>{s}</option>)}
+            </select>
 
-      {/* Bento grid */}
-      <section className="grid grid-cols-12 gap-5 mb-10">
-
-        {/* Gráfico hero */}
-        <div className="col-span-12 lg:col-span-8 bg-surface-container-low rounded-3xl p-8 relative overflow-hidden group border border-outline-variant/10">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-8 gap-3 relative z-10">
-            <div>
-              <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Ventas de la Semana</h3>
-              <p className="text-xs text-outline font-label uppercase tracking-widest mt-0.5">Tendencia de salidas diarias</p>
-            </div>
-            <div className="bg-white/50 backdrop-blur-md px-4 py-2 rounded-full border border-outline-variant/20 flex items-center gap-2 self-start">
-              <span className="w-2 h-2 rounded-full bg-primary-container inline-block" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">+12.4% vs semana anterior</span>
-            </div>
-          </div>
-
-          {/* Barras */}
-          <div className="h-52 flex items-end gap-3 px-2 relative z-10">
-            {barras.map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                <div
-                  className={`w-full rounded-t-xl transition-all duration-700 ${i === 3 ? 'bg-primary-container' : i === 6 ? 'bg-secondary' : 'bg-surface-container-highest hover:bg-primary/20'}`}
-                  style={{ height: `${(h / maxBarra) * 100}%` }}
+            {periodo === 2 && (
+              <div className="flex gap-2">
+                <input 
+                  type="date" 
+                  value={fechaInicio} 
+                  onChange={e => setFechaInicio(e.target.value)} 
+                  className="bg-surface-container-highest px-3 py-2 text-xs font-bold uppercase rounded-xl focus:outline-none" 
+                  title="Fecha de Inicio"
+                />
+                <input 
+                  type="date" 
+                  value={fechaFin} 
+                  onChange={e => setFechaFin(e.target.value)} 
+                  className="bg-surface-container-highest px-3 py-2 text-xs font-bold uppercase rounded-xl focus:outline-none" 
+                  title="Fecha Fin"
                 />
               </div>
-            ))}
-          </div>
-          <div className="flex justify-between px-2 mt-4 text-[10px] font-bold uppercase tracking-widest text-outline">
-            {diasSemana.map(d => <span key={d}>{d.slice(0, 3)}</span>)}
-          </div>
-
-          <div className="absolute -right-16 -top-16 w-56 h-56 bg-primary-container/10 rounded-full blur-3xl pointer-events-none" />
-        </div>
-
-        {/* Estado de stock */}
-        <div className="col-span-12 lg:col-span-4 bg-surface-container-highest rounded-3xl p-8 flex flex-col justify-between border border-outline-variant/10">
-          <div>
-            <h3 className="font-headline text-xl text-on-tertiary-fixed-variant">Estado de Stock</h3>
-            <p className="text-xs text-outline font-label uppercase tracking-widest mt-0.5">Alertas de reposición</p>
-          </div>
-          <div className="space-y-5">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center border border-outline-variant/20 shadow-sm shrink-0">
-                <span className="material-symbols-outlined text-secondary">priority_high</span>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Bajo Stock</p>
-                <p className="font-headline text-lg text-on-tertiary-fixed-variant">{bajoStock} Productos</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center border border-outline-variant/20 shadow-sm shrink-0">
-                <span className="material-symbols-outlined text-primary">check_circle</span>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Saludable</p>
-                <p className="font-headline text-lg text-on-tertiary-fixed-variant">{saludable} Productos</p>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="w-full h-2 bg-white rounded-full overflow-hidden">
-              <div className="bg-primary-container h-full rounded-full" style={{ width: `${Math.round((saludable / conteo.length) * 100)}%` }} />
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-2">
-              {Math.round((saludable / conteo.length) * 100)}% productos en estado saludable
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Tabla de conteo semanal */}
-      <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 gap-3">
-          <div>
-            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Conteo Semanal de Ventas</h3>
-            <p className="text-xs text-outline font-label uppercase tracking-widest mt-0.5">
-              Total vendido esta semana: <strong className="text-secondary">{totalVendido} unidades</strong>
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {guardado && (
-              <span className="flex items-center gap-1 text-xs text-green-700 font-bold">
-                <span className="material-symbols-outlined text-green-700 text-sm">check_circle</span>
-                Guardado
-              </span>
             )}
-            <button
-              onClick={guardar}
-              className="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-sm"
-            >
-              Guardar conteo
+          </div>
+          
+          <div className="flex gap-2">
+            <button onClick={exportarPDF} className="bg-surface-container-highest px-5 py-3 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-2 relative z-10">
+              <span className="material-symbols-outlined text-sm text-error">picture_as_pdf</span>
+              Exportar PDF
+            </button>
+            <button onClick={exportarCSV} className="bg-primary-container text-on-primary-container px-6 py-3 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2 relative z-10">
+              <span className="material-symbols-outlined text-sm">csv</span>
+              Generar Excel
             </button>
           </div>
         </div>
+      </header>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[580px]">
-            <thead>
-              <tr className="border-b border-outline-variant/20">
-                {['Producto', 'Stock inicial', 'Vendido esta semana', 'Stock final'].map(h => (
-                  <th key={h} className="pb-5 font-label text-[10px] font-bold uppercase tracking-widest text-outline pr-6">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/10">
-              {conteo.map((p, i) => (
-                <tr key={p.producto} className="group hover:bg-surface-container-high transition-colors">
-                  <td className="py-5 pr-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-surface-container-highest flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-primary text-sm">inventory_2</span>
-                      </div>
-                      <span className="font-headline text-on-tertiary-fixed-variant text-sm">{p.producto}</span>
-                    </div>
-                  </td>
-                  <td className="py-5 pr-6 font-body text-sm font-semibold">{p.stockIni.toLocaleString()}</td>
-                  <td className="py-5 pr-6">
-                    <input
-                      type="number"
-                      min="0"
-                      max={p.stockIni}
-                      value={p.vendido}
-                      onChange={e => handleVendido(i, e.target.value)}
-                      className="w-20 bg-surface border border-outline-variant/30 rounded-lg px-3 py-1.5 text-sm font-bold text-on-surface focus:outline-none focus:border-primary text-center"
-                    />
-                  </td>
-                  <td className="py-5">
-                    <span className={`font-body text-sm font-bold ${p.stockFin < 20 ? 'text-error' : 'text-on-surface'}`}>
-                      {p.stockFin.toLocaleString()}
-                    </span>
-                    {p.stockFin < 20 && (
-                      <span className="ml-2 material-symbols-outlined text-error text-sm align-middle">warning</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Gráfico principal */}
+      <section className="mb-10 w-full h-[400px] bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col relative z-0">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Gráfica de Ganancias</h3>
+            <p className="text-xs text-outline font-label uppercase tracking-widest mt-1">Evolución de ingresos en el periodo</p>
+          </div>
+          <div className="bg-surface-container px-5 py-3 rounded-2xl flex flex-col items-end border border-outline-variant/20">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Cálculo Total Neto</span>
+            <span className="font-headline font-bold text-2xl text-secondary">${totalMonetario.toLocaleString('es-CL')}</span>
+          </div>
         </div>
 
-        <div className="mt-7 pt-7 border-t border-outline-variant/20 flex justify-center">
-          <button className="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors flex items-center gap-2">
-            Ver inventario completo
-            <span className="material-symbols-outlined text-sm">chevron_right</span>
-          </button>
+        <div className="flex-1 w-full relative z-0 -ml-4 pr-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 20, right: 0, left: 10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorGanancia" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#a78b5e" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#a78b5e" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" opacity={0.5} />
+              <XAxis 
+                dataKey="label" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fill: '#808080', fontWeight: 'bold' }} 
+                dy={10} 
+              />
+              <YAxis 
+                type="number" 
+                tickFormatter={formatMoney} 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fill: '#808080', fontWeight: 'bold' }} 
+                dx={-5} 
+              />
+              <Tooltip 
+                formatter={(value) => [`$${value.toLocaleString('es-CL')}`, 'Ganancias']}
+                labelStyle={{ fontWeight: 'bold', color: '#524430' }}
+                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              />
+              <Area type="monotone" dataKey="Ganancia" stroke="#524430" strokeWidth={3} fillOpacity={1} fill="url(#colorGanancia)" />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="mt-16 flex justify-between items-center opacity-40">
-        <div className="flex items-center gap-4">
-          <span className="h-px w-10 bg-outline inline-block" />
-          <p className="font-label text-[10px] uppercase tracking-widest">Inventario App © 2026</p>
-        </div>
-        <span className="font-label text-[10px] uppercase tracking-widest">Confidencial</span>
-      </footer>
+      {/* Tabla Manual y Historial unificados */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16 relative z-10">
+        
+        {/* Conteo semanal MANUAL (para Venta Directa) */}
+        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[500px]">
+          <div className="flex justify-between items-center mb-6 shrink-0">
+            <div>
+              <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Registrar Venta Directa</h3>
+              <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">
+                Registra ventas manuales.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {guardado && (
+                <span className="flex items-center gap-1 text-xs text-green-700 font-bold animate-pulse">
+                  <span className="material-symbols-outlined text-green-700 text-sm">check_circle</span>
+                  Guardado
+                </span>
+              )}
+              <button
+                onClick={guardar}
+                className="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-sm"
+              >
+                Guardar conteo
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 rounded-2xl border border-outline-variant/20 relative z-10 p-1">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-surface-container-low/90 backdrop-blur-md px-2 z-20">
+                <tr>
+                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Producto</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Stock Disp.</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Cant. Extendida</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/10">
+                {conteo.map((p) => (
+                  <tr key={p.id} className="hover:bg-surface-container-high transition-colors">
+                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px]">{p.producto}</td>
+                    <td className="py-3 text-center font-body text-[11px] font-bold">{p.stockFin.toLocaleString()}</td>
+                    <td className="py-3 text-center">
+                      <input
+                        type="number"
+                        min="0"
+                        max={p.stockIni}
+                        value={p.vendido}
+                        onChange={e => handleVendido(p.id, e.target.value)}
+                        className="w-14 bg-surface border border-outline-variant/30 rounded-md px-2 py-1 text-[11px] font-bold text-on-surface focus:outline-none focus:border-primary text-center"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* HISTORIAL GENERAL */}
+        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[500px]">
+          <div className="flex justify-between items-center mb-6 shrink-0">
+            <div>
+              <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Historial Periodo</h3>
+              <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">
+                Total sincronizado: <strong className="text-secondary">{totalVendidosUnidades} unidades</strong>
+              </p>
+            </div>
+          </div>
+          
+          <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 rounded-2xl border border-outline-variant/20 relative z-10 px-4 py-2 space-y-3">
+            {ventasFiltradas.map((v) => {
+              const esVentaDirecta = v.cliente === "Venta Directa"
+              let gananciaVenta = 0
+              v.productos.forEach(item => {
+                const prod = productos.find(xd => xd.id === item.productoId)
+                if(prod) gananciaVenta += (prod.precio || 0) * item.cantidad
+              })
+
+              return (
+                <div key={v.id} className="bg-surface p-4 rounded-2xl shadow-sm border border-outline-variant/10 flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                       <span className={`material-symbols-outlined text-sm ${esVentaDirecta ? 'text-primary' : 'text-secondary'}`}>
+                         {esVentaDirecta ? 'storefront' : 'local_shipping'}
+                       </span>
+                       <span className="font-bold text-xs uppercase tracking-widest text-on-surface-variant">
+                         {esVentaDirecta ? 'Ajuste / Venta Directa' : v.cliente}
+                       </span>
+                    </div>
+                    <span className="text-[10px] font-extrabold uppercase text-outline">
+                       {(v.fechaCreacion || v.fechaEntrega).split('T')[0]}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                     <ul className="text-xs space-y-0.5 opacity-80">
+                        {v.productos.map((prod, idx) => (
+                           <li key={idx}><strong className="text-secondary">{prod.cantidad}x</strong> {prod.nombre}</li>
+                        ))}
+                     </ul>
+                     <span className="font-headline font-bold text-lg text-secondary">+${gananciaVenta.toLocaleString('es-CL')}</span>
+                  </div>
+                </div>
+              )
+            })}
+            
+            {ventasFiltradas.length === 0 && (
+              <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center mt-10">
+                <span className="material-symbols-outlined text-4xl mb-2 text-outline">analytics</span>
+                <p className="text-[10px] font-bold text-outline uppercase tracking-widest">Aún no hay reportes de ventas para esta fecha</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+      </div>
     </div>
   )
 }

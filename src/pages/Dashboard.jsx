@@ -1,8 +1,9 @@
 // src/pages/Dashboard.jsx
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { Link } from 'react-router-dom'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 function BadgeStock({ nivel }) {
   const cls = nivel === 'critico'
@@ -20,6 +21,7 @@ function BadgeStock({ nivel }) {
 
 export default function Dashboard() {
   const [productos, setProductos] = useState([])
+  const [pedidos, setPedidos] = useState([])
   const [showAlerta, setShowAlerta] = useState(true)
   const prevCriticos = useRef(0)
 
@@ -27,7 +29,10 @@ export default function Dashboard() {
     const unsubProd = onSnapshot(collection(db, 'productos'), (snapshot) => {
       setProductos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     })
-    return () => unsubProd()
+    const unsubPed = onSnapshot(collection(db, 'pedidos'), (snapshot) => {
+      setPedidos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    })
+    return () => { unsubProd(); unsubPed(); }
   }, [])
 
   // Calculos
@@ -52,17 +57,40 @@ export default function Dashboard() {
     { icon: 'priority_high',label: 'Elementos críticos', valor: criticos, sub: 'Requieren atención' },
   ]
 
-  const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-  const entradas   = [35, 55, 45, 80, 60, 75]
-  const salidas    = [50, 30, 60, 20, 45, 35]
+  // Generar datos reales para los últimos 7 días basado en 'pedidos'
+  const chartData = useMemo(() => {
+    const last7Days = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      last7Days.push(d.toISOString().split('T')[0])
+    }
 
-  const getPoints = (dataArray) => {
-    return dataArray.map((val, i) => {
-      const x = (i / (diasSemana.length - 1)) * 100
-      const y = 100 - (val / 100 * 100)
-      return `${x},${y}`
-    }).join(' ')
-  }
+    return last7Days.map(dateStr => {
+      const pedidosDay = pedidos.filter(p => {
+        const pDateStr = (p.fechaCreacion ? p.fechaCreacion.split('T')[0] : p.fechaEntrega)
+        return pDateStr === dateStr
+      })
+
+      let sumVentas = 0
+      pedidosDay.forEach(ped => {
+        ped.productos.forEach(prod => { sumVentas += Number(prod.cantidad) })
+      })
+
+      const ingresosDay = productos.filter(p => p.fechaIngreso === dateStr)
+      let sumEntradas = 0
+      ingresosDay.forEach(prod => { sumEntradas += Number(prod.stock) })
+
+      const dObj = new Date(dateStr + 'T12:00:00')
+      const nombreDia = dObj.toLocaleDateString('es-ES', { weekday: 'short' })
+
+      return {
+        name: nombreDia.charAt(0).toUpperCase() + nombreDia.slice(1),
+        Ventas: sumVentas,
+        Entradas: sumEntradas
+      }
+    })
+  }, [pedidos, productos])
 
   return (
     <div className="p-6 md:p-12">
@@ -104,18 +132,25 @@ export default function Dashboard() {
             <h2 className="font-headline italic text-2xl text-primary">Movimientos Recientes</h2>
             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" /> Entradas</span>
-              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-secondary inline-block" /> Salidas</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-secondary inline-block" /> Ventas</span>
             </div>
           </div>
 
-          <div className="flex-1 w-full relative mb-4 min-h-[150px]">
-            <svg viewBox="0 -5 100 110" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
-              <polyline points={getPoints(entradas)} fill="none" stroke="#a78b5e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              <polyline points={getPoints(salidas)} fill="none" stroke="#524430" strokeWidth="2.5" strokeDasharray="4 4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div className="flex justify-between w-full text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-            {diasSemana.map(d => <span key={d}>{d}</span>)}
+          <div className="flex-1 w-full relative mb-4 min-h-[250px] mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#808080', fontWeight: 'bold' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#808080', fontWeight: 'bold' }} dx={-10} />
+                <Tooltip 
+                  cursor={{ fill: 'transparent' }} 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  labelStyle={{ fontWeight: 'bold', color: '#524430', marginBottom: '4px' }}
+                />
+                <Bar dataKey="Ventas" fill="#524430" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="Entradas" fill="#a78b5e" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
@@ -141,11 +176,52 @@ export default function Dashboard() {
           )}
 
           {/* Próximas entregas */}
-          <div className="p-7 rounded-3xl bg-surface-container-low border border-outline-variant/20 flex flex-col justify-center items-center min-h-[180px]">
-            <h4 className="font-label font-bold text-[10px] uppercase tracking-[0.15em] text-on-surface-variant mb-4 self-start">Próximas Entregas</h4>
-            <div className="flex flex-col items-center justify-center opacity-60 flex-1 w-full text-center">
-              <span className="material-symbols-outlined text-4xl mb-2 text-outline">hourglass_empty</span>
-              <p className="text-xs font-bold text-on-surface-variant mb-3">Próximamente...</p>
+          <div className="p-7 rounded-3xl bg-surface-container-low border border-outline-variant/20 flex flex-col min-h-[180px]">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-label font-bold text-[10px] uppercase tracking-[0.15em] text-on-surface-variant">Próximas Entregas</h4>
+              <Link to="/pedidos" className="text-secondary hover:text-primary transition-colors tooltip flex items-center justify-center" title="Ver todos">
+                <span className="material-symbols-outlined text-sm">open_in_new</span>
+              </Link>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 pr-2 space-y-3">
+              {pedidos
+                .filter(p => {
+                  // +1 to count today effectively as within exactly the difference of days plus the margin
+                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+                  return diasFaltantes >= 0 && diasFaltantes <= 3 // Entregas en los próximos 3 días
+                })
+                .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
+                .map(p => {
+                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+                  return (
+                    <div key={p.id} className="bg-surface-container p-3 rounded-xl border border-outline-variant/20 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-sm text-on-surface truncate pr-2 max-w-[150px]">{p.cliente}</p>
+                        <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mt-0.5">{p.productos.length} items</p>
+                      </div>
+                      <div className="text-right shrink-0 flex flex-col items-end">
+                        <span className="px-2 py-0.5 bg-error/10 text-error text-[9px] font-extrabold uppercase rounded-full tracking-widest animate-pulse inline-block mb-1">
+                          ¡Faltan {diasFaltantes} d!
+                        </span>
+                        <p className="text-[10px] font-bold text-on-surface-variant flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[12px]">calendar_month</span>
+                          {p.fechaEntrega.split('-').slice(1).join('/')}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+
+              {pedidos.filter(p => {
+                const df = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+                return df >= 0 && df <= 3
+              }).length === 0 && (
+                <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center mt-6">
+                  <span className="material-symbols-outlined text-3xl mb-2 text-outline">done_all</span>
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Libre de entregas</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
