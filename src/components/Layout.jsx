@@ -89,11 +89,11 @@ export default function Layout() {
       {/* ── Main content ── */}
       <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative">
         {/* Marca de agua / Watermark */}
-        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-[0.12]">
+        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-20">
           <img 
             src="/logo.jpeg" 
             alt="Watermark" 
-            className="w-[60%] md:w-[35%] max-w-sm rounded-[3rem] shadow-sm mix-blend-darken"
+            className="w-[85%] md:w-[50%] max-w-lg rounded-[3.5rem] shadow-sm mix-blend-darken"
           />
         </div>
         
