@@ -22,6 +22,8 @@ export default function Inventario() {
   const [esNuevaCategoria, setEsNuevaCategoria] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [expandedImage, setExpandedImage] = useState(null)
+  const [showCatDropdown, setShowCatDropdown] = useState(false)
+  const [busquedaCat, setBusquedaCat] = useState('')
 
   // Estados del CRUD
   const [showModal, setShowModal] = useState(false)
@@ -181,7 +183,7 @@ export default function Inventario() {
     <div className="flex flex-col h-full relative">
 
       {/* Header sticky */}
-      <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-8 md:px-10 py-7 flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-outline-variant/20">
+      <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-8 md:px-10 py-7 flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-outline-variant/20 tour-inv-header">
         <div>
           <h1 className="font-headline text-4xl text-secondary font-bold italic leading-tight">Inventario Maestro</h1>
           <p className="text-primary font-label text-xs uppercase tracking-[0.2em] font-bold mt-1">Control de Existencias</p>
@@ -191,34 +193,37 @@ export default function Inventario() {
       <div className="p-8 md:p-10 space-y-8">
 
         {/* Métricas bento */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 tour-inv-metricas">
           <div className="bg-surface-container-low p-6 rounded-xl flex flex-col justify-between h-36">
-            <span className="material-symbols-outlined text-primary text-3xl">deployed_code</span>
-            <div>
-              <p className="text-3xl font-headline italic font-bold">{totalSKUs.toLocaleString()}</p>
-              <p className="text-[10px] uppercase tracking-widest font-extrabold text-outline">Total Productos</p>
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary text-2xl">deployed_code</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline leading-none">Total Productos</p>
             </div>
+            <p className="text-3xl font-headline italic font-bold">{totalSKUs.toLocaleString()}</p>
           </div>
+
           <div className={`p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border transition-colors ${bajosDeStock > 0 ? 'bg-error border-error' : 'bg-primary-container border-primary/10'}`}>
-            <span className={`material-symbols-outlined text-3xl ${bajosDeStock > 0 ? 'text-on-error opacity-90' : 'text-on-primary-container'}`}>priority_high</span>
-            <div>
-              <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-on-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
-              <p className={`text-[10px] uppercase tracking-widest font-extrabold ${bajosDeStock > 0 ? 'text-on-error opacity-80' : 'text-on-primary-container'}`}>Stock Bajo</p>
+            <div className="flex items-center gap-3">
+              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-on-error opacity-90' : 'text-on-primary-container'}`}>priority_high</span>
+              <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-on-error opacity-80' : 'text-on-primary-container'}`}>Stock Bajo</p>
             </div>
+            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-on-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
           </div>
+
           <div className="bg-surface-container-highest p-6 rounded-xl flex flex-col justify-between h-36">
-            <span className="material-symbols-outlined text-secondary text-3xl">payments</span>
-            <div>
-              <p className="text-2xl font-headline italic font-bold truncate">${valorTotal.toLocaleString('es-CL')} CLP</p>
-              <p className="text-[10px] uppercase tracking-widest font-extrabold text-outline">Valor Inventario</p>
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-secondary text-2xl">payments</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline leading-none">Valor Inventario</p>
             </div>
+            <p className="font-headline italic font-bold text-xl md:text-2xl">${valorTotal.toLocaleString('es-CL')} CLP</p>
           </div>
+
           <div className="bg-secondary-container/20 p-6 rounded-xl flex flex-col justify-between h-36 border border-secondary-container/30">
-            <span className="material-symbols-outlined text-secondary text-3xl">inventory_2</span>
-            <div>
-              <p className="text-3xl font-headline italic font-bold text-secondary">{stockTotal.toLocaleString()}</p>
-              <p className="text-[10px] uppercase tracking-widest font-extrabold text-secondary">Unidades totales</p>
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-secondary text-2xl">inventory_2</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary leading-none">Unidades totales</p>
             </div>
+            <p className="text-3xl font-headline italic font-bold text-secondary">{stockTotal.toLocaleString()}</p>
           </div>
         </div>
 
@@ -237,7 +242,7 @@ export default function Inventario() {
                 />
               </div>
               <div className="flex items-center gap-2 w-full md:w-auto">
-                <button onClick={openNew} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-secondary text-white px-6 py-2.5 rounded-xl font-label font-bold uppercase text-[11px] tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all">
+                <button onClick={openNew} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-secondary text-white px-6 py-2.5 rounded-xl font-label font-bold uppercase text-[11px] tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all tour-inv-nuevo">
                   <span className="material-symbols-outlined text-sm">add</span>
                   Nuevo Producto
                 </button>
@@ -391,7 +396,7 @@ export default function Inventario() {
       {/* Modal CRUD */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-surface w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-outline-variant/20">
+          <div className="bg-surface w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 flex flex-col">
             <div className="bg-surface-container-low px-6 py-4 flex justify-between items-center border-b border-outline-variant/20">
               <h3 className="font-headline font-bold text-xl text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
@@ -402,7 +407,7 @@ export default function Inventario() {
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 pb-2">
               {errorMsg && (
                 <div className="bg-error-container text-error text-sm px-4 py-3 rounded-xl flex items-center gap-2">
                   <span className="material-symbols-outlined text-sm">error</span>
@@ -421,73 +426,114 @@ export default function Inventario() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Cód. Barra</label>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Cód. Barra</label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={form.sku} 
+                    onChange={e => setForm({...form, sku: e.target.value})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-12 py-2 text-sm focus:outline-none focus:border-primary"
+                    placeholder="Ej. 789123456"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setIsScanning(true)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-secondary bg-primary-container p-1.5 rounded-lg transition-colors flex items-center justify-center shadow-sm"
+                    title="Escanear Código de Barras"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Sección de Categoría (Separada para evitar recortes del dropdown) */}
+            <div className="px-6 py-2 relative">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Categoría</label>
+                {(esNuevaCategoria || categoriasUnicas.length === 0) ? (
                   <div className="relative">
                     <input 
                       type="text" 
-                      value={form.sku} 
-                      onChange={e => setForm({...form, sku: e.target.value})}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-12 py-2 text-sm focus:outline-none focus:border-primary"
-                      placeholder="Ej. 789123456"
+                      value={form.coleccion} 
+                      onChange={e => setForm({...form, coleccion: e.target.value})}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase pr-10"
+                      placeholder="NUEVA CATEGORÍA"
+                      autoFocus={esNuevaCategoria}
                     />
-                    <button 
-                      type="button" 
-                      onClick={() => setIsScanning(true)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-secondary bg-primary-container p-1.5 rounded-lg transition-colors flex items-center justify-center shadow-sm"
-                      title="Escanear Código de Barras"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-                    </button>
+                    {categoriasUnicas.length > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setEsNuevaCategoria(false)
+                          setForm({...form, coleccion: categoriasUnicas[0] || ''})
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors flex items-center p-1"
+                        title="Volver a seleccionar de la lista"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">close</span>
+                      </button>
+                    )}
                   </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Categoría</label>
-                  {(esNuevaCategoria || categoriasUnicas.length === 0) ? (
-                    <div className="relative">
+                ) : (
+                  <div className="relative">
+                    <div className="relative group">
                       <input 
-                        type="text" 
-                        value={form.coleccion} 
-                        onChange={e => setForm({...form, coleccion: e.target.value})}
-                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase pr-10"
-                        placeholder="NUEVA CATEGORÍA"
-                        autoFocus={esNuevaCategoria}
+                        type="text"
+                        value={busquedaCat}
+                        onChange={(e) => {
+                          setBusquedaCat(e.target.value)
+                          if (!showCatDropdown) setShowCatDropdown(true)
+                        }}
+                        onFocus={() => setShowCatDropdown(true)}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-xs text-left transition-all font-headline italic h-[38px] focus:outline-none focus:border-primary pr-10"
+                        placeholder={form.coleccion || "BUSCAR CATEGORÍA..."}
                       />
-                      {categoriasUnicas.length > 0 && (
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            setEsNuevaCategoria(false)
-                            setForm({...form, coleccion: categoriasUnicas[0] || ''})
-                          }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors flex items-center p-1"
-                          title="Volver a seleccionar de la lista"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">close</span>
-                        </button>
-                      )}
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40 group-focus-within:rotate-180 transition-transform duration-300 pointer-events-none">expand_more</span>
                     </div>
-                  ) : (
-                    <select
-                      value={form.coleccion}
-                      onChange={e => {
-                        if (e.target.value === '___NUEVA___') {
-                          setEsNuevaCategoria(true)
-                          setForm({...form, coleccion: ''})
-                        } else {
-                          setForm({...form, coleccion: e.target.value})
-                        }
-                      }}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase min-h-[38px] appearance-auto"
-                    >
-                      <option value="" disabled>SELECCIONE...</option>
-                      {categoriasUnicas.map(c => <option key={c} value={c}>{c}</option>)}
-                      <option value="___NUEVA___" className="font-bold text-primary">+ Añadir nueva</option>
-                    </select>
-                  )}
-                </div>
-              </div>
+
+                    {showCatDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-[60]" onClick={() => { setShowCatDropdown(false); setBusquedaCat(''); }} />
+                        <div className="absolute left-0 top-full mt-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                            <button 
+                              onClick={() => { setEsNuevaCategoria(true); setForm({...form, coleccion: busquedaCat || ''}); setShowCatDropdown(false); setBusquedaCat(''); }}
+                              className="w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors text-left border-b border-outline-variant/10 font-sans not-italic"
+                            >
+                              <span className="material-symbols-outlined text-sm">add</span>
+                              + {busquedaCat ? `Crear "${busquedaCat}"` : 'Añadir Nueva'}
+                            </button>
+                            {categoriasUnicas
+                              .filter(cat => cat.toLowerCase().includes(busquedaCat.toLowerCase()))
+                              .slice(0, 3)
+                              .map(cat => (
+                              <button 
+                                key={cat}
+                                onClick={() => { setForm({...form, coleccion: cat}); setShowCatDropdown(false); setBusquedaCat(''); }}
+                                className={`w-full flex items-center justify-between px-5 py-3.5 text-xs font-headline italic tracking-wide transition-colors text-left
+                                  ${form.coleccion === cat ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
+                                  ${cat !== categoriasUnicas[categoriasUnicas.length-1] ? 'border-b border-outline-variant/5' : ''}
+                                `}
+                              >
+                                {cat}
+                                {form.coleccion === cat && <span className="material-symbols-outlined text-sm">check</span>}
+                              </button>
+                            ))}
+                            {busquedaCat && categoriasUnicas.filter(cat => cat.toLowerCase().includes(busquedaCat.toLowerCase())).length === 0 && (
+                              <div className="px-5 py-4 text-center text-outline text-[10px] uppercase tracking-widest italic font-sans not-italic">
+                                No hay coincidencias
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+            </div>
+
+            <div className="p-6 pt-2 space-y-4">
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -47,6 +47,8 @@ export default function Reportes() {
   const [periodo, setPeriodo] = useState(0)
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0])
   const [fechaFin, setFechaFin] = useState(new Date().toISOString().split('T')[0])
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showPeriodMenu, setShowPeriodMenu] = useState(false)
   
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
@@ -399,7 +401,6 @@ export default function Reportes() {
   return (
     <div className="p-8 md:p-10 relative h-full overflow-y-auto">
 
-      {/* Header */}
       <header className="mb-10 flex flex-col xl:flex-row xl:justify-between xl:items-end gap-5">
         <div>
           <span className="font-label text-xs uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">Centro de Control Financiero</span>
@@ -408,57 +409,97 @@ export default function Reportes() {
             Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.
           </p>
         </div>
-        
-        <div className="flex flex-col md:flex-row md:items-end gap-3 self-start xl:self-auto">
-          {/* Selector de periodo */}
-          <div className="flex gap-2 bg-surface-container-[0.2] p-2 rounded-2xl border border-outline-variant/10">
-            <select
-              value={periodo}
-              onChange={e => setPeriodo(Number(e.target.value))}
-              className="bg-surface-container-highest px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest border-0 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container"
-            >
-              {PERIODOS.map((s, i) => <option key={s} value={i}>{s}</option>)}
-            </select>
-
-            {periodo === 2 && (
-              <div className="flex gap-2">
-                <input 
-                  type="date" 
-                  value={fechaInicio} 
-                  onChange={e => setFechaInicio(e.target.value)} 
-                  className="bg-surface-container-highest px-3 py-2 text-xs font-bold uppercase rounded-xl focus:outline-none" 
-                  title="Fecha de Inicio"
-                />
-                <input 
-                  type="date" 
-                  value={fechaFin} 
-                  onChange={e => setFechaFin(e.target.value)} 
-                  className="bg-surface-container-highest px-3 py-2 text-xs font-bold uppercase rounded-xl focus:outline-none" 
-                  title="Fecha Fin"
-                />
-              </div>
-            )}
-          </div>
-          
-          <div className="flex gap-2">
-            <button onClick={exportarPDF} className="bg-surface-container-highest px-5 py-3 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-2 relative z-10">
-              <span className="material-symbols-outlined text-sm text-error">picture_as_pdf</span>
-              Exportar PDF
-            </button>
-            <button onClick={exportarCSV} className="bg-primary-container text-on-primary-container px-6 py-3 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest shadow-lg hover:scale-105 transition-all flex items-center gap-2 relative z-10">
-              <span className="material-symbols-outlined text-sm">csv</span>
-              Generar Excel
-            </button>
-          </div>
-        </div>
       </header>
 
       {/* Gráfico principal */}
-      <section className="mb-10 w-full h-[400px] md:h-[450px] bg-surface-container-low rounded-[2rem] p-6 md:p-8 border border-outline-variant/10 flex flex-col relative z-0">
+      <section className="mb-10 w-full h-[400px] md:h-[450px] bg-surface-container-low rounded-[2rem] p-6 md:p-8 border border-outline-variant/10 flex flex-col relative z-0 tour-reportes-grafico">
         <div className="flex flex-col xl:flex-row justify-between items-start mb-6 w-full gap-4">
           <div>
             <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Gráfica Comercial</h3>
-            <p className="text-xs text-outline font-label uppercase tracking-widest mt-1">Evolución de Ganancias vs Pérdidas</p>
+            <p className="text-xs text-outline font-label uppercase tracking-widest mt-1 mb-4">Evolución de Ganancias vs Pérdidas</p>
+            
+            {/* Selector de periodo y Menu de Exportación (Moved here) */}
+            <div className="flex items-center gap-2 bg-surface-container-highest/20 p-1.5 rounded-2xl border border-outline-variant/10 relative w-fit mb-4">
+              {/* Custom Period Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowPeriodMenu(!showPeriodMenu)}
+                  className="bg-surface-container-highest px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-2 min-w-[140px] justify-between"
+                >
+                  {PERIODOS[periodo]}
+                  <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+                </button>
+
+                {showPeriodMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowPeriodMenu(false)} />
+                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      {PERIODOS.map((label, i) => (
+                        <button 
+                          key={label}
+                          onClick={() => { setPeriodo(i); setShowPeriodMenu(false); }}
+                          className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
+                            ${periodo === i ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
+                            ${i !== PERIODOS.length - 1 ? 'border-b border-outline-variant/5' : ''}
+                          `}
+                        >
+                          {label}
+                          {periodo === i && <span className="material-symbols-outlined text-sm">check</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {periodo === 2 && (
+                <div className="flex gap-2">
+                  <input 
+                    type="date" 
+                    value={fechaInicio} 
+                    onChange={e => setFechaInicio(e.target.value)} 
+                    className="bg-surface-container-highest px-2 py-1.5 text-[10px] font-bold uppercase rounded-lg focus:outline-none border border-outline-variant/10" 
+                  />
+                  <input 
+                    type="date" 
+                    value={fechaFin} 
+                    onChange={e => setFechaFin(e.target.value)} 
+                    className="bg-surface-container-highest px-2 py-1.5 text-[10px] font-bold uppercase rounded-lg focus:outline-none border border-outline-variant/10" 
+                  />
+                </div>
+              )}
+
+              <div className="relative">
+                <button 
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-variant transition-colors"
+                >
+                  <span className="material-symbols-outlined text-xl">more_vert</span>
+                </button>
+
+                {showExportMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                    <div className="absolute left-0 top-full mt-2 w-48 bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button 
+                        onClick={() => { exportarPDF(); setShowExportMenu(false); }}
+                        className="w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-primary/10 hover:text-primary transition-colors text-left border-b border-outline-variant/10"
+                      >
+                        <span className="material-symbols-outlined text-sm text-error">picture_as_pdf</span>
+                        Exportar PDF
+                      </button>
+                      <button 
+                        onClick={() => { exportarCSV(); setShowExportMenu(false); }}
+                        className="w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                      >
+                        <span className="material-symbols-outlined text-sm text-secondary">csv</span>
+                        Generar Excel
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex flex-row md:gap-4 gap-2 w-full xl:w-auto">
             <div className="bg-surface-container px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 flex-1 xl:flex-none">
@@ -571,7 +612,7 @@ export default function Reportes() {
         </section>
 
         {/* Mermas MANUAL */}
-        <section className="bg-error/5 rounded-[2rem] p-8 border border-error/20 flex flex-col h-[400px]">
+        <section className="bg-error/5 rounded-[2rem] p-8 border border-error/20 flex flex-col h-[400px] tour-reportes-mermas">
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
               <h3 className="font-headline text-2xl text-error">Registrar Pérdida</h3>
