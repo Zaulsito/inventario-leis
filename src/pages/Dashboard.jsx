@@ -100,11 +100,11 @@ export default function Dashboard() {
   return (
     <div className="p-6 md:p-12">
 
-      {/* Header */}
-      <header className="flex flex-col md:flex-row md:justify-between md:items-end mb-10 gap-4">
+      {/* Header adaptable */}
+      <header className="py-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4 shrink-0 tour-inicio-header">
         <div>
-          <p className="text-secondary font-label text-xs font-bold uppercase tracking-[0.2em] mb-1">Resumen General</p>
-          <h1 className="font-headline italic text-4xl md:text-5xl text-primary leading-tight">Este es tu resumen actual.</h1>
+          <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 mb-2">Resumen General</p>
+          <h2 className="font-headline text-5xl text-primary italic leading-tight">Este es tu resumen actual.</h2>
         </div>
         <div className="flex gap-3">
           {/* <Link to="/registro" className="flex items-center gap-2 px-5 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold text-xs tracking-wide shadow-lg hover:scale-105 transition-transform">
@@ -115,7 +115,7 @@ export default function Dashboard() {
       </header>
 
       {/* Métricas */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 tour-inicio-metricas">
         {metricas.map((m) => (
           <div 
             key={m.label} 
@@ -125,17 +125,20 @@ export default function Dashboard() {
                 : 'bg-surface-container-low border-outline-variant/20'
             }`}
           >
-            <span className={`material-symbols-outlined text-3xl ${m.isAlert && m.valor > 0 ? 'opacity-90' : 'text-secondary'}`}>
-              {m.icon}
-            </span>
-            <div>
-              <p className={`font-label text-[10px] uppercase tracking-widest mb-1 ${m.isAlert && m.valor > 0 ? 'opacity-80' : 'text-on-surface-variant'}`}>
+            <div className="flex items-center gap-2.5">
+              <span className={`material-symbols-outlined text-2xl ${m.isAlert && m.valor > 0 ? 'opacity-90' : 'text-secondary'}`}>
+                {m.icon}
+              </span>
+              <p className={`font-label text-[10px] font-bold uppercase tracking-widest leading-none ${m.isAlert && m.valor > 0 ? 'opacity-80' : 'text-on-surface-variant'}`}>
                 {m.label}
               </p>
-              <p className={`text-2xl font-headline font-bold ${m.isAlert && m.valor > 0 ? '' : 'text-primary'}`}>
+            </div>
+            
+            <div className="mt-auto">
+              <p className={`font-headline font-bold mb-0.5 ${m.isAlert && m.valor > 0 ? '' : 'text-primary'} ${m.valor.length > 10 ? 'text-lg' : 'text-2xl'}`}>
                 {m.valor}
               </p>
-              <p className={`text-[10px] ${m.isAlert && m.valor > 0 ? 'opacity-70' : 'text-on-surface-variant'}`}>
+              <p className={`text-[9px] font-bold uppercase tracking-widest ${m.isAlert && m.valor > 0 ? 'opacity-70' : 'text-on-surface-variant/60'}`}>
                 {m.sub}
               </p>
             </div>

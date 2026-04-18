@@ -10,6 +10,8 @@ export default function Pedidos() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(formInicial)
   const [errorMsg, setErrorMsg] = useState('')
+  const [showProdDropdown, setShowProdDropdown] = useState(false)
+  const [busquedaProd, setBusquedaProd] = useState('')
 
   useEffect(() => {
     // Escuchar productos
@@ -208,7 +210,7 @@ END:VCALENDAR`
           <h1 className="font-headline text-4xl text-secondary font-bold italic leading-tight">Pedidos</h1>
           <p className="text-primary font-label text-xs uppercase tracking-[0.2em] font-bold mt-1">Gestión y Entregas</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 bg-secondary text-white px-6 py-3 rounded-xl font-label font-bold uppercase text-xs tracking-widest shadow-md hover:scale-105 transition-all">
+        <button onClick={openNew} className="flex items-center gap-2 bg-secondary text-white px-6 py-3 rounded-xl font-label font-bold uppercase text-xs tracking-widest shadow-md hover:scale-105 transition-all tour-pedidos-crear">
           <span className="material-symbols-outlined text-sm">add</span>
           Crear Pedido
         </button>
@@ -284,7 +286,7 @@ END:VCALENDAR`
       {/* Modal CRUD */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-surface w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-outline-variant/20 flex flex-col max-h-[90vh]">
+          <div className="bg-surface w-full max-w-lg rounded-3xl shadow-2xl border border-outline-variant/20 flex flex-col max-h-[90vh]">
             <div className="bg-surface-container-low px-6 py-4 flex justify-between items-center border-b border-outline-variant/20 shrink-0">
               <h3 className="font-headline font-bold text-xl text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined">add_shopping_cart</span>
@@ -295,7 +297,7 @@ END:VCALENDAR`
               </button>
             </div>
             
-            <div className="p-6 space-y-6 overflow-y-auto">
+            <div className="px-6 pt-6 space-y-6">
               {errorMsg && (
                 <div className="bg-error-container text-error text-sm px-4 py-3 rounded-xl flex items-center gap-2 shrink-0">
                   <span className="material-symbols-outlined text-sm">error</span>
@@ -325,26 +327,72 @@ END:VCALENDAR`
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-outline-variant/20">
+            </div>
+
+            {/* Buscador de Productos (Fuera del scroll para efecto pop-out) */}
+            <div className="px-6 py-4 border-t border-outline-variant/20 shrink-0">
                 <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Agregar Productos</label>
-                <div className="flex gap-2">
-                  <select
-                    className="flex-1 bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
-                    onChange={(e) => {
-                      handleAddProduct(e.target.value)
-                      e.target.value = "" // reset select
-                    }}
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Seleccione producto...</option>
-                    {productos.filter(p => !form.productosSeleccionados.map(ps => ps.productoId).includes(p.id)).map(p => (
-                      <option key={p.id} value={p.id} disabled={p.stock <= 0}>
-                        {p.nombre} {p.stock <= 0 ? '(Agotado)' : `(${p.stock} disp.)`}
-                      </option>
-                    ))}
-                  </select>
+                <div className="relative">
+                  <div className="relative group">
+                    <input 
+                      type="text"
+                      value={busquedaProd}
+                      onChange={(e) => {
+                        setBusquedaProd(e.target.value)
+                        if (!showProdDropdown) setShowProdDropdown(true)
+                      }}
+                      onFocus={() => setShowProdDropdown(true)}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-xs text-left transition-all font-headline italic h-[38px] focus:outline-none focus:border-primary pr-10"
+                      placeholder="BUSCAR PRODUCTO O SKU..."
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40 group-focus-within:rotate-180 transition-transform duration-300 pointer-events-none">expand_more</span>
+                  </div>
+
+                  {showProdDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-[60]" onClick={() => { setShowProdDropdown(false); setBusquedaProd(''); }} />
+                      <div className="absolute left-0 top-full mt-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          {productos
+                            .filter(p => !form.productosSeleccionados.map(ps => ps.productoId).includes(p.id))
+                            .filter(p => 
+                              p.nombre.toLowerCase().includes(busquedaProd.toLowerCase()) || 
+                              (p.sku || '').toLowerCase().includes(busquedaProd.toLowerCase())
+                            )
+                            .sort((a, b) => new Date(b.fechaIngreso || 0) - new Date(a.fechaIngreso || 0))
+                            .slice(0, 3)
+                            .map((p, idx, arr) => (
+                              <button 
+                                key={p.id}
+                                onClick={() => { handleAddProduct(p.id); setShowProdDropdown(false); setBusquedaProd(''); }}
+                                disabled={p.stock <= 0}
+                                className={`w-full flex items-center justify-between px-5 py-3.5 text-xs font-headline italic tracking-wide transition-colors text-left
+                                  ${p.stock <= 0 ? 'opacity-40 cursor-not-allowed' : 'text-on-surface hover:bg-surface-variant'}
+                                  ${idx !== arr.length - 1 ? 'border-b border-outline-variant/5' : ''}
+                                `}
+                              >
+                                <div className="flex flex-col">
+                                  <span>{p.nombre}</span>
+                                  <span className={`text-[9px] ${p.stock <= 0 ? 'text-error' : 'text-secondary/60'} font-sans not-italic`}>
+                                    {p.stock <= 0 ? 'Agotado' : `${p.stock} unidades disponibles`}
+                                  </span>
+                                </div>
+                                {p.stock > 0 && <span className="material-symbols-outlined text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">add_circle</span>}
+                              </button>
+                            ))}
+                          {productos.filter(p => !form.productosSeleccionados.map(ps => ps.productoId).includes(p.id)).filter(p => p.nombre.toLowerCase().includes(busquedaProd.toLowerCase()) || (p.sku || '').toLowerCase().includes(busquedaProd.toLowerCase())).length === 0 && (
+                            <div className="px-5 py-8 text-center text-outline text-[10px] uppercase tracking-widest italic font-sans not-italic">
+                              {busquedaProd ? 'No se encontraron resultados' : 'No hay más productos disponibles'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
+            </div>
+
+            <div className="px-6 pb-6 overflow-y-auto">
 
               {form.productosSeleccionados.length > 0 && (
                 <div className="bg-surface-container-low rounded-xl p-4 space-y-3">

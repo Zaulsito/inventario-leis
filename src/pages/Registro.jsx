@@ -29,6 +29,8 @@ export default function Registro() {
   const [historial, setHistorial] = useState([])
   const [enviado, setEnviado]     = useState(false)
   const [procesando, setProcesando] = useState(false)
+  const [showProdDropdown, setShowProdDropdown] = useState(false)
+  const [busquedaProd, setBusquedaProd] = useState('')
 
   // 1. Cargar productos para el select
   useEffect(() => {
@@ -127,11 +129,57 @@ export default function Registro() {
           <div className="space-y-6">
             {/* Producto */}
             <Campo label="Producto">
-              <select name="productoId" value={form.productoId} onChange={handleChange} className={inputCls}>
-                {productosDisponibles.map(p => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <div className="relative group">
+                  <input 
+                    type="text"
+                    value={busquedaProd}
+                    onChange={(e) => {
+                      setBusquedaProd(e.target.value)
+                      if (!showProdDropdown) setShowProdDropdown(true)
+                    }}
+                    onFocus={() => setShowProdDropdown(true)}
+                    className={`${inputCls} text-left transition-all pr-12 h-[50px] font-headline italic focus:outline-none focus:border-primary`}
+                    placeholder={productosDisponibles.find(p => p.id === form.productoId)?.nombre || "BUSCAR PRODUCTO..."}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-xl opacity-40 group-focus-within:rotate-180 transition-transform duration-300 pointer-events-none">expand_more</span>
+                </div>
+
+                {showProdDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-[60]" onClick={() => { setShowProdDropdown(false); setBusquedaProd(''); }} />
+                    <div className="absolute left-0 top-full mt-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                        {productosDisponibles
+                          .filter(p => p.nombre.toLowerCase().includes(busquedaProd.toLowerCase()) || (p.sku || '').toLowerCase().includes(busquedaProd.toLowerCase()))
+                          .sort((a, b) => new Date(b.fechaIngreso || 0) - new Date(a.fechaIngreso || 0))
+                          .slice(0, 3)
+                          .map((p, idx, arr) => (
+                          <button 
+                            key={p.id}
+                            onClick={() => { setForm({...form, productoId: p.id}); setShowProdDropdown(false); setBusquedaProd(''); }}
+                            className={`w-full flex items-center justify-between px-6 py-4 text-xs font-headline italic tracking-wide transition-colors text-left
+                              ${form.productoId === p.id ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
+                              ${idx !== arr.length - 1 ? 'border-b border-outline-variant/5' : ''}
+                            `}
+                          >
+                            <div className="flex flex-col">
+                              <span>{p.nombre}</span>
+                              <span className="text-[10px] opacity-50 font-sans not-italic">Actual: {p.stock} unidades</span>
+                            </div>
+                            {form.productoId === p.id && <span className="material-symbols-outlined text-sm">check</span>}
+                          </button>
+                        ))}
+                        {busquedaProd && productosDisponibles.filter(p => p.nombre.toLowerCase().includes(busquedaProd.toLowerCase())).length === 0 && (
+                          <div className="px-6 py-8 text-center text-outline text-[10px] uppercase tracking-widest italic font-sans not-italic">
+                            No se encontraron resultados
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </Campo>
 
             {/* Cantidad + Fecha */}
