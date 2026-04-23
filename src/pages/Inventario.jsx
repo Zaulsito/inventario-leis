@@ -20,6 +20,7 @@ const formInicial = {
   sku: '', 
   coleccion: '', 
   proveedor: '', 
+  marca: '',
   precio: '', 
   stock: '', 
   fechaIngreso: getLocalDateString(), 
@@ -85,6 +86,7 @@ export default function Inventario() {
       sku: p.sku, 
       coleccion: (p.coleccion || '').trim().toUpperCase(), 
       proveedor: (p.proveedor || '').trim().toUpperCase(),
+      marca: (p.marca || '').trim().toUpperCase(),
       precio: p.precio, 
       stock: p.stock, 
       fechaIngreso: p.fechaIngreso || getLocalDateString(), 
@@ -131,6 +133,7 @@ export default function Inventario() {
       sku: form.sku,
       coleccion: form.coleccion.trim().toUpperCase(),
       proveedor: (form.proveedor || '').trim().toUpperCase(),
+      marca: (form.marca || '').trim().toUpperCase(),
       precio: Math.floor(Number(form.precio)) || 0,
       stock: stockCalculado,
       variantes: form.variantes || [],
@@ -187,19 +190,38 @@ export default function Inventario() {
   }
 
   function exportarCSV() {
-    const encabezados = ['Producto', 'Cód. Barra', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso']
-    const filas = filtrados.map(p => [
-      `"${(p.nombre || '').replace(/"/g, '""')}"`,
-      `"${(p.sku || '').replace(/"/g, '""')}"`,
-      `"${(p.coleccion || '').toUpperCase().replace(/"/g, '""')}"`,
-      p.stock,
-      p.precio,
-      `"${(p.estado || '').toUpperCase()}"`,
-      `"${p.fechaIngreso || ''}"`
-    ])
+    const encabezados = ['Producto', 'Marca', 'Cód. Barra', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso']
+    const filas = []
+    
+    filtrados.forEach(p => {
+      if (p.variantes && p.variantes.length > 0) {
+        p.variantes.forEach(v => {
+          filas.push([
+            `"${(p.nombre || '').replace(/"/g, '""')} (${v.nombre.toUpperCase()})"`,
+            `"${(p.marca || '').replace(/"/g, '""')}"`,
+            `"${(p.sku || '').replace(/"/g, '""')}"`,
+            `"${(p.coleccion || '').toUpperCase().replace(/"/g, '""')}"`,
+            v.stock,
+            p.precio,
+            `"${calcularEstado(v.stock).toUpperCase()}"`,
+            `"${p.fechaIngreso || ''}"`
+          ])
+        })
+      } else {
+        filas.push([
+          `"${(p.nombre || '').replace(/"/g, '""')}"`,
+          `"${(p.marca || '').replace(/"/g, '""')}"`,
+          `"${(p.sku || '').replace(/"/g, '""')}"`,
+          `"${(p.coleccion || '').toUpperCase().replace(/"/g, '""')}"`,
+          p.stock,
+          p.precio,
+          `"${(p.estado || '').toUpperCase()}"`,
+          `"${p.fechaIngreso || ''}"`
+        ])
+      }
+    })
     
     const csvContent = encabezados.join(";") + "\n" + filas.map(e => e.join(";")).join("\n")
-
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     
@@ -215,24 +237,80 @@ export default function Inventario() {
   function exportarPDF() {
     try {
       const doc = new jsPDF()
-      doc.text("Reporte de Inventario - Leis", 14, 15)
+      // Título estilizado
+      doc.setFontSize(20)
+      doc.setTextColor(139, 115, 85) // Color secundario
+      doc.setFont("helvetica", "bold")
+      doc.text("Reporte de Inventario - Leis", 14, 20)
       
-      const tableData = filtrados.map(p => [
-        p.nombre,
-        p.sku,
-        p.coleccion,
-        p.stock.toString(),
-        `$${(p.precio || 0).toLocaleString('es-CL')}`,
-        p.estado.toUpperCase(),
-        p.fechaIngreso || '-'
-      ])
-
-      autoTable(doc, {
-        startY: 20,
-        head: [['Producto', 'Cód. Barra', 'Categoría', 'Stock', 'Precio', 'Estado', 'Fecha Ing.']],
-        body: tableData,
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.setFont("helvetica", "normal")
+      doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 28)
+      
+      const tableData = []
+      filtrados.forEach(p => {
+        if (p.variantes && p.variantes.length > 0) {
+          p.variantes.forEach(v => {
+            tableData.push([
+              `${p.nombre} (${v.nombre.toUpperCase()})`,
+              p.marca || '-',
+              p.sku,
+              p.coleccion,
+              v.stock.toString(),
+              `$${(p.precio || 0).toLocaleString('es-CL')}`,
+              calcularEstado(v.stock).toUpperCase(),
+              p.fechaIngreso || '-'
+            ])
+          })
+        } else {
+          tableData.push([
+            p.nombre,
+            p.marca || '-',
+            p.sku,
+            p.coleccion,
+            p.stock.toString(),
+            `$${(p.precio || 0).toLocaleString('es-CL')}`,
+            p.estado.toUpperCase(),
+            p.fechaIngreso || '-'
+          ])
+        }
       })
 
+      autoTable(doc, {
+        startY: 35,
+        head: [['Producto', 'Marca', 'Cód. Barra', 'Categoría', 'Stock', 'Precio', 'Estado', 'Fecha Ing.']],
+        body: tableData,
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 4,
+          lineColor: [255, 255, 255], // Líneas blancas para separar "cuadros"
+          lineWidth: 1.5,
+        },
+        headStyles: {
+          fillColor: [139, 115, 85], // Color secundario
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+          lineWidth: 0,
+        },
+        bodyStyles: {
+          fillColor: [248, 245, 238], // Color crema muy suave (tipo tarjeta)
+          textColor: [60, 60, 60],
+          valign: 'middle',
+        },
+        columnStyles: {
+          3: { halign: 'center' }, // Stock
+          4: { halign: 'right', fontStyle: 'bold' }, // Precio
+          5: { halign: 'center' }, // Estado
+        },
+        // Estilo alternado muy sutil para dar profundidad
+        alternateRowStyles: {
+          fillColor: [242, 238, 228],
+        },
+        margin: { left: 14, right: 14 },
+      })
       doc.save("inventario_leis.pdf")
     } catch (e) {
       console.error("Error PDF:", e)
@@ -444,6 +522,7 @@ export default function Inventario() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-headline font-bold text-base text-on-surface truncate leading-tight mb-0.5">{p.nombre}</h4>
+                      {p.marca && <p className="text-[10px] text-outline font-bold uppercase tracking-widest leading-none mt-0.5">Marca: {p.marca}</p>}
                       <p className="text-[10px] text-outline font-bold uppercase tracking-widest leading-none">SKU: {p.sku}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -543,7 +622,7 @@ export default function Inventario() {
               <thead>
                 <tr className="bg-surface-container">
                   {['', 'Producto', 'Proveedor', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso'].map((h, i) => (
-                    <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline whitespace-nowrap ${i === 0 ? 'pl-8 w-12' : 'px-7'} ${i === 7 ? 'pr-10' : ''}`}>{h}</th>
+                    <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline whitespace-nowrap ${i === 0 ? 'pl-8 w-12' : 'px-7'} ${i === 8 ? 'pr-10' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -578,6 +657,7 @@ export default function Inventario() {
                           )}
                           <div>
                             <p className="font-headline font-bold text-base text-on-surface">{p.nombre}</p>
+                            {p.marca && <p className="text-[10px] font-bold text-outline uppercase tracking-widest mt-0.5">Marca: {p.marca}</p>}
                             <p className="text-[10px] font-bold text-outline uppercase tracking-widest">Cód. Barra: {p.sku}</p>
                             {p.variantes && p.variantes.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
@@ -696,24 +776,36 @@ export default function Inventario() {
                 />
               </div>
 
-              {/* Fila 2: SKU */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Código de Barra / SKU</label>
-                <div className="relative">
+              {/* Fila 2: Marca y SKU */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Marca</label>
                   <input 
                     type="text" 
-                    value={form.sku} 
-                    onChange={e => setForm({...form, sku: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all"
-                    placeholder="Escribe o escanea..."
+                    value={form.marca} 
+                    onChange={e => setForm({...form, marca: e.target.value.toUpperCase()})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all uppercase"
+                    placeholder="Ej. Leis"
                   />
-                  <button 
-                    type="button" 
-                    onClick={() => setIsScanning(true)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container text-primary rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-                  </button>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Código de Barra / SKU</label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={form.sku} 
+                      onChange={e => setForm({...form, sku: e.target.value})}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all"
+                      placeholder="Escribe o escanea..."
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setIsScanning(true)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container text-primary rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
