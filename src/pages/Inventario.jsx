@@ -542,8 +542,8 @@ export default function Inventario() {
             <table className="w-full text-left border-collapse min-w-[640px]">
               <thead>
                 <tr className="bg-surface-container">
-                  {['Producto', 'Proveedor', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso', ''].map(h => (
-                    <th key={h} className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline">{h}</th>
+                  {['', 'Producto', 'Proveedor', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso'].map((h, i) => (
+                    <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline whitespace-nowrap ${i === 0 ? 'pl-8 w-12' : 'px-7'} ${i === 7 ? 'pr-10' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -552,6 +552,16 @@ export default function Inventario() {
                   const est = estadoConfig[p.estado] || estadoConfig.disponible
                   return (
                     <tr key={p.id} className="hover:bg-surface-container-high transition-colors group">
+                      <td className="pl-8 py-5">
+                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-[-10px] group-hover:translate-x-0">
+                          <button onClick={() => openEdit(p)} className="text-outline/40 hover:text-primary transition-colors" title="Editar">
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                          </button>
+                          <button onClick={() => handleDelete(p.id)} className="text-outline/40 hover:text-error transition-colors" title="Eliminar">
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          </button>
+                        </div>
+                      </td>
                       <td className="px-7 py-5">
                         <div className="flex items-center gap-3">
                           {p.fotoUrl ? (
@@ -591,9 +601,9 @@ export default function Inventario() {
                       </td>
                       <td className="px-7 py-5">
                         <p className={`text-sm font-bold mb-1 ${p.estado !== 'disponible' ? 'text-error' : ''}`}>
-                          {p.stock.toLocaleString()} u.
+                          {p.stock.toLocaleString()} <span className="text-[10px] opacity-60">u.</span>
                         </p>
-                        <div className="w-24 bg-outline-variant/20 h-1 rounded-full overflow-hidden">
+                        <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary' : 'bg-[#FF837C]'}`}
                             style={{ width: `${porcBarra(p.stock)}%` }}
@@ -609,17 +619,10 @@ export default function Inventario() {
                         </span>
                       </td>
                       <td className="px-7 py-5">
-                        <span className="text-[10px] font-bold text-outline uppercase tracking-widest">{p.fechaIngreso || '-'}</span>
-                      </td>
-                      <td className="px-7 py-5 text-right space-x-1">
-                        <button onClick={() => openEdit(p)} className="text-outline hover:text-primary p-2 transition-colors opacity-0 group-hover:opacity-100" title="Editar">
-                          <span className="material-symbols-outlined text-xl">edit</span>
-                        </button>
-                        <button onClick={() => handleDelete(p.id)} className="text-outline hover:text-error p-2 transition-colors opacity-0 group-hover:opacity-100" title="Eliminar">
-                          <span className="material-symbols-outlined text-xl">delete</span>
-                        </button>
+                        <span className="text-[10px] font-bold text-outline uppercase tracking-widest whitespace-nowrap">{p.fechaIngreso || '-'}</span>
                       </td>
                     </tr>
+
                   )
                 })}
                 {filtrados.length === 0 && (
@@ -716,27 +719,87 @@ export default function Inventario() {
 
               {/* Fila 3: Proveedor y Categoría */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Proveedor</label>
                   <input 
                     type="text" 
                     value={form.proveedor} 
                     onChange={e => setForm({...form, proveedor: e.target.value})}
+                    onFocus={() => setShowProvDropdown(true)}
                     className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm uppercase"
-                    placeholder="Sin Proveedor"
+                    placeholder="BUSCAR PROVEEDOR..."
                   />
+                  {showProvDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-[110]" onClick={() => setShowProvDropdown(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                        <button 
+                          type="button"
+                          onClick={() => setShowProvDropdown(false)}
+                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] flex items-center gap-2 hover:bg-black/5 transition-colors"
+                        >
+                          <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVO
+                        </button>
+                        {proveedoresUnicos
+                          .filter(p => p.toLowerCase().includes((form.proveedor || '').toLowerCase()))
+                          .slice(0, 3)
+                          .map(p => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => { setForm({...form, proveedor: p}); setShowProvDropdown(false); }}
+                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] hover:bg-black/5 transition-colors border-t border-black/10"
+                            >
+                              {p}
+                            </button>
+                          ))
+                        }
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div>
+
+                <div className="relative">
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Categoría</label>
                   <input 
                     type="text" 
                     value={form.coleccion} 
                     onChange={e => setForm({...form, coleccion: e.target.value})}
+                    onFocus={() => setShowCatDropdown(true)}
                     className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm uppercase"
-                    placeholder="Sin Categoría"
+                    placeholder="BUSCAR CATEGORÍA..."
                   />
+                  {showCatDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                        <button 
+                          type="button"
+                          onClick={() => setShowCatDropdown(false)}
+                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] flex items-center gap-2 hover:bg-black/5 transition-colors"
+                        >
+                          <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
+                        </button>
+                        {categoriasUnicas
+                          .filter(c => c.toLowerCase().includes((form.coleccion || '').toLowerCase()))
+                          .slice(0, 3)
+                          .map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => { setForm({...form, coleccion: c}); setShowCatDropdown(false); }}
+                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] hover:bg-black/5 transition-colors border-t border-black/10"
+                            >
+                              {c}
+                            </button>
+                          ))
+                        }
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
+
 
               {/* Fila 4: Precio y Stock */}
               <div className="grid grid-cols-2 gap-4">
