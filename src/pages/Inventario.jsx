@@ -15,7 +15,17 @@ const estadoConfig = {
   sin_stock:  { label: 'Sin stock',  cls: 'bg-gray-400 text-white font-bold' },
 }
 
-const formInicial = { nombre: '', sku: '', coleccion: '', proveedor: '', precio: '', stock: '', fechaIngreso: getLocalDateString(), fotoUrl: '' }
+const formInicial = { 
+  nombre: '', 
+  sku: '', 
+  coleccion: '', 
+  proveedor: '', 
+  precio: '', 
+  stock: '', 
+  fechaIngreso: getLocalDateString(), 
+  fotoUrl: '',
+  variantes: []
+}
 
 export default function Inventario() {
   const [busqueda, setBusqueda]   = useState('')
@@ -78,7 +88,8 @@ export default function Inventario() {
       precio: p.precio, 
       stock: p.stock, 
       fechaIngreso: p.fechaIngreso || getLocalDateString(), 
-      fotoUrl: p.fotoUrl || '' 
+      fotoUrl: p.fotoUrl || '',
+      variantes: p.variantes || []
     })
     setEditingId(p.id)
     setErrorMsg('')
@@ -109,7 +120,11 @@ export default function Inventario() {
       return setErrorMsg('Ya existe un producto con el mismo Nombre o Cód. Barra.')
     }
 
-    const estadoFinal = calcularEstado(form.stock)
+    const stockCalculado = form.variantes && form.variantes.length > 0 
+      ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0)
+      : Math.floor(Number(form.stock))
+
+    const estadoFinal = calcularEstado(stockCalculado)
     
     const payload = {
       nombre: form.nombre,
@@ -117,7 +132,8 @@ export default function Inventario() {
       coleccion: form.coleccion.trim().toUpperCase(),
       proveedor: (form.proveedor || '').trim().toUpperCase(),
       precio: Math.floor(Number(form.precio)) || 0,
-      stock: Math.floor(Number(form.stock)) || 0,
+      stock: stockCalculado,
+      variantes: form.variantes || [],
       estado: estadoFinal,
       fechaIngreso: form.fechaIngreso,
       fotoUrl: form.fotoUrl || ''
@@ -182,10 +198,8 @@ export default function Inventario() {
       `"${p.fechaIngreso || ''}"`
     ])
     
-    // Separamos con punto y coma (;) para que Excel en español lo divida en columnas automáticamente
     const csvContent = encabezados.join(";") + "\n" + filas.map(e => e.join(";")).join("\n")
 
-    // Añadimos el BOM (\uFEFF) para forzar a Excel a leerlo en formato UTF-8 (corrige los tildes)
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     
@@ -229,7 +243,6 @@ export default function Inventario() {
   return (
     <div className="flex flex-col h-full relative">
 
-      {/* Header sticky */}
       <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-8 md:px-10 py-7 flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-outline-variant/20 tour-inv-header">
         <div>
           <h1 className="font-headline text-4xl text-secondary font-bold italic leading-tight">Inventario Maestro</h1>
@@ -239,7 +252,6 @@ export default function Inventario() {
 
       <div className="p-8 md:p-10 space-y-8">
 
-        {/* Métricas bento */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 tour-inv-metricas">
           <div className="bg-surface-container-low p-6 rounded-xl flex flex-col justify-between h-36">
             <div className="flex items-center gap-3">
@@ -274,13 +286,9 @@ export default function Inventario() {
           </div>
         </div>
 
-        {/* Tabla */}
-        {/* Contenedor Principal con Sombra y Bordes Redondeados */}
         <div className="bg-surface-container-low rounded-3xl shadow-sm overflow-visible">
-          {/* Categorías, Filtros y Búsqueda */}
           <div className="p-4 md:p-7 pb-8 border-b-2 border-outline-variant/30 bg-surface-container/50 space-y-6 rounded-t-3xl overflow-visible">
             
-            {/* Fila 1: Categorías */}
             <div className="relative flex items-center group">
               <button 
                 onClick={() => scrollCategories('left')} 
@@ -316,10 +324,8 @@ export default function Inventario() {
               </button>
             </div>
             
-            {/* Fila 2: Búsqueda, Export, Orden y Nuevo */}
             <div className="flex flex-col xl:flex-row gap-4 pt-2 border-t border-outline-variant/10">
               <div className="flex flex-col md:flex-row gap-3 flex-1">
-                {/* Grupo Búsqueda + Export */}
                 <div className="flex items-center gap-2 flex-1 max-w-2xl">
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
@@ -353,7 +359,6 @@ export default function Inventario() {
                   </div>
                 </div>
 
-                {/* Grupo Orden + Nuevo */}
                 <div className="flex items-center gap-2 flex-1 md:flex-none h-[42px]">
                   <div className="relative flex-1 md:flex-none h-full">
                     <button 
@@ -414,7 +419,6 @@ export default function Inventario() {
             </div>
           </div>
 
-          {/* VISTA MÓVIL (CARTAS EXPANDIBLES) */}
           <div className="md:hidden divide-y divide-outline-variant/10">
             {filtrados.map((p) => {
               const est = estadoConfig[p.estado] || estadoConfig.disponible
@@ -422,7 +426,6 @@ export default function Inventario() {
               
               return (
                 <div key={p.id} className="bg-surface-container-low overflow-hidden transition-all duration-300">
-                  {/* Cabecera de la carta (Siempre visible) */}
                   <div 
                     onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
                     className="p-4 flex items-center gap-4 active:bg-surface-variant/20 transition-colors cursor-pointer"
@@ -452,8 +455,21 @@ export default function Inventario() {
                     <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                   </div>
 
-                  {/* Cuerpo de la carta (Visible al expandir) */}
-                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100 pb-5 px-4' : 'max-h-0 opacity-0'}`}>
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100 pb-5 px-4' : 'max-h-0 opacity-0'}`}>
+                    {p.variantes && p.variantes.length > 0 && (
+                      <div className="mb-4 bg-surface-container/30 rounded-xl p-3 border border-outline-variant/10">
+                        <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider mb-2">Desglose por Variantes</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {p.variantes.map((v, i) => (
+                            <div key={i} className="flex justify-between items-center bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant/5">
+                              <span className="text-[10px] font-bold text-on-surface uppercase">{v.nombre}</span>
+                              <span className="text-[10px] font-extrabold text-secondary">{v.stock} u.</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant/10">
                       <div className="space-y-4">
                         <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider">Detalles</p>
@@ -553,6 +569,13 @@ export default function Inventario() {
                           <div>
                             <p className="font-headline font-bold text-base text-on-surface">{p.nombre}</p>
                             <p className="text-[10px] font-bold text-outline uppercase tracking-widest">Cód. Barra: {p.sku}</p>
+                            {p.variantes && p.variantes.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {p.variantes.map((v, i) => (
+                                  <span key={i} className="text-[8px] bg-surface-variant px-1.5 py-0.5 rounded text-on-surface-variant font-bold uppercase">{v.nombre} ({v.stock})</span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -612,7 +635,6 @@ export default function Inventario() {
         </div>
       </div>
 
-      {/* Modal Imagen Ampliada */}
       {expandedImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setExpandedImage(null)}>
           <div className="relative max-w-2xl w-full flex items-center justify-center">
@@ -632,283 +654,212 @@ export default function Inventario() {
         </div>
       )}
 
-      {/* Modal CRUD */}
+      {/* Modal CRUD (NUEVO / EDITAR) */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-surface w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 flex flex-col">
-            <div className="bg-surface-container-low px-6 py-4 flex justify-between items-center border-b border-outline-variant/20">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-surface w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Header del Modal */}
+            <div className="bg-surface-container-low px-6 py-5 flex justify-between items-center border-b border-outline-variant/20 shrink-0">
               <h3 className="font-headline font-bold text-xl text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
                 {editingId ? 'Editar Producto' : 'Nuevo Producto'}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-outline hover:text-on-surface">
+              <button 
+                onClick={() => setShowModal(false)} 
+                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-outline"
+              >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             
-            <div className="p-6 space-y-4 pb-2">
+            {/* Cuerpo del Formulario (Scrollable) */}
+            <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
               {errorMsg && (
-                <div className="bg-error-container text-error text-sm px-4 py-3 rounded-xl flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm">error</span>
+                <div className="bg-error-container/20 text-error text-[11px] font-bold uppercase tracking-wider px-4 py-3 rounded-xl border border-error/10 flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+                  <span className="material-symbols-outlined text-base">error</span>
                   <span>{errorMsg}</span>
                 </div>
               )}
 
+              {/* Fila 1: Nombre */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Nombre</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Nombre del Producto</label>
                 <input 
                   type="text" 
                   value={form.nombre} 
                   onChange={e => setForm({...form, nombre: e.target.value})}
-                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
-                  placeholder="Ej. Crema Hidratante"
+                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all"
+                  placeholder="Ej. Crema Collagen"
                 />
               </div>
 
+              {/* Fila 2: SKU */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Cód. Barra</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Código de Barra / SKU</label>
                 <div className="relative">
                   <input 
                     type="text" 
                     value={form.sku} 
                     onChange={e => setForm({...form, sku: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-12 py-2 text-sm focus:outline-none focus:border-primary font-bold placeholder:font-normal"
-                    placeholder="Ej. 789123456"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all"
+                    placeholder="Escribe o escanea..."
                   />
                   <button 
                     type="button" 
                     onClick={() => setIsScanning(true)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-secondary bg-primary-container p-1.5 rounded-lg transition-colors flex items-center justify-center shadow-sm"
-                    title="Escanear Código de Barras"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container text-primary rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
                   >
-                    <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                    <span className="material-symbols-outlined text-[20px]">photo_camera</span>
                   </button>
                 </div>
               </div>
 
-              {/* Proveedor */}
-              <div className="relative">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Proveedor</label>
-                {(esNuevoProveedor || proveedoresUnicos.length === 0) ? (
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      value={form.proveedor} 
-                      onChange={e => setForm({...form, proveedor: e.target.value})}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase pr-10 font-bold"
-                      placeholder="NUEVO PROVEEDOR"
-                      autoFocus={esNuevoProveedor}
-                    />
-                    {proveedoresUnicos.length > 0 && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setEsNuevoProveedor(false)
-                          setForm({...form, proveedor: proveedoresUnicos[0] || ''})
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors flex items-center p-1"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">close</span>
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="relative group">
-                      <input 
-                        type="text"
-                        value={busquedaProv}
-                        onChange={(e) => {
-                          setBusquedaProv(e.target.value)
-                          if (!showProvDropdown) setShowProvDropdown(true)
-                        }}
-                        onFocus={() => setShowProvDropdown(true)}
-                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-xs text-left transition-all font-headline italic h-[38px] focus:outline-none focus:border-primary pr-10"
-                        placeholder={form.proveedor || "BUSCAR PROVEEDOR..."}
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40 group-focus-within:rotate-180 transition-transform duration-300 pointer-events-none">expand_more</span>
-                    </div>
-
-                    {showProvDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-[60]" onClick={() => { setShowProvDropdown(false); setBusquedaProv(''); }} />
-                        <div className="absolute left-0 top-full mt-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden">
-                          <div className="max-h-40 overflow-y-auto custom-scrollbar bg-white">
-                            <button 
-                              onClick={() => { setEsNuevoProveedor(true); setForm({...form, proveedor: busquedaProv || ''}); setShowProvDropdown(false); setBusquedaProv(''); }}
-                              className="w-full flex items-center gap-3 px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors text-left border-b border-outline-variant/10"
-                            >
-                              <span className="material-symbols-outlined text-sm">add</span>
-                              + {busquedaProv ? `Crear "${busquedaProv}"` : 'Añadir Nuevo'}
-                            </button>
-                            {proveedoresUnicos
-                              .filter(prov => prov.toLowerCase().includes(busquedaProv.toLowerCase()))
-                              .map(prov => (
-                              <button 
-                                key={prov}
-                                onClick={() => { setForm({...form, proveedor: prov}); setShowProvDropdown(false); setBusquedaProv(''); }}
-                                className={`w-full flex items-center justify-between px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left
-                                  ${form.proveedor === prov ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
-                                `}
-                              >
-                                {prov}
-                                {form.proveedor === prov && <span className="material-symbols-outlined text-sm">check</span>}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sección de Categoría (Separada para evitar recortes del dropdown) */}
-            <div className="px-6 py-2 relative">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Categoría</label>
-                {(esNuevaCategoria || categoriasUnicas.length === 0) ? (
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      value={form.coleccion} 
-                      onChange={e => setForm({...form, coleccion: e.target.value})}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase pr-10"
-                      placeholder="NUEVA CATEGORÍA"
-                      autoFocus={esNuevaCategoria}
-                    />
-                    {categoriasUnicas.length > 0 && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setEsNuevaCategoria(false)
-                          setForm({...form, coleccion: categoriasUnicas[0] || ''})
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors flex items-center p-1"
-                        title="Volver a seleccionar de la lista"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">close</span>
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="relative group">
-                      <input 
-                        type="text"
-                        value={busquedaCat}
-                        onChange={(e) => {
-                          setBusquedaCat(e.target.value)
-                          if (!showCatDropdown) setShowCatDropdown(true)
-                        }}
-                        onFocus={() => setShowCatDropdown(true)}
-                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-xs text-left transition-all font-headline italic h-[38px] focus:outline-none focus:border-primary pr-10"
-                        placeholder={form.coleccion || "BUSCAR CATEGORÍA..."}
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40 group-focus-within:rotate-180 transition-transform duration-300 pointer-events-none">expand_more</span>
-                    </div>
-
-                    {showCatDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-[60]" onClick={() => { setShowCatDropdown(false); setBusquedaCat(''); }} />
-                        <div className="absolute left-0 top-full mt-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                          <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                            <button 
-                              onClick={() => { setEsNuevaCategoria(true); setForm({...form, coleccion: busquedaCat || ''}); setShowCatDropdown(false); setBusquedaCat(''); }}
-                              className="w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors text-left border-b border-outline-variant/10 font-sans not-italic"
-                            >
-                              <span className="material-symbols-outlined text-sm">add</span>
-                              + {busquedaCat ? `Crear "${busquedaCat}"` : 'Añadir Nueva'}
-                            </button>
-                            {categoriasUnicas
-                              .filter(cat => cat.toLowerCase().includes(busquedaCat.toLowerCase()))
-                              .slice(0, 3)
-                              .map(cat => (
-                              <button 
-                                key={cat}
-                                onClick={() => { setForm({...form, coleccion: cat}); setShowCatDropdown(false); setBusquedaCat(''); }}
-                                className={`w-full flex items-center justify-between px-5 py-3.5 text-xs font-headline italic tracking-wide transition-colors text-left
-                                  ${form.coleccion === cat ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
-                                  ${cat !== categoriasUnicas[categoriasUnicas.length-1] ? 'border-b border-outline-variant/5' : ''}
-                                `}
-                              >
-                                {cat}
-                                {form.coleccion === cat && <span className="material-symbols-outlined text-sm">check</span>}
-                              </button>
-                            ))}
-                            {busquedaCat && categoriasUnicas.filter(cat => cat.toLowerCase().includes(busquedaCat.toLowerCase())).length === 0 && (
-                              <div className="px-5 py-4 text-center text-outline text-[10px] uppercase tracking-widest italic font-sans not-italic">
-                                No hay coincidencias
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-            </div>
-
-            <div className="p-6 pt-2 space-y-4">
-
+              {/* Fila 3: Proveedor y Categoría */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Precio Unit. ($)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Proveedor</label>
+                  <input 
+                    type="text" 
+                    value={form.proveedor} 
+                    onChange={e => setForm({...form, proveedor: e.target.value})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm uppercase"
+                    placeholder="Sin Proveedor"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Categoría</label>
+                  <input 
+                    type="text" 
+                    value={form.coleccion} 
+                    onChange={e => setForm({...form, coleccion: e.target.value})}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm uppercase"
+                    placeholder="Sin Categoría"
+                  />
+                </div>
+              </div>
+
+              {/* Fila 4: Precio y Stock */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Precio Unit. ($)</label>
                   <input 
                     type="number" 
                     value={form.precio} 
                     onChange={e => setForm({...form, precio: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary font-bold placeholder:font-normal"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm"
                     placeholder="0"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Stock Inicial</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">
+                    {form.variantes?.length > 0 ? 'Stock Total' : 'Stock Inicial'}
+                  </label>
                   <input 
                     type="number" 
-                    value={form.stock} 
+                    value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
                     onChange={e => setForm({...form, stock: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary font-bold placeholder:font-normal"
+                    readOnly={form.variantes?.length > 0}
+                    className={`w-full border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm ${form.variantes?.length > 0 ? 'bg-surface-variant/30 text-outline' : 'bg-surface-container-lowest'}`}
                     placeholder="0"
                   />
                 </div>
               </div>
 
+              {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
+              <div className="bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm text-primary">diversity_2</span>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface">Variantes (Color, etc.)</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setForm({...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0 }]})}
+                    className="bg-secondary/10 text-secondary text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 hover:bg-secondary/20 transition-all"
+                  >
+                    + Añadir
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {(form.variantes || []).map((variant, index) => (
+                    <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                      <input 
+                        type="text" 
+                        value={variant.nombre}
+                        onChange={e => {
+                          const newV = [...form.variantes]
+                          newV[index].nombre = e.target.value
+                          setForm({...form, variantes: newV})
+                        }}
+                        className="flex-1 bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary"
+                        placeholder="Ej. Verde"
+                      />
+                      <input 
+                        type="number" 
+                        value={variant.stock}
+                        onChange={e => {
+                          const newV = [...form.variantes]
+                          newV[index].stock = e.target.value
+                          setForm({...form, variantes: newV})
+                        }}
+                        className="w-20 bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary"
+                        placeholder="0"
+                      />
+                      <button 
+                        onClick={() => setForm({...form, variantes: form.variantes.filter((_, i) => i !== index)})}
+                        className="w-10 h-10 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all"
+                      >
+                        <span className="material-symbols-outlined text-xl">delete</span>
+                      </button>
+                    </div>
+                  ))}
+                  {(!form.variantes || form.variantes.length === 0) && (
+                    <p className="text-[10px] text-outline text-center py-2 italic font-medium opacity-60">
+                      Ideal para productos con diferentes colores o tallas.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Fila 5: Otros */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Fecha de Ingreso</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Fecha Ingreso</label>
                   <input 
                     type="date" 
                     value={form.fechaIngreso} 
                     onChange={e => setForm({...form, fechaIngreso: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary font-bold shadow-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">URL Foto (Opcional)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">URL Foto</label>
                   <input 
                     type="url" 
-                    value={form.fotoUrl || ''} 
+                    value={form.fotoUrl} 
                     onChange={e => setForm({...form, fotoUrl: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary font-bold shadow-sm"
                     placeholder="https://..."
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-surface-container-low px-6 py-4 flex justify-end gap-3 border-t border-outline-variant/20">
+            {/* Footer del Modal */}
+            <div className="bg-surface-container-low px-6 py-4 border-t border-outline-variant/20 flex gap-3 shrink-0">
               <button 
                 onClick={() => setShowModal(false)}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant transition-colors"
+                className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant transition-all active:scale-95 border border-outline-variant/10"
               >
                 Cancelar
               </button>
               <button 
                 onClick={handleSave}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest bg-primary text-on-primary shadow-md hover:scale-105 transition-transform"
+                className="flex-[2] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary text-on-primary shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                {editingId ? 'Guardar Cambios' : 'Crear Producto'}
+                 <span className="material-symbols-outlined text-base">{editingId ? 'save' : 'add_circle'}</span>
+                {editingId ? 'Guardar Cambios' : 'Registrar Producto'}
               </button>
             </div>
           </div>
