@@ -374,7 +374,7 @@ export default function Layout() {
     <div className="flex min-h-screen bg-background">
 
       {/* ── Sidebar desktop ── */}
-      <aside className="hidden md:flex flex-col w-72 bg-surface-container-low border-r border-outline-variant/30 sticky top-0 h-screen overflow-y-auto shrink-0">
+      <aside className="hidden md:flex flex-col w-72 bg-surface-container-low border-r border-outline-variant/30 sticky top-0 h-screen overflow-y-auto shrink-0 transition-opacity duration-300 [.modal-open_&]:hidden">
         <div className="p-8 h-full flex flex-col">
           {/* Logo / Brand */}
           <div className="flex items-center space-x-3 mb-12">
@@ -446,7 +446,7 @@ export default function Layout() {
       </main>
 
       {/* ── Bottom nav mobile ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-background/90 backdrop-blur-xl flex justify-around items-center px-4 pb-6 pt-3 shadow-[0_-4px_24px_rgba(42,27,10,0.08)] rounded-t-3xl border-t border-outline-variant/20">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-background/90 backdrop-blur-xl flex justify-around items-center px-4 pb-6 pt-3 shadow-[0_-4px_24px_rgba(42,27,10,0.08)] rounded-t-3xl border-t border-outline-variant/20 transition-transform duration-300 [.modal-open_&]:translate-y-full">
         {navItems.map((item) => (
           item.type === 'action' ? (
             <button

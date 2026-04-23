@@ -4,6 +4,8 @@ import { db } from '../config/firebase'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getLocalDateString } from '../utils/date'
+import { calcularEstado } from '../utils/date'
 
 const PERIODOS = ['Semana Actual', 'Mes Actual', 'Personalizado']
 
@@ -45,8 +47,8 @@ function formatMoney(value) {
 
 export default function Reportes() {
   const [periodo, setPeriodo] = useState(0)
-  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0])
-  const [fechaFin, setFechaFin] = useState(new Date().toISOString().split('T')[0])
+  const [fechaInicio, setFechaInicio] = useState(getLocalDateString())
+  const [fechaFin, setFechaFin] = useState(getLocalDateString())
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showPeriodMenu, setShowPeriodMenu] = useState(false)
   
@@ -220,7 +222,7 @@ export default function Reportes() {
       
       itemsAVender.forEach(item => {
         const ref = doc(db, 'productos', item.id)
-        const nuevoEstado = item.stockFin <= 10 ? (item.stockFin <= 5 ? 'critico' : 'bajo') : 'disponible'
+        const nuevoEstado = calcularEstado(item.stockFin)
         batch.update(ref, { stock: item.stockFin, estado: nuevoEstado })
       })
 
@@ -229,7 +231,7 @@ export default function Reportes() {
 
       batch.set(ventaRef, {
         cliente: 'Venta Directa',
-        fechaEntrega: new Date().toISOString().split('T')[0],
+        fechaEntrega: getLocalDateString(),
         productos: payloadProductos,
         fechaCreacion: new Date().toISOString(),
         estado: 'completado'
@@ -275,7 +277,7 @@ export default function Reportes() {
       
       itemsAMermar.forEach(item => {
         const ref = doc(db, 'productos', item.id)
-        const nuevoEstado = item.stockFin <= 10 ? (item.stockFin <= 5 ? 'critico' : 'bajo') : 'disponible'
+        const nuevoEstado = calcularEstado(item.stockFin)
         batch.update(ref, { stock: item.stockFin, estado: nuevoEstado })
       })
 
@@ -284,7 +286,7 @@ export default function Reportes() {
 
       batch.set(mermaRef, {
         motivo: 'Producto Mermado',
-        fechaEntrega: new Date().toISOString().split('T')[0],
+        fechaEntrega: getLocalDateString(),
         productos: payloadProductos,
         fechaCreacion: new Date().toISOString(),
       })
@@ -321,7 +323,7 @@ export default function Reportes() {
         if (pLoc) {
           const ref = doc(db, 'productos', itemInfo.productoId)
           const nuevoStock = pLoc.stock + itemInfo.cantidad
-          const nuevoEstado = nuevoStock <= 10 ? (nuevoStock <= 5 ? 'critico' : 'bajo') : 'disponible'
+          const nuevoEstado = calcularEstado(nuevoStock)
           batch.update(ref, { stock: nuevoStock, estado: nuevoEstado })
         }
       })

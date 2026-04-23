@@ -84,3 +84,17 @@ body {
   background: #fdfaf5;
   box-shadow: 0 20px 60px rgba(42, 27, 10, 0.15);
 }
+
+/* Utilidades para scroll de categorías */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.mask-horizontal-fade {
+  mask-image: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
+}
+

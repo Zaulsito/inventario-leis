@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
+import { getLocalDateString } from '../utils/date'
 
 function Campo({ label, children }) {
   return (
@@ -15,7 +16,7 @@ function Campo({ label, children }) {
 const inputCls = 'w-full bg-surface-container border-0 border-b-2 border-outline-variant/30 focus:border-primary focus:outline-none px-4 py-3.5 text-on-surface font-body rounded-t-xl transition-all text-sm'
 
 export default function Registro() {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalDateString()
 
   const [form, setForm] = useState({
     productoId: '', // Guarda el ID para actualizar stock fácilmente
