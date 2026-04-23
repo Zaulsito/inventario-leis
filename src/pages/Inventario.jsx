@@ -40,9 +40,11 @@ export default function Inventario() {
   const [expandedImage, setExpandedImage] = useState(null)
   const [showCatDropdown, setShowCatDropdown] = useState(false)
   const [showProvDropdown, setShowProvDropdown] = useState(false)
+  const [showMarcaDropdown, setShowMarcaDropdown] = useState(false)
   const [showOrdenDropdown, setShowOrdenDropdown] = useState(false)
   const [busquedaCat, setBusquedaCat] = useState('')
   const [busquedaProv, setBusquedaProv] = useState('')
+  const [busquedaMarca, setBusquedaMarca] = useState('')
   const categoryContainerRef = useRef(null)
 
   // Estados del CRUD
@@ -154,6 +156,7 @@ export default function Inventario() {
   // Calculos de tabla
   const categoriasUnicas = [...new Set(productos.map(p => (p.coleccion || '').trim().toUpperCase()))].filter(Boolean).sort()
   const proveedoresUnicos = [...new Set(productos.map(p => (p.proveedor || '').trim().toUpperCase()))].filter(Boolean).sort()
+  const marcasUnicas = [...new Set(productos.map(p => (p.marca || '').trim().toUpperCase()))].filter(Boolean).sort()
   const colecciones = ['TODOS', ...categoriasUnicas]
 
   const filtrados = productos.filter(p => {
@@ -778,15 +781,44 @@ export default function Inventario() {
 
               {/* Fila 2: Marca y SKU */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Marca</label>
                   <input 
                     type="text" 
                     value={form.marca} 
-                    onChange={e => setForm({...form, marca: e.target.value.toUpperCase()})}
+                    onChange={e => setForm({...form, marca: e.target.value})}
+                    onFocus={() => setShowMarcaDropdown(true)}
                     className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all uppercase"
-                    placeholder="Ej. Leis"
+                    placeholder="BUSCAR MARCA..."
                   />
+                  {showMarcaDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-[110]" onClick={() => setShowMarcaDropdown(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                        <button 
+                          type="button"
+                          onClick={() => setShowMarcaDropdown(false)}
+                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] flex items-center gap-2 hover:bg-black/5 transition-colors"
+                        >
+                          <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
+                        </button>
+                        {marcasUnicas
+                          .filter(m => m.toLowerCase().includes((form.marca || '').toLowerCase()))
+                          .slice(0, 3)
+                          .map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => { setForm({...form, marca: m}); setShowMarcaDropdown(false); }}
+                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] hover:bg-black/5 transition-colors border-t border-black/10"
+                            >
+                              {m}
+                            </button>
+                          ))
+                        }
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Código de Barra / SKU</label>
