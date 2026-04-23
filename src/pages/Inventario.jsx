@@ -1,35 +1,45 @@
 // src/pages/Inventario.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import BarcodeScanner from '../components/BarcodeScanner'
+import { getLocalDateString } from '../utils/date'
+import { calcularEstado } from '../utils/date'
 
 const estadoConfig = {
   disponible: { label: 'Disponible', cls: 'bg-green-100 text-green-700 font-bold' },
   bajo:       { label: 'Stock bajo', cls: 'bg-yellow-100 text-yellow-800 font-bold' },
-  critico:    { label: 'Crítico',    cls: 'bg-error text-on-error font-bold shadow-sm' },
+  critico:    { label: 'Crítico',    cls: 'bg-[#FF837C] text-white font-bold shadow-sm' },
+  sin_stock:  { label: 'Sin stock',  cls: 'bg-gray-400 text-white font-bold' },
 }
 
-const formInicial = { nombre: '', sku: '', coleccion: '', precio: 0, stock: 0, fechaIngreso: new Date().toISOString().split('T')[0], fotoUrl: '' }
+const formInicial = { nombre: '', sku: '', coleccion: '', proveedor: '', precio: '', stock: '', fechaIngreso: getLocalDateString(), fotoUrl: '' }
 
 export default function Inventario() {
   const [busqueda, setBusqueda]   = useState('')
   const [filtroCol, setFiltroCol] = useState('TODOS')
+  const [orden, setOrden]         = useState('alfabetico-asc')
   const [productos, setProductos] = useState([])
   const [loading, setLoading]     = useState(true)
   const [esNuevaCategoria, setEsNuevaCategoria] = useState(false)
+  const [esNuevoProveedor, setEsNuevoProveedor] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [expandedImage, setExpandedImage] = useState(null)
   const [showCatDropdown, setShowCatDropdown] = useState(false)
+  const [showProvDropdown, setShowProvDropdown] = useState(false)
+  const [showOrdenDropdown, setShowOrdenDropdown] = useState(false)
   const [busquedaCat, setBusquedaCat] = useState('')
+  const [busquedaProv, setBusquedaProv] = useState('')
+  const categoryContainerRef = useRef(null)
 
   // Estados del CRUD
   const [showModal, setShowModal] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [form, setForm] = useState(formInicial)
   const [editingId, setEditingId] = useState(null)
+  const [expandedProduct, setExpandedProduct] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
@@ -41,20 +51,39 @@ export default function Inventario() {
     return unsub
   }, [])
 
+  useEffect(() => {
+    if (showModal) {
+      document.body.classList.add('modal-open')
+    } else {
+      document.body.classList.remove('modal-open')
+    }
+  }, [showModal])
+
   // Handlers del CRUD
   function openNew() {
     setForm(formInicial)
     setEditingId(null)
     setErrorMsg('')
     setEsNuevaCategoria(false)
+    setEsNuevoProveedor(false)
     setShowModal(true)
   }
 
   function openEdit(p) {
-    setForm({ nombre: p.nombre, sku: p.sku, coleccion: (p.coleccion || '').trim().toUpperCase(), precio: p.precio, stock: p.stock, fechaIngreso: p.fechaIngreso || new Date().toISOString().split('T')[0], fotoUrl: p.fotoUrl || '' })
+    setForm({ 
+      nombre: p.nombre, 
+      sku: p.sku, 
+      coleccion: (p.coleccion || '').trim().toUpperCase(), 
+      proveedor: (p.proveedor || '').trim().toUpperCase(),
+      precio: p.precio, 
+      stock: p.stock, 
+      fechaIngreso: p.fechaIngreso || getLocalDateString(), 
+      fotoUrl: p.fotoUrl || '' 
+    })
     setEditingId(p.id)
     setErrorMsg('')
     setEsNuevaCategoria(false)
+    setEsNuevoProveedor(false)
     setShowModal(true)
   }
 
@@ -80,14 +109,15 @@ export default function Inventario() {
       return setErrorMsg('Ya existe un producto con el mismo Nombre o Cód. Barra.')
     }
 
-    const estadoFinal = form.stock <= 10 ? (form.stock <= 5 ? 'critico' : 'bajo') : 'disponible'
+    const estadoFinal = calcularEstado(form.stock)
     
     const payload = {
       nombre: form.nombre,
       sku: form.sku,
       coleccion: form.coleccion.trim().toUpperCase(),
-      precio: Number(form.precio) || 0,
-      stock: Number(form.stock) || 0,
+      proveedor: (form.proveedor || '').trim().toUpperCase(),
+      precio: Math.floor(Number(form.precio)) || 0,
+      stock: Math.floor(Number(form.stock)) || 0,
       estado: estadoFinal,
       fechaIngreso: form.fechaIngreso,
       fotoUrl: form.fotoUrl || ''
@@ -103,14 +133,31 @@ export default function Inventario() {
   }
 
   // Calculos de tabla
-  const categoriasUnicas = [...new Set(productos.map(p => (p.coleccion || '').trim().toUpperCase()))].filter(Boolean)
+  const categoriasUnicas = [...new Set(productos.map(p => (p.coleccion || '').trim().toUpperCase()))].filter(Boolean).sort()
+  const proveedoresUnicos = [...new Set(productos.map(p => (p.proveedor || '').trim().toUpperCase()))].filter(Boolean).sort()
   const colecciones = ['TODOS', ...categoriasUnicas]
 
   const filtrados = productos.filter(p => {
     const matchBusq = p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.sku.toLowerCase().includes(busqueda.toLowerCase())
     const matchCol  = filtroCol === 'TODOS' || (p.coleccion || '').trim().toUpperCase() === filtroCol
     return matchBusq && matchCol
+  }).sort((a, b) => {
+    if (orden === 'alfabetico-asc') return a.nombre.localeCompare(b.nombre)
+    if (orden === 'alfabetico-desc') return b.nombre.localeCompare(a.nombre)
+    if (orden === 'fecha-desc') return new Date(b.fechaIngreso) - new Date(a.fechaIngreso)
+    if (orden === 'stock-desc') return b.stock - a.stock
+    if (orden === 'stock-asc') return a.stock - b.stock
+    if (orden === 'precio-desc') return b.precio - a.precio
+    if (orden === 'precio-asc') return a.precio - b.precio
+    return 0
   })
+
+  function scrollCategories(direction) {
+    if (categoryContainerRef.current) {
+      const scrollAmount = direction === 'left' ? -200 : 200
+      categoryContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
+    }
+  }
 
   const totalSKUs    = productos.length
   const bajosDeStock = productos.filter(p => p.estado === 'bajo' || p.estado === 'critico').length
@@ -202,7 +249,7 @@ export default function Inventario() {
             <p className="text-3xl font-headline italic font-bold">{totalSKUs.toLocaleString()}</p>
           </div>
 
-          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border transition-colors ${bajosDeStock > 0 ? 'bg-error border-error' : 'bg-primary-container border-primary/10'}`}>
+          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border transition-colors ${bajosDeStock > 0 ? 'bg-[#FF837C] border-[#FF837C]' : 'bg-primary-container border-primary/10'}`}>
             <div className="flex items-center gap-3">
               <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-on-error opacity-90' : 'text-on-primary-container'}`}>priority_high</span>
               <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-on-error opacity-80' : 'text-on-primary-container'}`}>Stock Bajo</p>
@@ -228,71 +275,258 @@ export default function Inventario() {
         </div>
 
         {/* Tabla */}
-        <div className="bg-surface-container-low rounded-3xl overflow-hidden shadow-sm">
-          {/* Busqueda, Boton y Categorias */}
-          <div className="p-7 border-b border-outline-variant/20 bg-surface-container/50 space-y-5">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-              <div className="relative w-full md:w-auto">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
-                <input
-                  value={busqueda}
-                  onChange={e => setBusqueda(e.target.value)}
-                  placeholder="Buscar productos..."
-                  className="w-full md:w-64 bg-surface-container rounded-full pl-10 pr-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/20 transition-all"
-                />
-              </div>
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <button onClick={openNew} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-secondary text-white px-6 py-2.5 rounded-xl font-label font-bold uppercase text-[11px] tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all tour-inv-nuevo">
-                  <span className="material-symbols-outlined text-sm">add</span>
-                  Nuevo Producto
-                </button>
-                <div className="relative">
-                  <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2 border border-outline-variant rounded-xl hover:bg-surface transition-colors flex items-center justify-center text-on-surface-variant min-h-[40px]">
-                    <span className="material-symbols-outlined text-lg">more_horiz</span>
-                  </button>
-                  {showExportMenu && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                      <div className="absolute right-0 mt-2 w-48 bg-surface-container-lowest border border-outline-variant/20 rounded-xl shadow-xl z-20 py-2 overflow-hidden overflow-y-auto">
-                        <button onClick={() => { exportarPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
-                          <span className="material-symbols-outlined text-error text-lg">picture_as_pdf</span>
-                          Exportar a PDF
-                        </button>
-                        <button onClick={() => { exportarCSV(); setShowExportMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
-                          <span className="material-symbols-outlined text-green-600 text-lg">csv</span>
-                          Exportar a CSV
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+        {/* Contenedor Principal con Sombra y Bordes Redondeados */}
+        <div className="bg-surface-container-low rounded-3xl shadow-sm overflow-visible">
+          {/* Categorías, Filtros y Búsqueda */}
+          <div className="p-4 md:p-7 pb-8 border-b-2 border-outline-variant/30 bg-surface-container/50 space-y-6 rounded-t-3xl overflow-visible">
             
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pt-2 border-t border-outline-variant/10">
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* Fila 1: Categorías */}
+            <div className="relative flex items-center group">
+              <button 
+                onClick={() => scrollCategories('left')} 
+                className="absolute left-0 z-10 bg-surface/80 backdrop-blur-md p-1.5 rounded-full shadow-md border border-outline-variant/20 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex items-center justify-center scale-90"
+              >
+                <span className="material-symbols-outlined text-sm">chevron_left</span>
+              </button>
+              
+              <div 
+                ref={categoryContainerRef}
+                className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth px-2 py-1 flex-1 mask-horizontal-fade"
+              >
                 {colecciones.map(c => (
                   <button
                     key={c}
                     onClick={() => setFiltroCol(c)}
-                    className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-full border transition-colors ${
-                      filtroCol === c
-                        ? 'bg-secondary text-white border-secondary'
-                        : 'border-outline-variant text-on-surface-variant hover:bg-surface'
-                    }`}
+                    className={`px-5 py-2 text-[10px] font-bold uppercase tracking-widest rounded-full border transition-all whitespace-nowrap shrink-0
+                      ${filtroCol === c
+                        ? 'bg-secondary text-white border-secondary shadow-md scale-105'
+                        : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface/50 hover:border-outline-variant'
+                      }`}
                   >
                     {c}
                   </button>
                 ))}
               </div>
+
+              <button 
+                onClick={() => scrollCategories('right')} 
+                className="absolute right-0 z-10 bg-surface/80 backdrop-blur-md p-1.5 rounded-full shadow-md border border-outline-variant/20 translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex items-center justify-center scale-90"
+              >
+                <span className="material-symbols-outlined text-sm">chevron_right</span>
+              </button>
+            </div>
+            
+            {/* Fila 2: Búsqueda, Export, Orden y Nuevo */}
+            <div className="flex flex-col xl:flex-row gap-4 pt-2 border-t border-outline-variant/10">
+              <div className="flex flex-col md:flex-row gap-3 flex-1">
+                {/* Grupo Búsqueda + Export */}
+                <div className="flex items-center gap-2 flex-1 max-w-2xl">
+                  <div className="relative flex-1">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+                    <input
+                      value={busqueda}
+                      onChange={e => setBusqueda(e.target.value)}
+                      placeholder="Buscar por nombre o código..."
+                      className="w-full bg-surface-container-low rounded-xl pl-10 pr-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/20 transition-all font-bold placeholder:font-normal"
+                    />
+                  </div>
+                  
+                  <div className="relative shrink-0">
+                    <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2.5 bg-surface-container-low border border-outline-variant/20 rounded-xl hover:bg-surface transition-colors flex items-center justify-center text-on-surface-variant shadow-sm h-[42px] px-3">
+                      <span className="material-symbols-outlined text-lg">more_horiz</span>
+                    </button>
+                    {showExportMenu && (
+                      <>
+                        <div className="fixed inset-0 z-[60]" onClick={() => setShowExportMenu(false)} />
+                        <div className="absolute right-0 mt-2 w-48 bg-surface-container-highest border border-outline-variant/20 rounded-xl shadow-xl z-[70] py-2 overflow-hidden">
+                          <button onClick={() => { exportarPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
+                            <span className="material-symbols-outlined text-error text-lg">picture_as_pdf</span>
+                            Exportar a PDF
+                          </button>
+                          <button onClick={() => { exportarCSV(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
+                            <span className="material-symbols-outlined text-green-600 text-lg">csv</span>
+                            Exportar a CSV
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Grupo Orden + Nuevo */}
+                <div className="flex items-center gap-2 flex-1 md:flex-none h-[42px]">
+                  <div className="relative flex-1 md:flex-none h-full">
+                    <button 
+                      onClick={() => setShowOrdenDropdown(!showOrdenDropdown)}
+                      className="flex items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl px-3 md:px-4 gap-2 md:gap-3 hover:bg-surface-variant/30 transition-all shadow-sm min-w-[120px] md:min-w-[150px] justify-between h-full"
+                    >
+                      <div className="flex items-center gap-1.5 md:gap-2">
+                        <span className="material-symbols-outlined text-sm text-primary">sort</span>
+                        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-on-surface whitespace-nowrap">
+                          {orden === 'alfabetico-asc' && 'A - Z'}
+                          {orden === 'alfabetico-desc' && 'Z - A'}
+                          {orden === 'fecha-desc' && 'Reciente'}
+                          {orden === 'stock-desc' && 'Stock Max'}
+                          {orden === 'stock-asc' && 'Stock Min'}
+                          {orden === 'precio-desc' && 'Precio Max'}
+                          {orden === 'precio-asc' && 'Precio Min'}
+                        </span>
+                      </div>
+                      <span className={`material-symbols-outlined text-sm opacity-40 transition-transform duration-300 ${showOrdenDropdown ? 'rotate-180' : ''}`}>expand_more</span>
+                    </button>
+
+                    {showOrdenDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-[60]" onClick={() => setShowOrdenDropdown(false)} />
+                        <div className="absolute left-0 top-full mt-2 w-[220px] bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          {[
+                            { id: 'alfabetico-asc', label: 'A - Z', icon: 'sort_by_alpha' },
+                            { id: 'alfabetico-desc', label: 'Z - A', icon: 'sort_by_alpha' },
+                            { id: 'fecha-desc', label: 'Más reciente', icon: 'calendar_today' },
+                            { id: 'stock-desc', label: 'Mayor Stock', icon: 'trending_down' },
+                            { id: 'stock-asc', label: 'Menor Stock', icon: 'trending_up' },
+                            { id: 'precio-desc', label: 'Mayor Precio', icon: 'payments' },
+                            { id: 'precio-asc', label: 'Menor Precio', icon: 'sell' },
+                          ].map((opc) => (
+                            <button
+                              key={opc.id}
+                              onClick={() => { setOrden(opc.id); setShowOrdenDropdown(false); }}
+                              className={`w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest transition-colors text-left
+                                ${orden === opc.id ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
+                              `}
+                            >
+                              <span className="material-symbols-outlined text-sm">{opc.icon}</span>
+                              {opc.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  <button onClick={openNew} className="flex-1 md:flex-none h-full flex items-center justify-center gap-1.5 md:gap-2 bg-secondary text-white px-3 md:px-5 rounded-xl font-label font-bold uppercase text-[9px] md:text-[10px] tracking-tight md:tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all tour-inv-nuevo whitespace-nowrap">
+                    <span className="material-symbols-outlined text-sm">add</span>
+                    <span className="hidden sm:inline">Nuevo Producto</span>
+                    <span className="sm:hidden">Nuevo</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* VISTA MÓVIL (CARTAS EXPANDIBLES) */}
+          <div className="md:hidden divide-y divide-outline-variant/10">
+            {filtrados.map((p) => {
+              const est = estadoConfig[p.estado] || estadoConfig.disponible
+              const isExpanded = expandedProduct === p.id
+              
+              return (
+                <div key={p.id} className="bg-surface-container-low overflow-hidden transition-all duration-300">
+                  {/* Cabecera de la carta (Siempre visible) */}
+                  <div 
+                    onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
+                    className="p-4 flex items-center gap-4 active:bg-surface-variant/20 transition-colors cursor-pointer"
+                  >
+                    <div className="w-14 h-14 rounded-xl bg-surface-container overflow-hidden shrink-0 border border-outline-variant/20 shadow-sm flex items-center justify-center">
+                      {p.fotoUrl ? (
+                        <img 
+                          src={p.fotoUrl} 
+                          alt={p.nombre} 
+                          className="w-full h-full object-cover"
+                          onClick={(e) => { e.stopPropagation(); setExpandedImage(p.fotoUrl); }}
+                        />
+                      ) : (
+                        <span className="material-symbols-outlined text-outline/40">image</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-headline font-bold text-base text-on-surface truncate leading-tight mb-0.5">{p.nombre}</h4>
+                      <p className="text-[10px] text-outline font-bold uppercase tracking-widest leading-none">SKU: {p.sku}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${est.cls}`}>
+                        {est.label.toUpperCase()}
+                      </span>
+                      <p className="text-secondary font-bold text-xs">${(p.precio || 0).toLocaleString('es-CL')}</p>
+                    </div>
+                    <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
+                  </div>
+
+                  {/* Cuerpo de la carta (Visible al expandir) */}
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100 pb-5 px-4' : 'max-h-0 opacity-0'}`}>
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant/10">
+                      <div className="space-y-4">
+                        <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider">Detalles</p>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-primary/60">store</span>
+                            <div>
+                              <p className="text-[8px] uppercase text-outline leading-none">Proveedor</p>
+                              <p className="text-[11px] font-bold text-on-surface">{(p.proveedor || 'S/P').toUpperCase()}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-primary/60">category</span>
+                            <div>
+                              <p className="text-[8px] uppercase text-outline leading-none">Categoría</p>
+                              <p className="text-[11px] font-bold text-on-surface">{(p.coleccion || '').toUpperCase()}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-primary/60">calendar_today</span>
+                            <div>
+                              <p className="text-[8px] uppercase text-outline leading-none">Ingreso</p>
+                              <p className="text-[11px] font-bold text-on-surface">{p.fechaIngreso || '-'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col justify-between">
+                        <div>
+                          <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider mb-2">Inventario</p>
+                          <div className="flex items-end justify-between mb-1">
+                            <p className={`text-base font-bold ${p.estado !== 'disponible' ? 'text-error' : 'text-primary'}`}>
+                              {p.stock.toLocaleString()} <span className="text-[10px] font-medium opacity-70">u.</span>
+                            </p>
+                          </div>
+                          <div className="w-full bg-outline-variant/20 h-2 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${p.estado === 'disponible' ? 'bg-primary' : 'bg-[#FF837C]'}`}
+                              style={{ width: `${porcBarra(p.stock)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-4">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openEdit(p); }}
+                            className="flex-1 flex items-center justify-center gap-2 bg-surface-container-high border border-outline-variant/20 text-primary py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                          >
+                            <span className="material-symbols-outlined text-sm">edit</span>
+                            Editar
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                            className="flex-1 flex items-center justify-center gap-2 bg-error-container/20 border border-error/10 text-error py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                            Borrar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[640px]">
               <thead>
                 <tr className="bg-surface-container">
-                  {['Producto', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso', ''].map(h => (
+                  {['Producto', 'Proveedor', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso', ''].map(h => (
                     <th key={h} className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline">{h}</th>
                   ))}
                 </tr>
@@ -323,6 +557,11 @@ export default function Inventario() {
                         </div>
                       </td>
                       <td className="px-7 py-5">
+                        <span className="px-3 py-1 bg-surface-variant/40 text-on-surface-variant text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center">
+                          {(p.proveedor || 'S/P').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-7 py-5">
                         <span className="px-3 py-1 bg-surface-variant text-on-surface-variant text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center">
                           {(p.coleccion || '').toUpperCase()}
                         </span>
@@ -333,7 +572,7 @@ export default function Inventario() {
                         </p>
                         <div className="w-24 bg-outline-variant/20 h-1 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary' : 'bg-error'}`}
+                            className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary' : 'bg-[#FF837C]'}`}
                             style={{ width: `${porcBarra(p.stock)}%` }}
                           />
                         </div>
@@ -362,7 +601,7 @@ export default function Inventario() {
                 })}
                 {filtrados.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-7 py-12 text-center text-on-surface-variant text-sm">
+                    <td colSpan={8} className="px-7 py-12 text-center text-on-surface-variant text-sm">
                       No se encontraron productos. Crea uno nuevo usando el botón de arriba.
                     </td>
                   </tr>
@@ -433,7 +672,7 @@ export default function Inventario() {
                     type="text" 
                     value={form.sku} 
                     onChange={e => setForm({...form, sku: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-12 py-2 text-sm focus:outline-none focus:border-primary"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-12 py-2 text-sm focus:outline-none focus:border-primary font-bold placeholder:font-normal"
                     placeholder="Ej. 789123456"
                   />
                   <button 
@@ -445,6 +684,83 @@ export default function Inventario() {
                     <span className="material-symbols-outlined text-[16px]">photo_camera</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Proveedor */}
+              <div className="relative">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">Proveedor</label>
+                {(esNuevoProveedor || proveedoresUnicos.length === 0) ? (
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={form.proveedor} 
+                      onChange={e => setForm({...form, proveedor: e.target.value})}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary uppercase pr-10 font-bold"
+                      placeholder="NUEVO PROVEEDOR"
+                      autoFocus={esNuevoProveedor}
+                    />
+                    {proveedoresUnicos.length > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setEsNuevoProveedor(false)
+                          setForm({...form, proveedor: proveedoresUnicos[0] || ''})
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors flex items-center p-1"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">close</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="relative group">
+                      <input 
+                        type="text"
+                        value={busquedaProv}
+                        onChange={(e) => {
+                          setBusquedaProv(e.target.value)
+                          if (!showProvDropdown) setShowProvDropdown(true)
+                        }}
+                        onFocus={() => setShowProvDropdown(true)}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-xs text-left transition-all font-headline italic h-[38px] focus:outline-none focus:border-primary pr-10"
+                        placeholder={form.proveedor || "BUSCAR PROVEEDOR..."}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40 group-focus-within:rotate-180 transition-transform duration-300 pointer-events-none">expand_more</span>
+                    </div>
+
+                    {showProvDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-[60]" onClick={() => { setShowProvDropdown(false); setBusquedaProv(''); }} />
+                        <div className="absolute left-0 top-full mt-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden">
+                          <div className="max-h-40 overflow-y-auto custom-scrollbar bg-white">
+                            <button 
+                              onClick={() => { setEsNuevoProveedor(true); setForm({...form, proveedor: busquedaProv || ''}); setShowProvDropdown(false); setBusquedaProv(''); }}
+                              className="w-full flex items-center gap-3 px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors text-left border-b border-outline-variant/10"
+                            >
+                              <span className="material-symbols-outlined text-sm">add</span>
+                              + {busquedaProv ? `Crear "${busquedaProv}"` : 'Añadir Nuevo'}
+                            </button>
+                            {proveedoresUnicos
+                              .filter(prov => prov.toLowerCase().includes(busquedaProv.toLowerCase()))
+                              .map(prov => (
+                              <button 
+                                key={prov}
+                                onClick={() => { setForm({...form, proveedor: prov}); setShowProvDropdown(false); setBusquedaProv(''); }}
+                                className={`w-full flex items-center justify-between px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left
+                                  ${form.proveedor === prov ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
+                                `}
+                              >
+                                {prov}
+                                {form.proveedor === prov && <span className="material-symbols-outlined text-sm">check</span>}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -542,7 +858,8 @@ export default function Inventario() {
                     type="number" 
                     value={form.precio} 
                     onChange={e => setForm({...form, precio: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary font-bold placeholder:font-normal"
+                    placeholder="0"
                   />
                 </div>
                 <div>
@@ -551,7 +868,8 @@ export default function Inventario() {
                     type="number" 
                     value={form.stock} 
                     onChange={e => setForm({...form, stock: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary font-bold placeholder:font-normal"
+                    placeholder="0"
                   />
                 </div>
               </div>

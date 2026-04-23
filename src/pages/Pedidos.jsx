@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
+import { calcularEstado } from '../utils/date'
 
 const formInicial = { cliente: '', fechaEntrega: '', productosSeleccionados: [] }
 
@@ -99,7 +100,7 @@ export default function Pedidos() {
         const nuevoStock = pData.stock - item.cantidad
         
         // Calcular nuevo estado
-        const nuevoEstado = nuevoStock <= 10 ? (nuevoStock <= 5 ? 'critico' : 'bajo') : 'disponible'
+        const nuevoEstado = calcularEstado(nuevoStock)
 
         batch.update(prodRef, { 
           stock: nuevoStock,
@@ -140,7 +141,7 @@ export default function Pedidos() {
         if (pData) { // Si el producto aún existe en BD
           const prodRef = doc(db, 'productos', item.productoId)
           const nuevoStock = pData.stock + item.cantidad
-          const nuevoEstado = nuevoStock <= 10 ? (nuevoStock <= 5 ? 'critico' : 'bajo') : 'disponible'
+          const nuevoEstado = calcularEstado(nuevoStock)
           
           batch.update(prodRef, { 
             stock: nuevoStock,
