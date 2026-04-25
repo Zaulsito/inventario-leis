@@ -65,40 +65,43 @@ export default function Reportes() {
   const [guardadoMerma, setGuardadoMerma] = useState(false)
 
   const [procesando, setProcesando] = useState(false)
+  
+  // Estados para búsqueda
+  const [searchVenta, setSearchVenta] = useState('')
+  const [searchMerma, setSearchMerma] = useState('')
+
+  // Estados para confirmación personalizada
+  const [mostrarResumenVenta, setMostrarResumenVenta] = useState(false)
+  const [mostrarResumenMerma, setMostrarResumenMerma] = useState(false)
+
+  // Estado para deshacer
+  const [registroADeshacer, setRegistroADeshacer] = useState(null)
 
   useEffect(() => {
     const unsubProd = onSnapshot(collection(db, 'productos'), snap => {
       const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       setProductos(prods)
       
-      // Update conteo manually only if not already initialized
-      setConteo(prev => {
-        return prods.map(p => {
-          const exists = prev.find(xp => xp.id === p.id)
-          return {
-            id: p.id,
-            producto: p.nombre,
-            stockIni: p.stock,
-            vendido: exists ? exists.vendido : 0,
-            stockFin: p.stock - (exists ? exists.vendido : 0),
-            precio: p.precio || 0
-          }
-        })
-      })
+      // Sincronizar stockIni de los productos que ya están en las listas temporales
+      setConteo(prev => prev.map(item => {
+        const p = prods.find(x => x.id === item.id)
+        if (!p) return item
+        return {
+          ...item,
+          stockIni: p.stock,
+          stockFin: p.stock - item.vendido
+        }
+      }))
 
-      setConteoMerma(prev => {
-        return prods.map(p => {
-          const exists = prev.find(xp => xp.id === p.id)
-          return {
-            id: p.id,
-            producto: p.nombre,
-            stockIni: p.stock,
-            vendido: exists ? exists.vendido : 0,
-            stockFin: p.stock - (exists ? exists.vendido : 0),
-            precio: p.precio || 0
-          }
-        })
-      })
+      setConteoMerma(prev => prev.map(item => {
+        const p = prods.find(x => x.id === item.id)
+        if (!p) return item
+        return {
+          ...item,
+          stockIni: p.stock,
+          stockFin: p.stock - item.vendido
+        }
+      }))
     })
 
     const unsubPed = onSnapshot(collection(db, 'pedidos'), snap => {
@@ -170,7 +173,18 @@ export default function Reportes() {
       if (map[dateStr] === undefined) map[dateStr] = { Ganancia: 0, Pérdida: 0 }
       
       if (p._tipo === 'venta') {
-        map[dateStr].Ganancia += sum
+        let gananciaReal = 0
+        if (p.pagoEstado === 'pagado') {
+          gananciaReal = p.total || sum
+        } else if (p.pagoEstado === 'parcial') {
+          gananciaReal = p.abono || 0
+        } else if (p.pagoEstado === 'sin pagar') {
+          gananciaReal = 0
+        } else {
+          // Caso para ventas directas antiguas o registros sin el nuevo sistema
+          gananciaReal = p.total || sum
+        }
+        map[dateStr].Ganancia += gananciaReal
       } else {
         map[dateStr].Pérdida += sum
       }
@@ -205,10 +219,29 @@ export default function Reportes() {
     setConteo(prev => prev.map(item => {
       if (item.id !== idProd) return item
       const v = Math.max(0, Number(val))
-      // Considerar inventario real. Limitamos por su stock ini.
       const vSafe = Math.min(v, item.stockIni)
       return { ...item, vendido: vSafe, stockFin: item.stockIni - vSafe }
     }))
+  }
+
+  function addItemVenta(p) {
+    setConteo(prev => {
+      const exists = prev.find(x => x.id === p.id)
+      if (exists) return prev
+      return [...prev, {
+        id: p.id,
+        producto: p.nombre,
+        stockIni: p.stock,
+        vendido: 1,
+        stockFin: p.stock - 1,
+        precio: p.precio || 0
+      }]
+    })
+    setSearchVenta('')
+  }
+
+  function removeItemVenta(id) {
+    setConteo(prev => prev.filter(x => x.id !== id))
   }
 
   async function guardar() {
@@ -216,6 +249,12 @@ export default function Reportes() {
     const itemsAVender = conteo.filter(item => item.vendido > 0)
     if (itemsAVender.length === 0) return alert('No hay ventas manuales que registrar.')
     
+    // Si no se está mostrando el resumen, lo mostramos
+    if (!mostrarResumenVenta) {
+      setMostrarResumenVenta(true)
+      return
+    }
+
     setProcesando(true)
     try {
       const batch = writeBatch(db)
@@ -239,14 +278,9 @@ export default function Reportes() {
 
       await batch.commit()
       setGuardado(true)
-      setConteo(prev => prev.map(item => ({...item, vendido: 0, stockIni: item.stockFin})))
+      setConteo([]) // Limpiar lista después de guardar
+      setMostrarResumenVenta(false)
       
-      // Sincronizar el otro formulario de merma
-      setConteoMerma(prev => prev.map(item => ({
-        ...item, 
-        stockIni: item.id ? (productos.find(p=>p.id===item.id)?.stock - (itemsAVender.find(x=>x.id===item.id)?.vendido || 0)) : item.stockIni
-      })))
-
       setTimeout(() => setGuardado(false), 2500)
     } catch (e) {
       console.error(e)
@@ -266,11 +300,37 @@ export default function Reportes() {
     }))
   }
 
+  function addItemMerma(p) {
+    setConteoMerma(prev => {
+      const exists = prev.find(x => x.id === p.id)
+      if (exists) return prev
+      return [...prev, {
+        id: p.id,
+        producto: p.nombre,
+        stockIni: p.stock,
+        vendido: 1,
+        stockFin: p.stock - 1,
+        precio: p.precio || 0
+      }]
+    })
+    setSearchMerma('')
+  }
+
+  function removeItemMerma(id) {
+    setConteoMerma(prev => prev.filter(x => x.id !== id))
+  }
+
   async function guardarMerma() {
     if (procesando) return
     const itemsAMermar = conteoMerma.filter(item => item.vendido > 0)
     if (itemsAMermar.length === 0) return alert('No hay mermas que registrar.')
     
+    // Si no se está mostrando el resumen, lo mostramos
+    if (!mostrarResumenMerma) {
+      setMostrarResumenMerma(true)
+      return
+    }
+
     setProcesando(true)
     try {
       const batch = writeBatch(db)
@@ -293,14 +353,9 @@ export default function Reportes() {
 
       await batch.commit()
       setGuardadoMerma(true)
-      setConteoMerma(prev => prev.map(item => ({...item, vendido: 0, stockIni: item.stockFin})))
+      setConteoMerma([]) // Limpiar lista
+      setMostrarResumenMerma(false)
       
-      // Sincronizar conteo principal
-      setConteo(prev => prev.map(item => ({
-        ...item, 
-        stockIni: item.id ? (productos.find(p=>p.id===item.id)?.stock - (itemsAMermar.find(x=>x.id===item.id)?.vendido || 0)) : item.stockIni
-      })))
-
       setTimeout(() => setGuardadoMerma(false), 2500)
     } catch (e) {
       console.error(e)
@@ -312,7 +367,13 @@ export default function Reportes() {
 
   // --- Deshacer Registro ---
   async function deshacerRegistro(registro) {
-    if (!window.confirm(`¿Seguro que deseas deshacer este movimiento de ${registro._tipo} y devolver los productos al inventario?`)) return
+    if (!registro) return
+
+    // Si no es el paso final de confirmación, activamos el modal
+    if (!registroADeshacer || registroADeshacer.id !== registro.id) {
+      setRegistroADeshacer(registro)
+      return
+    }
     
     setProcesando(true)
     try {
@@ -322,7 +383,7 @@ export default function Reportes() {
         const pLoc = productos.find(p => p.id === itemInfo.productoId)
         if (pLoc) {
           const ref = doc(db, 'productos', itemInfo.productoId)
-          const nuevoStock = pLoc.stock + itemInfo.cantidad
+          const nuevoStock = Number(pLoc.stock) + Number(itemInfo.cantidad)
           const nuevoEstado = calcularEstado(nuevoStock)
           batch.update(ref, { stock: nuevoStock, estado: nuevoEstado })
         }
@@ -333,6 +394,7 @@ export default function Reportes() {
       batch.delete(docRef)
 
       await batch.commit()
+      setRegistroADeshacer(null)
     } catch (e) {
       console.error(e)
       alert('Error al intentar deshacer el registro.')
@@ -563,35 +625,88 @@ export default function Reportes() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 relative z-10 w-full">
         
         {/* Conteo semanal MANUAL (para Venta Directa) */}
-        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[400px]">
+        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[480px]">
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
               <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Registrar Venta Directa</h3>
               <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">Registra salidas al cliente final.</p>
             </div>
-            <div className="flex items-center gap-3">
-              {guardado && (
-                <span className="flex items-center gap-1 text-[10px] text-green-700 font-bold uppercase tracking-widest animate-pulse">
-                  <span className="material-symbols-outlined text-green-700 text-[14px]">check_circle</span>
-                  Guardado
-                </span>
-              )}
-              <button
-                onClick={guardar}
-                className="bg-primary-container text-on-primary-container px-5 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-sm"
-              >
-                Guardar conteo
-              </button>
+          </div>
+
+          {/* Buscador de productos */}
+          <div className="mb-4 relative z-50">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+              <input
+                type="text"
+                placeholder="Buscar producto para vender..."
+                value={searchVenta}
+                onChange={e => setSearchVenta(e.target.value)}
+                className="w-full bg-surface-container-highest border border-outline-variant/30 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary transition-all"
+              />
             </div>
+            {searchVenta && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-surface-container-highest border border-outline-variant/30 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto z-[60]">
+                {productos
+                  .filter(p => p.nombre.toLowerCase().includes(searchVenta.toLowerCase()))
+                  .map(p => (
+                    <button
+                      key={p.id}
+                      onMouseDown={(e) => { e.preventDefault(); addItemVenta(p); }}
+                      className="w-full px-4 py-3 text-left text-[11px] font-bold hover:bg-primary/10 transition-colors flex justify-between items-center border-b border-outline-variant/5"
+                    >
+                      <span>{p.nombre}</span>
+                      <span className="text-[10px] opacity-60">Stock: {p.stock}</span>
+                    </button>
+                  ))
+                }
+                {productos.filter(p => p.nombre.toLowerCase().includes(searchVenta.toLowerCase())).length === 0 && (
+                  <div className="px-4 py-3 text-[10px] text-outline italic">No se encontraron productos</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 rounded-2xl border border-outline-variant/20 relative z-10 p-1">
+            {/* Overlay de Resumen de Confirmación */}
+            {mostrarResumenVenta && (
+              <div className="absolute inset-0 z-50 bg-surface-container-low/95 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
+                <h4 className="font-headline text-xl text-primary mb-4">Confirmar Registro</h4>
+                <div className="flex-1 overflow-y-auto pr-2">
+                  <p className="text-[10px] text-outline font-label uppercase tracking-widest mb-3">Vas a registrar lo siguiente:</p>
+                  <ul className="space-y-2">
+                    {conteo.filter(i => i.vendido > 0).map(i => (
+                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface p-3 rounded-xl border border-outline-variant/10">
+                        <span>{i.producto}</span>
+                        <span className="text-secondary">{i.vendido} unidades</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="mt-6 flex gap-3">
+                  <button 
+                    onClick={() => setMostrarResumenVenta(false)}
+                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest text-outline hover:bg-surface-variant transition-colors rounded-xl border border-outline-variant/20"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={guardar}
+                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest bg-primary text-on-primary hover:scale-[1.02] active:scale-[0.98] transition-all rounded-xl shadow-md"
+                  >
+                    Confirmar Todo
+                  </button>
+                </div>
+              </div>
+            )}
+
             <table className="w-full text-left">
-              <thead className="sticky top-0 bg-[#f1efe9]/90 backdrop-blur-md px-2 z-20">
+              <thead className="sticky top-0 bg-surface-container-low px-2 z-20">
                 <tr>
                   <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Producto</th>
                   <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Stock Disp.</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Cant. Extraída</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Cant.</th>
+                  <th className="py-4 pr-4"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
@@ -606,43 +721,130 @@ export default function Reportes() {
                         className="w-14 bg-surface border border-outline-variant/30 rounded-md px-2 py-1 text-[11px] font-bold text-on-surface focus:outline-none focus:border-primary text-center"
                       />
                     </td>
+                    <td className="py-3 pr-4 text-right">
+                      <button 
+                        onClick={() => removeItemVenta(p.id)}
+                        className="text-outline/40 hover:text-error transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
+                {conteo.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="py-10 text-center text-[10px] text-outline font-bold uppercase tracking-widest opacity-50 italic">
+                      Busca productos para agregar a la venta
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-6 flex justify-between items-center shrink-0">
+            <div>
+              {guardado && (
+                <span className="flex items-center gap-1 text-[10px] text-green-700 font-bold uppercase tracking-widest animate-pulse">
+                  <span className="material-symbols-outlined text-green-700 text-[14px]">check_circle</span>
+                  Registro Exitoso
+                </span>
+              )}
+            </div>
+            <button
+              onClick={guardar}
+              disabled={conteo.length === 0 || procesando}
+              className={`bg-primary-container text-on-primary-container px-6 py-3 rounded-xl font-label text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 ${conteo.length === 0 || procesando ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+            >
+              <span className="material-symbols-outlined text-lg">save</span>
+              Guardar Venta
+            </button>
           </div>
         </section>
 
         {/* Mermas MANUAL */}
-        <section className="bg-error/5 rounded-[2rem] p-8 border border-error/20 flex flex-col h-[400px] tour-reportes-mermas">
+        <section className="bg-error/5 rounded-[2rem] p-8 border border-error/20 flex flex-col h-[480px] tour-reportes-mermas">
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
               <h3 className="font-headline text-2xl text-error">Registrar Pérdida</h3>
               <p className="text-[10px] text-error/70 font-label uppercase tracking-widest mt-1">Registra productos dañados o mermas.</p>
             </div>
-            <div className="flex items-center gap-3">
-              {guardadoMerma && (
-                <span className="flex items-center gap-1 text-[10px] text-error font-bold uppercase tracking-widest animate-pulse">
-                  <span className="material-symbols-outlined text-error text-[14px]">check_circle</span>
-                  Restado
-                </span>
-              )}
-              <button
-                onClick={guardarMerma}
-                className="bg-error text-on-error px-5 py-2.5 rounded-xl font-label text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-md"
-              >
-                Eliminar Stock
-              </button>
+          </div>
+
+          {/* Buscador de mermas */}
+          <div className="mb-4 relative z-50">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-error/50 text-lg">search</span>
+              <input
+                type="text"
+                placeholder="Buscar producto dañado..."
+                value={searchMerma}
+                onChange={e => setSearchMerma(e.target.value)}
+                className="w-full bg-surface-container-lowest border border-error/20 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-error transition-all"
+              />
             </div>
+            {searchMerma && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-surface-container-lowest border border-error/20 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto z-[60]">
+                {productos
+                  .filter(p => p.nombre.toLowerCase().includes(searchMerma.toLowerCase()))
+                  .map(p => (
+                    <button
+                      key={p.id}
+                      onMouseDown={(e) => { e.preventDefault(); addItemMerma(p); }}
+                      className="w-full px-4 py-3 text-left text-[11px] font-bold hover:bg-error/10 transition-colors flex justify-between items-center border-b border-error/5"
+                    >
+                      <span className="text-error">{p.nombre}</span>
+                      <span className="text-[10px] text-error opacity-60">Stock: {p.stock}</span>
+                    </button>
+                  ))
+                }
+                {productos.filter(p => p.nombre.toLowerCase().includes(searchMerma.toLowerCase())).length === 0 && (
+                  <div className="px-4 py-3 text-[10px] text-error/50 italic text-center">No se encontraron productos</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="overflow-y-auto flex-1 bg-surface-container-lowest/50 rounded-2xl border border-error/10 relative z-10 p-1">
+            {/* Overlay de Resumen de Confirmación Mermas */}
+            {mostrarResumenMerma && (
+              <div className="absolute inset-0 z-50 bg-error-container/95 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
+                <h4 className="font-headline text-xl text-error mb-4">Confirmar Pérdida</h4>
+                <div className="flex-1 overflow-y-auto pr-2">
+                  <p className="text-[10px] text-error/70 font-label uppercase tracking-widest mb-3">Se restará del inventario:</p>
+                  <ul className="space-y-2">
+                    {conteoMerma.filter(i => i.vendido > 0).map(i => (
+                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface p-3 rounded-xl border border-error/10">
+                        <span className="text-error">{i.producto}</span>
+                        <span className="text-error">{i.vendido} unidades</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="mt-6 flex gap-3">
+                  <button 
+                    onClick={() => setMostrarResumenMerma(false)}
+                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest text-error/60 hover:bg-error/10 transition-colors rounded-xl border border-error/20"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={guardarMerma}
+                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest bg-error text-on-error hover:scale-[1.02] active:scale-[0.98] transition-all rounded-xl shadow-md"
+                  >
+                    Confirmar Pérdida
+                  </button>
+                </div>
+              </div>
+            )}
+
             <table className="w-full text-left">
-              <thead className="sticky top-0 bg-[#faeeed]/90 backdrop-blur-md px-2 z-20">
+              <thead className="sticky top-0 bg-error/5 backdrop-blur-md px-2 z-20">
                 <tr>
                   <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Producto</th>
                   <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Stock Disp.</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Cant. Perdida</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Cant.</th>
+                  <th className="py-4 pr-4"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-error/5">
@@ -657,10 +859,44 @@ export default function Reportes() {
                         className="w-14 bg-surface border border-error/30 rounded-md px-2 py-1 text-[11px] font-bold text-error focus:outline-none focus:border-error text-center"
                       />
                     </td>
+                    <td className="py-3 pr-4 text-right">
+                      <button 
+                        onClick={() => removeItemMerma(p.id)}
+                        className="text-error/30 hover:text-error transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
+                {conteoMerma.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="py-10 text-center text-[10px] text-error/40 font-bold uppercase tracking-widest italic">
+                      Busca productos para registrar mermas
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-6 flex justify-between items-center shrink-0">
+            <div>
+              {guardadoMerma && (
+                <span className="flex items-center gap-1 text-[10px] text-error font-bold uppercase tracking-widest animate-pulse">
+                  <span className="material-symbols-outlined text-error text-[14px]">check_circle</span>
+                  Stock Eliminado
+                </span>
+              )}
+            </div>
+            <button
+              onClick={guardarMerma}
+              disabled={conteoMerma.length === 0 || procesando}
+              className={`bg-error text-on-error px-6 py-3 rounded-xl font-label text-[11px] font-bold uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${conteoMerma.length === 0 || procesando ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+            >
+              <span className="material-symbols-outlined text-lg">remove_shopping_cart</span>
+              Eliminar Stock
+            </button>
           </div>
         </section>
       </div>
@@ -742,6 +978,46 @@ export default function Reportes() {
         )}
       </section>
 
+      {/* Modal de Confirmación para Deshacer */}
+      {registroADeshacer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={() => setRegistroADeshacer(null)} />
+          <div className="bg-surface-container-low border border-outline-variant/20 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4 text-error">
+              <span className="material-symbols-outlined">warning</span>
+              <h3 className="font-headline text-2xl">¿Deshacer Registro?</h3>
+            </div>
+            <p className="text-sm text-outline mb-6 leading-relaxed">
+              Esta acción eliminará el registro de <strong>{registroADeshacer._tipo === 'merma' ? 'merma' : 'venta'}</strong> y devolverá los productos al inventario original.
+            </p>
+            <div className="bg-surface-container rounded-2xl p-4 mb-6">
+              <ul className="space-y-2">
+                {registroADeshacer.productos.map((p, idx) => (
+                  <li key={idx} className="text-xs font-bold flex justify-between">
+                    <span>{p.nombre}</span>
+                    <span className="text-secondary">+{p.cantidad} unidades</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setRegistroADeshacer(null)}
+                className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest text-outline hover:bg-surface-variant transition-colors rounded-xl border border-outline-variant/20"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => deshacerRegistro(registroADeshacer)}
+                disabled={procesando}
+                className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest bg-error text-on-error hover:scale-[1.02] active:scale-[0.98] transition-all rounded-xl shadow-md disabled:opacity-50"
+              >
+                {procesando ? 'Procesando...' : 'Sí, deshacer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
