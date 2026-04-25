@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [showAlerta, setShowAlerta] = useState(true)
+  const [showMoreBajos, setShowMoreBajos] = useState(false)
   const prevCriticos = useRef(0)
 
   useEffect(() => {
@@ -268,7 +269,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
-              {bajosDeStock.map(p => (
+              {bajosDeStock.slice(0, showMoreBajos ? undefined : 10).map(p => (
                 <tr key={p.id} className="hover:bg-surface-container-low transition-colors group">
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
@@ -303,6 +304,22 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+        {bajosDeStock.length > 10 && (
+          <div className="mt-4 flex justify-center">
+            <button 
+              onClick={() => setShowMoreBajos(!showMoreBajos)}
+              className="flex items-center gap-2 px-6 py-3 bg-surface-container-low hover:bg-surface-container-high text-primary rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm border border-outline-variant/10"
+            >
+              <span className="material-symbols-outlined text-lg">
+                {showMoreBajos ? 'keyboard_arrow_up' : 'expand_more'}
+              </span>
+              {showMoreBajos 
+                ? 'Ver menos productos' 
+                : `Ver ${bajosDeStock.length - 10} productos más`
+              }
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Últimos ingresos */}
