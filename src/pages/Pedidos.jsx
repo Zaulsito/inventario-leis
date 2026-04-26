@@ -23,6 +23,8 @@ export default function Pedidos() {
   const [showProdDropdown, setShowProdDropdown] = useState(false)
   const [busquedaProd, setBusquedaProd] = useState('')
   const [expandedId, setExpandedId] = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [originalProductos, setOriginalProductos] = useState([])
   
   // Nuevo estado para diálogos personalizados
   const [dialog, setDialog] = useState({
@@ -57,8 +59,34 @@ export default function Pedidos() {
 
   function openNew() {
     setForm(formInicial)
+    setEditingId(null)
+    setOriginalProductos([])
     setErrorMsg('')
     setShowModal(true)
+  }
+
+  function handleEdit(pedido) {
+    setForm({
+      cliente: pedido.cliente,
+      fechaEntrega: pedido.fechaEntrega,
+      productosSeleccionados: pedido.productos.map(p => {
+        // Encontrar el producto en la lista maestra para saber el stock actual real
+        const pMaestro = productos.find(pm => pm.id === p.productoId);
+        return {
+          ...p,
+          stockOriginal: pMaestro ? pMaestro.stock : p.cantidad // Stock disponible ahora
+        };
+      }),
+      pagoEstado: pedido.pagoEstado || 'sin pagar',
+      medioPago: pedido.medioPago || 'transferencia',
+      abono: pedido.abono || 0,
+      banco: pedido.banco || '',
+      comprobante: pedido.comprobante || ''
+    });
+    setEditingId(pedido.id);
+    setOriginalProductos(JSON.parse(JSON.stringify(pedido.productos))); // Copia profunda
+    setErrorMsg('');
+    setShowModal(true);
   }
 
   function handleAddProduct(productoId) {
@@ -93,8 +121,13 @@ export default function Pedidos() {
   function handleQuantityChange(productoId, cantidad) {
     const qty = Number(cantidad)
     const prodRef = form.productosSeleccionados.find(p => p.productoId === productoId)
-    if (qty > prodRef.stockOriginal) {
-      return setErrorMsg(`Stock insuficiente para ${prodRef.nombre}. Máximo: ${prodRef.stockOriginal}`)
+    
+    // Al editar, el "stock disponible" es el stock actual del maestro + lo que ya teníamos reservado en este pedido
+    const originalQty = originalProductos.find(op => op.productoId === productoId)?.cantidad || 0;
+    const stockDisponibleTotal = prodRef.stockOriginal + (editingId ? originalQty : 0);
+
+    if (qty > stockDisponibleTotal) {
+      return setErrorMsg(`Stock insuficiente para ${prodRef.nombre}. Máximo: ${stockDisponibleTotal}`)
     }
     setErrorMsg('')
     setForm({
@@ -125,24 +158,60 @@ export default function Pedidos() {
     try {
       const batch = writeBatch(db)
 
-      // 1. Modificar Inventario (Restar)
-      for (const item of form.productosSeleccionados) {
-        const prodRef = doc(db, 'productos', item.productoId)
-        const pData = productos.find(p => p.id === item.productoId)
-        const nuevoStock = pData.stock - item.cantidad
+      // 1. Manejar Stock (Inventario)
+      // Si estamos editando, primero debemos "devolver" virtualmente el stock anterior
+      // Y luego restar el nuevo.
+      
+      // Productos que estaban antes pero ya no están (eliminados del pedido)
+      if (editingId) {
+        for (const oldItem of originalProductos) {
+          const newItem = form.productosSeleccionados.find(p => p.productoId === oldItem.productoId);
+          const pMaestro = productos.find(p => p.id === oldItem.productoId);
+          if (pMaestro) {
+            const prodRef = doc(db, 'productos', oldItem.productoId);
+            // Si el producto fue eliminado del pedido, devolvemos todo su stock
+            if (!newItem) {
+              const nuevoStock = pMaestro.stock + oldItem.cantidad;
+              batch.update(prodRef, { stock: nuevoStock, estado: calcularEstado(nuevoStock) });
+            } else {
+              // Si sigue estando, calculamos la diferencia
+              const diferencia = oldItem.cantidad - newItem.cantidad; // Positivo si bajó cantidad, Negativo si subió
+              const nuevoStock = pMaestro.stock + diferencia;
+              batch.update(prodRef, { stock: nuevoStock, estado: calcularEstado(nuevoStock) });
+            }
+          }
+        }
         
-        // Calcular nuevo estado
-        const nuevoEstado = calcularEstado(nuevoStock)
-
-        batch.update(prodRef, { 
-          stock: nuevoStock,
-          estado: nuevoEstado
-        })
+        // Productos que son nuevos en el pedido
+        for (const newItem of form.productosSeleccionados) {
+          const wasPresent = originalProductos.find(p => p.productoId === newItem.productoId);
+          if (!wasPresent) {
+            const pMaestro = productos.find(p => p.id === newItem.productoId);
+            if (pMaestro) {
+              const prodRef = doc(db, 'productos', newItem.productoId);
+              const nuevoStock = pMaestro.stock - newItem.cantidad;
+              batch.update(prodRef, { stock: nuevoStock, estado: calcularEstado(nuevoStock) });
+            }
+          }
+        }
+      } else {
+        // Lógica normal para pedidos nuevos
+        for (const item of form.productosSeleccionados) {
+          const prodRef = doc(db, 'productos', item.productoId)
+          const pData = productos.find(p => p.id === item.productoId)
+          const nuevoStock = pData.stock - item.cantidad
+          batch.update(prodRef, { 
+            stock: nuevoStock,
+            estado: calcularEstado(nuevoStock)
+          })
+        }
       }
 
-      // 2. Crear Pedido
-      const pedidoRef = doc(collection(db, 'pedidos'))
-      batch.set(pedidoRef, {
+      // 2. Crear o Actualizar Pedido
+      const total = form.productosSeleccionados.reduce((acc, p) => acc + (p.cantidad * p.precio), 0);
+      const abonoNum = Number(form.abono) || 0;
+      
+      const pedidoData = {
         cliente: form.cliente,
         fechaEntrega: form.fechaEntrega,
         productos: form.productosSeleccionados.map(p => ({
@@ -153,17 +222,28 @@ export default function Pedidos() {
         })),
         pagoEstado: form.pagoEstado,
         medioPago: form.medioPago,
-        total: form.productosSeleccionados.reduce((acc, p) => acc + (p.cantidad * p.precio), 0),
-        abono: Number(form.abono) || 0,
-        saldoPendiente: form.productosSeleccionados.reduce((acc, p) => acc + (p.cantidad * p.precio), 0) - (Number(form.abono) || 0),
+        total: total,
+        abono: abonoNum,
+        saldoPendiente: total - abonoNum,
         banco: form.medioPago === 'transferencia' ? form.banco : '',
         comprobante: form.medioPago === 'transferencia' ? form.comprobante : '',
-        fechaCreacion: new Date().toISOString(),
         estado: 'pendiente'
-      })
+      };
+
+      if (editingId) {
+        const pedidoRef = doc(db, 'pedidos', editingId);
+        batch.update(pedidoRef, pedidoData);
+      } else {
+        const pedidoRef = doc(collection(db, 'pedidos'));
+        batch.set(pedidoRef, {
+          ...pedidoData,
+          fechaCreacion: new Date().toISOString()
+        });
+      }
 
       await batch.commit()
       setShowModal(false)
+      setEditingId(null)
     } catch (e) {
       setErrorMsg('Error al guardar pedido: ' + e.message)
     }
@@ -382,6 +462,9 @@ END:VCALENDAR`
                             <p className="text-sm font-bold text-error">Total: ${p.total?.toLocaleString('es-CL')}</p>
                           </td>
                           <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                              <span className="material-symbols-outlined text-xl">edit</span>
+                            </button>
                             <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Marcar como Pagado">
                               <span className="material-symbols-outlined text-xl">check_circle</span>
                             </button>
@@ -473,6 +556,9 @@ END:VCALENDAR`
                         )}
                       </div>
                       <div className="flex gap-2">
+                        <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                          Editar
+                        </button>
                         <button onClick={() => handleCompletarPago(p)} className="flex-1 bg-secondary text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
                           Pagar Todo
                         </button>
@@ -564,6 +650,9 @@ END:VCALENDAR`
                             </div>
                           </td>
                           <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                              <span className="material-symbols-outlined text-xl">edit</span>
+                            </button>
                             <button onClick={() => handleActualizarAbono(p)} className="text-amber-600 hover:bg-amber-100 p-2 rounded-full transition-colors" title="Actualizar Abono">
                               <span className="material-symbols-outlined text-xl">edit_calendar</span>
                             </button>
@@ -649,6 +738,9 @@ END:VCALENDAR`
                         ))}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => handleEdit(p)} className="col-span-2 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                          Editar Pedido
+                        </button>
                         <button onClick={() => handleActualizarAbono(p)} className="bg-amber-100 text-amber-800 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest">
                           Nuevo Abono
                         </button>
@@ -836,11 +928,17 @@ END:VCALENDAR`
             <div className="px-6 py-6 border-b border-outline-variant/10 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-2xl font-bold">add_shopping_cart</span>
+                  <span className="material-symbols-outlined text-primary text-2xl font-bold">
+                    {editingId ? 'edit_note' : 'add_shopping_cart'}
+                  </span>
                 </div>
                 <div>
-                  <h2 className="font-headline text-2xl font-bold text-on-surface leading-tight">Nuevo Pedido</h2>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline">Agendar venta y entrega</p>
+                  <h2 className="font-headline text-2xl font-bold text-on-surface leading-tight">
+                    {editingId ? 'Editar Pedido' : 'Nuevo Pedido'}
+                  </h2>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline">
+                    {editingId ? 'Modificar datos de la venta' : 'Agendar venta y entrega'}
+                  </p>
                 </div>
               </div>
               <button onClick={() => setShowModal(false)} className="w-10 h-10 hover:bg-surface-container-high rounded-full flex items-center justify-center text-outline transition-colors">
@@ -1093,7 +1191,7 @@ END:VCALENDAR`
                 onClick={handleSave}
                 className="w-full md:w-auto px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest bg-primary text-on-primary shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all order-1 md:order-2"
               >
-                Confirmar y Agendar
+                {editingId ? 'Guardar Cambios' : 'Confirmar y Agendar'}
               </button>
             </div>
           </div>
