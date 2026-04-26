@@ -4,6 +4,13 @@ import { Html5Qrcode } from 'html5-qrcode';
 export default function BarcodeScanner({ onScan, onClose }) {
   const [hasPermission, setHasPermission] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [zoomSettings, setZoomSettings] = useState({
+    supported: false,
+    min: 1,
+    max: 1,
+    step: 0.1,
+    current: 1
+  });
   const scannerRef = useRef(null);
 
   // Limpiar recursos al cerrar o desmontar
@@ -45,11 +52,41 @@ export default function BarcodeScanner({ onScan, onClose }) {
           // console.log(errorMessage)
         }
       );
+
+      // Detectar capacidades de zoom después de iniciar
+      try {
+        const capabilities = html5QrCode.getRunningTrackCapabilities();
+        if (capabilities.zoom) {
+          setZoomSettings({
+            supported: true,
+            min: capabilities.zoom.min,
+            max: capabilities.zoom.max,
+            step: capabilities.zoom.step || 0.1,
+            current: 1 // Empezamos en zoom 1
+          });
+        }
+      } catch (capErr) {
+        console.warn("No se pudieron obtener capacidades de cámara:", capErr);
+      }
     } catch (err) {
       // Si el usuario deniega el permiso explícitamente o el teléfono no logra abrirla
       setHasPermission(false);
       setErrorMsg('Permiso de cámara denegado o no soportado por tu navegador.');
       console.error("Error al iniciar cámara:", err);
+    }
+  };
+
+  const handleZoomChange = async (e) => {
+    const value = parseFloat(e.target.value);
+    if (scannerRef.current && zoomSettings.supported) {
+      try {
+        await scannerRef.current.applyVideoConstraints({
+          advanced: [{ zoom: value }]
+        });
+        setZoomSettings(prev => ({ ...prev, current: value }));
+      } catch (err) {
+        console.error("Error al aplicar zoom:", err);
+      }
     }
   };
 
@@ -94,6 +131,25 @@ export default function BarcodeScanner({ onScan, onClose }) {
             className={`w-full overflow-hidden rounded-xl bg-black border border-outline-variant/20 ${hasPermission ? 'block' : 'hidden'}`}
             style={{ minHeight: '250px' }}
           ></div>
+
+          {/* Control de Zoom si está soportado */}
+          {hasPermission && zoomSettings.supported && (
+            <div className="w-full mt-4 px-2 space-y-2">
+              <div className="flex justify-between text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+                <span>Zoom</span>
+                <span>{zoomSettings.current.toFixed(1)}x</span>
+              </div>
+              <input 
+                type="range"
+                min={zoomSettings.min}
+                max={zoomSettings.max}
+                step={zoomSettings.step}
+                value={zoomSettings.current}
+                onChange={handleZoomChange}
+                className="w-full h-2 bg-outline-variant rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+            </div>
+          )}
         </div>
 
         {hasPermission && (
