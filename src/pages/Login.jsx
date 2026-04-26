@@ -77,13 +77,6 @@ export default function Login() {
               {loading ? 'Iniciando...' : 'Iniciar Sesión'}
             </button>
           </div>
-
-          <p className="text-center text-xs text-on-surface-variant mt-4 font-label tracking-wide">
-            ¿No tienes una cuenta? {' '}
-            <Link to="/signup" className="text-primary font-bold hover:underline">
-              Regístrate aquí
-            </Link>
-          </p>
         </form>
       </div>
     </div>
