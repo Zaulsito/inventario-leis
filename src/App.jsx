@@ -7,7 +7,6 @@ import Pedidos from './pages/Pedidos'
 import Registro from './pages/Registro'
 import Reportes from './pages/Reportes'
 import Login from './pages/Login'
-import SignUp from './pages/SignUp'
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth();
@@ -19,7 +18,6 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<SignUp />} />
         
         <Route path="/" element={
           <PrivateRoute>
