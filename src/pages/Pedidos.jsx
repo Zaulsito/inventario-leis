@@ -252,7 +252,7 @@ export default function Pedidos() {
       const abonoNum = Number(form.abono) || 0;
       
       const pedidoData = {
-        cliente: form.cliente.trim() || (form.esVentaOnline ? 'Venta Online' : ''),
+        cliente: form.cliente.trim() || (form.esVentaOnline ? (form.canalVenta || 'Venta Online') : ''),
         fechaEntrega: form.fechaEntrega,
         productos: form.productosSeleccionados.map(p => ({
           productoId: p.productoId,
@@ -665,6 +665,7 @@ END:VCALENDAR`
                 <thead>
                   <tr className="bg-surface-container">
                     <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline">Cliente</th>
+                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline">Fecha Entrega</th>
                     <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline">Estado del Abono</th>
                     <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline text-right">Saldo</th>
                     <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline text-right">Acciones</th>
@@ -687,11 +688,13 @@ END:VCALENDAR`
                               <div>
                                 <p className="font-headline font-bold text-base text-on-surface">{p.cliente}</p>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600">Medio: {p.medioPago}</span>
-                                  {p.banco && <span className="text-[9px] font-bold uppercase tracking-widest text-outline">| {p.banco}</span>}
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.canalVenta || p.medioPago}</span>
                                 </div>
                               </div>
                             </div>
+                          </td>
+                          <td className="px-7 py-5">
+                            <span className="font-bold text-on-surface-variant text-sm">{p.fechaEntrega}</span>
                           </td>
                           <td className="px-7 py-5">
                             <div className="w-32 bg-outline-variant/20 h-1.5 rounded-full overflow-hidden mb-2">
@@ -727,7 +730,7 @@ END:VCALENDAR`
                         </tr>
                         {expandedId === p.id && (
                           <tr className="bg-surface-container-low/50">
-                            <td colSpan={4} className="px-7 py-4">
+                            <td colSpan={5} className="px-7 py-4">
                               <div className="bg-surface rounded-2xl p-4 border border-outline-variant/20 shadow-inner">
                                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Detalle de Productos</h4>
                                 <div className="space-y-2">
@@ -747,7 +750,7 @@ END:VCALENDAR`
                   })}
                   {pedidos.filter(p => p.pagoEstado === 'parcial').length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-7 py-20 text-center">
+                      <td colSpan={5} className="px-7 py-20 text-center">
                         <div className="flex flex-col items-center gap-4 opacity-40">
                           <span className="material-symbols-outlined text-5xl">payments</span>
                           <div>
@@ -775,7 +778,8 @@ END:VCALENDAR`
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-headline font-bold text-base text-on-surface truncate">{p.cliente}</h3>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-outline">Entrega: {p.fechaEntrega}</p>
+                      <div className="flex items-center gap-2 mt-1">
                         <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden">
                           <div className="h-full bg-amber-500" style={{ width: `${perc}%` }} />
                         </div>
@@ -1127,12 +1131,12 @@ END:VCALENDAR`
                 </div>
               </div>
 
-              {/* Opción de Venta Online */}
+              {/* Opción de Venta con Origen */}
               <div className="bg-surface-container-low p-5 rounded-3xl border border-outline-variant/10 space-y-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Venta Online</p>
-                    <p className="text-[9px] text-outline font-medium">¿La venta se realizó por redes sociales?</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Venta con Origen / Lugar</p>
+                    <p className="text-[9px] text-outline font-medium">¿Venta por redes sociales o lugar físico (Jumbo, etc)?</p>
                   </div>
                   <button 
                     onClick={() => setForm({ ...form, esVentaOnline: !form.esVentaOnline })}
@@ -1144,7 +1148,7 @@ END:VCALENDAR`
 
                 {form.esVentaOnline && (
                   <div className="grid grid-cols-1 gap-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Canal de Venta</label>
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Lugar o Canal de Venta</label>
                     <div className="relative">
                       <div className="relative group">
                         <input 
@@ -1156,9 +1160,9 @@ END:VCALENDAR`
                           }}
                           onFocus={() => setShowCanalDropdown(true)}
                           className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary pr-10"
-                          placeholder="Ej: Facebook, Instagram..."
+                          placeholder="Ej: Facebook, Jumbo, Cesfam..."
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40">search</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40">location_on</span>
                       </div>
 
                       {showCanalDropdown && (
