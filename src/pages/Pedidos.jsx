@@ -180,8 +180,18 @@ export default function Pedidos() {
         return setErrorMsg(`La cantidad de ${item.nombre} debe ser mayor a 0.`)
       }
       const pData = productos.find(p => p.id === item.productoId)
-      if (!pData || pData.stock < item.cantidad) {
-        return setErrorMsg(`Stock insuficiente de ${item.nombre} en este momento. Tienes ${pData ? pData.stock : 0}.`)
+      
+      // Cuando editamos, el stock "disponible" es: stock_maestro + cantidad_previa_en_este_pedido
+      let stockDisponible = pData ? pData.stock : 0;
+      if (editingId) {
+        const itemPrevio = originalProductos.find(p => p.productoId === item.productoId);
+        if (itemPrevio) {
+          stockDisponible += itemPrevio.cantidad;
+        }
+      }
+
+      if (!pData || stockDisponible < item.cantidad) {
+        return setErrorMsg(`Stock insuficiente de ${item.nombre} en este momento. Tienes ${pData ? pData.stock : 0} libres.`)
       }
     }
 
