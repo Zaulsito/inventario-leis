@@ -279,6 +279,7 @@ export default function Pedidos() {
         const pedidoRef = doc(collection(db, 'pedidos'));
         batch.set(pedidoRef, {
           ...pedidoData,
+          historialAbonos: abonoNum > 0 ? [{ fecha: new Date().toISOString(), monto: abonoNum }] : [],
           fechaCreacion: new Date().toISOString()
         });
       }
@@ -303,11 +304,18 @@ export default function Pedidos() {
         try {
           const ref = doc(db, 'pedidos', pedido.id)
           const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+          const montoFaltante = totalCalc - (pedido.abono || 0)
+          const historial = pedido.historialAbonos || []
+          if (montoFaltante > 0) {
+            historial.push({ fecha: new Date().toISOString(), monto: montoFaltante, nota: 'Liquidación Total' })
+          }
+
           await updateDoc(ref, {
             pagoEstado: 'pagado',
             abono: totalCalc,
             saldoPendiente: 0,
-            total: totalCalc
+            total: totalCalc,
+            historialAbonos: historial
           })
           closeDialog()
         } catch (e) {
@@ -338,11 +346,21 @@ export default function Pedidos() {
         try {
           const ref = doc(db, 'pedidos', pedido.id)
           const isFull = montoNum === totalCalc
+          const incremento = montoNum - (pedido.abono || 0)
+          const historial = pedido.historialAbonos || []
+          
+          if (incremento > 0) {
+            historial.push({ fecha: new Date().toISOString(), monto: incremento, nota: 'Abono Parcial' })
+          } else if (incremento < 0) {
+            historial.push({ fecha: new Date().toISOString(), monto: incremento, nota: 'Corrección / Devolución' })
+          }
+
           await updateDoc(ref, {
             abono: montoNum,
             saldoPendiente: totalCalc - montoNum,
             pagoEstado: isFull ? 'pagado' : 'parcial',
-            total: totalCalc
+            total: totalCalc,
+            historialAbonos: historial
           })
           closeDialog()
         } catch (e) {
@@ -761,6 +779,25 @@ END:VCALENDAR`
                                     </div>
                                   ))}
                                 </div>
+
+                                {p.historialAbonos && p.historialAbonos.length > 0 && (
+                                  <div className="mt-6 pt-4 border-t border-amber-500/10">
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Historial de Pagos</h4>
+                                    <div className="space-y-2">
+                                      {p.historialAbonos.map((abono, idx) => (
+                                        <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 px-4 py-2 rounded-xl">
+                                          <div className="flex flex-col">
+                                            <span className="text-on-surface-variant font-medium">
+                                              {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                            <span className="text-[8px] text-outline uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                          </div>
+                                          <span className="font-bold text-amber-700">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -828,6 +865,25 @@ END:VCALENDAR`
                           </div>
                         ))}
                       </div>
+                      
+                      {p.historialAbonos && p.historialAbonos.length > 0 && (
+                        <div className="mb-6 space-y-2">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-amber-600 px-1">Registro de Pagos</p>
+                          <div className="space-y-1">
+                            {p.historialAbonos.map((abono, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-[10px] bg-amber-500/5 px-3 py-2 rounded-xl border border-amber-500/10">
+                                <div className="flex flex-col">
+                                  <span className="text-on-surface-variant font-medium">
+                                    {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  <span className="text-[7px] text-outline uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                </div>
+                                <span className="font-bold text-amber-700">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => handleEdit(p)} className="col-span-2 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
                           Editar Pedido
@@ -934,6 +990,25 @@ END:VCALENDAR`
                                   </div>
                                 ))}
                               </div>
+
+                              {p.historialAbonos && p.historialAbonos.length > 0 && (
+                                <div className="mt-6 pt-4 border-t border-outline-variant/10">
+                                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {p.historialAbonos.map((abono, idx) => (
+                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 px-4 py-2 rounded-xl">
+                                        <div className="flex flex-col">
+                                          <span className="text-on-surface-variant font-medium">
+                                            {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                          <span className="text-[8px] text-outline uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                        </div>
+                                        <span className="font-bold text-secondary">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -986,16 +1061,33 @@ END:VCALENDAR`
                   </div>
                 </div>
                 
-                {expandedId === p.id && (
                   <div className="mt-4 pt-4 border-t border-outline-variant/10 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="space-y-2 mb-4">
+                    <div className="space-y-2 mb-4 bg-surface p-3 rounded-2xl border border-outline-variant/10">
                       {p.productos?.map((item, idx) => (
                         <div key={idx} className="flex justify-between items-center text-xs">
                           <span className="text-on-surface-variant">{item.cantidad}x {item.nombre}</span>
-                          <span className="font-bold text-secondary">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                          <span className="font-bold text-on-surface">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                         </div>
                       ))}
                     </div>
+                    {p.historialAbonos && p.historialAbonos.length > 0 && (
+                      <div className="mb-4 pt-4 border-t border-outline-variant/10 space-y-2">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-secondary px-1">Pagos Registrados</p>
+                        <div className="space-y-1">
+                          {p.historialAbonos.map((abono, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-[10px] bg-secondary/5 px-3 py-2 rounded-xl border border-secondary/10">
+                              <div className="flex flex-col">
+                                <span className="text-on-surface-variant font-medium">
+                                  {new Date(abono.fecha).toLocaleDateString('es-CL')} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <span className="text-[7px] text-outline uppercase font-bold">{abono.nota}</span>
+                              </div>
+                              <span className="font-bold text-secondary">${abono.monto.toLocaleString('es-CL')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <button onClick={() => handleDelete(p)} className="w-full bg-error/10 text-error py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
                       <span className="material-symbols-outlined text-sm">delete_forever</span>
                       Eliminar del Historial
