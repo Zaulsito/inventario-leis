@@ -11,7 +11,9 @@ const formInicial = {
   medioPago: 'transferencia', // 'transferencia', 'tarjeta', 'cuota', 'efectivo'
   abono: 0,
   banco: '',
-  comprobante: ''
+  comprobante: '',
+  esVentaOnline: false,
+  canalVenta: ''
 }
 
 export default function Pedidos() {
@@ -25,6 +27,10 @@ export default function Pedidos() {
   const [expandedId, setExpandedId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [originalProductos, setOriginalProductos] = useState([])
+  const [activeTab, setActiveTab] = useState('pedidos') // 'pedidos' o 'clientes'
+  const [showClienteDropdown, setShowClienteDropdown] = useState(false)
+  const [busquedaCanal, setBusquedaCanal] = useState('')
+  const [showCanalDropdown, setShowCanalDropdown] = useState(false)
   
   // Nuevo estado para diálogos personalizados
   const [dialog, setDialog] = useState({
@@ -41,6 +47,26 @@ export default function Pedidos() {
   function closeDialog() {
     setDialog({ ...dialog, show: false })
   }
+
+  // Lógica para Clientes Frecuentes y Sugerencias
+  const clientesData = pedidos.reduce((acc, p) => {
+    const nombre = (p.cliente || 'Desconocido').trim()
+    if (!acc[nombre]) {
+      acc[nombre] = { nombre, pedidosCount: 0, totalGastado: 0, ultimaCompra: p.fechaEntrega }
+    }
+    acc[nombre].pedidosCount += 1
+    acc[nombre].totalGastado += p.total || 0
+    if (new Date(p.fechaEntrega) > new Date(acc[nombre].ultimaCompra)) {
+      acc[nombre].ultimaCompra = p.fechaEntrega
+    }
+    return acc
+  }, {})
+
+  const sortedClientes = Object.values(clientesData).sort((a, b) => b.pedidosCount - a.pedidosCount)
+
+  const canalesBase = ['Facebook', 'Instagram', 'WhatsApp', 'TikTok']
+  const canalesExistentes = Array.from(new Set(pedidos.filter(p => p.canalVenta).map(p => p.canalVenta)))
+  const canalesDisponibles = Array.from(new Set([...canalesBase, ...canalesExistentes]))
 
   useEffect(() => {
     // Escuchar productos
@@ -81,7 +107,9 @@ export default function Pedidos() {
       medioPago: pedido.medioPago || 'transferencia',
       abono: pedido.abono || 0,
       banco: pedido.banco || '',
-      comprobante: pedido.comprobante || ''
+      comprobante: pedido.comprobante || '',
+      esVentaOnline: pedido.esVentaOnline || false,
+      canalVenta: pedido.canalVenta || ''
     });
     setEditingId(pedido.id);
     setOriginalProductos(JSON.parse(JSON.stringify(pedido.productos))); // Copia profunda
@@ -227,6 +255,8 @@ export default function Pedidos() {
         saldoPendiente: total - abonoNum,
         banco: form.medioPago === 'transferencia' ? form.banco : '',
         comprobante: form.medioPago === 'transferencia' ? form.comprobante : '',
+        esVentaOnline: form.esVentaOnline,
+        canalVenta: form.esVentaOnline ? form.canalVenta : '',
         estado: 'pendiente'
       };
 
@@ -390,18 +420,37 @@ END:VCALENDAR`
   return (
     <div className="flex flex-col h-full relative">
       {/* Header sticky */}
-      <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-8 md:px-10 py-7 flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-outline-variant/20">
-        <div>
+      <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-8 md:px-10 py-7 flex flex-col md:flex-row md:items-end gap-6 border-b border-outline-variant/20">
+        <div className="flex-1">
           <h1 className="font-headline text-4xl text-secondary font-bold italic leading-tight">Pedidos</h1>
           <p className="text-primary font-label text-xs uppercase tracking-[0.2em] font-bold mt-1">Gestión y Entregas</p>
         </div>
+
+        {/* TABS para navegar entre Pedidos e Historial de Clientes */}
+        <div className="flex bg-surface-container-high p-1 rounded-2xl md:self-end self-start">
+          <button 
+            onClick={() => setActiveTab('pedidos')}
+            className={`px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'pedidos' ? 'bg-secondary text-white shadow-md' : 'text-outline hover:bg-surface-variant'}`}
+          >
+            Ventas
+          </button>
+          <button 
+            onClick={() => setActiveTab('clientes')}
+            className={`px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'clientes' ? 'bg-secondary text-white shadow-md' : 'text-outline hover:bg-surface-variant'}`}
+          >
+            Frecuentes
+          </button>
+        </div>
+
         <button onClick={openNew} className="flex items-center gap-2 bg-secondary text-white px-6 py-3 rounded-xl font-label font-bold uppercase text-xs tracking-widest shadow-md hover:scale-105 transition-all tour-pedidos-crear">
           <span className="material-symbols-outlined text-sm">add</span>
           Crear Pedido
         </button>
       </header>
 
-      <div className="p-8 md:p-10 space-y-20 pb-32">
+      <div className="p-8 md:p-10 space-y-20 pb-32 flex-1 overflow-y-auto">
+        {activeTab === 'pedidos' ? (
+          <>
         {/* 1. Pedidos Pendientes (Sin Pagar) */}
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center gap-4">
@@ -918,6 +967,66 @@ END:VCALENDAR`
             )}
           </div>
         </section>
+          </>
+        ) : (
+          <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm border border-primary/5">
+                  <span className="material-symbols-outlined text-primary text-2xl font-bold">groups</span>
+                </div>
+                <div>
+                  <h2 className="font-headline text-2xl font-bold text-on-surface leading-tight">Clientes Frecuentes</h2>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline">Ranking por frecuencia de compra</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sortedClientes.map((cliente, idx) => (
+                <div key={idx} className="bg-surface-container-low rounded-[32px] p-6 border border-outline-variant/10 shadow-sm hover:shadow-md transition-all group">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary font-headline text-2xl font-bold italic">
+                      {cliente.nombre.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-outline block mb-1">Pedidos</span>
+                      <span className="text-2xl font-headline font-bold text-secondary bg-secondary/10 px-3 py-1 rounded-xl">
+                        {cliente.pedidosCount}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-headline font-bold text-lg text-on-surface truncate group-hover:text-primary transition-colors">
+                        {cliente.nombre}
+                      </h3>
+                      <p className="text-[10px] font-bold text-outline uppercase tracking-widest mt-1">
+                        Última compra: {cliente.ultimaCompra}
+                      </p>
+                    </div>
+
+                    <div className="pt-4 border-t border-outline-variant/10 flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-outline uppercase tracking-widest">Inversión Total</span>
+                      <span className="text-base font-bold text-primary">${cliente.totalGastado.toLocaleString('es-CL')}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {sortedClientes.length === 0 && (
+                <div className="col-span-full py-20 text-center">
+                  <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto mb-4 opacity-40">
+                    <span className="material-symbols-outlined text-3xl">person_search</span>
+                  </div>
+                  <p className="font-headline font-bold text-on-surface-variant">Aún no hay historial de clientes</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">Registra tu primer pedido para ver estadísticas</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Modal CRUD */}
@@ -956,15 +1065,42 @@ END:VCALENDAR`
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Nombre del Cliente</label>
-                  <input 
-                    type="text" 
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:border-primary font-bold shadow-sm"
-                    placeholder="Ej. Juan Pérez"
-                    value={form.cliente}
-                    onChange={e => setForm({...form, cliente: e.target.value})}
-                  />
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:border-primary font-bold shadow-sm"
+                      placeholder="Ej. Juan Pérez"
+                      value={form.cliente}
+                      onChange={e => {
+                        setForm({...form, cliente: e.target.value})
+                        setShowClienteDropdown(true)
+                      }}
+                      onFocus={() => setShowClienteDropdown(true)}
+                    />
+                    {showClienteDropdown && form.cliente && sortedClientes.filter(c => c.nombre.toLowerCase().includes(form.cliente.toLowerCase()) && c.nombre.toLowerCase() !== form.cliente.toLowerCase()).length > 0 && (
+                      <div className="absolute left-0 top-full mt-1 w-full bg-surface border border-outline-variant/20 rounded-xl shadow-lg z-[80] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                        {sortedClientes
+                          .filter(c => c.nombre.toLowerCase().includes(form.cliente.toLowerCase()))
+                          .slice(0, 5)
+                          .map((c, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setForm({ ...form, cliente: c.nombre })
+                                setShowClienteDropdown(false)
+                              }}
+                              className="w-full px-5 py-3 text-left text-xs font-bold hover:bg-primary/10 border-b border-outline-variant/5 last:border-0 flex items-center justify-between group"
+                            >
+                              <span>{c.nombre}</span>
+                              <span className="text-[9px] text-outline opacity-0 group-hover:opacity-100 uppercase tracking-widest">Ya es cliente</span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  {showClienteDropdown && <div className="fixed inset-0 z-[75]" onClick={() => setShowClienteDropdown(false)} />}
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Fecha de Entrega</label>
@@ -975,6 +1111,76 @@ END:VCALENDAR`
                     onChange={e => setForm({...form, fechaEntrega: e.target.value})}
                   />
                 </div>
+              </div>
+
+              {/* Opción de Venta Online */}
+              <div className="bg-surface-container-low p-5 rounded-3xl border border-outline-variant/10 space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Venta Online</p>
+                    <p className="text-[9px] text-outline font-medium">¿La venta se realizó por redes sociales?</p>
+                  </div>
+                  <button 
+                    onClick={() => setForm({ ...form, esVentaOnline: !form.esVentaOnline })}
+                    className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${form.esVentaOnline ? 'bg-primary' : 'bg-outline-variant/30'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${form.esVentaOnline ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {form.esVentaOnline && (
+                  <div className="grid grid-cols-1 gap-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Canal de Venta</label>
+                    <div className="relative">
+                      <div className="relative group">
+                        <input 
+                          type="text"
+                          value={form.canalVenta}
+                          onChange={(e) => {
+                            setForm({ ...form, canalVenta: e.target.value })
+                            setShowCanalDropdown(true)
+                          }}
+                          onFocus={() => setShowCanalDropdown(true)}
+                          className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary pr-10"
+                          placeholder="Ej: Facebook, Instagram..."
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40">search</span>
+                      </div>
+
+                      {showCanalDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-[60]" onClick={() => setShowCanalDropdown(false)} />
+                          <div className="absolute left-0 top-full mt-2 w-full bg-surface border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden">
+                            <div className="max-h-40 overflow-y-auto custom-scrollbar">
+                              {canalesDisponibles
+                                .filter(c => c.toLowerCase().includes(form.canalVenta.toLowerCase()))
+                                .map((canal, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => {
+                                      setForm({ ...form, canalVenta: canal })
+                                      setShowCanalDropdown(false)
+                                    }}
+                                    className="w-full px-5 py-3 text-left text-xs font-bold hover:bg-primary/10 border-b border-outline-variant/5 last:border-0"
+                                  >
+                                    {canal}
+                                  </button>
+                                ))}
+                              {form.canalVenta && !canalesDisponibles.includes(form.canalVenta) && (
+                                <button
+                                  onClick={() => setShowCanalDropdown(false)}
+                                  className="w-full px-5 py-3 text-left text-xs font-bold text-primary italic"
+                                >
+                                  + Añadir "{form.canalVenta}"
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Nuevos campos de Pago */}
