@@ -991,8 +991,16 @@ END:VCALENDAR`
                     </button>
                     <button 
                       type="button"
-                      onClick={() => setForm({...form, pagoEstado: 'parcial'})}
-                      className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase transition-all duration-300 ${form.pagoEstado === 'parcial' ? 'bg-amber-500 text-white shadow-md scale-105' : 'text-outline hover:bg-surface-variant'}`}
+                      onClick={() => {
+                        if (form.medioPago === 'cuota') {
+                          setForm({...form, pagoEstado: 'parcial'})
+                        }
+                      }}
+                      disabled={form.medioPago !== 'cuota'}
+                      className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase transition-all duration-300 
+                        ${form.pagoEstado === 'parcial' ? 'bg-amber-500 text-white shadow-md scale-105' : 'text-outline'}
+                        ${form.medioPago !== 'cuota' ? 'opacity-30 cursor-not-allowed' : 'hover:bg-surface-variant'}
+                      `}
                     >
                       Abonado
                     </button>
@@ -1016,7 +1024,7 @@ END:VCALENDAR`
                         setForm({
                           ...form, 
                           medioPago: val, 
-                          pagoEstado: val === 'cuota' ? 'parcial' : form.pagoEstado,
+                          pagoEstado: val === 'cuota' ? 'parcial' : 'sin pagar',
                           abono: val === 'cuota' ? form.abono : 0
                         })
                       }}
