@@ -507,6 +507,12 @@ END:VCALENDAR`
                                 <p className="font-headline font-bold text-base text-on-surface">{p.cliente}</p>
                                 <div className="flex items-center gap-2">
                                   <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Vía {p.medioPago}</span>
+                                  {p.canalVenta && (
+                                    <span className="bg-secondary/10 text-secondary px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                      {p.canalVenta}
+                                    </span>
+                                  )}
                                   {p.banco && <span className="text-[9px] font-bold uppercase tracking-widest text-outline">| {p.banco}</span>}
                                 </div>
                               </div>
@@ -590,9 +596,17 @@ END:VCALENDAR`
                     <div className="flex-1 min-w-0">
                       <h3 className="font-headline font-bold text-base text-on-surface truncate">{p.cliente}</h3>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Entrega: {p.fechaEntrega}</p>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${isCritico ? 'bg-error text-on-error' : 'bg-primary/10 text-primary'}`}>
-                        {p.medioPago}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${isCritico ? 'bg-error text-on-error' : 'bg-primary/10 text-primary'}`}>
+                          {p.medioPago}
+                        </span>
+                        {p.canalVenta && (
+                          <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[10px]">location_on</span>
+                            {p.canalVenta}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-base font-bold text-error leading-tight">${p.total?.toLocaleString('es-CL')}</p>
@@ -688,7 +702,13 @@ END:VCALENDAR`
                               <div>
                                 <p className="font-headline font-bold text-base text-on-surface">{p.cliente}</p>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.canalVenta || p.medioPago}</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.medioPago}</span>
+                                  {p.canalVenta && (
+                                    <span className="bg-amber-600/10 text-amber-600 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                      {p.canalVenta}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -780,10 +800,16 @@ END:VCALENDAR`
                       <h3 className="font-headline font-bold text-base text-on-surface truncate">{p.cliente}</h3>
                       <p className="text-[9px] font-bold uppercase tracking-widest text-outline">Entrega: {p.fechaEntrega}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden">
+                        {p.canalVenta && (
+                          <span className="inline-flex px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[10px]">location_on</span>
+                            {p.canalVenta}
+                          </span>
+                        )}
+                        <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden ml-auto">
                           <div className="h-full bg-amber-500" style={{ width: `${perc}%` }} />
                         </div>
-                        <span className="text-[9px] font-bold text-amber-600 uppercase">{perc}% Cubierto</span>
+                        <span className="text-[9px] font-bold text-amber-600 uppercase">{perc}%</span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -942,9 +968,17 @@ END:VCALENDAR`
                   <div className="flex-1 min-w-0">
                     <h3 className="font-headline font-bold text-base text-on-surface truncate">{p.cliente}</h3>
                     <p className="text-[9px] font-bold uppercase tracking-widest text-outline">Finalizado el: {p.fechaEntrega}</p>
-                    <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[9px] font-bold uppercase tracking-wider mt-1">
-                      {p.medioPago}
-                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[9px] font-bold uppercase tracking-wider">
+                        {p.medioPago}
+                      </span>
+                      {p.canalVenta && (
+                        <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[10px]">location_on</span>
+                          {p.canalVenta}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-base font-bold text-secondary leading-tight">${p.total?.toLocaleString('es-CL')}</p>
