@@ -168,8 +168,10 @@ export default function Pedidos() {
 
   async function handleSave() {
     setErrorMsg('')
-    if (!form.cliente || !form.fechaEntrega || form.productosSeleccionados.length === 0) {
-      return setErrorMsg('Cliente, fecha de entrega y al menos un producto son obligatorios.')
+    const isNombreValido = form.esVentaOnline ? true : form.cliente.trim() !== '';
+    
+    if (!isNombreValido || !form.fechaEntrega || form.productosSeleccionados.length === 0) {
+      return setErrorMsg('La fecha de entrega y al menos un producto son obligatorios.' + (!isNombreValido ? ' El nombre del cliente es obligatorio para ventas presenciales.' : ''))
     }
 
     // Validación estricta final de stock antes de descontar
@@ -240,7 +242,7 @@ export default function Pedidos() {
       const abonoNum = Number(form.abono) || 0;
       
       const pedidoData = {
-        cliente: form.cliente,
+        cliente: form.cliente.trim() || (form.esVentaOnline ? 'Venta Online' : ''),
         fechaEntrega: form.fechaEntrega,
         productos: form.productosSeleccionados.map(p => ({
           productoId: p.productoId,
@@ -1066,7 +1068,9 @@ END:VCALENDAR`
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2 relative">
-                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Nombre del Cliente</label>
+                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">
+                    Nombre del Cliente {form.esVentaOnline && <span className="text-primary/60 lowercase italic font-normal">(Opcional)</span>}
+                  </label>
                   <div className="relative group">
                     <input 
                       type="text" 
