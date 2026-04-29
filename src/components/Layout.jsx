@@ -13,10 +13,10 @@ const navItems = [
   { type: 'action',    icon: 'person',            label: 'Perfil', action: 'openUserMenu' },
 ]
 
-function Icon({ name, filled = false }) {
+function Icon({ name, filled = false, className = '' }) {
   return (
     <span
-      className="material-symbols-outlined"
+      className={`material-symbols-outlined transition-all duration-300 ${className}`}
       style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
     >
       {name}
@@ -377,15 +377,15 @@ export default function Layout() {
       <aside className="hidden md:flex flex-col w-72 bg-surface-container-low border-r border-outline-variant/30 sticky top-0 h-screen overflow-y-auto shrink-0 transition-opacity duration-300 [.modal-open_&]:hidden">
         <div className="p-8 h-full flex flex-col">
           {/* Logo / Brand */}
-          <div className="flex items-center space-x-3 mb-12">
-            <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center p-1 shrink-0">
-              <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-lg" />
+          <Link to="/dashboard" className="flex items-center space-x-4 mb-12 hover:opacity-80 transition-opacity cursor-pointer group">
+            <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect">
+              <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-xl" />
             </div>
             <div>
-              <p className="italic text-3xl text-primary leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
-              <p className="text-[9px] text-on-surface-variant font-label uppercase tracking-widest mt-1.5 leading-tight">Control de inventario</p>
+              <p className="italic text-4xl text-primary leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
+              <p className="text-[10px] text-on-surface-variant font-label uppercase tracking-widest mt-2 leading-tight group-hover:text-primary transition-colors">Control de inventario</p>
             </div>
-          </div>
+          </Link>
 
           {/* Nav links */}
           <nav className="space-y-2">
@@ -394,9 +394,9 @@ export default function Layout() {
                 <button
                   key={item.label}
                   onClick={() => setShowUserMenu(true)}
-                  className="w-full flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant/50 tour-perfil"
+                  className="w-full flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant/50 tour-perfil group"
                 >
-                  <Icon name={item.icon} />
+                  <Icon name={item.icon} className="group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary origin-center" />
                   <span>{item.label}</span>
                 </button>
               ) : (
@@ -404,7 +404,7 @@ export default function Layout() {
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest
+                    `flex items-center space-x-4 px-5 py-3 rounded-xl transition-all duration-300 font-label text-sm font-bold uppercase tracking-widest group
                     ${isActive
                       ? 'bg-primary-container text-on-primary-container shadow-sm scale-[1.02]'
                       : 'text-on-surface-variant hover:bg-surface-variant/50'
@@ -413,7 +413,7 @@ export default function Layout() {
                 >
                   {({ isActive }) => (
                     <>
-                      <Icon name={item.icon} filled={isActive} />
+                      <Icon name={item.icon} filled={isActive} className={`${isActive ? 'scale-110 text-primary' : ''} group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary origin-center`} />
                       <span>{item.label}</span>
                     </>
                   )}
@@ -452,17 +452,17 @@ export default function Layout() {
             <button
               key={item.label}
               onClick={() => setShowUserMenu(true)}
-              className="flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-transform font-label text-[9px] uppercase tracking-widest font-bold text-on-surface-variant opacity-70"
+              className="flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-transform font-label text-[9px] uppercase tracking-widest font-bold text-on-surface-variant opacity-70 group"
             >
-              <Icon name={item.icon} />
-              <span className="mt-1">{item.label}</span>
+              <Icon name={item.icon} className="group-active:scale-[1.3] group-active:-translate-y-1 origin-center" />
+              <span className="mt-1 transition-transform group-active:translate-y-1">{item.label}</span>
             </button>
           ) : (
             <NavLink
               key={item.label}
               to={item.to}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-transform font-label text-[9px] uppercase tracking-widest font-bold
+                `flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-300 font-label text-[9px] uppercase tracking-widest font-bold group
                 ${isActive
                   ? 'bg-primary-container text-on-primary-container scale-105 shadow-sm'
                   : 'text-on-surface-variant opacity-70'
@@ -471,8 +471,8 @@ export default function Layout() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon name={item.icon} filled={isActive} />
-                  <span className="mt-1">{item.label}</span>
+                  <Icon name={item.icon} filled={isActive} className={`${isActive ? 'scale-110 -translate-y-0.5 text-primary' : ''} group-active:scale-[1.3] group-active:-translate-y-1 origin-center`} />
+                  <span className={`mt-1 transition-transform ${isActive ? 'translate-y-0.5' : 'group-active:translate-y-1'}`}>{item.label}</span>
                 </>
               )}
             </NavLink>

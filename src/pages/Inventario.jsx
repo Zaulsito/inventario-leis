@@ -181,10 +181,10 @@ export default function Inventario() {
     }
   }
 
-  const totalSKUs    = productos.length
-  const bajosDeStock = productos.filter(p => p.estado === 'bajo' || p.estado === 'critico').length
-  const valorTotal   = productos.reduce((acc, p) => acc + (p.stock * p.precio), 0)
-  const stockTotal   = productos.reduce((acc, p) => acc + p.stock, 0)
+  const totalSKUs    = filtrados.length
+  const bajosDeStock = filtrados.filter(p => p.estado === 'bajo' || p.estado === 'critico').length
+  const valorTotal   = filtrados.reduce((acc, p) => acc + (p.stock * (p.precio || 0)), 0)
+  const stockTotal   = filtrados.reduce((acc, p) => acc + p.stock, 0)
 
   function porcBarra(stock) {
     if (productos.length === 0) return 0
@@ -342,14 +342,6 @@ export default function Inventario() {
             <p className="text-3xl font-headline italic font-bold">{totalSKUs.toLocaleString()}</p>
           </div>
 
-          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border transition-colors ${bajosDeStock > 0 ? 'bg-[#FF837C] border-[#FF837C]' : 'bg-primary-container border-primary/10'}`}>
-            <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-on-error opacity-90' : 'text-on-primary-container'}`}>priority_high</span>
-              <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-on-error opacity-80' : 'text-on-primary-container'}`}>Stock Bajo</p>
-            </div>
-            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-on-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
-          </div>
-
           <div className="bg-surface-container-highest p-6 rounded-xl flex flex-col justify-between h-36">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-secondary text-2xl">payments</span>
@@ -364,6 +356,14 @@ export default function Inventario() {
               <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary leading-none">Unidades totales</p>
             </div>
             <p className="text-3xl font-headline italic font-bold text-secondary">{stockTotal.toLocaleString()}</p>
+          </div>
+
+          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border transition-colors ${bajosDeStock > 0 ? 'bg-[#FF837C] border-[#FF837C]' : 'bg-primary-container border-primary/10'}`}>
+            <div className="flex items-center gap-3">
+              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-on-error opacity-90' : 'text-on-primary-container'}`}>priority_high</span>
+              <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-on-error opacity-80' : 'text-on-primary-container'}`}>Stock Bajo</p>
+            </div>
+            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-on-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
           </div>
         </div>
 
