@@ -47,10 +47,12 @@ function formatMoney(value) {
 
 export default function Reportes() {
   const [periodo, setPeriodo] = useState(0)
+  const [chartMode, setChartMode] = useState('ambas')
   const [fechaInicio, setFechaInicio] = useState(getLocalDateString())
   const [fechaFin, setFechaFin] = useState(getLocalDateString())
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showPeriodMenu, setShowPeriodMenu] = useState(false)
+  const [showModeMenu, setShowModeMenu] = useState(false)
   
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
@@ -168,23 +170,19 @@ export default function Reportes() {
       let sum = 0
       p.productos.forEach(item => {
         const prod = productos.find(x => x.id === item.productoId)
-        if (prod) sum += (prod.precio || 0) * item.cantidad
+        if (prod) {
+          const precio = Number(prod.precio) || 0;
+          const cant = Number(item.cantidad) || 1;
+          sum += precio * cant;
+        }
       })
       if (map[dateStr] === undefined) map[dateStr] = { Ganancia: 0, Pérdida: 0 }
       
       if (p._tipo === 'venta') {
-        let gananciaReal = 0
-        if (p.pagoEstado === 'pagado') {
-          gananciaReal = p.total || sum
-        } else if (p.pagoEstado === 'parcial') {
-          gananciaReal = p.abono || 0
-        } else if (p.pagoEstado === 'sin pagar') {
-          gananciaReal = 0
-        } else {
-          // Caso para ventas directas antiguas o registros sin el nuevo sistema
-          gananciaReal = p.total || sum
-        }
-        map[dateStr].Ganancia += gananciaReal
+        // Usamos el total de la venta para calcular las ganancias brutas,
+        // independientemente de si el estado es 'sin pagar', 'parcial' o 'pagado'
+        let gananciaReal = p.total || sum;
+        map[dateStr].Ganancia += gananciaReal;
       } else {
         map[dateStr].Pérdida += sum
       }
@@ -197,7 +195,8 @@ export default function Reportes() {
         fechaReal: dateStr,
         label: periodo === 0 ? nombreDia.toUpperCase() : dateStr.split('-').slice(1).reverse().join('/'),
         Ganancia: map[dateStr].Ganancia,
-        Pérdida: -map[dateStr].Pérdida // Mostramos en el gráfico como negativo para visualizarlas hacia abajo o separadas
+        Pérdida: -map[dateStr].Pérdida, // Mostramos en el gráfico como negativo para visualizarlas hacia abajo o separadas
+        Total: map[dateStr].Ganancia - map[dateStr].Pérdida
       }
     })
   }, [registrosFiltrados, productos, periodo])
@@ -484,6 +483,44 @@ export default function Reportes() {
             
             {/* Selector de periodo y Menu de Exportación (Moved here) */}
             <div className="flex items-center gap-2 bg-surface-container-highest/20 p-1.5 rounded-2xl border border-outline-variant/10 relative w-fit mb-4">
+              {/* Custom Mode Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowModeMenu(!showModeMenu)}
+                  className="bg-surface-container-highest px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-2 min-w-[140px] justify-between"
+                >
+                  {chartMode === 'ambas' ? 'Total Neto' : chartMode === 'ventas' ? 'Solo Ventas' : 'Solo Mermas'}
+                  <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+                </button>
+
+                {showModeMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowModeMenu(false)} />
+                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      {[
+                        { id: 'ambas', label: 'Total Neto' },
+                        { id: 'ventas', label: 'Solo Ventas' },
+                        { id: 'mermas', label: 'Solo Mermas' }
+                      ].map((mode, i) => (
+                        <button 
+                          key={mode.id}
+                          onClick={() => { setChartMode(mode.id); setShowModeMenu(false); }}
+                          className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
+                            ${chartMode === mode.id ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
+                            ${i !== 2 ? 'border-b border-outline-variant/5' : ''}
+                          `}
+                        >
+                          {mode.label}
+                          {chartMode === mode.id && <span className="material-symbols-outlined text-sm">check</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <div className="w-px h-6 bg-outline-variant/20 mx-1"></div>
+
               {/* Custom Period Dropdown */}
               <div className="relative">
                 <button 
@@ -566,14 +603,26 @@ export default function Reportes() {
             </div>
           </div>
           <div className="flex flex-row md:gap-4 gap-2 w-full xl:w-auto">
-            <div className="bg-surface-container px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 flex-1 xl:flex-none">
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Ganancias Brutas</span>
-              <span className="font-headline font-bold text-lg md:text-2xl text-secondary">+${totalMonetario.toLocaleString('es-CL')}</span>
-            </div>
-            <div className="bg-error/10 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-error/20 flex-1 xl:flex-none overflow-hidden">
-              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-error mb-1 truncate w-full">Mermas / Pérdidas</span>
-              <span className="font-headline font-bold text-lg md:text-2xl text-error">-${totalPerdidaMonetario.toLocaleString('es-CL')}</span>
-            </div>
+            {chartMode === 'ventas' && (
+              <div className="bg-surface-container px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
+                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Ganancias Brutas</span>
+                <span className="font-headline font-bold text-lg md:text-2xl text-secondary">+${totalMonetario.toLocaleString('es-CL')}</span>
+              </div>
+            )}
+            {chartMode === 'mermas' && (
+              <div className="bg-error/10 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-error/20 flex-1 xl:flex-none overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-error mb-1 truncate w-full">Mermas / Pérdidas</span>
+                <span className="font-headline font-bold text-lg md:text-2xl text-error">-${totalPerdidaMonetario.toLocaleString('es-CL')}</span>
+              </div>
+            )}
+            {chartMode === 'ambas' && (
+              <div className="bg-surface-container px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
+                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Total Neto</span>
+                <span className={`font-headline font-bold text-lg md:text-2xl ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary'}`}>
+                  {totalMonetario - totalPerdidaMonetario < 0 ? '-' : '+'}${Math.abs(totalMonetario - totalPerdidaMonetario).toLocaleString('es-CL')}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -609,13 +658,18 @@ export default function Reportes() {
               <Tooltip 
                 formatter={(value, name) => {
                   if (name === 'Pérdida') return [`-$${Math.abs(value).toLocaleString('es-CL')}`, 'Pérdida Mermas']
+                  if (name === 'Total') return [value < 0 ? `-$${Math.abs(value).toLocaleString('es-CL')}` : `+$${value.toLocaleString('es-CL')}`, 'Total Neto']
                   return [`+$${value.toLocaleString('es-CL')}`, 'Ingresos Venta']
                 }}
                 labelStyle={{ fontWeight: 'bold', color: '#524430' }}
                 contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
               />
-              <Area type="monotone" dataKey="Ganancia" stroke="#524430" strokeWidth={3} fillOpacity={1} fill="url(#colorGanancia)" />
-              <Area type="monotone" dataKey="Pérdida" stroke="#ba1a1a" strokeWidth={3} fillOpacity={1} fill="url(#colorPerdida)" />
+              {(chartMode === 'ambas' || chartMode === 'ventas') && (
+                <Area type="monotone" dataKey={chartMode === 'ambas' ? 'Total' : 'Ganancia'} stroke="#524430" strokeWidth={3} fillOpacity={1} fill="url(#colorGanancia)" />
+              )}
+              {chartMode === 'mermas' && (
+                <Area type="monotone" dataKey="Pérdida" stroke="#ba1a1a" strokeWidth={3} fillOpacity={1} fill="url(#colorPerdida)" />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -920,7 +974,11 @@ export default function Reportes() {
             let flujoMonetario = 0
             v.productos.forEach(item => {
               const prod = productos.find(xd => xd.id === item.productoId)
-              if(prod) flujoMonetario += (prod.precio || 0) * item.cantidad
+              if(prod) {
+                const precio = Number(prod.precio) || 0;
+                const cant = Number(item.cantidad) || 1;
+                flujoMonetario += precio * cant;
+              }
             })
 
             return (
@@ -953,11 +1011,15 @@ export default function Reportes() {
                 </div>
 
                 <ul className="text-xs space-y-1 opacity-80 pl-6 mt-1 mb-2">
-                  {v.productos.map((prod, idx) => (
-                    <li key={idx} className={isMerma ? 'text-[#82322e]' : ''}>
-                      <strong className={isMerma ? 'text-error' : 'text-secondary'}>{prod.cantidad}x</strong> {prod.nombre}
-                    </li>
-                  ))}
+                  {v.productos.map((prodItem, idx) => {
+                    const baseProd = productos.find(xd => xd.id === prodItem.productoId)
+                    const unitPrice = baseProd ? (Number(baseProd.precio) || 0) : 0
+                    return (
+                      <li key={idx} className={isMerma ? 'text-[#82322e]' : ''}>
+                        <strong className={isMerma ? 'text-error' : 'text-secondary'}>{prodItem.cantidad}x</strong> {prodItem.nombre} <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
+                      </li>
+                    )
+                  })}
                 </ul>
 
                 <div className="mt-auto flex justify-end">

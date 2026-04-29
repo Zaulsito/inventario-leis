@@ -16,6 +16,16 @@ const formInicial = {
   canalVenta: ''
 }
 
+const getCanalColor = (canal) => {
+  if (!canal) return 'bg-amber-500/10 text-amber-600';
+  const c = canal.toLowerCase();
+  if (c.includes('facebook')) return 'bg-[#1877F2]/10 text-[#1877F2]';
+  if (c.includes('whatsapp')) return 'bg-[#25D366]/10 text-[#25D366]';
+  if (c.includes('instagram')) return 'bg-[#E1306C]/10 text-[#E1306C]';
+  if (c.includes('jumbo')) return 'bg-green-500/10 text-green-600';
+  return 'bg-amber-500/10 text-amber-600';
+}
+
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([])
   const [productos, setProductos] = useState([])
@@ -404,6 +414,39 @@ export default function Pedidos() {
     })
   }
 
+  async function handleEliminarAbono(pedido, abonoIndex) {
+    if (!pedido || !pedido.id || !pedido.historialAbonos) return;
+    
+    setDialog({
+      show: true,
+      title: '¿Eliminar Abono?',
+      message: '¿Estás seguro de eliminar este registro de abono? Se recalculará el total abonado y el saldo pendiente.',
+      confirmLabel: 'Sí, Eliminar Abono',
+      onConfirm: async () => {
+        try {
+          const historial = [...pedido.historialAbonos];
+          historial.splice(abonoIndex, 1);
+          
+          const nuevoAbonoTotal = historial.reduce((acc, curr) => acc + curr.monto, 0);
+          const totalCalc = pedido.total || pedido.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
+          const isFull = nuevoAbonoTotal >= totalCalc;
+          
+          const ref = doc(db, 'pedidos', pedido.id);
+          await updateDoc(ref, {
+            abono: nuevoAbonoTotal,
+            saldoPendiente: Math.max(0, totalCalc - nuevoAbonoTotal),
+            pagoEstado: nuevoAbonoTotal === 0 ? 'sin pagar' : (isFull ? 'pagado' : 'parcial'),
+            historialAbonos: historial
+          });
+          closeDialog();
+        } catch (e) {
+          console.error(e);
+          alert('Error al eliminar abono: ' + e.message);
+        }
+      }
+    });
+  }
+
   function generarRecordatorio(pedido) {
     // Formato YYYYMMDDTHHmmssZ
     const startDate = new Date(pedido.fechaEntrega + 'T09:00:00').toISOString().replace(/-|:|\.\d\d\d/g, "")
@@ -526,7 +569,7 @@ END:VCALENDAR`
                                 <div className="flex items-center gap-2">
                                   <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Vía {p.medioPago}</span>
                                   {p.canalVenta && (
-                                    <span className="bg-secondary/10 text-secondary px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
                                       <span className="material-symbols-outlined text-[10px]">location_on</span>
                                       {p.canalVenta}
                                     </span>
@@ -619,7 +662,7 @@ END:VCALENDAR`
                           {p.medioPago}
                         </span>
                         {p.canalVenta && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
                             <span className="material-symbols-outlined text-[10px]">location_on</span>
                             {p.canalVenta}
                           </span>
@@ -722,7 +765,7 @@ END:VCALENDAR`
                                 <div className="flex items-center gap-2">
                                   <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.medioPago}</span>
                                   {p.canalVenta && (
-                                    <span className="bg-amber-600/10 text-amber-600 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
                                       <span className="material-symbols-outlined text-[10px]">location_on</span>
                                       {p.canalVenta}
                                     </span>
@@ -792,7 +835,12 @@ END:VCALENDAR`
                                             </span>
                                             <span className="text-[8px] text-outline uppercase font-bold">{abono.nota || 'Abono'}</span>
                                           </div>
-                                          <span className="font-bold text-amber-700">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                          <div className="flex items-center gap-3">
+                                            <span className="font-bold text-amber-700">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                            <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                              <span className="material-symbols-outlined text-[14px]">undo</span>
+                                            </button>
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
@@ -838,7 +886,7 @@ END:VCALENDAR`
                       <p className="text-[9px] font-bold uppercase tracking-widest text-outline">Entrega: {p.fechaEntrega}</p>
                       <div className="flex items-center gap-2 mt-1">
                         {p.canalVenta && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
                             <span className="material-symbols-outlined text-[10px]">location_on</span>
                             {p.canalVenta}
                           </span>
@@ -878,7 +926,12 @@ END:VCALENDAR`
                                   </span>
                                   <span className="text-[7px] text-outline uppercase font-bold">{abono.nota || 'Abono'}</span>
                                 </div>
-                                <span className="font-bold text-amber-700">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-amber-700">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                  <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                    <span className="material-symbols-outlined text-[14px]">undo</span>
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -957,6 +1010,12 @@ END:VCALENDAR`
                               <p className="font-headline font-bold text-base text-on-surface">{p.cliente}</p>
                               <div className="flex items-center gap-2">
                                 <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.medioPago}</span>
+                                {p.canalVenta && (
+                                  <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                    <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                    {p.canalVenta}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -968,6 +1027,9 @@ END:VCALENDAR`
                           <p className="text-sm font-bold text-secondary">${p.total?.toLocaleString('es-CL')}</p>
                         </td>
                         <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                            <span className="material-symbols-outlined text-xl">edit</span>
+                          </button>
                           <button 
                             onClick={() => handleDelete(p)} 
                             className="text-error opacity-60 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-all"
@@ -1003,7 +1065,12 @@ END:VCALENDAR`
                                           </span>
                                           <span className="text-[8px] text-outline uppercase font-bold">{abono.nota || 'Abono'}</span>
                                         </div>
-                                        <span className="font-bold text-secondary">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                        <div className="flex items-center gap-3">
+                                          <span className="font-bold text-secondary">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                          <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                            <span className="material-symbols-outlined text-[14px]">undo</span>
+                                          </button>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
@@ -1048,7 +1115,7 @@ END:VCALENDAR`
                         {p.medioPago}
                       </span>
                       {p.canalVenta && (
-                        <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
                           <span className="material-symbols-outlined text-[10px]">location_on</span>
                           {p.canalVenta}
                         </span>
@@ -1082,16 +1149,26 @@ END:VCALENDAR`
                                 </span>
                                 <span className="text-[7px] text-outline uppercase font-bold">{abono.nota}</span>
                               </div>
-                              <span className="font-bold text-secondary">${abono.monto.toLocaleString('es-CL')}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-secondary">${abono.monto.toLocaleString('es-CL')}</span>
+                                <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                  <span className="material-symbols-outlined text-[14px]">undo</span>
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-                    <button onClick={() => handleDelete(p)} className="w-full bg-error/10 text-error py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-sm">delete_forever</span>
-                      Eliminar del Historial
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                        Editar Pedido
+                      </button>
+                      <button onClick={() => handleDelete(p)} className="flex-1 bg-error/10 text-error py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-sm">delete_forever</span>
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1335,7 +1412,11 @@ END:VCALENDAR`
                     <button 
                       type="button"
                       onClick={() => setForm({...form, pagoEstado: 'sin pagar'})}
-                      className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase transition-all duration-300 ${form.pagoEstado === 'sin pagar' ? 'bg-error text-white shadow-md scale-105' : 'text-outline hover:bg-surface-variant'}`}
+                      disabled={form.medioPago === 'cuota'}
+                      className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase transition-all duration-300 
+                        ${form.pagoEstado === 'sin pagar' ? 'bg-error text-white shadow-md scale-105' : 'text-outline'}
+                        ${form.medioPago === 'cuota' ? 'opacity-30 cursor-not-allowed' : 'hover:bg-surface-variant'}
+                      `}
                     >
                       Sin Pagar
                     </button>
@@ -1357,7 +1438,11 @@ END:VCALENDAR`
                     <button 
                       type="button"
                       onClick={() => setForm({...form, pagoEstado: 'pagado'})}
-                      className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase transition-all duration-300 ${form.pagoEstado === 'pagado' ? 'bg-secondary text-white shadow-md scale-105' : 'text-outline hover:bg-surface-variant'}`}
+                      disabled={form.medioPago === 'cuota'}
+                      className={`flex-1 py-2.5 rounded-xl text-[9px] font-bold uppercase transition-all duration-300 
+                        ${form.pagoEstado === 'pagado' ? 'bg-secondary text-white shadow-md scale-105' : 'text-outline'}
+                        ${form.medioPago === 'cuota' ? 'opacity-30 cursor-not-allowed' : 'hover:bg-surface-variant'}
+                      `}
                     >
                       Pagado
                     </button>
@@ -1427,7 +1512,20 @@ END:VCALENDAR`
                     <input 
                       type="number" 
                       value={form.abono} 
-                      onChange={e => setForm({...form, abono: e.target.value})}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const totalEstimado = form.productosSeleccionados.reduce((acc, p) => acc + (p.cantidad * p.precio), 0);
+                        let nextEstado = form.pagoEstado;
+                        if (Number(val) >= totalEstimado && form.productosSeleccionados.length > 0 && Number(val) > 0) {
+                          nextEstado = 'pagado';
+                          if (form.pagoEstado !== 'pagado') {
+                            alert('El monto del abono cubre el total estimado. El estado quedará como "Pagado".');
+                          }
+                        } else {
+                          nextEstado = 'parcial';
+                        }
+                        setForm({...form, abono: val, pagoEstado: nextEstado});
+                      }}
                       className="w-full bg-white border-2 border-amber-100 rounded-2xl pl-10 pr-5 py-3 text-base focus:outline-none focus:border-amber-400 font-bold text-amber-950 shadow-inner"
                       placeholder="0"
                     />
