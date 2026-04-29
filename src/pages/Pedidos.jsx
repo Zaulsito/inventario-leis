@@ -1127,7 +1127,7 @@ END:VCALENDAR`
                     <span className="material-symbols-outlined text-outline text-xl transition-transform" style={{ transform: expandedId === p.id ? 'rotate(180deg)' : 'none' }}>expand_more</span>
                   </div>
                 </div>
-                
+                {expandedId === p.id && (
                   <div className="mt-4 pt-4 border-t border-outline-variant/10 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="space-y-2 mb-4 bg-surface p-3 rounded-2xl border border-outline-variant/10">
                       {p.productos?.map((item, idx) => (
