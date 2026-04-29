@@ -10,6 +10,7 @@ const navItems = [
   { to: '/inventario', icon: 'inventory_2',       label: 'Inventario' },
   { to: '/pedidos',    icon: 'local_shipping',    label: 'Pedidos' },
   { to: '/reportes',   icon: 'analytics',         label: 'Reportes' },
+  { type: 'link',      href: '/catalogo',         icon: 'storefront',        label: 'Catálogo' },
   { type: 'action',    icon: 'person',            label: 'Perfil', action: 'openUserMenu' },
 ]
 
@@ -399,6 +400,17 @@ export default function Layout() {
                   <Icon name={item.icon} className="group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary origin-center" />
                   <span>{item.label}</span>
                 </button>
+              ) : item.type === 'link' ? (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant/50 group"
+                >
+                  <Icon name={item.icon} className="group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary origin-center" />
+                  <span>{item.label}</span>
+                </a>
               ) : (
                 <NavLink
                   key={item.to}
@@ -457,6 +469,17 @@ export default function Layout() {
               <Icon name={item.icon} className="group-active:scale-[1.3] group-active:-translate-y-1 origin-center" />
               <span className="mt-1 transition-transform group-active:translate-y-1">{item.label}</span>
             </button>
+          ) : item.type === 'link' ? (
+            <a
+              key={item.label}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-transform font-label text-[9px] uppercase tracking-widest font-bold text-on-surface-variant opacity-70 group"
+            >
+              <Icon name={item.icon} className="group-active:scale-[1.3] group-active:-translate-y-1 origin-center" />
+              <span className="mt-1 transition-transform group-active:translate-y-1">{item.label}</span>
+            </a>
           ) : (
             <NavLink
               key={item.label}
