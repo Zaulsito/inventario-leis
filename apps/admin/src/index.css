@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: 142, 109, 60;
+  --on-primary: 255, 255, 255;
+  --background: 253, 250, 245;
+  --on-background: 42, 27, 10;
+  --surface: 253, 250, 245;
+  --on-surface: 42, 27, 10;
+  --surface-container: 244, 237, 225;
+  --surface-container-low: 24df, 24a, 245; /* #fdfaf5 */
+  --surface-container-high: 232, 225, 213;
+  --outline: 142, 109, 60;
+  --outline-variant: 216, 204, 187;
+  --error: 186, 26, 26;
+}
+
+.dark {
+  --primary: 226, 189, 108;
+  --on-primary: 60, 49, 11;
+  --background: 18, 18, 18;
+  --on-background: 232, 225, 213;
+  --surface: 18, 18, 18;
+  --on-surface: 232, 225, 213;
+  --surface-container: 30, 30, 30;
+  --surface-container-low: 24, 24, 24;
+  --surface-container-high: 40, 40, 40;
+  --outline: 142, 109, 60;
+  --outline-variant: 50, 50, 50;
+  --error: 255, 180, 171;
+}
+
 * {
   box-sizing: border-box;
 }
