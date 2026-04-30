@@ -165,26 +165,26 @@ export default function Dashboard() {
         {metricas.map((m) => (
           <div 
             key={m.label} 
-            className={`p-6 rounded-3xl border flex flex-col justify-between h-40 transition-colors ${
+            className={`p-6 rounded-3xl border flex flex-col justify-between h-40 transition-all ${
               m.isAlert && m.valor > 0 
-                ? 'bg-error text-on-error border-error' 
+                ? 'bg-error/10 text-error border-error/30 backdrop-blur-md shadow-lg shadow-error/5' 
                 : 'bg-surface-container-low border-outline-variant/20'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <span className={`material-symbols-outlined text-2xl ${m.isAlert && m.valor > 0 ? 'opacity-90' : 'text-secondary'}`}>
+              <span className={`material-symbols-outlined text-2xl ${m.isAlert && m.valor > 0 ? 'text-error animate-pulse' : 'text-secondary'}`}>
                 {m.icon}
               </span>
-              <p className={`font-label text-[10px] font-bold uppercase tracking-widest leading-none ${m.isAlert && m.valor > 0 ? 'opacity-80' : 'text-on-surface-variant'}`}>
+              <p className={`font-label text-[10px] font-bold uppercase tracking-widest leading-none ${m.isAlert && m.valor > 0 ? 'text-error' : 'text-on-surface-variant'}`}>
                 {m.label}
               </p>
             </div>
             
             <div className="mt-auto">
-              <p className={`font-headline font-bold mb-0.5 ${m.isAlert && m.valor > 0 ? '' : 'text-primary'} ${m.valor.length > 10 ? 'text-lg' : 'text-2xl'}`}>
+              <p className={`font-headline font-bold mb-0.5 ${m.isAlert && m.valor > 0 ? 'text-error' : 'text-primary'} ${m.valor.length > 10 ? 'text-lg' : 'text-2xl'}`}>
                 {m.valor}
               </p>
-              <p className={`text-[9px] font-bold uppercase tracking-widest ${m.isAlert && m.valor > 0 ? 'opacity-70' : 'text-on-surface-variant/60'}`}>
+              <p className={`text-[9px] font-bold uppercase tracking-widest ${m.isAlert && m.valor > 0 ? 'text-error/60' : 'text-on-surface-variant/60'}`}>
                 {m.sub}
               </p>
             </div>
@@ -225,20 +225,20 @@ export default function Dashboard() {
 
         {/* Panel derecho */}
         <div className="space-y-4">
-          {/* Alerta */}
+          {/* Alerta - Estilo Cristal */}
           {criticos > 0 && showAlerta && (
-            <div className="p-7 rounded-3xl bg-secondary text-white relative overflow-hidden">
+            <div className="p-7 rounded-3xl bg-error/10 backdrop-blur-xl border border-error/20 text-error relative overflow-hidden shadow-xl shadow-error/5">
               <div className="flex justify-between items-start relative z-10">
                 <h3 className="font-headline text-xl mb-3">Alerta de Stock</h3>
-                <button onClick={() => setShowAlerta(false)} className="text-white/60 hover:text-white transition-colors" title="Cerrar alerta">
+                <button onClick={() => setShowAlerta(false)} className="text-error/40 hover:text-error transition-colors" title="Cerrar alerta">
                   <span className="material-symbols-outlined text-sm">close</span>
                 </button>
               </div>
-              <p className="text-sm opacity-80 mb-5 relative z-10">{criticos} {criticos === 1 ? 'producto ha' : 'productos han'} alcanzado el nivel crítico de reposición.</p>
-              <Link to="/inventario" className="inline-block px-5 py-2 bg-primary-container text-on-primary-container rounded-full font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform relative z-10 shadow-lg">
+              <p className="text-sm text-error/80 mb-5 relative z-10 font-bold">{criticos} {criticos === 1 ? 'producto ha' : 'productos han'} alcanzado el nivel crítico.</p>
+              <Link to="/inventario" className="inline-block px-5 py-2 bg-error text-white rounded-full font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform relative z-10 shadow-lg shadow-error/20">
                 Gestionar
               </Link>
-              <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
+              <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none">
                 <span className="material-symbols-outlined text-[120px]">warning</span>
               </div>
             </div>

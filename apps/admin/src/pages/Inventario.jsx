@@ -11,7 +11,7 @@ import { calcularEstado } from '../utils/date'
 const estadoConfig = {
   disponible: { label: 'Disponible', cls: 'bg-green-100 text-green-700 font-bold' },
   bajo:       { label: 'Stock bajo', cls: 'bg-yellow-100 text-yellow-800 font-bold' },
-  critico:    { label: 'Crítico',    cls: 'bg-[#FF837C] text-white font-bold shadow-sm' },
+  critico:    { label: 'Crítico',    cls: 'bg-error/10 text-error font-bold border border-error/20 backdrop-blur-sm shadow-sm' },
   sin_stock:  { label: 'Sin stock',  cls: 'bg-gray-400 text-white font-bold' },
 }
 
@@ -358,12 +358,12 @@ export default function Inventario() {
             <p className="text-3xl font-headline italic font-bold text-secondary">{stockTotal.toLocaleString()}</p>
           </div>
 
-          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 shadow-lg border transition-colors ${bajosDeStock > 0 ? 'bg-[#FF837C] border-[#FF837C]' : 'bg-primary-container border-primary/10'}`}>
+          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 border transition-all ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 backdrop-blur-md shadow-lg shadow-error/5' : 'bg-primary-container border-primary/10'}`}>
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-on-error opacity-90' : 'text-on-primary-container'}`}>priority_high</span>
-              <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-on-error opacity-80' : 'text-on-primary-container'}`}>Stock Bajo</p>
+              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-error animate-pulse' : 'text-on-primary-container'}`}>priority_high</span>
+              <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container'}`}>Stock Bajo</p>
             </div>
-            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-on-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
+            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
           </div>
         </div>
 
@@ -584,13 +584,14 @@ export default function Inventario() {
                         <div>
                           <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider mb-2">Inventario</p>
                           <div className="flex items-end justify-between mb-1">
+                        <div className="flex items-end justify-between mb-1">
                             <p className={`text-base font-bold ${p.estado !== 'disponible' ? 'text-error' : 'text-primary'}`}>
                               {p.stock.toLocaleString()} <span className="text-[10px] font-medium opacity-70">u.</span>
                             </p>
                           </div>
                           <div className="w-full bg-outline-variant/20 h-2 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all duration-500 ${p.estado === 'disponible' ? 'bg-primary' : 'bg-[#FF837C]'}`}
+                              className={`h-full rounded-full transition-all duration-500 ${p.estado === 'disponible' ? 'bg-primary' : 'bg-rose-400/50 backdrop-blur-sm'}`}
                               style={{ width: `${porcBarra(p.stock)}%` }}
                             />
                           </div>
@@ -688,7 +689,7 @@ export default function Inventario() {
                         </p>
                         <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary' : 'bg-[#FF837C]'}`}
+                            className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary' : 'bg-error'}`}
                             style={{ width: `${porcBarra(p.stock)}%` }}
                           />
                         </div>
