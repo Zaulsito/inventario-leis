@@ -6,13 +6,44 @@
   box-sizing: border-box;
 }
 
+:root {
+  --background: 253, 250, 245; /* #fdfaf5 */
+  --on-background: 42, 27, 10;
+  --surface: 253, 250, 245;
+  --on-surface: 42, 27, 10;
+  --surface-container: 244, 237, 225;
+  --surface-container-low: 249, 243, 233;
+  --surface-container-high: 240, 232, 219;
+  --primary: 142, 109, 60; /* #8e6d3c */
+  --on-primary: 255, 255, 255;
+  --outline: 138, 126, 109;
+  --outline-variant: 216, 204, 187;
+  --error: 179, 38, 30;
+}
+
+.dark {
+  --background: 12, 12, 12;
+  --on-background: 232, 225, 213;
+  --surface: 18, 18, 18;
+  --on-surface: 232, 225, 213;
+  --surface-container: 28, 28, 28;
+  --surface-container-low: 22, 22, 22;
+  --surface-container-high: 35, 35, 35;
+  --primary: 198, 163, 84; /* #c6a354 - Oro más brillante */
+  --on-primary: 0, 0, 0;
+  --outline: 100, 90, 80;
+  --outline-variant: 60, 60, 60;
+  --error: 255, 131, 124;
+}
+
 body {
   font-family: 'Manrope', sans-serif;
-  background-color: #fdfaf5;
-  color: #2a1b0a;
+  background-color: rgb(var(--background));
+  color: rgb(var(--on-background));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   touch-action: pan-x pan-y;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .font-headline {

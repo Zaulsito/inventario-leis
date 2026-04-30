@@ -336,6 +336,24 @@ export default function Layout() {
   const [tourActive, setTourActive] = useState(false)
   const [dbUser, setDbUser] = useState(null)
   const location = useLocation()
+  
+  // ── Lógica de Modo Oscuro ──
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme')
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  })
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }, [isDark])
+
+  const toggleTheme = () => setIsDark(!isDark)
 
   useEffect(() => {
     if (!currentUser) {
@@ -371,21 +389,32 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background transition-colors duration-500">
 
       {/* ── Sidebar desktop ── */}
-      <aside className="hidden md:flex flex-col w-72 bg-surface-container-low border-r border-outline-variant/30 sticky top-0 h-screen overflow-y-auto shrink-0 transition-opacity duration-300 [.modal-open_&]:hidden">
+      <aside className="hidden md:flex flex-col w-72 bg-surface-container-low border-r border-outline-variant/30 sticky top-0 h-screen overflow-y-auto shrink-0 transition-all duration-500 [.modal-open_&]:hidden">
         <div className="p-8 h-full flex flex-col">
           {/* Logo / Brand */}
-          <Link to="/dashboard" className="flex items-center space-x-4 mb-12 hover:opacity-80 transition-opacity cursor-pointer group">
-            <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect">
-              <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-xl" />
-            </div>
-            <div>
-              <p className="italic text-4xl text-primary leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
-              <p className="text-[10px] text-on-surface-variant font-label uppercase tracking-widest mt-2 leading-tight group-hover:text-primary transition-colors">Control de inventario</p>
-            </div>
-          </Link>
+          <div className="flex justify-between items-start mb-12">
+            <Link to="/dashboard" className="flex items-center space-x-4 hover:opacity-80 transition-opacity cursor-pointer group">
+              <div className="w-16 h-16 bg-white dark:bg-primary/20 rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect">
+                <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-xl" />
+              </div>
+              <div>
+                <p className="italic text-3xl text-primary leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
+                <p className="text-[9px] text-on-surface-variant font-label uppercase tracking-widest mt-1 leading-tight group-hover:text-primary transition-colors">Software</p>
+              </div>
+            </Link>
+            
+            {/* Theme Toggle Button Desktop */}
+            <button 
+              onClick={toggleTheme}
+              className="w-10 h-10 rounded-xl bg-surface-container-high/50 border border-outline-variant/20 flex items-center justify-center text-primary hover:bg-primary/10 transition-all active:scale-95"
+              title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            >
+              <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-xl" />
+            </button>
+          </div>
 
           {/* Nav links */}
           <nav className="space-y-2">
@@ -442,12 +471,12 @@ export default function Layout() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative">
-        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-20">
+      <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative bg-background transition-colors duration-500">
+        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-20 dark:opacity-[0.05]">
           <img 
             src="/logo.jpeg" 
             alt="Watermark" 
-            className="w-[85%] md:w-[50%] max-w-lg rounded-[3.5rem] shadow-sm mix-blend-darken"
+            className="w-[85%] md:w-[50%] max-w-lg rounded-[3.5rem] shadow-sm mix-blend-darken dark:mix-blend-overlay transition-all duration-500"
           />
         </div>
         
