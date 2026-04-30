@@ -124,7 +124,7 @@ export default function Dashboard() {
             <div className="flex gap-2">
               <button 
                 onClick={() => {
-                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://catalogo-leis.vercel.app";
+                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
                   navigator.clipboard.writeText(url);
                   alert("✅ ¡Enlace del catálogo copiado al portapapeles!");
                 }}
@@ -135,7 +135,7 @@ export default function Dashboard() {
               </button>
               <button 
                 onClick={() => {
-                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://catalogo-leis.vercel.app";
+                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
                   const msg = `¡Hola! Te comparto mi catálogo actualizado de Leis Belleza ✨: ${url}`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
                 }}
