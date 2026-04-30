@@ -165,26 +165,32 @@ export default function Dashboard() {
         {metricas.map((m) => (
           <div 
             key={m.label} 
-            className={`p-6 rounded-3xl border flex flex-col justify-between h-40 transition-all ${
-              m.isAlert && m.valor > 0 
-                ? 'bg-error/10 text-error border-error/30 backdrop-blur-md shadow-lg shadow-error/5' 
-                : 'bg-surface-container-low border-outline-variant/20'
+            className={`p-6 rounded-3xl border border-outline-variant/30 bg-surface-container-low/40 backdrop-blur-xl flex flex-col justify-between h-40 transition-all hover:bg-surface-container-low/60 ${
+              m.isAlert && m.valor > 0 ? 'shadow-lg shadow-error/5' : 'shadow-sm'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <span className={`material-symbols-outlined text-2xl ${m.isAlert && m.valor > 0 ? 'text-error animate-pulse' : 'text-secondary'}`}>
+              <span className={`material-symbols-outlined text-2xl transition-colors duration-500 ${
+                m.isAlert && m.valor > 0 ? 'text-error animate-pulse' : 'text-primary/60'
+              }`}>
                 {m.icon}
               </span>
-              <p className={`font-label text-[10px] font-bold uppercase tracking-widest leading-none ${m.isAlert && m.valor > 0 ? 'text-error' : 'text-on-surface-variant'}`}>
+              <p className={`font-label text-[10px] font-bold uppercase tracking-widest leading-none transition-colors duration-500 ${
+                m.isAlert && m.valor > 0 ? 'text-error' : 'text-primary/60'
+              }`}>
                 {m.label}
               </p>
             </div>
             
             <div className="mt-auto">
-              <p className={`font-headline font-bold mb-0.5 ${m.isAlert && m.valor > 0 ? 'text-error' : 'text-primary'} ${m.valor.length > 10 ? 'text-lg' : 'text-2xl'}`}>
+              <p className={`font-headline font-bold mb-0.5 transition-colors duration-500 ${
+                m.isAlert && m.valor > 0 ? 'text-error' : 'text-primary'
+              } ${m.valor.toString().length > 10 ? 'text-lg' : 'text-2xl'}`}>
                 {m.valor}
               </p>
-              <p className={`text-[9px] font-bold uppercase tracking-widest ${m.isAlert && m.valor > 0 ? 'text-error/60' : 'text-on-surface-variant/60'}`}>
+              <p className={`text-[9px] font-bold uppercase tracking-widest transition-colors duration-500 ${
+                m.isAlert && m.valor > 0 ? 'text-error/60' : 'text-primary/40'
+              }`}>
                 {m.sub}
               </p>
             </div>
