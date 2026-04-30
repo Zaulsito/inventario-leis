@@ -429,7 +429,7 @@ export default function Layout() {
     <div className="flex min-h-screen bg-background dark:bg-[#121212] transition-colors duration-500 overflow-x-hidden">
 
       {/* ── Sidebar desktop ── */}
-      <aside className={`hidden md:flex flex-col bg-surface-container-low dark:bg-[#181818] border-r border-outline-variant/30 dark:border-white/5 sticky top-0 h-screen overflow-y-auto shrink-0 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] z-[110] [.modal-open_&]:hidden
+      <aside className={`hidden md:flex flex-col bg-surface-container-low dark:bg-[#181818] border-r border-outline-variant/30 dark:border-white/5 fixed left-0 top-0 h-full overflow-y-auto shrink-0 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] z-[110] [.modal-open_&]:hidden
         ${isCollapsed ? 'w-0 -translate-x-full' : 'w-72 translate-x-0'}`}>
         
         {/* Contenido de la sidebar (encapsulado para que no se rompa el layout al colapsar) */}
@@ -521,7 +521,7 @@ export default function Layout() {
       </button>
 
       {/* ── Main content ── */}
-      <main className={`flex-1 overflow-x-hidden pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]`}>
+      <main className={`flex-1 overflow-x-hidden pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
         <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-all duration-700 opacity-20 dark:opacity-20
           ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
           <img 
