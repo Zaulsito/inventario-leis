@@ -434,7 +434,7 @@ export default function Layout() {
           {/* Logo / Brand + Theme Toggle */}
           <div className="flex justify-between items-start mb-12">
             <Link to="/dashboard" className="flex items-center space-x-4 hover:opacity-80 transition-opacity cursor-pointer group">
-              <div className="w-16 h-16 bg-white dark:bg-white/5 rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect">
+              <div className="w-16 h-16 bg-surface-container-highest/50 dark:bg-white/5 rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect border border-outline-variant/10 dark:border-white/10">
                 <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-xl dark:opacity-80" />
               </div>
               <div>
@@ -458,7 +458,7 @@ export default function Layout() {
                 <button
                   key={item.label}
                   onClick={() => setShowUserMenu(true)}
-                  className="w-full flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant/50 tour-perfil group"
+                  className="w-full flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 tour-perfil group"
                 >
                   <Icon name={item.icon} className="group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary origin-center" />
                   <span>{item.label}</span>
@@ -481,7 +481,7 @@ export default function Layout() {
                   className={({ isActive }) =>
                     `flex items-center space-x-4 px-5 py-3 rounded-xl transition-all duration-300 font-label text-sm font-bold uppercase tracking-widest group
                     ${isActive
-                      ? 'bg-primary-container text-on-primary-container dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c] shadow-sm scale-[1.02]'
+                      ? 'bg-primary/10 text-primary dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c] shadow-sm scale-[1.02]'
                       : 'text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 dark:hover:bg-white/5'
                     }`
                   }
@@ -498,7 +498,7 @@ export default function Layout() {
           </nav>
 
           {/* Branding / Badge at bottom of sidebar */}
-          <div className="mt-auto pt-8 opacity-60 text-center">
+          <div className="mt-auto pt-8 opacity-40 text-center">
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Leis Administration V1.2</p>
             <p className="text-[10px] italic mt-1 font-headline text-secondary dark:text-[#e2bd6c]/80">Tu exito esta en nuestros productos</p>
           </div>
@@ -507,11 +507,11 @@ export default function Layout() {
 
       {/* ── Main content ── */}
       <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative">
-        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-[0.2] dark:opacity-[0.25]">
+        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-[0.1] dark:opacity-[0.15]">
           <img 
             src="/logo.jpeg" 
             alt="Watermark" 
-            className="w-[85%] md:w-[50%] max-w-lg rounded-[3.5rem] dark:grayscale dark:invert"
+            className="w-[85%] md:w-[40%] max-w-lg rounded-[3.5rem] grayscale dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
           />
         </div>
         
