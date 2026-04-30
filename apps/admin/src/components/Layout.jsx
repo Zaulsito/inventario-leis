@@ -511,7 +511,7 @@ export default function Layout() {
           <img 
             src="/logo.jpeg" 
             alt="Watermark" 
-            className="w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] grayscale dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
+            className="w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
           />
         </div>
         
