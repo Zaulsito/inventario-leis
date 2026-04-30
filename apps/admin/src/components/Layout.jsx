@@ -10,7 +10,6 @@ const navItems = [
   { to: '/inventario', icon: 'inventory_2',       label: 'Inventario' },
   { to: '/pedidos',    icon: 'local_shipping',    label: 'Pedidos' },
   { to: '/reportes',   icon: 'analytics',         label: 'Reportes' },
-  { type: 'link',      href: '/catalogo',         icon: 'storefront',        label: 'Catálogo' },
   { type: 'action',    icon: 'person',            label: 'Perfil', action: 'openUserMenu' },
 ]
 

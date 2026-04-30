@@ -114,6 +114,41 @@ export default function Dashboard() {
           </Link> */}
         </div>
       </header>
+      
+      {/* Acciones Rápidas */}
+      <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-8 rounded-[2.5rem] bg-primary text-on-primary shadow-xl shadow-primary/20 flex items-center justify-between group overflow-hidden relative">
+          <div className="relative z-10">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-70 mb-1">Tu Catálogo Público</p>
+            <h3 className="font-headline text-2xl italic mb-4">Listo para compartir</h3>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://catalogo-leis.vercel.app";
+                  navigator.clipboard.writeText(url);
+                  alert("✅ ¡Enlace del catálogo copiado al portapapeles!");
+                }}
+                className="px-5 py-3 bg-white/20 hover:bg-white/30 rounded-2xl font-bold text-[10px] uppercase tracking-widest backdrop-blur-md transition-all flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">content_copy</span>
+                Copiar Link
+              </button>
+              <button 
+                onClick={() => {
+                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://catalogo-leis.vercel.app";
+                  const msg = `¡Hola! Te comparto mi catálogo actualizado de Leis Belleza ✨: ${url}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                }}
+                className="px-5 py-3 bg-[#25D366] hover:scale-105 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 text-white border-none shadow-lg"
+              >
+                <span className="material-symbols-outlined text-sm">share</span>
+                WhatsApp
+              </button>
+            </div>
+          </div>
+          <span className="material-symbols-outlined text-[140px] absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform origin-center">auto_awesome</span>
+        </div>
+      </section>
 
       {/* Métricas */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 tour-inicio-metricas">

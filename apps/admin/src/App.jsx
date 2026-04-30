@@ -7,8 +7,6 @@ import Pedidos from './pages/Pedidos'
 import Registro from './pages/Registro'
 import Reportes from './pages/Reportes'
 import Login from './pages/Login'
-import CatalogoPublico from './pages/CatalogoPublico'
-
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth();
   return currentUser ? children : <Navigate to="/login" />;
@@ -19,8 +17,6 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/catalogo" element={<CatalogoPublico />} />
-        
         <Route path="/" element={
           <PrivateRoute>
             <Layout />
