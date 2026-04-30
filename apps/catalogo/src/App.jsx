@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
-import { db } from '../config/firebase'
+import { db } from './config/firebase'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
 const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
