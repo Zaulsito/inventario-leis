@@ -584,14 +584,13 @@ export default function Inventario() {
                         <div>
                           <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider mb-2">Inventario</p>
                           <div className="flex items-end justify-between mb-1">
-                        <div className="flex items-end justify-between mb-1">
                             <p className={`text-base font-bold ${p.estado !== 'disponible' ? 'text-error' : 'text-primary'}`}>
                               {p.stock.toLocaleString()} <span className="text-[10px] font-medium opacity-70">u.</span>
                             </p>
                           </div>
                           <div className="w-full bg-outline-variant/20 h-2 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all duration-500 ${p.estado === 'disponible' ? 'bg-primary' : 'bg-rose-400/50 backdrop-blur-sm'}`}
+                              className={`h-full rounded-full transition-all duration-500 ${p.estado === 'disponible' ? 'bg-primary' : 'bg-error/40 backdrop-blur-sm'}`}
                               style={{ width: `${porcBarra(p.stock)}%` }}
                             />
                           </div>
