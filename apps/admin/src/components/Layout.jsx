@@ -371,7 +371,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [tourActive, setTourActive] = useState(false)
-  const [dbUser, setDbUser] = useState(null)
+  const [isCollapsed, setIsCollapsed] = useState(false) // Estado para ocultar sidebar
   const location = useLocation()
 
   // ── Lógica de Modo Oscuro Nativo ──
@@ -426,16 +426,19 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background dark:bg-[#121212] transition-colors duration-500">
+    <div className="flex min-h-screen bg-background dark:bg-[#121212] transition-colors duration-500 overflow-x-hidden">
 
       {/* ── Sidebar desktop ── */}
-      <aside className="hidden md:flex flex-col w-72 bg-surface-container-low dark:bg-[#181818] border-r border-outline-variant/30 dark:border-white/5 sticky top-0 h-screen overflow-y-auto shrink-0 transition-all duration-500 [.modal-open_&]:hidden">
-        <div className="p-8 h-full flex flex-col">
+      <aside className={`hidden md:flex flex-col bg-surface-container-low dark:bg-[#181818] border-r border-outline-variant/30 dark:border-white/5 sticky top-0 h-screen overflow-y-auto shrink-0 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] z-[110] [.modal-open_&]:hidden
+        ${isCollapsed ? 'w-0 -translate-x-full' : 'w-72 translate-x-0'}`}>
+        
+        {/* Contenido de la sidebar (encapsulado para que no se rompa el layout al colapsar) */}
+        <div className={`p-8 h-full flex flex-col min-w-[18rem] transition-opacity duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           {/* Logo / Brand + Theme Toggle */}
           <div className="flex justify-between items-start mb-12">
             <Link to="/dashboard" className="flex items-center space-x-4 hover:opacity-80 transition-opacity cursor-pointer group">
               <div className="w-16 h-16 bg-surface-container-highest/50 dark:bg-white/5 rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect border border-outline-variant/10 dark:border-white/10">
-                <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-xl dark:opacity-80" />
+                <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-xl" />
               </div>
               <div>
                 <p className="italic text-3xl text-primary dark:text-[#e2bd6c] leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
@@ -505,13 +508,26 @@ export default function Layout() {
         </div>
       </aside>
 
+      {/* ── Botón Toggle Flotante (Círculo en el Borde) ── */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        title={isCollapsed ? 'Mostrar panel' : 'Ocultar panel'}
+        className={`hidden md:flex fixed top-1/2 z-[120] w-8 h-8 items-center justify-center bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black rounded-full shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:scale-110 active:scale-95 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group -translate-y-1/2 -translate-x-1/2
+        ${isCollapsed ? 'left-0' : 'left-72'}`}
+      >
+        <span className={`material-symbols-outlined text-lg transition-transform duration-700 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
+          chevron_right
+        </span>
+      </button>
+
       {/* ── Main content ── */}
-      <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative">
-        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-10 dark:opacity-20">
+      <main className={`flex-1 overflow-x-hidden pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]`}>
+        <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-all duration-700 opacity-20 dark:opacity-20
+          ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
           <img 
             src="/logo.jpeg" 
             alt="Watermark" 
-            className="w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
+            className="w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] saturate-150 dark:grayscale dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
           />
         </div>
         
