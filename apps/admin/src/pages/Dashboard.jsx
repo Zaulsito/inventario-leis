@@ -115,38 +115,48 @@ export default function Dashboard() {
         </div>
       </header>
       
-      {/* Acciones Rápidas */}
-      <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-8 rounded-[2.5rem] bg-primary text-on-primary shadow-xl shadow-primary/20 flex items-center justify-between group overflow-hidden relative">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-70 mb-1">Tu Catálogo Público</p>
-            <h3 className="font-headline text-2xl italic mb-4">Listo para compartir</h3>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => {
-                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
-                  navigator.clipboard.writeText(url);
-                  alert("✅ ¡Enlace del catálogo copiado al portapapeles!");
-                }}
-                className="px-5 py-3 bg-white/20 hover:bg-white/30 rounded-2xl font-bold text-[10px] uppercase tracking-widest backdrop-blur-md transition-all flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-sm">content_copy</span>
-                Copiar Link
-              </button>
-              <button 
-                onClick={() => {
-                  const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
-                  const msg = `¡Hola! Te comparto mi catálogo actualizado de Leis Belleza ✨: ${url}`;
-                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                }}
-                className="px-5 py-3 bg-[#25D366] hover:scale-105 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 text-white border-none shadow-lg"
-              >
-                <span className="material-symbols-outlined text-sm">share</span>
-                WhatsApp
-              </button>
+      {/* Acciones Rápidas - Estilo Glassmorphism */}
+      <section className="mb-10 tour-inicio-compartir">
+        <div className="p-8 rounded-[2.5rem] bg-surface-container-low/40 backdrop-blur-xl border border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-6 group relative overflow-hidden shadow-sm">
+          <div className="flex flex-col md:flex-row items-center gap-6 relative z-10 text-center md:text-left">
+            <div className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-primary text-3xl">share_windows</span>
+            </div>
+            <div>
+              <p className="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-primary/60 mb-1">Catálogo Público</p>
+              <h3 className="font-headline text-2xl italic text-primary leading-none">Listo para compartir con tus clientes</h3>
             </div>
           </div>
-          <span className="material-symbols-outlined text-[140px] absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform origin-center">auto_awesome</span>
+          
+          <div className="flex gap-3 relative z-10 w-full md:w-auto">
+            <button 
+              onClick={() => {
+                const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
+                navigator.clipboard.writeText(url);
+                alert("✅ Enlace copiado");
+              }}
+              className="flex-1 md:flex-none px-6 py-3.5 bg-surface-container-high/60 hover:bg-primary/10 text-primary rounded-2xl font-bold text-[11px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-outline-variant/20"
+            >
+              <span className="material-symbols-outlined text-lg">content_copy</span>
+              Copiar Link
+            </button>
+            <button 
+              onClick={() => {
+                const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
+                const msg = `¡Hola! Te comparto mi catálogo actualizado de Leis Belleza ✨: ${url}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+              }}
+              className="flex-1 md:flex-none px-6 py-3.5 bg-primary text-white hover:scale-105 rounded-2xl font-bold text-[11px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+            >
+              <span className="material-symbols-outlined text-lg text-white">send</span>
+              WhatsApp
+            </button>
+          </div>
+          
+          {/* Decoración sutil de fondo */}
+          <div className="absolute -right-10 -bottom-10 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-700">
+            <span className="material-symbols-outlined text-[200px]">auto_awesome</span>
+          </div>
         </div>
       </section>
 
