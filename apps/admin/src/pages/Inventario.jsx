@@ -7,12 +7,13 @@ import autoTable from 'jspdf-autotable'
 import BarcodeScanner from '../components/BarcodeScanner'
 import { getLocalDateString } from '../utils/date'
 import { calcularEstado } from '../utils/date'
+import Footer from '../components/Footer'
 
 const estadoConfig = {
-  disponible: { label: 'Disponible', cls: 'bg-green-100 text-green-700 font-bold' },
-  bajo:       { label: 'Stock bajo', cls: 'bg-yellow-100 text-yellow-800 font-bold' },
-  critico:    { label: 'Crítico',    cls: 'bg-error/10 text-error font-bold border border-error/20 backdrop-blur-sm shadow-sm' },
-  sin_stock:  { label: 'Sin stock',  cls: 'bg-gray-400 text-white font-bold' },
+  disponible: { label: 'Disponible', cls: 'bg-[#8b6b3e]/10 text-[#8b6b3e] dark:bg-[#8b6b3e]/20 dark:text-[#c4a484] border border-[#8b6b3e]/20 backdrop-blur-sm font-bold shadow-sm' },
+  bajo:       { label: 'Stock bajo', cls: 'bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 backdrop-blur-sm font-bold shadow-sm' },
+  critico:    { label: 'Crítico',    cls: 'bg-error/10 text-error font-bold border border-error/20 backdrop-blur-sm shadow-sm animate-pulse' },
+  sin_stock:  { label: 'Sin stock',  cls: 'bg-gray-400/10 text-gray-400 border border-gray-400/20 backdrop-blur-sm font-bold' },
 }
 
 const formInicial = { 
@@ -54,6 +55,10 @@ export default function Inventario() {
   const [editingId, setEditingId] = useState(null)
   const [expandedProduct, setExpandedProduct] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
+
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productos'), (snapshot) => {
@@ -163,7 +168,15 @@ export default function Inventario() {
     const matchBusq = p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.sku.toLowerCase().includes(busqueda.toLowerCase())
     const matchCol  = filtroCol === 'TODOS' || (p.coleccion || '').trim().toUpperCase() === filtroCol
     return matchBusq && matchCol
-  }).sort((a, b) => {
+  })
+
+  // Resetear paginación al filtrar
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [busqueda, filtroCol, orden])
+
+  const totalPages = Math.ceil(filtrados.length / itemsPerPage)
+  const paginatedProducts = filtrados.sort((a, b) => {
     if (orden === 'alfabetico-asc') return a.nombre.localeCompare(b.nombre)
     if (orden === 'alfabetico-desc') return b.nombre.localeCompare(a.nombre)
     if (orden === 'fecha-desc') return new Date(b.fechaIngreso) - new Date(a.fechaIngreso)
@@ -172,7 +185,7 @@ export default function Inventario() {
     if (orden === 'precio-desc') return b.precio - a.precio
     if (orden === 'precio-asc') return a.precio - b.precio
     return 0
-  })
+  }).slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   function scrollCategories(direction) {
     if (categoryContainerRef.current) {
@@ -322,53 +335,54 @@ export default function Inventario() {
   }
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="p-8 md:p-10 relative flex flex-col min-h-full overflow-y-auto transition-colors duration-500">
 
-      <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-8 md:px-10 py-7 flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-outline-variant/20 tour-inv-header">
-        <div>
-          <h1 className="font-headline text-4xl text-secondary font-bold italic leading-tight">Inventario Maestro</h1>
-          <p className="text-primary font-label text-xs uppercase tracking-[0.2em] font-bold mt-1">Control de Existencias</p>
+      <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-8 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 tour-inv-header">
+        <div className="relative text-center mx-auto">
+          <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">Control de Existencias</p>
+          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter">Inventario Maestro</h1>
+          <div className="absolute left-1/2 -bottom-4 -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
         </div>
       </header>
 
-      <div className="p-8 md:p-10 space-y-8">
+      <div className="space-y-8">
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 tour-inv-metricas">
-          <div className="bg-surface-container-low p-6 rounded-xl flex flex-col justify-between h-36">
+          <div className="bg-surface-container-low dark:bg-white/5 p-6 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary text-2xl">deployed_code</span>
-              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline leading-none">Total Productos</p>
+              <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-2xl">deployed_code</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Total Productos</p>
             </div>
-            <p className="text-3xl font-headline italic font-bold">{totalSKUs.toLocaleString()}</p>
+            <p className="text-3xl font-headline italic font-bold dark:text-white">{totalSKUs.toLocaleString()}</p>
           </div>
 
-          <div className="bg-surface-container-highest p-6 rounded-xl flex flex-col justify-between h-36">
+          <div className="bg-surface-container-highest dark:bg-white/5 p-6 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary text-2xl">payments</span>
-              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline leading-none">Valor Inventario</p>
+              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl">payments</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Valor Inventario</p>
             </div>
-            <p className="font-headline italic font-bold text-xl md:text-2xl">${valorTotal.toLocaleString('es-CL')} CLP</p>
+            <p className="font-headline italic font-bold text-xl md:text-2xl dark:text-white">${valorTotal.toLocaleString('es-CL')} CLP</p>
           </div>
 
-          <div className="bg-secondary-container/20 p-6 rounded-xl flex flex-col justify-between h-36 border border-secondary-container/30">
+          <div className="bg-secondary-container/20 dark:bg-white/5 p-6 rounded-xl flex flex-col justify-between h-36 border border-secondary-container/30 dark:border-white/5">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary text-2xl">inventory_2</span>
-              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary leading-none">Unidades totales</p>
+              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl">inventory_2</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades totales</p>
             </div>
-            <p className="text-3xl font-headline italic font-bold text-secondary">{stockTotal.toLocaleString()}</p>
+            <p className="text-3xl font-headline italic font-bold text-secondary dark:text-white">{stockTotal.toLocaleString()}</p>
           </div>
 
-          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 border transition-all ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 backdrop-blur-md shadow-lg shadow-error/5' : 'bg-primary-container border-primary/10'}`}>
+          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 border transition-all ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 dark:bg-error/20 dark:border-error/40 backdrop-blur-md shadow-lg shadow-error/5' : 'bg-primary-container dark:bg-white/5 border-primary/10 dark:border-white/5'}`}>
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-error animate-pulse' : 'text-on-primary-container'}`}>priority_high</span>
-              <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container'}`}>Stock Bajo</p>
+              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-error animate-pulse' : 'text-on-primary-container dark:text-white/60'}`}>priority_high</span>
+              <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white/60'}`}>Stock Bajo</p>
             </div>
-            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container'}`}>{bajosDeStock}</p>
+            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white'}`}>{bajosDeStock}</p>
           </div>
         </div>
 
-        <div className="bg-surface-container-low rounded-3xl shadow-sm overflow-visible">
-          <div className="p-4 md:p-7 pb-8 border-b-2 border-outline-variant/30 bg-surface-container/50 space-y-6 rounded-t-3xl overflow-visible">
+        <div className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl shadow-sm overflow-visible border border-outline-variant/10 dark:border-white/5">
+          <div className="p-4 md:p-7 pb-8 border-b-2 border-outline-variant/30 dark:border-white/5 bg-surface-container/50 dark:bg-white/5 space-y-6 rounded-t-3xl overflow-visible">
             
             <div className="relative flex items-center group">
               <button 
@@ -386,10 +400,10 @@ export default function Inventario() {
                   <button
                     key={c}
                     onClick={() => setFiltroCol(c)}
-                    className={`px-5 py-2 text-[10px] font-bold uppercase tracking-widest rounded-full border transition-all whitespace-nowrap shrink-0
+                    className={`px-6 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.15em] rounded-full border transition-all whitespace-nowrap shrink-0
                       ${filtroCol === c
-                        ? 'bg-secondary text-white border-secondary shadow-md scale-105'
-                        : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface/50 hover:border-outline-variant'
+                        ? 'bg-secondary dark:bg-[#e2bd6c] text-white dark:text-black border-secondary dark:border-[#e2bd6c] shadow-md scale-105'
+                        : 'border-outline-variant/40 dark:border-white/20 text-on-surface-variant dark:text-white/70 hover:bg-surface/80 dark:hover:bg-white/10 hover:border-outline-variant dark:hover:border-[#e2bd6c]/50'
                       }`}
                   >
                     {c}
@@ -409,29 +423,29 @@ export default function Inventario() {
               <div className="flex flex-col md:flex-row gap-3 flex-1">
                 <div className="flex items-center gap-2 flex-1 max-w-2xl">
                   <div className="relative flex-1">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline dark:text-gray-400 text-sm">search</span>
                     <input
                       value={busqueda}
                       onChange={e => setBusqueda(e.target.value)}
                       placeholder="Buscar por nombre o código..."
-                      className="w-full bg-surface-container-low rounded-xl pl-10 pr-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/20 transition-all font-bold placeholder:font-normal"
+                      className="w-full bg-surface-container-low dark:bg-[#121212] rounded-xl pl-10 pr-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container dark:focus:ring-[#e2bd6c]/20 border border-outline-variant/20 dark:border-white/10 transition-all font-bold placeholder:font-normal dark:text-white dark:placeholder:text-gray-500"
                     />
                   </div>
                   
                   <div className="relative shrink-0">
-                    <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2.5 bg-surface-container-low border border-outline-variant/20 rounded-xl hover:bg-surface transition-colors flex items-center justify-center text-on-surface-variant shadow-sm h-[42px] px-3">
+                    <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2.5 bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-xl hover:bg-surface dark:hover:bg-white/5 transition-colors flex items-center justify-center text-on-surface-variant dark:text-white/70 shadow-sm h-[42px] px-3">
                       <span className="material-symbols-outlined text-lg">more_horiz</span>
                     </button>
                     {showExportMenu && (
                       <>
                         <div className="fixed inset-0 z-[60]" onClick={() => setShowExportMenu(false)} />
-                        <div className="absolute right-0 mt-2 w-48 bg-surface-container-highest border border-outline-variant/20 rounded-xl shadow-xl z-[70] py-2 overflow-hidden">
-                          <button onClick={() => { exportarPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
+                        <div className="absolute right-0 mt-2 w-48 bg-surface-container-highest dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-xl shadow-xl z-[70] py-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <button onClick={() => { exportarPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 dark:hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-on-surface dark:text-white/90 transition-colors flex items-center gap-2">
                             <span className="material-symbols-outlined text-error text-lg">picture_as_pdf</span>
                             Exportar a PDF
                           </button>
-                          <button onClick={() => { exportarCSV(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 text-[11px] font-bold uppercase tracking-widest text-on-surface transition-colors flex items-center gap-2">
-                            <span className="material-symbols-outlined text-green-600 text-lg">csv</span>
+                          <button onClick={() => { exportarCSV(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 dark:hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-on-surface dark:text-white/90 transition-colors flex items-center gap-2">
+                            <span className="material-symbols-outlined text-green-600 dark:text-green-500 text-lg">csv</span>
                             Exportar a CSV
                           </button>
                         </div>
@@ -444,11 +458,11 @@ export default function Inventario() {
                   <div className="relative flex-1 md:flex-none h-full">
                     <button 
                       onClick={() => setShowOrdenDropdown(!showOrdenDropdown)}
-                      className="flex items-center bg-surface-container-low border border-outline-variant/20 rounded-2xl px-3 md:px-4 gap-2 md:gap-3 hover:bg-surface-variant/30 transition-all shadow-sm min-w-[120px] md:min-w-[150px] justify-between h-full"
+                      className="flex items-center bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-3 md:px-4 gap-2 md:gap-3 hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-all shadow-sm min-w-[120px] md:min-w-[150px] justify-between h-full"
                     >
                       <div className="flex items-center gap-1.5 md:gap-2">
-                        <span className="material-symbols-outlined text-sm text-primary">sort</span>
-                        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-on-surface whitespace-nowrap">
+                        <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">sort</span>
+                        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80 whitespace-nowrap">
                           {orden === 'alfabetico-asc' && 'A - Z'}
                           {orden === 'alfabetico-desc' && 'Z - A'}
                           {orden === 'fecha-desc' && 'Reciente'}
@@ -464,7 +478,7 @@ export default function Inventario() {
                     {showOrdenDropdown && (
                       <>
                         <div className="fixed inset-0 z-[60]" onClick={() => setShowOrdenDropdown(false)} />
-                        <div className="absolute left-0 top-full mt-2 w-[220px] bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="absolute left-0 top-full mt-2 w-[220px] bg-surface-container-highest dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                           {[
                             { id: 'alfabetico-asc', label: 'A - Z', icon: 'sort_by_alpha' },
                             { id: 'alfabetico-desc', label: 'Z - A', icon: 'sort_by_alpha' },
@@ -477,12 +491,15 @@ export default function Inventario() {
                             <button
                               key={opc.id}
                               onClick={() => { setOrden(opc.id); setShowOrdenDropdown(false); }}
-                              className={`w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest transition-colors text-left
-                                ${orden === opc.id ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
-                              `}
+                              className={`w-full flex items-center gap-4 px-6 py-4 text-[11px] font-extrabold uppercase tracking-[0.15em] transition-all text-left border-b border-outline-variant/5 dark:border-white/5 last:border-0
+                                ${orden === opc.id 
+                                  ? 'bg-primary/15 dark:bg-[#e2bd6c]/20 text-primary dark:text-[#f3d692]' 
+                                  : 'text-on-surface dark:text-white/90 hover:bg-surface-variant/50 dark:hover:bg-white/10'}`}
                             >
-                              <span className="material-symbols-outlined text-sm">{opc.icon}</span>
-                              {opc.label}
+                              <span className={`material-symbols-outlined text-xl ${orden === opc.id ? 'text-primary dark:text-[#f3d692]' : 'text-outline dark:text-white/40'}`}>
+                                {opc.icon}
+                              </span>
+                              <span>{opc.label}</span>
                             </button>
                           ))}
                         </div>
@@ -501,17 +518,17 @@ export default function Inventario() {
           </div>
 
           <div className="md:hidden divide-y divide-outline-variant/10">
-            {filtrados.map((p) => {
+            {paginatedProducts.map((p) => {
               const est = estadoConfig[p.estado] || estadoConfig.disponible
               const isExpanded = expandedProduct === p.id
               
               return (
-                <div key={p.id} className="bg-surface-container-low overflow-hidden transition-all duration-300">
+                <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] overflow-hidden transition-all duration-300">
                   <div 
                     onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
-                    className="p-4 flex items-center gap-4 active:bg-surface-variant/20 transition-colors cursor-pointer"
+                    className="p-4 flex items-center gap-4 active:bg-surface-variant/20 dark:active:bg-white/5 transition-colors cursor-pointer"
                   >
-                    <div className="w-14 h-14 rounded-xl bg-surface-container overflow-hidden shrink-0 border border-outline-variant/20 shadow-sm flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-xl bg-surface-container dark:bg-white/5 overflow-hidden shrink-0 border border-outline-variant/20 dark:border-white/5 shadow-sm flex items-center justify-center">
                       {p.fotoUrl ? (
                         <img 
                           src={p.fotoUrl} 
@@ -524,57 +541,57 @@ export default function Inventario() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-headline font-bold text-base text-on-surface truncate leading-tight mb-0.5">{p.nombre}</h4>
-                      {p.marca && <p className="text-[10px] text-outline font-bold uppercase tracking-widest leading-none mt-0.5">Marca: {p.marca}</p>}
-                      <p className="text-[10px] text-outline font-bold uppercase tracking-widest leading-none">SKU: {p.sku}</p>
+                      <h4 className="font-headline font-bold text-base text-on-surface dark:text-white/90 truncate leading-tight mb-0.5">{p.nombre}</h4>
+                      {p.marca && <p className="text-[10px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest leading-none mt-0.5">Marca: {p.marca}</p>}
+                      <p className="text-[10px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest leading-none">SKU: {p.sku}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${est.cls}`}>
                         {est.label.toUpperCase()}
                       </span>
-                      <p className="text-secondary font-bold text-xs">${(p.precio || 0).toLocaleString('es-CL')}</p>
+                      <p className="text-secondary dark:text-[#e2bd6c] font-bold text-xs">${(p.precio || 0).toLocaleString('es-CL')}</p>
                     </div>
                     <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                   </div>
 
                   <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100 pb-5 px-4' : 'max-h-0 opacity-0'}`}>
                     {p.variantes && p.variantes.length > 0 && (
-                      <div className="mb-4 bg-surface-container/30 rounded-xl p-3 border border-outline-variant/10">
-                        <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider mb-2">Desglose por Variantes</p>
+                      <div className="mb-4 bg-surface-container/30 dark:bg-white/5 rounded-xl p-3 border border-outline-variant/10 dark:border-white/5">
+                        <p className="text-[9px] font-bold text-outline-variant dark:text-gray-500 uppercase tracking-wider mb-2">Desglose por Variantes</p>
                         <div className="grid grid-cols-2 gap-2">
                           {p.variantes.map((v, i) => (
-                            <div key={i} className="flex justify-between items-center bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant/5">
-                              <span className="text-[10px] font-bold text-on-surface uppercase">{v.nombre}</span>
-                              <span className="text-[10px] font-extrabold text-secondary">{v.stock} u.</span>
+                            <div key={i} className="flex justify-between items-center bg-surface-container-low dark:bg-white/5 px-3 py-2 rounded-lg border border-outline-variant/5 dark:border-white/5">
+                              <span className="text-[10px] font-bold text-on-surface dark:text-white/80 uppercase">{v.nombre}</span>
+                              <span className="text-[10px] font-extrabold text-secondary dark:text-[#e2bd6c]">{v.stock} u.</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant/10">
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant/10 dark:border-white/5">
                       <div className="space-y-4">
-                        <p className="text-[9px] font-bold text-outline-variant uppercase tracking-wider">Detalles</p>
+                        <p className="text-[9px] font-bold text-outline-variant dark:text-gray-500 uppercase tracking-wider">Detalles</p>
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-sm text-primary/60">store</span>
+                            <span className="material-symbols-outlined text-sm text-primary/60 dark:text-[#e2bd6c]/60">store</span>
                             <div>
-                              <p className="text-[8px] uppercase text-outline leading-none">Proveedor</p>
-                              <p className="text-[11px] font-bold text-on-surface">{(p.proveedor || 'S/P').toUpperCase()}</p>
+                              <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Proveedor</p>
+                              <p className="text-[11px] font-bold text-on-surface dark:text-white/80">{(p.proveedor || 'S/P').toUpperCase()}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-sm text-primary/60">category</span>
+                            <span className="material-symbols-outlined text-sm text-primary/60 dark:text-[#e2bd6c]/60">category</span>
                             <div>
-                              <p className="text-[8px] uppercase text-outline leading-none">Categoría</p>
-                              <p className="text-[11px] font-bold text-on-surface">{(p.coleccion || '').toUpperCase()}</p>
+                              <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Categoría</p>
+                              <p className="text-[11px] font-bold text-on-surface dark:text-white/80">{(p.coleccion || '').toUpperCase()}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-sm text-primary/60">calendar_today</span>
+                            <span className="material-symbols-outlined text-sm text-primary/60 dark:text-[#e2bd6c]/60">calendar_today</span>
                             <div>
-                              <p className="text-[8px] uppercase text-outline leading-none">Ingreso</p>
-                              <p className="text-[11px] font-bold text-on-surface">{p.fechaIngreso || '-'}</p>
+                              <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Ingreso</p>
+                              <p className="text-[11px] font-bold text-on-surface dark:text-white/80">{p.fechaIngreso || '-'}</p>
                             </div>
                           </div>
                         </div>
@@ -623,24 +640,24 @@ export default function Inventario() {
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[640px]">
               <thead>
-                <tr className="bg-surface-container">
+                <tr className="bg-surface-container dark:bg-[#2a2a2a]">
                   {['', 'Producto', 'Proveedor', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso'].map((h, i) => (
-                    <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline whitespace-nowrap ${i === 0 ? 'pl-8 w-12' : 'px-7'} ${i === 8 ? 'pr-10' : ''}`}>{h}</th>
+                    <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 whitespace-nowrap ${i === 0 ? 'pl-8 w-20' : 'px-7'}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/10">
-                {filtrados.map(p => {
+              <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
+                {paginatedProducts.map((p) => {
                   const est = estadoConfig[p.estado] || estadoConfig.disponible
                   return (
-                    <tr key={p.id} className="hover:bg-surface-container-high transition-colors group">
+                    <tr key={p.id} className="hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group">
                       <td className="pl-8 py-5">
-                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-[-10px] group-hover:translate-x-0">
-                          <button onClick={() => openEdit(p)} className="text-outline/40 hover:text-primary transition-colors" title="Editar">
-                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                        <div className="flex flex-col gap-2 transition-all duration-300">
+                          <button onClick={() => openEdit(p)} className="text-outline/60 dark:text-gray-500 hover:text-primary dark:hover:text-[#e2bd6c] transition-colors" title="Editar">
+                            <span className="material-symbols-outlined text-[20px]">edit</span>
                           </button>
-                          <button onClick={() => handleDelete(p.id)} className="text-outline/40 hover:text-error transition-colors" title="Eliminar">
-                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          <button onClick={() => handleDelete(p.id)} className="text-outline/60 dark:text-gray-500 hover:text-error transition-colors" title="Eliminar">
+                            <span className="material-symbols-outlined text-[20px]">delete</span>
                           </button>
                         </div>
                       </td>
@@ -650,22 +667,22 @@ export default function Inventario() {
                             <img 
                               src={p.fotoUrl} 
                               alt={p.nombre} 
-                              className="w-10 h-10 rounded-lg object-cover bg-surface-variant flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+                              className="w-10 h-10 rounded-lg object-cover bg-surface-variant dark:bg-white/5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity border border-outline-variant/10 dark:border-white/5" 
                               onClick={() => setExpandedImage(p.fotoUrl)}
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center flex-shrink-0">
-                              <span className="material-symbols-outlined text-outline text-lg">image</span>
+                            <div className="w-10 h-10 rounded-lg bg-surface-variant dark:bg-white/5 flex items-center justify-center flex-shrink-0 border border-outline-variant/10 dark:border-white/5">
+                              <span className="material-symbols-outlined text-outline dark:text-gray-500 text-lg">image</span>
                             </div>
                           )}
                           <div>
-                            <p className="font-headline font-bold text-base text-on-surface">{p.nombre}</p>
-                            {p.marca && <p className="text-[10px] font-bold text-outline uppercase tracking-widest mt-0.5">Marca: {p.marca}</p>}
-                            <p className="text-[10px] font-bold text-outline uppercase tracking-widest">Cód. Barra: {p.sku}</p>
+                            <p className="font-headline font-bold text-base text-on-surface dark:text-white/90 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors">{p.nombre}</p>
+                            {p.marca && <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest mt-0.5">Marca: {p.marca}</p>}
+                            <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest">Cód. Barra: {p.sku}</p>
                             {p.variantes && p.variantes.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {p.variantes.map((v, i) => (
-                                  <span key={i} className="text-[8px] bg-surface-variant px-1.5 py-0.5 rounded text-on-surface-variant font-bold uppercase">{v.nombre} ({v.stock})</span>
+                                  <span key={i} className="text-[8px] bg-surface-variant dark:bg-white/5 px-1.5 py-0.5 rounded text-on-surface-variant dark:text-white/60 font-bold uppercase border border-outline-variant/5 dark:border-white/5">{v.nombre} ({v.stock})</span>
                                 ))}
                               </div>
                             )}
@@ -673,28 +690,28 @@ export default function Inventario() {
                         </div>
                       </td>
                       <td className="px-7 py-5">
-                        <span className="px-3 py-1 bg-surface-variant/40 text-on-surface-variant text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center">
+                        <span className="px-3 py-1 bg-surface-variant/40 dark:bg-white/5 text-on-surface-variant dark:text-white/60 text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center border border-outline-variant/10 dark:border-white/5">
                           {(p.proveedor || 'S/P').toUpperCase()}
                         </span>
                       </td>
                       <td className="px-7 py-5">
-                        <span className="px-3 py-1 bg-surface-variant text-on-surface-variant text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center">
+                        <span className="px-3 py-1 bg-surface-variant dark:bg-white/5 text-on-surface-variant dark:text-white/60 text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center border border-outline-variant/10 dark:border-white/5">
                           {(p.coleccion || '').toUpperCase()}
                         </span>
                       </td>
                       <td className="px-7 py-5">
-                        <p className={`text-sm font-bold mb-1 ${p.estado !== 'disponible' ? 'text-error' : ''}`}>
+                        <p className={`text-sm font-bold mb-1 ${p.estado !== 'disponible' ? 'text-error' : 'dark:text-[#e2bd6c]'}`}>
                           {p.stock.toLocaleString()} <span className="text-[10px] opacity-60">u.</span>
                         </p>
-                        <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden">
+                        <div className="w-16 bg-outline-variant/20 dark:bg-white/10 h-1 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary' : 'bg-error'}`}
+                            className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary dark:bg-[#e2bd6c]' : 'bg-error'}`}
                             style={{ width: `${porcBarra(p.stock)}%` }}
                           />
                         </div>
                       </td>
                       <td className="px-7 py-5">
-                        <p className="text-sm font-bold text-secondary">${(p.precio || 0).toLocaleString('es-CL')}</p>
+                        <p className="text-sm font-bold text-secondary dark:text-[#e2bd6c]">${(p.precio || 0).toLocaleString('es-CL')}</p>
                       </td>
                       <td className="px-7 py-5">
                         <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-lg ${est.cls}`}>
@@ -719,6 +736,65 @@ export default function Inventario() {
             </table>
           </div>
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 md:gap-4 py-8">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl border transition-all ${
+                currentPage === 1
+                  ? 'border-outline-variant/10 text-outline-variant/30 cursor-not-allowed opacity-50'
+                  : 'border-outline-variant/30 text-primary dark:text-[#e2bd6c] hover:bg-surface-variant/30 dark:hover:bg-white/5'
+              }`}
+            >
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            
+            <div className="flex items-center gap-1 md:gap-2">
+              {[...Array(totalPages)].map((_, i) => {
+                const pageNum = i + 1;
+                // Lógica de visualización inteligente de páginas
+                if (
+                  totalPages > 5 &&
+                  pageNum !== 1 &&
+                  pageNum !== totalPages &&
+                  Math.abs(pageNum - currentPage) > 1
+                ) {
+                  if (Math.abs(pageNum - currentPage) === 2) return <span key={pageNum} className="text-outline/40 px-1">...</span>;
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl font-bold text-[10px] md:text-xs transition-all ${
+                      currentPage === pageNum
+                        ? 'bg-primary dark:bg-[#e2bd6c] text-white dark:text-black shadow-md scale-110'
+                        : 'text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/30 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl border transition-all ${
+                currentPage === totalPages
+                  ? 'border-outline-variant/10 text-outline-variant/30 cursor-not-allowed opacity-50'
+                  : 'border-outline-variant/30 text-primary dark:text-[#e2bd6c] hover:bg-surface-variant/30 dark:hover:bg-white/5'
+              }`}
+            >
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {expandedImage && (
@@ -743,10 +819,10 @@ export default function Inventario() {
       {/* Modal CRUD (NUEVO / EDITAR) */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-surface w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 flex flex-col max-h-[90vh] overflow-hidden">
+          <div className="bg-surface dark:bg-[#1e1e1e] w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 dark:border-white/5 flex flex-col max-h-[90vh] overflow-hidden text-on-surface dark:text-white/90">
             {/* Header del Modal */}
-            <div className="bg-surface-container-low px-6 py-5 flex justify-between items-center border-b border-outline-variant/20 shrink-0">
-              <h3 className="font-headline font-bold text-xl text-primary flex items-center gap-2">
+            <div className="bg-surface-container-low dark:bg-white/5 px-6 py-5 flex justify-between items-center border-b border-outline-variant/20 dark:border-white/5 shrink-0">
+              <h3 className="font-headline font-bold text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2">
                 <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
                 {editingId ? 'Editar Producto' : 'Nuevo Producto'}
               </h3>
@@ -769,12 +845,12 @@ export default function Inventario() {
 
               {/* Fila 1: Nombre */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Nombre del Producto</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Nombre del Producto</label>
                 <input 
                   type="text" 
                   value={form.nombre} 
                   onChange={e => setForm({...form, nombre: e.target.value})}
-                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all"
+                  className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
                   placeholder="Ej. Crema Collagen"
                 />
               </div>
@@ -782,23 +858,23 @@ export default function Inventario() {
               {/* Fila 2: Marca y SKU */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Marca</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Marca</label>
                   <input 
                     type="text" 
                     value={form.marca} 
                     onChange={e => setForm({...form, marca: e.target.value})}
                     onFocus={() => setShowMarcaDropdown(true)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all uppercase"
+                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all uppercase dark:text-white"
                     placeholder="BUSCAR MARCA..."
                   />
                   {showMarcaDropdown && (
                     <>
                       <div className="fixed inset-0 z-[110]" onClick={() => setShowMarcaDropdown(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                         <button 
                           type="button"
                           onClick={() => setShowMarcaDropdown(false)}
-                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] flex items-center gap-2 hover:bg-black/5 transition-colors"
+                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                         >
                           <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
                         </button>
@@ -810,7 +886,7 @@ export default function Inventario() {
                               key={m}
                               type="button"
                               onClick={() => { setForm({...form, marca: m}); setShowMarcaDropdown(false); }}
-                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] hover:bg-black/5 transition-colors border-t border-black/10"
+                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
                             >
                               {m}
                             </button>
@@ -821,19 +897,19 @@ export default function Inventario() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Código de Barra / SKU</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Código de Barra / SKU</label>
                   <div className="relative">
                     <input 
                       type="text" 
                       value={form.sku} 
                       onChange={e => setForm({...form, sku: e.target.value})}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm transition-all"
+                      className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
                       placeholder="Escribe o escanea..."
                     />
                     <button 
                       type="button" 
                       onClick={() => setIsScanning(true)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container text-primary rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
                     >
                       <span className="material-symbols-outlined text-[20px]">photo_camera</span>
                     </button>
@@ -844,23 +920,23 @@ export default function Inventario() {
               {/* Fila 3: Proveedor y Categoría */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Proveedor</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Proveedor</label>
                   <input 
                     type="text" 
                     value={form.proveedor} 
                     onChange={e => setForm({...form, proveedor: e.target.value})}
                     onFocus={() => setShowProvDropdown(true)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm uppercase"
+                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
                     placeholder="BUSCAR PROVEEDOR..."
                   />
                   {showProvDropdown && (
                     <>
                       <div className="fixed inset-0 z-[110]" onClick={() => setShowProvDropdown(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                         <button 
                           type="button"
                           onClick={() => setShowProvDropdown(false)}
-                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] flex items-center gap-2 hover:bg-black/5 transition-colors"
+                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                         >
                           <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVO
                         </button>
@@ -872,7 +948,7 @@ export default function Inventario() {
                               key={p}
                               type="button"
                               onClick={() => { setForm({...form, proveedor: p}); setShowProvDropdown(false); }}
-                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] hover:bg-black/5 transition-colors border-t border-black/10"
+                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
                             >
                               {p}
                             </button>
@@ -884,23 +960,23 @@ export default function Inventario() {
                 </div>
 
                 <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Categoría</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Categoría</label>
                   <input 
                     type="text" 
                     value={form.coleccion} 
                     onChange={e => setForm({...form, coleccion: e.target.value})}
                     onFocus={() => setShowCatDropdown(true)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm uppercase"
+                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
                     placeholder="BUSCAR CATEGORÍA..."
                   />
                   {showCatDropdown && (
                     <>
                       <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                         <button 
                           type="button"
                           onClick={() => setShowCatDropdown(false)}
-                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] flex items-center gap-2 hover:bg-black/5 transition-colors"
+                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                         >
                           <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
                         </button>
@@ -912,7 +988,7 @@ export default function Inventario() {
                               key={c}
                               type="button"
                               onClick={() => { setForm({...form, coleccion: c}); setShowCatDropdown(false); }}
-                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] hover:bg-black/5 transition-colors border-t border-black/10"
+                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
                             >
                               {c}
                             </button>
@@ -928,17 +1004,17 @@ export default function Inventario() {
               {/* Fila 4: Precio y Stock */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Precio Unit. ($)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Unit. ($)</label>
                   <input 
                     type="number" 
                     value={form.precio} 
                     onChange={e => setForm({...form, precio: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm"
+                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                     placeholder="0"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
                     {form.variantes?.length > 0 ? 'Stock Total' : 'Stock Inicial'}
                   </label>
                   <input 
@@ -946,23 +1022,23 @@ export default function Inventario() {
                     value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
                     onChange={e => setForm({...form, stock: e.target.value})}
                     readOnly={form.variantes?.length > 0}
-                    className={`w-full border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-bold shadow-sm ${form.variantes?.length > 0 ? 'bg-surface-variant/30 text-outline' : 'bg-surface-container-lowest'}`}
+                    className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-white/5'}`}
                     placeholder="0"
                   />
                 </div>
               </div>
 
               {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
-              <div className="bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10">
+              <div className="bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-primary">diversity_2</span>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface">Variantes (Color, etc.)</p>
+                    <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">diversity_2</span>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Variantes (Color, etc.)</p>
                   </div>
                   <button 
                     type="button"
                     onClick={() => setForm({...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0 }]})}
-                    className="bg-secondary/10 text-secondary text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 hover:bg-secondary/20 transition-all"
+                    className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all"
                   >
                     + Añadir
                   </button>
@@ -979,7 +1055,7 @@ export default function Inventario() {
                           newV[index].nombre = e.target.value
                           setForm({...form, variantes: newV})
                         }}
-                        className="flex-1 bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary"
+                        className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
                         placeholder="Ej. Verde"
                       />
                       <input 
@@ -990,7 +1066,7 @@ export default function Inventario() {
                           newV[index].stock = e.target.value
                           setForm({...form, variantes: newV})
                         }}
-                        className="w-20 bg-surface-container-lowest border border-outline-variant/20 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary"
+                        className="w-20 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
                         placeholder="0"
                       />
                       <button 
@@ -1012,21 +1088,21 @@ export default function Inventario() {
               {/* Fila 5: Otros */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">Fecha Ingreso</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Fecha Ingreso</label>
                   <input 
                     type="date" 
                     value={form.fechaIngreso} 
                     onChange={e => setForm({...form, fechaIngreso: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary font-bold shadow-sm"
+                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary mb-1.5 ml-1">URL Foto</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">URL Foto</label>
                   <input 
                     type="url" 
                     value={form.fotoUrl} 
                     onChange={e => setForm({...form, fotoUrl: e.target.value})}
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary font-bold shadow-sm"
+                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                     placeholder="https://..."
                   />
                 </div>
@@ -1034,10 +1110,10 @@ export default function Inventario() {
             </div>
 
             {/* Footer del Modal */}
-            <div className="bg-surface-container-low px-6 py-4 border-t border-outline-variant/20 flex gap-3 shrink-0">
+            <div className="bg-surface-container-low dark:bg-white/5 px-6 py-4 border-t border-outline-variant/20 dark:border-white/10 flex gap-3 shrink-0">
               <button 
                 onClick={() => setShowModal(false)}
-                className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant hover:bg-surface-variant transition-all active:scale-95 border border-outline-variant/10"
+                className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/5"
               >
                 Cancelar
               </button>
@@ -1065,6 +1141,7 @@ export default function Inventario() {
           onClose={() => setIsScanning(false)}
         />
       )}
+      <Footer />
     </div>
   )
 }

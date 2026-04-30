@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { getLocalDateString } from '../utils/date'
 import { calcularEstado } from '../utils/date'
+import Footer from '../components/Footer'
 
 const PERIODOS = ['Semana Actual', 'Mes Actual', 'Personalizado']
 
@@ -462,32 +463,33 @@ export default function Reportes() {
   }
 
   return (
-    <div className="p-8 md:p-10 relative h-full overflow-y-auto">
+    <div className="p-8 md:p-10 relative flex flex-col min-h-full overflow-y-auto transition-colors duration-500">
 
-      <header className="mb-10 flex flex-col xl:flex-row xl:justify-between xl:items-end gap-5">
-        <div>
-          <span className="font-label text-xs uppercase tracking-[0.2em] text-secondary font-bold mb-1 block">Centro de Control Financiero</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-on-tertiary-fixed-variant leading-tight">Métricas y Mermas</h2>
-          <p className="mt-3 text-outline font-body max-w-lg leading-relaxed text-sm">
+      <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-10 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 mb-12">
+        <div className="relative text-center mx-auto">
+          <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">Centro de Control Financiero</p>
+          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter">Métricas y Mermas</h1>
+          <p className="mt-4 text-outline dark:text-gray-400 font-body max-w-lg mx-auto leading-relaxed text-[11px] uppercase tracking-widest font-bold">
             Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.
           </p>
+          <div className="absolute left-1/2 -bottom-6 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
         </div>
       </header>
 
       {/* Gráfico principal */}
-      <section className="mb-10 w-full h-[400px] md:h-[450px] bg-surface-container-low rounded-[2rem] p-6 md:p-8 border border-outline-variant/10 flex flex-col relative z-0 tour-reportes-grafico">
-        <div className="flex flex-col xl:flex-row justify-between items-start mb-6 w-full gap-4">
-          <div>
-            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Gráfica Comercial</h3>
-            <p className="text-xs text-outline font-label uppercase tracking-widest mt-1 mb-4">Evolución de Ganancias vs Pérdidas</p>
-            
-            {/* Selector de periodo y Menu de Exportación (Moved here) */}
-            <div className="flex items-center gap-2 bg-surface-container-highest/20 p-1.5 rounded-2xl border border-outline-variant/10 relative w-fit mb-4">
+      <section className="mb-10 w-full h-auto md:h-[550px] bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2.5rem] p-6 md:p-10 border border-outline-variant/10 dark:border-white/5 flex flex-col relative z-0 tour-reportes-grafico shadow-xl">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6">
+          <div className="flex-1">
+            <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
+            <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-[0.2em] mt-1 font-extrabold">Evolución de Ganancias vs Pérdidas</p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
               {/* Custom Mode Dropdown */}
               <div className="relative">
                 <button 
                   onClick={() => setShowModeMenu(!showModeMenu)}
-                  className="bg-surface-container-highest px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-2 min-w-[140px] justify-between"
+                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 min-w-[140px] justify-between border border-transparent dark:border-white/10"
                 >
                   {chartMode === 'ambas' ? 'Total Neto' : chartMode === 'ventas' ? 'Solo Ventas' : 'Solo Mermas'}
                   <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
@@ -496,7 +498,7 @@ export default function Reportes() {
                 {showModeMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowModeMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface-container-highest dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       {[
                         { id: 'ambas', label: 'Total Neto' },
                         { id: 'ventas', label: 'Solo Ventas' },
@@ -506,8 +508,8 @@ export default function Reportes() {
                           key={mode.id}
                           onClick={() => { setChartMode(mode.id); setShowModeMenu(false); }}
                           className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
-                            ${chartMode === mode.id ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
-                            ${i !== 2 ? 'border-b border-outline-variant/5' : ''}
+                            ${chartMode === mode.id ? 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c]' : 'text-on-surface dark:text-white/70 hover:bg-surface-variant dark:hover:bg-white/5'}
+                            ${i !== 2 ? 'border-b border-outline-variant/5 dark:border-white/5' : ''}
                           `}
                         >
                           {mode.label}
@@ -519,13 +521,13 @@ export default function Reportes() {
                 )}
               </div>
               
-              <div className="w-px h-6 bg-outline-variant/20 mx-1"></div>
+              <div className="w-px h-6 bg-outline-variant/20 dark:bg-white/10 mx-1"></div>
 
               {/* Custom Period Dropdown */}
               <div className="relative">
                 <button 
                   onClick={() => setShowPeriodMenu(!showPeriodMenu)}
-                  className="bg-surface-container-highest px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface hover:bg-surface-variant transition-colors flex items-center gap-2 min-w-[140px] justify-between"
+                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 min-w-[140px] justify-between border border-transparent dark:border-white/10"
                 >
                   {PERIODOS[periodo]}
                   <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
@@ -534,14 +536,14 @@ export default function Reportes() {
                 {showPeriodMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowPeriodMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       {PERIODOS.map((label, i) => (
                         <button 
                           key={label}
                           onClick={() => { setPeriodo(i); setShowPeriodMenu(false); }}
                           className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
-                            ${periodo === i ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-variant'}
-                            ${i !== PERIODOS.length - 1 ? 'border-b border-outline-variant/5' : ''}
+                            ${periodo === i ? 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c]' : 'text-on-surface dark:text-white/70 hover:bg-surface-variant dark:hover:bg-white/5'}
+                            ${i !== PERIODOS.length - 1 ? 'border-b border-outline-variant/5 dark:border-white/5' : ''}
                           `}
                         >
                           {label}
@@ -573,27 +575,27 @@ export default function Reportes() {
               <div className="relative">
                 <button 
                   onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-variant transition-colors"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-highest dark:bg-[#121212] text-on-surface dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/10 transition-colors border border-transparent dark:border-white/10"
                 >
-                  <span className="material-symbols-outlined text-xl">more_vert</span>
+                  <span className="material-symbols-outlined text-xl font-bold">more_vert</span>
                 </button>
 
                 {showExportMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 w-48 bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       <button 
                         onClick={() => { exportarPDF(); setShowExportMenu(false); }}
-                        className="w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-primary/10 hover:text-primary transition-colors text-left border-b border-outline-variant/10"
+                        className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.2em] text-on-surface dark:text-white/80 hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors text-left border-b border-outline-variant/10 dark:border-white/5"
                       >
-                        <span className="material-symbols-outlined text-sm text-error">picture_as_pdf</span>
+                        <span className="material-symbols-outlined text-base text-error">picture_as_pdf</span>
                         Exportar PDF
                       </button>
                       <button 
                         onClick={() => { exportarCSV(); setShowExportMenu(false); }}
-                        className="w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.2em] text-on-surface dark:text-white/80 hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors text-left"
                       >
-                        <span className="material-symbols-outlined text-sm text-secondary">csv</span>
+                        <span className="material-symbols-outlined text-base text-secondary">csv</span>
                         Generar Excel
                       </button>
                     </div>
@@ -601,12 +603,11 @@ export default function Reportes() {
                 )}
               </div>
             </div>
-          </div>
           <div className="flex flex-row md:gap-4 gap-2 w-full xl:w-auto">
             {chartMode === 'ventas' && (
-              <div className="bg-surface-container px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
-                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Ganancias Brutas</span>
-                <span className="font-headline font-bold text-lg md:text-2xl text-secondary">+${totalMonetario.toLocaleString('es-CL')}</span>
+              <div className="bg-surface-container dark:bg-[#e2bd6c]/10 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 dark:border-[#e2bd6c]/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
+                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline dark:text-[#e2bd6c]/60 mb-1">Ganancias Brutas</span>
+                <span className="font-headline font-bold text-lg md:text-2xl text-secondary dark:text-[#e2bd6c]">+${totalMonetario.toLocaleString('es-CL')}</span>
               </div>
             )}
             {chartMode === 'mermas' && (
@@ -616,9 +617,9 @@ export default function Reportes() {
               </div>
             )}
             {chartMode === 'ambas' && (
-              <div className="bg-surface-container px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
-                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Total Neto</span>
-                <span className={`font-headline font-bold text-lg md:text-2xl ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary'}`}>
+              <div className="bg-surface-container dark:bg-white/5 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 dark:border-white/10 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
+                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">Total Neto</span>
+                <span className={`font-headline font-bold text-lg md:text-2xl ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary dark:text-[#e2bd6c]'}`}>
                   {totalMonetario - totalPerdidaMonetario < 0 ? '-' : '+'}${Math.abs(totalMonetario - totalPerdidaMonetario).toLocaleString('es-CL')}
                 </span>
               </div>
@@ -639,7 +640,7 @@ export default function Reportes() {
                   <stop offset="95%" stopColor="#ba1a1a" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" opacity={0.5} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" opacity={0.5} />
               <XAxis 
                 dataKey="label" 
                 axisLine={false} 
@@ -661,11 +662,11 @@ export default function Reportes() {
                   if (name === 'Total') return [value < 0 ? `-$${Math.abs(value).toLocaleString('es-CL')}` : `+$${value.toLocaleString('es-CL')}`, 'Total Neto']
                   return [`+$${value.toLocaleString('es-CL')}`, 'Ingresos Venta']
                 }}
-                labelStyle={{ fontWeight: 'bold', color: '#524430' }}
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                labelStyle={{ fontWeight: 'bold', color: '#e2bd6c' }}
+                contentStyle={{ borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#1e1e1e', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
               />
               {(chartMode === 'ambas' || chartMode === 'ventas') && (
-                <Area type="monotone" dataKey={chartMode === 'ambas' ? 'Total' : 'Ganancia'} stroke="#524430" strokeWidth={3} fillOpacity={1} fill="url(#colorGanancia)" />
+                <Area type="monotone" dataKey={chartMode === 'ambas' ? 'Total' : 'Ganancia'} stroke="#e2bd6c" strokeWidth={3} fillOpacity={1} fill="url(#colorGanancia)" />
               )}
               {chartMode === 'mermas' && (
                 <Area type="monotone" dataKey="Pérdida" stroke="#ba1a1a" strokeWidth={3} fillOpacity={1} fill="url(#colorPerdida)" />
@@ -679,11 +680,11 @@ export default function Reportes() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 relative z-10 w-full">
         
         {/* Conteo semanal MANUAL (para Venta Directa) */}
-        <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col h-[480px]">
+        <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2rem] p-8 border border-outline-variant/10 dark:border-white/5 flex flex-col h-[480px]">
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
-              <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Registrar Venta Directa</h3>
-              <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">Registra salidas al cliente final.</p>
+              <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant dark:text-white/90">Registrar Venta Directa</h3>
+              <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-widest mt-1">Registra salidas al cliente final.</p>
             </div>
           </div>
 
@@ -696,43 +697,43 @@ export default function Reportes() {
                 placeholder="Buscar producto para vender..."
                 value={searchVenta}
                 onChange={e => setSearchVenta(e.target.value)}
-                className="w-full bg-surface-container-highest border border-outline-variant/30 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary transition-all"
+                className="w-full bg-surface-container-highest dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all dark:text-white"
               />
             </div>
             {searchVenta && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-surface-container-highest border border-outline-variant/30 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto z-[60]">
+              <div className="absolute top-full left-0 right-0 mt-3 bg-surface dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
                 {productos
                   .filter(p => p.nombre.toLowerCase().includes(searchVenta.toLowerCase()))
                   .map(p => (
                     <button
                       key={p.id}
                       onMouseDown={(e) => { e.preventDefault(); addItemVenta(p); }}
-                      className="w-full px-4 py-3 text-left text-[11px] font-bold hover:bg-primary/10 transition-colors flex justify-between items-center border-b border-outline-variant/5"
+                      className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors flex justify-between items-center border-b border-outline-variant/5 dark:border-white/5 dark:text-white/80 group"
                     >
-                      <span>{p.nombre}</span>
-                      <span className="text-[10px] opacity-60">Stock: {p.stock}</span>
+                      <span className="group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors">{p.nombre}</span>
+                      <span className="text-[10px] opacity-60 bg-outline-variant/10 dark:bg-white/5 px-2 py-0.5 rounded-full">Stock: {p.stock}</span>
                     </button>
                   ))
                 }
                 {productos.filter(p => p.nombre.toLowerCase().includes(searchVenta.toLowerCase())).length === 0 && (
-                  <div className="px-4 py-3 text-[10px] text-outline italic">No se encontraron productos</div>
+                  <div className="px-5 py-6 text-[10px] text-outline dark:text-gray-500 italic text-center font-bold uppercase tracking-widest">No se encontraron productos</div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 rounded-2xl border border-outline-variant/20 relative z-10 p-1">
+          <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 dark:bg-[#121212]/40 rounded-3xl border border-outline-variant/20 dark:border-white/5 relative z-10 p-1">
             {/* Overlay de Resumen de Confirmación */}
             {mostrarResumenVenta && (
-              <div className="absolute inset-0 z-50 bg-surface-container-low/95 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
-                <h4 className="font-headline text-xl text-primary mb-4">Confirmar Registro</h4>
+              <div className="absolute inset-0 z-50 bg-surface-container-low/95 dark:bg-[#1e1e1e]/95 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
+                <h4 className="font-headline text-xl text-primary dark:text-[#e2bd6c] mb-4">Confirmar Registro</h4>
                 <div className="flex-1 overflow-y-auto pr-2">
-                  <p className="text-[10px] text-outline font-label uppercase tracking-widest mb-3">Vas a registrar lo siguiente:</p>
+                  <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-widest mb-3">Vas a registrar lo siguiente:</p>
                   <ul className="space-y-2">
                     {conteo.filter(i => i.vendido > 0).map(i => (
-                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface p-3 rounded-xl border border-outline-variant/10">
+                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface dark:bg-white/5 p-3 rounded-xl border border-outline-variant/10 dark:border-white/5 dark:text-white/80">
                         <span>{i.producto}</span>
-                        <span className="text-secondary">{i.vendido} unidades</span>
+                        <span className="text-secondary dark:text-[#e2bd6c]">{i.vendido} unidades</span>
                       </li>
                     ))}
                   </ul>
@@ -746,7 +747,7 @@ export default function Reportes() {
                   </button>
                   <button 
                     onClick={guardar}
-                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest bg-primary text-on-primary hover:scale-[1.02] active:scale-[0.98] transition-all rounded-xl shadow-md"
+                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black hover:scale-[1.02] active:scale-[0.98] transition-all rounded-xl shadow-md"
                   >
                     Confirmar Todo
                   </button>
@@ -755,24 +756,24 @@ export default function Reportes() {
             )}
 
             <table className="w-full text-left">
-              <thead className="sticky top-0 bg-surface-container-low px-2 z-20">
-                <tr>
-                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Producto</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Stock Disp.</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline">Cant.</th>
-                  <th className="py-4 pr-4"></th>
+              <thead className="sticky top-0 bg-surface-container-low dark:bg-[#1e1e1e] px-2 z-20 overflow-hidden">
+                <tr className="overflow-hidden rounded-t-2xl">
+                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500 rounded-tl-2xl">Producto</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500">Stock Disp.</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500">Cant.</th>
+                  <th className="py-4 pr-4 rounded-tr-2xl"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/10">
+              <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
                 {conteo.map((p) => (
-                  <tr key={p.id} className="hover:bg-surface-container-high transition-colors">
-                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px]">{p.producto}</td>
-                    <td className="py-3 text-center font-body text-[11px] font-bold">{p.stockFin.toLocaleString()}</td>
+                  <tr key={p.id} className="hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors">
+                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px] dark:text-white/80">{p.producto}</td>
+                    <td className="py-3 text-center font-body text-[11px] font-bold dark:text-white/70">{p.stockFin.toLocaleString()}</td>
                     <td className="py-3 text-center">
                       <input
                         type="number" min="0" max={p.stockIni} value={p.vendido}
                         onChange={e => handleVendido(p.id, e.target.value)}
-                        className="w-14 bg-surface border border-outline-variant/30 rounded-md px-2 py-1 text-[11px] font-bold text-on-surface focus:outline-none focus:border-primary text-center"
+                        className="w-14 bg-surface dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 rounded-md px-2 py-1 text-[11px] font-bold text-on-surface dark:text-white focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] text-center"
                       />
                     </td>
                     <td className="py-3 pr-4 text-right">
@@ -787,7 +788,7 @@ export default function Reportes() {
                 ))}
                 {conteo.length === 0 && (
                   <tr>
-                    <td colSpan="4" className="py-10 text-center text-[10px] text-outline font-bold uppercase tracking-widest opacity-50 italic">
+                    <td colSpan="4" className="py-10 text-center text-[10px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest opacity-50 italic">
                       Busca productos para agregar a la venta
                     </td>
                   </tr>
@@ -808,7 +809,7 @@ export default function Reportes() {
             <button
               onClick={guardar}
               disabled={conteo.length === 0 || procesando}
-              className={`bg-primary-container text-on-primary-container px-6 py-3 rounded-xl font-label text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 ${conteo.length === 0 || procesando ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+              className={`bg-primary-container dark:bg-[#e2bd6c] text-on-primary-container dark:text-black px-6 py-3 rounded-xl font-label text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 ${conteo.length === 0 || procesando ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
             >
               <span className="material-symbols-outlined text-lg">save</span>
               Guardar Venta
@@ -817,11 +818,11 @@ export default function Reportes() {
         </section>
 
         {/* Mermas MANUAL */}
-        <section className="bg-error/5 rounded-[2rem] p-8 border border-error/20 flex flex-col h-[480px] tour-reportes-mermas">
+        <section className="bg-error/5 dark:bg-error/5 rounded-[2rem] p-8 border border-error/20 dark:border-error/20 flex flex-col h-[480px] tour-reportes-mermas">
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
-              <h3 className="font-headline text-2xl text-error">Registrar Pérdida</h3>
-              <p className="text-[10px] text-error/70 font-label uppercase tracking-widest mt-1">Registra productos dañados o mermas.</p>
+              <h3 className="font-headline text-2xl text-error dark:text-red-400">Registrar Pérdida</h3>
+              <p className="text-[10px] text-error/70 dark:text-red-400/60 font-label uppercase tracking-widest mt-1">Registra productos dañados o mermas.</p>
             </div>
           </div>
 
@@ -834,43 +835,43 @@ export default function Reportes() {
                 placeholder="Buscar producto dañado..."
                 value={searchMerma}
                 onChange={e => setSearchMerma(e.target.value)}
-                className="w-full bg-surface-container-lowest border border-error/20 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-error transition-all"
+                className="w-full bg-surface-container-lowest dark:bg-[#121212] border border-error/20 dark:border-error/30 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-error transition-all dark:text-white"
               />
             </div>
             {searchMerma && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-surface-container-lowest border border-error/20 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto z-[60]">
+              <div className="absolute top-full left-0 right-0 mt-3 bg-surface dark:bg-[#1e1e1e] border border-error/20 dark:border-error/30 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
                 {productos
                   .filter(p => p.nombre.toLowerCase().includes(searchMerma.toLowerCase()))
                   .map(p => (
                     <button
                       key={p.id}
                       onMouseDown={(e) => { e.preventDefault(); addItemMerma(p); }}
-                      className="w-full px-4 py-3 text-left text-[11px] font-bold hover:bg-error/10 transition-colors flex justify-between items-center border-b border-error/5"
+                      className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-error/10 dark:hover:bg-error/20 transition-colors flex justify-between items-center border-b border-error/5 dark:border-error/10 group"
                     >
-                      <span className="text-error">{p.nombre}</span>
-                      <span className="text-[10px] text-error opacity-60">Stock: {p.stock}</span>
+                      <span className="text-error dark:text-red-400 group-hover:scale-105 transition-transform origin-left">{p.nombre}</span>
+                      <span className="text-[10px] text-error dark:text-red-400/60 opacity-60 bg-error/5 px-2 py-0.5 rounded-full font-extrabold">Stock: {p.stock}</span>
                     </button>
                   ))
                 }
                 {productos.filter(p => p.nombre.toLowerCase().includes(searchMerma.toLowerCase())).length === 0 && (
-                  <div className="px-4 py-3 text-[10px] text-error/50 italic text-center">No se encontraron productos</div>
+                  <div className="px-5 py-6 text-[10px] text-error/50 italic text-center font-bold uppercase tracking-widest">No se encontraron productos</div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="overflow-y-auto flex-1 bg-surface-container-lowest/50 rounded-2xl border border-error/10 relative z-10 p-1">
+          <div className="overflow-y-auto flex-1 bg-surface-container-lowest/50 dark:bg-[#121212]/40 rounded-3xl border border-error/10 dark:border-error/20 relative z-10 p-1">
             {/* Overlay de Resumen de Confirmación Mermas */}
             {mostrarResumenMerma && (
-              <div className="absolute inset-0 z-50 bg-error-container/95 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
-                <h4 className="font-headline text-xl text-error mb-4">Confirmar Pérdida</h4>
+              <div className="absolute inset-0 z-50 bg-error-container/95 dark:bg-red-950/90 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
+                <h4 className="font-headline text-xl text-error dark:text-red-400 mb-4">Confirmar Pérdida</h4>
                 <div className="flex-1 overflow-y-auto pr-2">
-                  <p className="text-[10px] text-error/70 font-label uppercase tracking-widest mb-3">Se restará del inventario:</p>
+                  <p className="text-[10px] text-error/70 dark:text-red-400/60 font-label uppercase tracking-widest mb-3">Se restará del inventario:</p>
                   <ul className="space-y-2">
                     {conteoMerma.filter(i => i.vendido > 0).map(i => (
-                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface p-3 rounded-xl border border-error/10">
-                        <span className="text-error">{i.producto}</span>
-                        <span className="text-error">{i.vendido} unidades</span>
+                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface dark:bg-white/5 p-3 rounded-xl border border-error/10 dark:border-white/5">
+                        <span className="text-error dark:text-red-400">{i.producto}</span>
+                        <span className="text-error dark:text-red-400">{i.vendido} unidades</span>
                       </li>
                     ))}
                   </ul>
@@ -893,24 +894,24 @@ export default function Reportes() {
             )}
 
             <table className="w-full text-left">
-              <thead className="sticky top-0 bg-error/5 backdrop-blur-md px-2 z-20">
-                <tr>
-                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Producto</th>
+              <thead className="sticky top-0 bg-error/5 dark:bg-red-950/20 backdrop-blur-md px-2 z-20">
+                <tr className="rounded-t-2xl overflow-hidden">
+                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] rounded-tl-2xl">Producto</th>
                   <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Stock Disp.</th>
                   <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Cant.</th>
-                  <th className="py-4 pr-4"></th>
+                  <th className="py-4 pr-4 rounded-tr-2xl"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-error/5">
                 {conteoMerma.map((p) => (
                   <tr key={p.id} className="hover:bg-error/5 transition-colors">
-                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px] text-[#5e2220]">{p.producto}</td>
-                    <td className="py-3 text-center font-body text-[11px] font-bold text-[#5e2220]">{p.stockFin.toLocaleString()}</td>
+                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px] text-[#5e2220] dark:text-red-400/80">{p.producto}</td>
+                    <td className="py-3 text-center font-body text-[11px] font-bold text-[#5e2220] dark:text-red-400/70">{p.stockFin.toLocaleString()}</td>
                     <td className="py-3 text-center">
                       <input
                         type="number" min="0" max={p.stockIni} value={p.vendido}
                         onChange={e => handleMermado(p.id, e.target.value)}
-                        className="w-14 bg-surface border border-error/30 rounded-md px-2 py-1 text-[11px] font-bold text-error focus:outline-none focus:border-error text-center"
+                        className="w-14 bg-surface dark:bg-[#121212] border border-error/30 dark:border-white/10 rounded-md px-2 py-1 text-[11px] font-bold text-error dark:text-red-400 focus:outline-none focus:border-error text-center"
                       />
                     </td>
                     <td className="py-3 pr-4 text-right">
@@ -925,7 +926,7 @@ export default function Reportes() {
                 ))}
                 {conteoMerma.length === 0 && (
                   <tr>
-                    <td colSpan="4" className="py-10 text-center text-[10px] text-error/40 font-bold uppercase tracking-widest italic">
+                    <td colSpan="4" className="py-10 text-center text-[10px] text-error/60 dark:text-red-400/60 font-bold uppercase tracking-widest italic">
                       Busca productos para registrar mermas
                     </td>
                   </tr>
@@ -956,12 +957,12 @@ export default function Reportes() {
       </div>
 
       {/* HISTORIAL GENERAL (ANCHO COMPLETO) */}
-      <section className="bg-surface-container-low rounded-[2rem] p-8 border border-outline-variant/10 flex flex-col mb-16 relative z-10">
+      <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2rem] p-8 border border-outline-variant/10 dark:border-white/5 flex flex-col mb-16 relative z-10">
         <div className="flex justify-between items-center mb-6 shrink-0">
           <div>
-            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant">Historial Consolidado del Periodo</h3>
-            <p className="text-[10px] text-outline font-label uppercase tracking-widest mt-1">
-              Eventos totales: <strong className="text-secondary">{registrosFiltrados.length} registros</strong>
+            <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant dark:text-white/90">Historial Consolidado del Periodo</h3>
+            <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-widest mt-1">
+              Eventos totales: <strong className="text-secondary dark:text-[#e2bd6c]">{registrosFiltrados.length} registros</strong>
             </p>
           </div>
         </div>
@@ -984,14 +985,14 @@ export default function Reportes() {
             return (
               <div 
                 key={v.id} 
-                className={`p-5 rounded-2xl shadow-sm border flex flex-col gap-3 transition-colors hover:shadow-md ${isMerma ? 'bg-error/5 border-error/20' : 'bg-surface border-outline-variant/10'}`}
+                className={`p-5 rounded-2xl shadow-sm border flex flex-col gap-3 transition-colors hover:shadow-md ${isMerma ? 'bg-error/5 dark:bg-error/10 border-error/20 dark:border-error/30' : 'bg-surface dark:bg-[#121212] border-outline-variant/10 dark:border-white/5'}`}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
-                     <span className={`material-symbols-outlined text-[16px] ${isMerma ? 'text-error' : (esVentaDirecta ? 'text-primary' : 'text-secondary')}`}>
+                     <span className={`material-symbols-outlined text-[16px] ${isMerma ? 'text-error dark:text-red-400' : (esVentaDirecta ? 'text-primary dark:text-[#e2bd6c]' : 'text-secondary dark:text-[#e2bd6c]')}`}>
                        {isMerma ? 'remove_shopping_cart' : (esVentaDirecta ? 'storefront' : 'local_shipping')}
                      </span>
-                     <span className={`font-bold text-[11px] uppercase tracking-widest ${isMerma ? 'text-error' : 'text-on-surface-variant'}`}>
+                     <span className={`font-bold text-[11px] uppercase tracking-widest ${isMerma ? 'text-error dark:text-red-400' : 'text-on-surface-variant dark:text-white/80'}`}>
                        {isMerma ? v.motivo : (esVentaDirecta ? 'Venta Directa' : v.cliente)}
                      </span>
                   </div>
@@ -1010,20 +1011,20 @@ export default function Reportes() {
                   </div>
                 </div>
 
-                <ul className="text-xs space-y-1 opacity-80 pl-6 mt-1 mb-2">
+                <ul className="text-xs space-y-1 pl-6 mt-1 mb-2">
                   {v.productos.map((prodItem, idx) => {
                     const baseProd = productos.find(xd => xd.id === prodItem.productoId)
                     const unitPrice = baseProd ? (Number(baseProd.precio) || 0) : 0
                     return (
-                      <li key={idx} className={isMerma ? 'text-[#82322e]' : ''}>
-                        <strong className={isMerma ? 'text-error' : 'text-secondary'}>{prodItem.cantidad}x</strong> {prodItem.nombre} <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
+                      <li key={idx} className={`${isMerma ? 'text-[#82322e] dark:text-red-300/80' : 'text-on-surface/80 dark:text-white/70'}`}>
+                        <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre} <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
                       </li>
                     )
                   })}
                 </ul>
 
                 <div className="mt-auto flex justify-end">
-                   <span className={`font-headline font-bold text-lg ${isMerma ? 'text-error' : 'text-secondary'}`}>
+                   <span className={`font-headline font-bold text-lg ${isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}`}>
                      {isMerma ? `-$${flujoMonetario.toLocaleString('es-CL')}` : `+$${flujoMonetario.toLocaleString('es-CL')}`}
                    </span>
                 </div>
@@ -1043,21 +1044,21 @@ export default function Reportes() {
       {/* Modal de Confirmación para Deshacer */}
       {registroADeshacer && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={() => setRegistroADeshacer(null)} />
-          <div className="bg-surface-container-low border border-outline-variant/20 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative z-10 animate-in zoom-in-95 duration-200">
+          <div className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm" onClick={() => setRegistroADeshacer(null)} />
+          <div className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative z-10 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 mb-4 text-error">
               <span className="material-symbols-outlined">warning</span>
               <h3 className="font-headline text-2xl">¿Deshacer Registro?</h3>
             </div>
-            <p className="text-sm text-outline mb-6 leading-relaxed">
+            <p className="text-sm text-outline dark:text-gray-400 mb-6 leading-relaxed">
               Esta acción eliminará el registro de <strong>{registroADeshacer._tipo === 'merma' ? 'merma' : 'venta'}</strong> y devolverá los productos al inventario original.
             </p>
-            <div className="bg-surface-container rounded-2xl p-4 mb-6">
+            <div className="bg-surface-container dark:bg-white/5 rounded-2xl p-4 mb-6">
               <ul className="space-y-2">
                 {registroADeshacer.productos.map((p, idx) => (
-                  <li key={idx} className="text-xs font-bold flex justify-between">
+                  <li key={idx} className="text-xs font-bold flex justify-between dark:text-white/80">
                     <span>{p.nombre}</span>
-                    <span className="text-secondary">+{p.cantidad} unidades</span>
+                    <span className="text-secondary dark:text-[#e2bd6c]">+{p.cantidad} unidades</span>
                   </li>
                 ))}
               </ul>
@@ -1080,6 +1081,7 @@ export default function Reportes() {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   )
 }

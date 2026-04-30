@@ -102,13 +102,13 @@ export default function BarcodeScanner({ onScan, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div className="bg-surface w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-outline-variant/20 flex flex-col">
-        <div className="p-5 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-low">
-          <h3 className="font-headline font-bold text-lg text-primary flex items-center gap-2">
+      <div className="bg-surface dark:bg-[#121212] w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-outline-variant/20 dark:border-white/10 flex flex-col">
+        <div className="p-5 border-b border-outline-variant/20 dark:border-white/10 flex justify-between items-center bg-surface-container-low dark:bg-[#1e1e1e]">
+          <h3 className="font-headline font-bold text-lg text-primary dark:text-[#e2bd6c] flex items-center gap-2">
             <span className="material-symbols-outlined">barcode_scanner</span>
             Escanear Código
           </h3>
-          <button onClick={onClose} className="text-outline hover:text-error transition-colors">
+          <button onClick={onClose} className="text-outline dark:text-gray-400 hover:text-error transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -118,21 +118,21 @@ export default function BarcodeScanner({ onScan, onClose }) {
           
           {/* Pantalla de permisos / Carga (Solo visible si NO hay permisos o está cargando) */}
           <div className={`text-center space-y-4 px-4 w-full ${hasPermission && !errorMsg ? 'hidden' : 'block'}`}>
-            <div className="w-16 h-16 bg-primary-container text-primary rounded-2xl flex items-center justify-center mx-auto mb-2 opacity-80 animate-pulse">
+            <div className="w-16 h-16 bg-primary-container dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] rounded-2xl flex items-center justify-center mx-auto mb-2 opacity-80 animate-pulse">
               <span className="material-symbols-outlined text-3xl">photo_camera</span>
             </div>
             
             {!errorMsg ? (
-              <p className="text-sm text-on-surface-variant font-label">Iniciando cámara...</p>
+              <p className="text-sm text-on-surface-variant dark:text-gray-400 font-label">Iniciando cámara...</p>
             ) : (
               <>
-                <p className="text-sm text-on-surface-variant font-label">Para que esta app pueda leer los códigos de barra automáticamente, necesita acceso temporal a tu cámara.</p>
+                <p className="text-sm text-on-surface-variant dark:text-gray-400 font-label">Para que esta app pueda leer los códigos de barra automáticamente, necesita acceso temporal a tu cámara.</p>
                 <div className="bg-error-container text-error text-[11px] p-3 rounded-lg font-bold">
                   {errorMsg}
                 </div>
                 <button 
                   onClick={requestPermissionAndStart}
-                  className="w-full flex justify-center items-center gap-2 bg-primary text-on-primary py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                  className="w-full flex justify-center items-center gap-2 bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors"
                 >
                   Intentar de nuevo
                 </button>
@@ -150,7 +150,7 @@ export default function BarcodeScanner({ onScan, onClose }) {
           {/* Control de Zoom si está soportado */}
           {hasPermission && zoomSettings.supported && (
             <div className="w-full mt-4 px-2 space-y-2">
-              <div className="flex justify-between text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+              <div className="flex justify-between text-[10px] text-on-surface-variant dark:text-gray-400 font-bold uppercase tracking-widest">
                 <span>Zoom</span>
                 <span>{zoomSettings.current.toFixed(1)}x</span>
               </div>
@@ -161,14 +161,14 @@ export default function BarcodeScanner({ onScan, onClose }) {
                 step={zoomSettings.step}
                 value={zoomSettings.current}
                 onChange={handleZoomChange}
-                className="w-full h-2 bg-outline-variant rounded-lg appearance-none cursor-pointer accent-primary"
+                className="w-full h-2 bg-outline-variant dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-primary dark:accent-[#e2bd6c]"
               />
             </div>
           )}
         </div>
 
         {hasPermission && (
-          <div className="p-4 text-center text-[10px] text-on-surface-variant font-label tracking-widest uppercase bg-surface-container-low border-t border-outline-variant/20">
+          <div className="p-4 text-center text-[10px] text-on-surface-variant dark:text-[#e2bd6c]/60 font-label tracking-widest uppercase bg-surface-container-low dark:bg-[#1e1e1e] border-t border-outline-variant/20 dark:border-white/10">
             Apunta la cámara hacia el código de barras
           </div>
         )}

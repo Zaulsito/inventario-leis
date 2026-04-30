@@ -3,17 +3,18 @@ import { useState, useEffect } from 'react'
 import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { getLocalDateString } from '../utils/date'
+import Footer from '../components/Footer'
 
 function Campo({ label, children }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-secondary pl-1">{label}</label>
+      <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">{label}</label>
       {children}
     </div>
   )
 }
 
-const inputCls = 'w-full bg-surface-container border-0 border-b-2 border-outline-variant/30 focus:border-primary focus:outline-none px-4 py-3.5 text-on-surface font-body rounded-t-xl transition-all text-sm'
+const inputCls = 'w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none px-5 py-4 text-on-surface dark:text-white font-bold rounded-2xl transition-all text-sm'
 
 export default function Registro() {
   const today = getLocalDateString()
@@ -100,31 +101,27 @@ export default function Registro() {
   }
 
   return (
-    <div className="p-8 md:p-12">
-
-      {/* Header */}
-      <header className="flex justify-between items-start mb-10">
-        <div>
-          <h1 className="font-headline italic text-4xl text-on-tertiary-fixed-variant">Registro</h1>
-          <p className="text-secondary font-label text-xs uppercase tracking-[0.2em] mt-1">Gestión de Ingresos al Inventario</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="w-11 h-11 rounded-full border border-outline-variant/30 flex items-center justify-center hover:bg-surface-container transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
-          </button>
-          <button className="w-11 h-11 rounded-full border border-outline-variant/30 flex items-center justify-center hover:bg-surface-container transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">settings</span>
-          </button>
+    <div className="p-8 md:p-10 relative flex flex-col min-h-full overflow-y-auto transition-colors duration-500">
+      
+      {/* Header Luxe Centrado */}
+      <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-10 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 mb-12">
+        <div className="relative text-center mx-auto">
+          <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">Gestión de Abastecimiento</p>
+          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter">Registro de Ingresos</h1>
+          <p className="mt-4 text-outline dark:text-gray-400 font-body max-w-lg mx-auto leading-relaxed text-[11px] uppercase tracking-widest font-bold">
+            Ingresa nuevos lotes al inventario y actualiza el stock de forma inmediata.
+          </p>
+          <div className="absolute left-1/2 -bottom-6 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
 
-        {/* ── Formulario ── */}
-        <div className="lg:col-span-7 bg-surface-container-lowest rounded-[2rem] p-8 shadow-[0_32px_64px_-12px_rgba(93,58,42,0.06)] border border-outline-variant/10">
-          <div className="flex items-center gap-3 mb-8">
-            <span className="w-7 h-[2px] bg-primary inline-block" />
-            <h2 className="text-2xl font-headline text-on-surface">Nuevo Ingreso</h2>
+        {/* ── Formulario Luxe ── */}
+        <div className="lg:col-span-7 bg-white dark:bg-[#1e1e1e] rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-left-4 duration-500">
+          <div className="flex items-center gap-4 mb-10">
+            <div className="w-1.5 h-8 bg-primary dark:bg-[#e2bd6c] rounded-full" />
+            <h2 className="text-3xl font-headline italic text-on-surface dark:text-white/90">Nuevo Ingreso</h2>
           </div>
 
           <div className="space-y-6">
@@ -239,19 +236,19 @@ export default function Registro() {
             </div>
 
             {/* Botón */}
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-6">
               {enviado && (
-                <span className="flex items-center gap-2 text-sm text-green-700 font-bold mr-4">
-                  <span className="material-symbols-outlined text-green-700">check_circle</span>
-                  Ingreso registrado
+                <span className="flex items-center gap-2 text-xs text-green-500 font-bold mr-6 animate-in fade-in slide-in-from-right-2">
+                  <span className="material-symbols-outlined text-green-500">check_circle</span>
+                  Registro Exitoso
                 </span>
               )}
               <button
                 onClick={handleSubmit}
                 disabled={procesando}
-                className="bg-primary-container text-on-primary-container px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:active:scale-100 disabled:hover:scale-100"
+                className="bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black px-12 py-4 rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50"
               >
-                {procesando ? 'Procesando...' : 'Registrar Ingreso'}
+                {procesando ? 'Procesando...' : 'Confirmar Ingreso'}
               </button>
             </div>
           </div>
@@ -267,14 +264,14 @@ export default function Registro() {
             <button className="text-[10px] font-bold text-secondary uppercase tracking-widest hover:underline">Ver Todo</button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {historial.map((item, i) => (
               <div
                 key={i}
-                className="group bg-surface-container-low hover:bg-surface-container-high transition-all duration-300 rounded-3xl p-5 flex gap-4 items-center border border-transparent hover:border-outline-variant/20"
+                className="group bg-white dark:bg-[#1e1e1e]/60 hover:bg-surface-variant dark:hover:bg-[#1e1e1e] transition-all duration-500 rounded-[2rem] p-6 flex gap-5 items-center border border-outline-variant/10 dark:border-white/5 shadow-sm hover:shadow-xl"
               >
-                <div className="w-14 h-14 rounded-2xl bg-surface-container-highest flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-primary">inventory_2</span>
+                <div className="w-16 h-16 rounded-2xl bg-surface-container-highest dark:bg-[#121212] flex items-center justify-center shrink-0 border border-outline-variant/10 dark:border-white/5 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-2xl">inventory_2</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold text-secondary uppercase tracking-[0.12em] mb-0.5">{item.fecha}</p>
@@ -289,24 +286,25 @@ export default function Registro() {
             ))}
           </div>
 
-          {/* Info card */}
-          <div className="mt-4 bg-on-tertiary-fixed-variant text-surface-container-low rounded-[2rem] p-7 relative overflow-hidden">
+          {/* Info card Luxe */}
+          <div className="mt-4 bg-secondary dark:bg-[#e2bd6c]/10 text-white dark:text-[#e2bd6c] rounded-[2.5rem] p-8 relative overflow-hidden border border-transparent dark:border-[#e2bd6c]/20">
             <div className="relative z-10">
-              <h4 className="font-headline text-lg italic mb-2">Gestión de Stock</h4>
-              <p className="text-sm font-light opacity-80 leading-relaxed mb-5">
+              <h4 className="font-headline text-xl italic mb-2">Gestión de Stock</h4>
+              <p className="text-sm font-light opacity-80 leading-relaxed mb-6">
                 Cada ingreso registrado actualiza automáticamente el stock disponible en inventario.
               </p>
-              <button className="inline-flex items-center gap-2 text-primary-container font-bold text-xs uppercase tracking-widest hover:gap-4 transition-all">
+              <button className="inline-flex items-center gap-2 font-bold text-[10px] uppercase tracking-[0.2em] hover:gap-4 transition-all group">
                 Ver inventario completo
-                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                <span className="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1">arrow_forward</span>
               </button>
             </div>
-            <span className="material-symbols-outlined absolute -bottom-6 -right-6 text-[110px] opacity-5 pointer-events-none">
+            <span className="material-symbols-outlined absolute -bottom-8 -right-8 text-[140px] opacity-10 pointer-events-none">
               verified_user
             </span>
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

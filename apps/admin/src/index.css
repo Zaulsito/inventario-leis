@@ -56,9 +56,19 @@ body {
 }
 
 /* Scrollbar suave */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d8ccbb; border-radius: 2px; }
+::-webkit-scrollbar-thumb { 
+  background: #d8ccbb; 
+  border-radius: 10px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(226, 189, 108, 0.2);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(226, 189, 108, 0.4);
+}
 
 /* Estilos Tutorial (Nubecitas) */
 .tour-bubble {
@@ -72,6 +82,12 @@ body {
   animation: bubble-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
+.dark .tour-bubble {
+  background: #1e1e1e;
+  border-color: rgba(226, 189, 108, 0.1);
+  color: white;
+}
+
 .tour-bubble::after {
   content: '';
   position: absolute;
@@ -79,6 +95,10 @@ body {
   height: 12px;
   background: #fdfaf5;
   transform: rotate(45deg);
+}
+
+.dark .tour-bubble::after {
+  background: #1e1e1e;
 }
 
 /* Indicador de tour (Puntos) */
@@ -107,13 +127,24 @@ body {
 /* Modal Perfil */
 .modal-overlay {
   background: rgba(253, 250, 245, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .modal-overlay {
+  background: rgba(0, 0, 0, 0.85);
 }
 
 .modal-content {
   background: #fdfaf5;
   box-shadow: 0 20px 60px rgba(42, 27, 10, 0.15);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.dark .modal-content {
+  background: #121212;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(226, 189, 108, 0.05);
 }
 
 /* Utilidades para scroll de categorías */
@@ -150,3 +181,11 @@ body {
   animation: crystal-shine 6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
+/* Fix Autofill Browser */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: inherit;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
