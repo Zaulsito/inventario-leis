@@ -507,11 +507,11 @@ export default function Layout() {
 
       {/* ── Main content ── */}
       <main className="flex-1 overflow-x-hidden pb-24 md:pb-0 relative">
-        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-[0.1] dark:opacity-[0.15]">
+        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center md:pl-72 opacity-10 dark:opacity-20">
           <img 
             src="/logo.jpeg" 
             alt="Watermark" 
-            className="w-[85%] md:w-[40%] max-w-lg rounded-[3.5rem] grayscale dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
+            className="w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] grayscale dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
           />
         </div>
         

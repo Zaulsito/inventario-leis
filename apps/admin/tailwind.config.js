@@ -5,20 +5,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        'primary':                    'rgb(var(--primary))',
-        'on-primary':                 'rgb(var(--on-primary))',
-        'background':                 'rgb(var(--background))',
-        'on-background':              'rgb(var(--on-background))',
-        'surface':                    'rgb(var(--surface))',
-        'on-surface':                 'rgb(var(--on-surface))',
-        'surface-container':          'rgb(var(--surface-container))',
-        'surface-container-low':      'rgb(var(--surface-container-low))',
-        'surface-container-high':     'rgb(var(--surface-container-high))',
-        'outline':                    'rgb(var(--outline))',
-        'outline-variant':            'rgb(var(--outline-variant))',
-        'error':                      'rgb(var(--error))',
+        // Paleta Luxe Hardcoded para evitar problemas de variables CSS en web
+        'primary':                    '#8e6d3c',
+        'on-primary':                 '#ffffff',
+        'background':                 '#fdfaf5',
+        'on-background':              '#2a1b0a',
+        'surface':                    '#fdfaf5',
+        'on-surface':                 '#2a1b0a',
+        'surface-container':          '#f4ede1',
+        'surface-container-low':      '#fdfaf5',
+        'surface-container-high':     '#e8e1d5',
+        'surface-container-highest':  '#e8e1d5',
+        'outline':                    '#8e6d3c',
+        'outline-variant':            '#d8ccbb',
+        'error':                      '#ba1a1a',
         
-        // Mantener algunos variantes fijos para compatibilidad o ajustarlos luego
+        // Mantener otros variantes
         'surface-variant':            '#f4ede1',
         'on-primary-container':       '#2c1a0a',
         'primary-container':          '#d4af37',
@@ -27,7 +29,6 @@ export default {
         'error-container':            '#ffdad6',
         'on-error':                   '#ffffff',
         'primary-fixed':              '#e2bd6c',
-        'surface-container-highest':  '#e8e1d5',
         'on-secondary-container':     '#4a2c1d',
         'secondary-fixed-dim':        '#c28b6d',
         'surface-container-lowest':   '#ffffff',
