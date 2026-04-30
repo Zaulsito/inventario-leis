@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
-        name: 'Leis Belleza',
-        short_name: 'Leis',
-        description: 'Control de inventario de belleza y cuidado personal',
+        name: 'Catálogo Leis',
+        short_name: 'Catálogo',
+        description: 'Catálogo público de productos Leis Belleza',
         theme_color: '#8e6d3c',
         background_color: '#fdfaf5',
         display: 'standalone',
