@@ -109,9 +109,17 @@ export default function Pedidos() {
       productosSeleccionados: pedido.productos.map(p => {
         // Encontrar el producto en la lista maestra para saber el stock actual real
         const pMaestro = productos.find(pm => pm.id === p.productoId);
+        let stockOriginal = pMaestro ? pMaestro.stock : p.cantidad;
+        
+        // Si tiene variante, buscar el stock de esa variante
+        if (p.variante && pMaestro?.variantes) {
+          const v = pMaestro.variantes.find(v => v.nombre === p.variante);
+          if (v) stockOriginal = v.stock;
+        }
+
         return {
           ...p,
-          stockOriginal: pMaestro ? pMaestro.stock : p.cantidad // Stock disponible ahora
+          stockOriginal: stockOriginal // Stock disponible ahora
         };
       }),
       pagoEstado: pedido.pagoEstado || 'sin pagar',
@@ -128,13 +136,23 @@ export default function Pedidos() {
     setShowModal(true);
   }
 
-  function handleAddProduct(productoId) {
+  function handleAddProduct(productoId, varianteNombre = null) {
     if (!productoId) return
     const prod = productos.find(p => p.id === productoId)
-    if (!prod || prod.stock <= 0) {
-      return setErrorMsg('El producto no tiene stock disponible.')
+    
+    if (!prod) return
+    
+    let stockDisp = prod.stock;
+    if (varianteNombre && prod.variantes) {
+      const v = prod.variantes.find(v => v.nombre === varianteNombre);
+      if (v) stockDisp = v.stock;
     }
-    const yaExiste = form.productosSeleccionados.find(p => p.productoId === productoId)
+
+    if (stockDisp <= 0) {
+      return setErrorMsg(`El producto ${prod.nombre} ${varianteNombre ? `(${varianteNombre})` : ''} no tiene stock disponible.`)
+    }
+
+    const yaExiste = form.productosSeleccionados.find(p => p.productoId === productoId && p.variante === varianteNombre)
     if (yaExiste) return
     
     setForm({
@@ -142,37 +160,41 @@ export default function Pedidos() {
       productosSeleccionados: [...form.productosSeleccionados, { 
         productoId: prod.id, 
         nombre: prod.nombre, 
+        variante: varianteNombre,
         cantidad: 1, 
         precio: prod.precio || 0,
-        stockOriginal: prod.stock 
+        stockOriginal: stockDisp 
       }]
     })
     setErrorMsg('')
   }
 
-  function handleRemoveProduct(productoId) {
+  function handleRemoveProduct(productoId, varianteNombre = null) {
     setForm({
       ...form,
-      productosSeleccionados: form.productosSeleccionados.filter(p => p.productoId !== productoId)
+      productosSeleccionados: form.productosSeleccionados.filter(p => !(p.productoId === productoId && p.variante === varianteNombre))
     })
   }
 
-  function handleQuantityChange(productoId, cantidad) {
+  function handleQuantityChange(productoId, varianteNombre, cantidad) {
     const qty = Number(cantidad)
-    const prodRef = form.productosSeleccionados.find(p => p.productoId === productoId)
+    const prodRef = form.productosSeleccionados.find(p => p.productoId === productoId && p.variante === varianteNombre)
     
+    if (!prodRef) return;
+
     // Al editar, el "stock disponible" es el stock actual del maestro + lo que ya teníamos reservado en este pedido
-    const originalQty = originalProductos.find(op => op.productoId === productoId)?.cantidad || 0;
+    const originalItem = originalProductos.find(op => op.productoId === productoId && op.variante === varianteNombre);
+    const originalQty = originalItem?.cantidad || 0;
     const stockDisponibleTotal = prodRef.stockOriginal + (editingId ? originalQty : 0);
 
     if (qty > stockDisponibleTotal) {
-      return setErrorMsg(`Stock insuficiente para ${prodRef.nombre}. Máximo: ${stockDisponibleTotal}`)
+      return setErrorMsg(`Stock insuficiente para ${prodRef.nombre} ${varianteNombre ? `(${varianteNombre})` : ''}. Máximo: ${stockDisponibleTotal}`)
     }
     setErrorMsg('')
     setForm({
       ...form,
       productosSeleccionados: form.productosSeleccionados.map(p => 
-        p.productoId === productoId ? { ...p, cantidad: qty } : p
+        (p.productoId === productoId && p.variante === varianteNombre) ? { ...p, cantidad: qty } : p
       )
     })
   }
@@ -188,21 +210,30 @@ export default function Pedidos() {
     // Validación estricta final de stock antes de descontar
     for (const item of form.productosSeleccionados) {
       if (item.cantidad <= 0) {
-        return setErrorMsg(`La cantidad de ${item.nombre} debe ser mayor a 0.`)
+        return setErrorMsg(`La cantidad de ${item.nombre} ${item.variante ? `(${item.variante})` : ''} debe ser mayor a 0.`)
       }
       const pData = productos.find(p => p.id === item.productoId)
       
       // Cuando editamos, el stock "disponible" es: stock_maestro + cantidad_previa_en_este_pedido
-      let stockDisponible = pData ? pData.stock : 0;
+      let stockDisponible = 0;
+      if (pData) {
+        if (item.variante && pData.variantes) {
+          const v = pData.variantes.find(v => v.nombre === item.variante);
+          stockDisponible = v ? v.stock : 0;
+        } else {
+          stockDisponible = pData.stock;
+        }
+      }
+
       if (editingId) {
-        const itemPrevio = originalProductos.find(p => p.productoId === item.productoId);
+        const itemPrevio = originalProductos.find(p => p.productoId === item.productoId && p.variante === item.variante);
         if (itemPrevio) {
           stockDisponible += itemPrevio.cantidad;
         }
       }
 
       if (!pData || stockDisponible < item.cantidad) {
-        return setErrorMsg(`Stock insuficiente de ${item.nombre} en este momento. Tienes ${pData ? pData.stock : 0} libres.`)
+        return setErrorMsg(`Stock insuficiente de ${item.nombre} ${item.variante ? `(${item.variante})` : ''} en este momento. Tienes ${stockDisponible} libres.`)
       }
     }
 
@@ -216,32 +247,55 @@ export default function Pedidos() {
       // Productos que estaban antes pero ya no están (eliminados del pedido)
       if (editingId) {
         for (const oldItem of originalProductos) {
-          const newItem = form.productosSeleccionados.find(p => p.productoId === oldItem.productoId);
+          const newItem = form.productosSeleccionados.find(p => p.productoId === oldItem.productoId && p.variante === oldItem.variante);
           const pMaestro = productos.find(p => p.id === oldItem.productoId);
           if (pMaestro) {
             const prodRef = doc(db, 'productos', oldItem.productoId);
-            // Si el producto fue eliminado del pedido, devolvemos todo su stock
+            // Si el producto/variante fue eliminado del pedido, devolvemos todo su stock
             if (!newItem) {
-              const nuevoStock = pMaestro.stock + oldItem.cantidad;
-              batch.update(prodRef, { stock: nuevoStock, estado: calcularEstado(nuevoStock) });
+              const nuevoStockTotal = pMaestro.stock + oldItem.cantidad;
+              let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
+              
+              if (oldItem.variante && pMaestro.variantes) {
+                payload.variantes = pMaestro.variantes.map(v => 
+                  v.nombre === oldItem.variante ? { ...v, stock: v.stock + oldItem.cantidad } : v
+                );
+              }
+              batch.update(prodRef, payload);
             } else {
               // Si sigue estando, calculamos la diferencia
-              const diferencia = oldItem.cantidad - newItem.cantidad; // Positivo si bajó cantidad, Negativo si subió
-              const nuevoStock = pMaestro.stock + diferencia;
-              batch.update(prodRef, { stock: nuevoStock, estado: calcularEstado(nuevoStock) });
+              const diferencia = oldItem.cantidad - newItem.cantidad; // Positivo si bajó cantidad (devolvemos), Negativo si subió (restamos)
+              if (diferencia !== 0) {
+                const nuevoStockTotal = pMaestro.stock + diferencia;
+                let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
+                
+                if (oldItem.variante && pMaestro.variantes) {
+                  payload.variantes = pMaestro.variantes.map(v => 
+                    v.nombre === oldItem.variante ? { ...v, stock: v.stock + diferencia } : v
+                  );
+                }
+                batch.update(prodRef, payload);
+              }
             }
           }
         }
         
-        // Productos que son nuevos en el pedido
+        // Productos que son completamente nuevos en el pedido (no estaban en originalProductos con esa variante)
         for (const newItem of form.productosSeleccionados) {
-          const wasPresent = originalProductos.find(p => p.productoId === newItem.productoId);
+          const wasPresent = originalProductos.find(p => p.productoId === newItem.productoId && p.variante === newItem.variante);
           if (!wasPresent) {
             const pMaestro = productos.find(p => p.id === newItem.productoId);
             if (pMaestro) {
               const prodRef = doc(db, 'productos', newItem.productoId);
-              const nuevoStock = pMaestro.stock - newItem.cantidad;
-              batch.update(prodRef, { stock: nuevoStock, estado: calcularEstado(nuevoStock) });
+              const nuevoStockTotal = pMaestro.stock - newItem.cantidad;
+              let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
+              
+              if (newItem.variante && pMaestro.variantes) {
+                payload.variantes = pMaestro.variantes.map(v => 
+                  v.nombre === newItem.variante ? { ...v, stock: v.stock - newItem.cantidad } : v
+                );
+              }
+              batch.update(prodRef, payload);
             }
           }
         }
@@ -249,12 +303,18 @@ export default function Pedidos() {
         // Lógica normal para pedidos nuevos
         for (const item of form.productosSeleccionados) {
           const prodRef = doc(db, 'productos', item.productoId)
-          const pData = productos.find(p => p.id === item.productoId)
-          const nuevoStock = pData.stock - item.cantidad
-          batch.update(prodRef, { 
-            stock: nuevoStock,
-            estado: calcularEstado(nuevoStock)
-          })
+          const pMaestro = productos.find(p => p.id === item.productoId)
+          if (pMaestro) {
+            const nuevoStockTotal = pMaestro.stock - item.cantidad;
+            let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
+            
+            if (item.variante && pMaestro.variantes) {
+              payload.variantes = pMaestro.variantes.map(v => 
+                v.nombre === item.variante ? { ...v, stock: v.stock - item.cantidad } : v
+              );
+            }
+            batch.update(prodRef, payload);
+          }
         }
       }
 
@@ -268,6 +328,7 @@ export default function Pedidos() {
         productos: form.productosSeleccionados.map(p => ({
           productoId: p.productoId,
           nombre: p.nombre,
+          variante: p.variante || null,
           cantidad: p.cantidad,
           precio: p.precio
         })),
@@ -394,14 +455,18 @@ export default function Pedidos() {
           const batch = writeBatch(db)
           const productosList = pedido.productos || []
           for (const item of productosList) {
-            const pData = productos.find(p => p.id === item.productoId)
-            if (pData) { 
+            const pMaestro = productos.find(p => p.id === item.productoId)
+            if (pMaestro) { 
               const prodRef = doc(db, 'productos', item.productoId)
-              const nuevoStock = Number(pData.stock) + Number(item.cantidad)
-              batch.update(prodRef, { 
-                stock: nuevoStock,
-                estado: calcularEstado(nuevoStock)
-              })
+              const nuevoStockTotal = Number(pMaestro.stock) + Number(item.cantidad)
+              let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
+              
+              if (item.variante && pMaestro.variantes) {
+                payload.variantes = pMaestro.variantes.map(v => 
+                  v.nombre === item.variante ? { ...v, stock: Number(v.stock) + Number(item.cantidad) } : v
+                );
+              }
+              batch.update(prodRef, payload);
             }
           }
           batch.delete(doc(db, 'pedidos', pedido.id))
@@ -617,17 +682,27 @@ END:VCALENDAR`
                                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3">Detalle de Productos</h4>
                                 <div className="space-y-2">
                                   {p.productos?.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm border-b border-outline-variant/10 pb-2 last:border-0">
-                                      <span className="text-on-surface-variant">{item.cantidad}x <span className="font-bold text-on-surface">{item.nombre}</span></span>
-                                      <span className="font-bold text-primary">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                    <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
+                                      <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-primary font-black text-base">{item.cantidad}x</span>
+                                          <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
+                                        </div>
+                                        {item.variante && (
+                                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c] mt-1 bg-amber-500/10 dark:bg-[#e2bd6c]/10 px-2 py-0.5 rounded-md w-fit">
+                                            Color: {item.variante}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="font-black text-primary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                                     </div>
                                   ))}
                                   {p.comprobante && (
                                     <div className="mt-4 pt-4 border-t border-primary/10">
-                                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Datos de Transferencia</p>
+                                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Datos de Transferencia</p>
                                       <p className="text-sm text-on-surface-variant mt-1">
-                                        Banco: <span className="font-bold text-on-surface">{p.banco}</span> | 
-                                        Comprobante: <span className="font-bold text-on-surface">{p.comprobante}</span>
+                                        Banco: <span className="font-bold text-on-surface dark:text-white/90">{p.banco}</span> | 
+                                        Comprobante: <span className="font-bold text-on-surface dark:text-white/90">{p.comprobante}</span>
                                       </p>
                                     </div>
                                   )}
@@ -822,9 +897,19 @@ END:VCALENDAR`
                                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Detalle de Productos</h4>
                                 <div className="space-y-2">
                                   {p.productos?.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm border-b border-outline-variant/10 pb-2 last:border-0">
-                                      <span className="text-on-surface-variant">{item.cantidad}x <span className="font-bold text-on-surface">{item.nombre}</span></span>
-                                      <span className="font-bold text-primary">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                    <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
+                                      <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-primary font-black text-base">{item.cantidad}x</span>
+                                          <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
+                                        </div>
+                                        {item.variante && (
+                                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c] mt-1 bg-amber-500/10 dark:bg-[#e2bd6c]/10 px-2 py-0.5 rounded-md w-fit">
+                                            Color: {item.variante}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="font-black text-primary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -836,8 +921,8 @@ END:VCALENDAR`
                                       {p.historialAbonos.map((abono, idx) => (
                                         <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-5 py-3.5 rounded-2xl border border-outline-variant/5 dark:border-white/5 hover:bg-surface-variant/20 transition-colors">
                                           <div className="flex flex-col">
-                                            <span className="text-on-surface-variant dark:text-white/60 font-medium">
-                                              {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                             {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                             <span className="text-[8px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
                                           </div>
@@ -927,7 +1012,7 @@ END:VCALENDAR`
                             {p.historialAbonos.map((abono, idx) => (
                               <div key={idx} className="flex justify-between items-center text-[10px] bg-amber-500/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-amber-500/10 dark:border-white/5">
                                 <div className="flex flex-col">
-                                  <span className="text-on-surface-variant dark:text-white/60 font-medium">
+                                  <span className="text-on-surface-variant dark:text-white/90 font-medium">
                                     {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                   <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
@@ -1052,9 +1137,19 @@ END:VCALENDAR`
                               <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 mb-4">Detalle de la Venta</h4>
                               <div className="space-y-2">
                                 {p.productos?.map((item, idx) => (
-                                  <div key={idx} className="flex justify-between items-center text-sm border-b border-outline-variant/10 pb-2 last:border-0">
-                                    <span className="text-on-surface-variant">{item.cantidad}x <span className="font-bold text-on-surface">{item.nombre}</span></span>
-                                    <span className="font-bold text-secondary">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                  <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-secondary/10 hover:bg-secondary/10 transition-colors">
+                                    <div className="flex flex-col">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-secondary dark:text-[#e2bd6c] font-black text-base">{item.cantidad}x</span>
+                                        <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
+                                      </div>
+                                      {item.variante && (
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c] mt-1 bg-secondary/10 dark:bg-[#e2bd6c]/10 px-2 py-0.5 rounded-md w-fit">
+                                          Color: {item.variante}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="font-black text-secondary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                                   </div>
                                 ))}
                               </div>
@@ -1064,15 +1159,15 @@ END:VCALENDAR`
                                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {p.historialAbonos.map((abono, idx) => (
-                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 px-4 py-2 rounded-xl">
+                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
                                         <div className="flex flex-col">
-                                          <span className="text-on-surface-variant font-medium">
+                                          <span className="text-on-surface-variant dark:text-white/90 font-medium">
                                             {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                           </span>
-                                          <span className="text-[8px] text-outline uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                          <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                          <span className="font-bold text-secondary">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                          <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
                                           <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
                                             <span className="material-symbols-outlined text-[14px]">undo</span>
                                           </button>
@@ -1137,9 +1232,17 @@ END:VCALENDAR`
                   <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="space-y-2 mb-4 bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5">
                       {p.productos?.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-xs border-b border-outline-variant/5 dark:border-white/5 pb-2 last:border-0">
-                          <span className="text-on-surface-variant dark:text-white/70">{item.cantidad}x <span className="font-bold dark:text-white/90">{item.nombre}</span></span>
-                          <span className="font-bold text-on-surface dark:text-[#e2bd6c]">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                        <div key={idx} className="flex justify-between items-center text-sm bg-surface-container-high/50 dark:bg-white/[0.03] p-4 rounded-2xl border border-outline-variant/5">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-primary dark:text-[#e2bd6c] text-sm">{item.cantidad}x</span>
+                              <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                            </div>
+                            {item.variante && (
+                              <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c] mt-1">Color: {item.variante}</span>
+                            )}
+                          </div>
+                          <span className="font-black text-on-surface dark:text-[#e2bd6c] text-base">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                         </div>
                       ))}
                     </div>
@@ -1150,7 +1253,7 @@ END:VCALENDAR`
                           {p.historialAbonos.map((abono, idx) => (
                             <div key={idx} className="flex justify-between items-center text-[10px] bg-secondary/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-secondary/10 dark:border-white/5">
                               <div className="flex flex-col">
-                                <span className="text-on-surface-variant dark:text-white/60 font-medium">
+                                <span className="text-on-surface-variant dark:text-white/90 font-medium">
                                   {new Date(abono.fecha).toLocaleDateString('es-CL')} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                                 <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota}</span>
@@ -1562,34 +1665,68 @@ END:VCALENDAR`
                   {showProdDropdown && (
                     <>
                       <div className="fixed inset-0 z-[60]" onClick={() => { setShowProdDropdown(false); setBusquedaProd(''); }} />
-                      <div className="absolute left-0 top-full mt-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                      <div className="absolute left-0 bottom-full mb-2 w-full bg-surface-container-highest border border-outline-variant/20 rounded-2xl shadow-xl z-[70] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                        <div className="max-h-80 overflow-y-auto custom-scrollbar">
                           {productos
-                            .filter(p => !form.productosSeleccionados.map(ps => ps.productoId).includes(p.id))
+                            .filter(p => {
+                              const yaAgregados = form.productosSeleccionados.filter(ps => ps.productoId === p.id);
+                              // Si no tiene variantes, ocultar si ya se agregó
+                              if (!p.variantes || p.variantes.length === 0) {
+                                return yaAgregados.length === 0;
+                              }
+                              // Si tiene variantes, mostrar siempre que quede alguna por agregar
+                              return p.variantes.some(v => !yaAgregados.some(ya => ya.variante === v.nombre));
+                            })
                             .filter(p => 
                               p.nombre.toLowerCase().includes(busquedaProd.toLowerCase()) || 
                               (p.sku || '').toLowerCase().includes(busquedaProd.toLowerCase())
                             )
                             .sort((a, b) => new Date(b.fechaIngreso || 0) - new Date(a.fechaIngreso || 0))
-                            .slice(0, 3)
+                            .slice(0, 8)
                             .map((p, idx, arr) => (
-                              <button 
-                                key={p.id}
-                                onClick={() => { handleAddProduct(p.id); setShowProdDropdown(false); setBusquedaProd(''); }}
-                                disabled={p.stock <= 0}
-                                className={`w-full flex items-center justify-between px-5 py-3.5 text-xs font-headline italic tracking-wide transition-colors text-left
-                                  ${p.stock <= 0 ? 'opacity-40 cursor-not-allowed' : 'text-on-surface hover:bg-surface-variant'}
-                                  ${idx !== arr.length - 1 ? 'border-b border-outline-variant/5' : ''}
-                                `}
-                              >
-                                <div className="flex flex-col">
-                                  <span>{p.nombre}</span>
-                                  <span className={`text-[9px] ${p.stock <= 0 ? 'text-error' : 'text-secondary/60'} font-sans not-italic`}>
-                                    {p.stock <= 0 ? 'Agotado' : `${p.stock} unidades disponibles`}
-                                  </span>
-                                </div>
-                                {p.stock > 0 && <span className="material-symbols-outlined text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">add_circle</span>}
-                              </button>
+                              <div key={p.id} className={`${idx !== arr.length - 1 ? 'border-b border-outline-variant/5' : ''}`}>
+                                <button 
+                                  onClick={() => { handleAddProduct(p.id); setShowProdDropdown(false); setBusquedaProd(''); }}
+                                  disabled={p.stock <= 0}
+                                  className={`w-full flex items-center justify-between px-5 py-3.5 text-xs font-headline italic tracking-wide transition-colors text-left
+                                    ${p.stock <= 0 ? 'opacity-40 cursor-not-allowed' : 'text-on-surface hover:bg-surface-variant'}
+                                  `}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-headline italic text-on-surface">{p.nombre}</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${p.stock <= 0 ? 'text-error' : 'text-primary/60'}`}>
+                                      {p.stock <= 0 ? 'SIN STOCK' : `${p.stock} UNIDADES TOTALES`}
+                                    </span>
+                                  </div>
+                                  {p.stock > 0 && !p.variantes?.length && <span className="material-symbols-outlined text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">add_circle</span>}
+                                  {p.variantes?.length > 0 && (
+                                    <span className="px-2 py-1 bg-primary text-on-primary rounded-lg text-[9px] font-black uppercase tracking-tighter animate-pulse shadow-md">
+                                      Elegir Color
+                                    </span>
+                                  )}
+                                </button>
+                                
+                                {p.variantes?.length > 0 && (
+                                  <div className="bg-surface-container-low/50 py-1 space-y-1">
+                                    {p.variantes.map((v, vIdx) => (
+                                      <button
+                                        key={vIdx}
+                                        disabled={v.stock <= 0}
+                                        onClick={() => { handleAddProduct(p.id, v.nombre); setShowProdDropdown(false); setBusquedaProd(''); }}
+                                        className={`w-full flex items-center justify-between pl-10 pr-5 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors text-left
+                                          ${v.stock <= 0 ? 'opacity-40 cursor-not-allowed' : 'text-on-surface-variant hover:bg-primary/5 hover:text-primary'}
+                                        `}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                                          <span>{v.nombre}</span>
+                                        </div>
+                                        <span className={v.stock <= 0 ? 'text-error/60' : 'opacity-60'}>{v.stock} u.</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             ))}
                           {productos.filter(p => !form.productosSeleccionados.map(ps => ps.productoId).includes(p.id)).filter(p => p.nombre.toLowerCase().includes(busquedaProd.toLowerCase()) || (p.sku || '').toLowerCase().includes(busquedaProd.toLowerCase())).length === 0 && (
                             <div className="px-5 py-8 text-center text-outline text-[10px] uppercase tracking-widest italic font-sans not-italic">
@@ -1608,19 +1745,24 @@ END:VCALENDAR`
               {form.productosSeleccionados.length > 0 && (
                 <div className="bg-surface-container-low dark:bg-white/5 rounded-xl p-4 space-y-3 border border-outline-variant/10 dark:border-white/5">
                   {form.productosSeleccionados.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center gap-3">
-                      <p className="text-sm font-bold truncate flex-1">{item.nombre}</p>
+                    <div key={idx} className="flex justify-between items-center gap-3 bg-surface/50 dark:bg-white/[0.02] p-3 rounded-xl border border-outline-variant/5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate text-on-surface dark:text-white/90">{item.nombre}</p>
+                        {item.variante && (
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c] mt-0.5">Color: {item.variante}</p>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-outline">Cant:</span>
                         <input 
                           type="number" 
                           min="1" 
-                          max={item.stockOriginal}
+                          max={item.stockOriginal + (editingId ? (originalProductos.find(op => op.productoId === item.productoId && op.variante === item.variante)?.cantidad || 0) : 0)}
                           value={item.cantidad}
-                          onChange={(e) => handleQuantityChange(item.productoId, e.target.value)}
-                          className="w-16 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:border-primary dark:text-white"
+                          onChange={(e) => handleQuantityChange(item.productoId, item.variante, e.target.value)}
+                          className="w-16 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:border-primary dark:text-white font-bold"
                         />
-                        <button onClick={() => handleRemoveProduct(item.productoId)} className="text-error/70 hover:text-error ml-2" title="Quitar">
+                        <button onClick={() => handleRemoveProduct(item.productoId, item.variante)} className="text-error/70 hover:text-error ml-2" title="Quitar">
                           <span className="material-symbols-outlined text-sm">close</span>
                         </button>
                       </div>

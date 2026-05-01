@@ -438,7 +438,7 @@ export default function Layout() {
           <div className="flex justify-between items-start mb-12">
             <Link to="/dashboard" className="flex items-center space-x-4 hover:opacity-80 transition-opacity cursor-pointer group">
               <div className="w-16 h-16 bg-surface-container-highest/50 dark:bg-white/5 rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect border border-outline-variant/10 dark:border-white/10">
-                <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-xl" />
+                <img src={isDark ? "/logo-dark.png" : "/logo.jpeg"} alt="Logo Leis" className="w-full h-full object-contain rounded-xl" />
               </div>
               <div>
                 <p className="italic text-3xl text-primary dark:text-[#e2bd6c] leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
@@ -525,9 +525,10 @@ export default function Layout() {
         <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-all duration-700 opacity-20 dark:opacity-20
           ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
           <img 
-            src="/logo.jpeg" 
+            src={isDark ? "/logo-dark.png" : "/logo.jpeg"} 
             alt="Watermark" 
-            className="w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] saturate-150 dark:grayscale dark:invert brightness-125 dark:brightness-100 mix-blend-multiply dark:mix-blend-overlay"
+            className={`w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] saturate-150 brightness-125 transition-all duration-700
+              ${isDark ? 'brightness-100 mix-blend-overlay' : 'mix-blend-multiply dark:grayscale dark:invert dark:brightness-100 dark:mix-blend-overlay'}`}
           />
         </div>
         

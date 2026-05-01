@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
+import UpdateNotification from './components/UpdateNotification'
 import Dashboard from './pages/Dashboard'
 import Inventario from './pages/Inventario'
 import Pedidos from './pages/Pedidos'
@@ -15,6 +16,7 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <AuthProvider>
+      <UpdateNotification />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={
