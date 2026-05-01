@@ -16,8 +16,8 @@
     "es-abstract": "^1.24.2"
   },
   "optionalDependencies": {
+    "@esbuild/linux-x64": "*",
     "@rollup/rollup-linux-x64-gnu": "*",
-    "@rollup/rollup-linux-x64-musl": "*",
-    "@esbuild/linux-x64": "*"
+    "@rollup/rollup-linux-x64-musl": "*"
   }
 }
