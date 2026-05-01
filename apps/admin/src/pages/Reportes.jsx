@@ -80,6 +80,14 @@ export default function Reportes() {
   // Estado para deshacer
   const [registroADeshacer, setRegistroADeshacer] = useState(null)
 
+  // Paginación para el Historial Consolidado
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [periodo, fechaInicio, fechaFin])
+
   useEffect(() => {
     const unsubProd = onSnapshot(collection(db, 'productos'), snap => {
       const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -968,7 +976,7 @@ export default function Reportes() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max">
-          {registrosFiltrados.map((v) => {
+          {registrosFiltrados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v) => {
             const isMerma = v._tipo === 'merma'
             const esVentaDirecta = v.cliente === "Venta Directa" && !isMerma
             
@@ -1017,7 +1025,13 @@ export default function Reportes() {
                     const unitPrice = baseProd ? (Number(baseProd.precio) || 0) : 0
                     return (
                       <li key={idx} className={`${isMerma ? 'text-[#82322e] dark:text-red-300/80' : 'text-on-surface/80 dark:text-white/70'}`}>
-                        <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre} <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
+                        <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre} 
+                        {prodItem.variante && (
+                          <span className="text-[9px] font-black uppercase tracking-[0.1em] text-primary/70 dark:text-[#e2bd6c]/70 ml-1 bg-primary/10 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10">
+                            {prodItem.variante}
+                          </span>
+                        )}
+                        <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
                       </li>
                     )
                   })}
@@ -1032,6 +1046,39 @@ export default function Reportes() {
             )
           })}
         </div>
+        
+        {/* Paginación UI */}
+        {registrosFiltrados.length > itemsPerPage && (
+          <div className="mt-10 flex items-center justify-center gap-2">
+            <button 
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-high dark:bg-white/5 text-on-surface dark:text-white/60 disabled:opacity-20 hover:bg-surface-variant transition-colors border border-outline-variant/10"
+            >
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.ceil(registrosFiltrados.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-10 h-10 rounded-xl text-[10px] font-extrabold transition-all border ${currentPage === page ? 'bg-secondary dark:bg-[#e2bd6c] text-white dark:text-black border-transparent shadow-lg shadow-secondary/20 scale-110' : 'bg-surface-container-high dark:bg-white/5 text-outline dark:text-gray-500 border-outline-variant/10 hover:bg-surface-variant'}`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(registrosFiltrados.length / itemsPerPage), prev + 1))}
+              disabled={currentPage === Math.ceil(registrosFiltrados.length / itemsPerPage)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-high dark:bg-white/5 text-on-surface dark:text-white/60 disabled:opacity-20 hover:bg-surface-variant transition-colors border border-outline-variant/10"
+            >
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+          </div>
+        )}
         
         {registrosFiltrados.length === 0 && (
           <div className="flex flex-col items-center justify-center opacity-60 w-full text-center py-20">
