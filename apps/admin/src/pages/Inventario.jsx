@@ -29,6 +29,41 @@ const formInicial = {
   variantes: []
 }
 
+const getHexColor = (name) => {
+  if (!name) return null;
+  const colors = {
+    'azul': '#3b82f6',
+    'rosado': '#ec4899',
+    'rosa': '#ec4899',
+    'burdeo': '#800020',
+    'burdeos': '#800020',
+    'verde': '#22c55e',
+    'amarillo': '#eab308',
+    'morado': '#a855f7',
+    'púrpura': '#a855f7',
+    'rojo': '#ef4444',
+    'negro': '#000000',
+    'blanco': '#ffffff',
+    'gris': '#6b7280',
+    'naranja': '#f97316',
+    'celeste': '#0ea5e9',
+    'café': '#78350f',
+    'marrón': '#78350f',
+    'beige': '#f5f5dc',
+    'fucsia': '#d946ef',
+    'cian': '#06b6d4',
+    'esmeralda': '#10b981',
+    'turquesa': '#14b8a6',
+    'lila': '#d8b4fe',
+    'lavanda': '#e9d5ff',
+    'crema': '#fffdd0',
+    'dorado': '#ffd700',
+    'plata': '#c0c0c0',
+    'bronce': '#cd7f32'
+  };
+  return colors[name.toLowerCase()] || null;
+};
+
 export default function Inventario() {
   const [busqueda, setBusqueda]   = useState('')
   const [filtroCol, setFiltroCol] = useState('TODOS')
@@ -561,7 +596,13 @@ export default function Inventario() {
                         <div className="grid grid-cols-2 gap-2">
                           {p.variantes.map((v, i) => (
                             <div key={i} className="flex justify-between items-center bg-surface-container-low dark:bg-white/5 px-3 py-2 rounded-lg border border-outline-variant/5 dark:border-white/5">
-                              <span className="text-[10px] font-bold text-on-surface dark:text-white/80 uppercase">{v.nombre}</span>
+                              <div className="flex items-center gap-1.5">
+                                <div 
+                                  className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20"
+                                  style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
+                                />
+                                <span className="text-[10px] font-bold text-on-surface dark:text-white/80 uppercase">{v.nombre}</span>
+                              </div>
                               <span className="text-[10px] font-extrabold text-secondary dark:text-[#e2bd6c]">{v.stock} u.</span>
                             </div>
                           ))}
@@ -682,7 +723,13 @@ export default function Inventario() {
                             {p.variantes && p.variantes.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {p.variantes.map((v, i) => (
-                                  <span key={i} className="text-[8px] bg-surface-variant dark:bg-white/5 px-1.5 py-0.5 rounded text-on-surface-variant dark:text-white/60 font-bold uppercase border border-outline-variant/5 dark:border-white/5">{v.nombre} ({v.stock})</span>
+                                  <span key={i} className="inline-flex items-center gap-1 text-[8px] bg-surface-variant dark:bg-white/5 px-1.5 py-0.5 rounded text-on-surface-variant dark:text-white/60 font-bold uppercase border border-outline-variant/5 dark:border-white/5">
+                                    <div 
+                                      className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10"
+                                      style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
+                                    />
+                                    {v.nombre} ({v.stock})
+                                  </span>
                                 ))}
                               </div>
                             )}

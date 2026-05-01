@@ -46,6 +46,41 @@ function formatMoney(value) {
   return neg ? '-' + f : f
 }
 
+const getHexColor = (name) => {
+  if (!name) return null;
+  const colors = {
+    'azul': '#3b82f6',
+    'rosado': '#ec4899',
+    'rosa': '#ec4899',
+    'burdeo': '#800020',
+    'burdeos': '#800020',
+    'verde': '#22c55e',
+    'amarillo': '#eab308',
+    'morado': '#a855f7',
+    'púrpura': '#a855f7',
+    'rojo': '#ef4444',
+    'negro': '#000000',
+    'blanco': '#ffffff',
+    'gris': '#6b7280',
+    'naranja': '#f97316',
+    'celeste': '#0ea5e9',
+    'café': '#78350f',
+    'marrón': '#78350f',
+    'beige': '#f5f5dc',
+    'fucsia': '#d946ef',
+    'cian': '#06b6d4',
+    'esmeralda': '#10b981',
+    'turquesa': '#14b8a6',
+    'lila': '#d8b4fe',
+    'lavanda': '#e9d5ff',
+    'crema': '#fffdd0',
+    'dorado': '#ffd700',
+    'plata': '#c0c0c0',
+    'bronce': '#cd7f32'
+  };
+  return colors[name.toLowerCase()] || null;
+};
+
 export default function Reportes() {
   const [periodo, setPeriodo] = useState(0)
   const [chartMode, setChartMode] = useState('ambas')
@@ -1053,9 +1088,15 @@ export default function Reportes() {
                       <li key={idx} className={`${isMerma ? 'text-[#82322e] dark:text-red-300/80' : 'text-on-surface/80 dark:text-white/70'}`}>
                         <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre} 
                         {prodItem.variante && (
-                          <span className="text-[9px] font-black uppercase tracking-[0.1em] text-primary/70 dark:text-[#e2bd6c]/70 ml-1 bg-primary/10 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10">
-                            {prodItem.variante}
-                          </span>
+                          <div className="inline-flex items-center gap-1 ml-1.5 bg-primary/5 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10">
+                            <div 
+                              className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm"
+                              style={{ backgroundColor: getHexColor(prodItem.variante) || '#ccc' }}
+                            />
+                            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-primary/70 dark:text-[#e2bd6c]/70">
+                              {prodItem.variante}
+                            </span>
+                          </div>
                         )}
                         <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
                       </li>

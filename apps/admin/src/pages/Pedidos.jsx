@@ -27,6 +27,41 @@ const getCanalColor = (canal) => {
   return 'bg-amber-500/10 text-amber-600';
 }
 
+const getHexColor = (name) => {
+  if (!name) return null;
+  const colors = {
+    'azul': '#3b82f6',
+    'rosado': '#ec4899',
+    'rosa': '#ec4899',
+    'burdeo': '#800020',
+    'burdeos': '#800020',
+    'verde': '#22c55e',
+    'amarillo': '#eab308',
+    'morado': '#a855f7',
+    'púrpura': '#a855f7',
+    'rojo': '#ef4444',
+    'negro': '#000000',
+    'blanco': '#ffffff',
+    'gris': '#6b7280',
+    'naranja': '#f97316',
+    'celeste': '#0ea5e9',
+    'café': '#78350f',
+    'marrón': '#78350f',
+    'beige': '#f5f5dc',
+    'fucsia': '#d946ef',
+    'cian': '#06b6d4',
+    'esmeralda': '#10b981',
+    'turquesa': '#14b8a6',
+    'lila': '#d8b4fe',
+    'lavanda': '#e9d5ff',
+    'crema': '#fffdd0',
+    'dorado': '#ffd700',
+    'plata': '#c0c0c0',
+    'bronce': '#cd7f32'
+  };
+  return colors[name.toLowerCase()] || null;
+};
+
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([])
   const [productos, setProductos] = useState([])
@@ -916,9 +951,15 @@ END:VCALENDAR`
                                           <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
                                         </div>
                                         {item.variante && (
-                                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c] mt-1 bg-amber-500/10 dark:bg-[#e2bd6c]/10 px-2 py-0.5 rounded-md w-fit">
-                                            Color: {item.variante}
-                                          </span>
+                                          <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
+                                            <div 
+                                              className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                            />
+                                            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
+                                              {item.variante}
+                                            </span>
+                                          </div>
                                         )}
                                       </div>
                                       <span className="font-black text-primary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
@@ -1156,9 +1197,15 @@ END:VCALENDAR`
                                         <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
                                       </div>
                                       {item.variante && (
-                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c] mt-1 bg-secondary/10 dark:bg-[#e2bd6c]/10 px-2 py-0.5 rounded-md w-fit">
-                                          Color: {item.variante}
-                                        </span>
+                                        <div className="flex items-center gap-1.5 mt-1 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
+                                          <div 
+                                            className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                            style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                          />
+                                          <span className="text-[9px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
+                                            {item.variante}
+                                          </span>
+                                        </div>
                                       )}
                                     </div>
                                     <span className="font-black text-secondary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
@@ -1730,7 +1777,10 @@ END:VCALENDAR`
                                         `}
                                       >
                                         <div className="flex items-center gap-2">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                                          <div 
+                                            className="w-2 h-2 rounded-full border border-black/5 dark:border-white/10" 
+                                            style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
+                                          />
                                           <span>{v.nombre}</span>
                                         </div>
                                         <span className={v.stock <= 0 ? 'text-error/60' : 'opacity-60'}>{v.stock} u.</span>
@@ -1761,7 +1811,13 @@ END:VCALENDAR`
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate text-on-surface dark:text-white/90">{item.nombre}</p>
                         {item.variante && (
-                          <p className="text-[10px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c] mt-0.5">Color: {item.variante}</p>
+                          <div className="flex items-center gap-1.5 mt-1 bg-primary/5 dark:bg-[#e2bd6c]/5 px-2 py-0.5 rounded-md w-fit border border-primary/10 dark:border-white/5">
+                            <div 
+                              className="w-2 h-2 rounded-full border border-black/5 dark:border-white/10"
+                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                            />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c]">{item.variante}</span>
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
