@@ -522,14 +522,24 @@ export default function Layout() {
 
       {/* ── Main content ── */}
       <main className={`flex-1 overflow-x-hidden pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
-        <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-all duration-700 opacity-20 dark:opacity-20
+        <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-all duration-700
           ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
-          <img 
-            src={isDark ? "/logo-dark.png" : "/logo.jpeg"} 
-            alt="Watermark" 
-            className={`w-3/4 md:w-2/5 max-w-lg rounded-[3.5rem] saturate-150 brightness-125 transition-all duration-700
-              ${isDark ? 'brightness-100 mix-blend-overlay' : 'mix-blend-multiply dark:grayscale dark:invert dark:brightness-100 dark:mix-blend-overlay'}`}
-          />
+          
+          {/* Estrellitas de fondo */}
+          <div className="stars-container opacity-40 dark:opacity-100">
+            <div className="stars-layer" />
+            <div className="stars-layer" />
+            <div className="stars-layer" />
+          </div>
+
+          <div className="watermark-container crystal-effect animate-breathe rounded-[4rem] p-4">
+            <img 
+              src={isDark ? "/logo-dark.png" : "/logo.jpeg"} 
+              alt="Watermark" 
+              className={`w-[60vw] md:w-[35vw] max-w-xl rounded-[3.5rem] transition-all duration-700
+                ${isDark ? 'mix-blend-overlay' : 'mix-blend-multiply opacity-80'}`}
+            />
+          </div>
         </div>
         
         <div className="relative z-10 h-full">

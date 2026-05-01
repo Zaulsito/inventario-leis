@@ -375,7 +375,7 @@ export default function Inventario() {
       <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-8 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 tour-inv-header">
         <div className="relative text-center mx-auto">
           <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">Control de Existencias</p>
-          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter">Inventario Maestro</h1>
+          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter luxe-reveal">Inventario Maestro</h1>
           <div className="absolute left-1/2 -bottom-4 -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
         </div>
       </header>

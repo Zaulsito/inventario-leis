@@ -107,7 +107,7 @@ export default function Dashboard() {
       <header className="py-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4 shrink-0 tour-inicio-header">
         <div className="relative text-center mx-auto">
           <p className="font-label text-[10px] font-bold uppercase tracking-[0.4em] text-primary/40 dark:text-[#e2bd6c]/40 mb-2">Plataforma de Control</p>
-          <h2 className="font-headline text-5xl md:text-7xl text-primary dark:text-white italic leading-tight tracking-tighter">
+          <h2 className="font-headline text-5xl md:text-7xl italic leading-tight tracking-tighter text-primary dark:text-white luxe-reveal">
             Leis <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary dark:from-[#e2bd6c] dark:to-[#f3d692]">Administración</span>
           </h2>
           <div className="absolute left-1/2 -bottom-4 -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
@@ -170,9 +170,11 @@ export default function Dashboard() {
         {metricas.map((m) => (
           <div 
             key={m.label} 
-            className={`p-6 rounded-3xl border border-outline-variant/30 dark:border-white/5 bg-surface-container-low/40 dark:bg-[#1e1e1e] backdrop-blur-xl flex flex-col justify-between h-40 transition-all hover:bg-surface-container-low/60 dark:hover:bg-[#252525] ${
-              m.isAlert && m.valor > 0 ? 'shadow-lg shadow-error/5 border-error/30 dark:border-error/40' : 'shadow-sm'
-            }`}
+            className={`p-6 rounded-3xl border backdrop-blur-2xl flex flex-col justify-between h-40 transition-all duration-500
+              ${!isDark 
+                ? 'bg-primary/[0.04] border-primary/10 hover:bg-primary/[0.08] shadow-[0_8px_30px_rgb(142,109,60,0.05)]' 
+                : 'bg-[#1e1e1e]/60 border-white/5 shadow-sm hover:bg-[#252525]/80'}
+              ${m.isAlert && m.valor > 0 ? 'shadow-lg shadow-error/10 border-error/30 dark:border-error/40' : ''}`}
           >
             <div className="flex items-center gap-2.5">
               <span className={`material-symbols-outlined text-2xl transition-colors duration-500 ${

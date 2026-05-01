@@ -1,24 +1,24 @@
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 export const LATEST_CHANGES = [
   {
-    title: 'Optimización de Variantes en Pedidos',
-    description: 'Ahora puedes ver y seleccionar colores sin que el producto desaparezca del buscador hasta que se agoten todas sus variantes.',
-    icon: 'palette'
+    title: 'Efectos Cinemáticos "Luxe Reveal"',
+    description: 'Animaciones de entrada suaves y elegantes con desenfoque dinámico en todos los encabezados de la aplicación.',
+    icon: 'auto_awesome'
   },
   {
-    title: 'Mejora de Visibilidad Luxe',
-    description: 'Se han corregido los colores de texto en modo oscuro para el historial de pagos y detalles de venta, usando tonos oro y blanco de alto contraste.',
-    icon: 'visibility'
+    title: 'Campo Estelar Dinámico',
+    description: 'Fondo animado con estrellas que se adaptan al tema: café/dorado en modo claro y blanco brillante en modo oscuro.',
+    icon: 'stars'
   },
   {
-    title: 'Buscador Inteligente',
-    description: 'El buscador de productos ahora se abre hacia arriba para evitar cortarse en pantallas pequeñas y muestra hasta 8 resultados simultáneos.',
-    icon: 'search_insights'
+    title: 'Logo con Respiración y Brillo',
+    description: 'Efecto de brillo cristalino y pulsación sutil en la marca de agua para una estética premium y profesional.',
+    icon: 'blur_on'
   },
   {
-    title: 'Indicadores Dinámicos',
-    description: 'Nuevos botones de "ELEGIR COLOR" con animación para identificar rápidamente productos con sub-opciones disponibles.',
-    icon: 'ads_click'
+    title: 'Dashboard de Alta Gama',
+    description: 'Tarjetas métricas refinadas con efectos de translucidez y vidrio (glassmorphism) optimizados para el modo claro.',
+    icon: 'dashboard_customize'
   }
 ];

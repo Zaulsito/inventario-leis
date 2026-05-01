@@ -15,6 +15,7 @@
   --outline: 142, 109, 60;
   --outline-variant: 216, 204, 187;
   --error: 186, 26, 26;
+  --star-color: 142, 109, 60;
 }
 
 .dark {
@@ -30,6 +31,7 @@
   --outline: 142, 109, 60;
   --outline-variant: 50, 50, 50;
   --error: 255, 180, 171;
+  --star-color: 255, 255, 255;
 }
 
 * {
@@ -139,4 +141,104 @@ input:-webkit-autofill:active {
 .dark input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #1e1e1e inset !important;
   -webkit-text-fill-color: #e2bd6c !important;
+}
+/* Efecto Respiración de Opacidad */
+@keyframes watermark-breathe {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.25; }
+}
+
+.animate-breathe {
+  animation: watermark-breathe 10s ease-in-out infinite;
+}
+
+/* Efecto Bandera (Ondulación sutil) */
+@keyframes watermark-wave {
+  0%, 100% { transform: translateY(0) skewX(0deg) scale(1); }
+  25% { transform: translateY(-8px) skewX(1deg) scale(1.01); }
+  75% { transform: translateY(8px) skewX(-1deg) scale(0.99); }
+}
+
+.animate-wave {
+  animation: watermark-wave 15s ease-in-out infinite;
+}
+
+/* Contenedor Combinado para Logo de Fondo */
+.watermark-container {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Efecto Campo Estelar (Estrellitas) - Suavizado y Orgánico */
+@keyframes star-twinkle {
+  0%, 100% { 
+    opacity: 0.15; 
+    transform: scale(0.9) rotate(0deg); 
+  }
+  50% { 
+    opacity: 0.8; 
+    transform: scale(1.1) rotate(1deg); 
+  }
+}
+
+.stars-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.stars-layer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image: 
+    radial-gradient(1.2px 1.2px at 20% 30%, rgb(var(--star-color)), transparent),
+    radial-gradient(1.8px 1.8px at 50% 70%, rgb(var(--star-color)), transparent),
+    radial-gradient(1.2px 1.2px at 80% 40%, rgb(var(--star-color)), transparent),
+    radial-gradient(1.2px 1.2px at 10% 80%, rgb(var(--star-color)), transparent),
+    radial-gradient(1.8px 1.8px at 90% 10%, rgb(var(--star-color)), transparent),
+    radial-gradient(1.2px 1.2px at 40% 20%, rgb(var(--star-color)), transparent),
+    radial-gradient(1.8px 1.8px at 30% 90%, rgb(var(--star-color)), transparent),
+    radial-gradient(1.2px 1.2px at 70% 50%, rgb(var(--star-color)), transparent);
+  background-size: 400px 400px;
+  animation: star-twinkle 8s ease-in-out infinite;
+  opacity: 0.2;
+}
+
+.stars-layer:nth-child(2) {
+  background-size: 550px 550px;
+  animation-delay: -3s;
+  animation-duration: 12s;
+  opacity: 0.4;
+}
+
+.stars-layer:nth-child(3) {
+  background-size: 300px 300px;
+  animation-delay: -6s;
+  animation-duration: 15s;
+  opacity: 0.2;
+}
+
+/* Efecto Reveal Elegante para Títulos */
+@keyframes luxe-reveal {
+  0% { 
+    opacity: 0; 
+    transform: translateY(30px) scale(0.95); 
+    filter: blur(10px);
+    letter-spacing: 0.2em;
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+    filter: blur(0);
+    letter-spacing: normal;
+  }
+}
+
+.luxe-reveal {
+  animation: luxe-reveal 2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }

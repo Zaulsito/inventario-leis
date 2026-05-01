@@ -537,7 +537,7 @@ export default function Reportes() {
       <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-10 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 mb-12">
         <div className="relative text-center mx-auto">
           <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">Centro de Control Financiero</p>
-          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter">Métricas y Mermas</h1>
+          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter luxe-reveal">Métricas y Mermas</h1>
           <p className="mt-4 text-outline dark:text-gray-400 font-body max-w-lg mx-auto leading-relaxed text-[11px] uppercase tracking-widest font-bold">
             Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.
           </p>
