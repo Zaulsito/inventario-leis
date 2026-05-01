@@ -387,15 +387,41 @@ export default function Reportes() {
     try {
       const batch = writeBatch(db)
 
+      // 1. Consolidar Stock para devolver
+      const productosMap = {}; // productoId -> { stock: number, variantes: [] }
+
       registro.productos.forEach(itemInfo => {
-        const pLoc = productos.find(p => p.id === itemInfo.productoId)
-        if (pLoc) {
-          const ref = doc(db, 'productos', itemInfo.productoId)
-          const nuevoStock = Number(pLoc.stock) + Number(itemInfo.cantidad)
-          const nuevoEstado = calcularEstado(nuevoStock)
-          batch.update(ref, { stock: nuevoStock, estado: nuevoEstado })
+        if (!productosMap[itemInfo.productoId]) {
+          const pM = productos.find(p => p.id === itemInfo.productoId);
+          if (pM) {
+            productosMap[itemInfo.productoId] = {
+              stock: Number(pM.stock),
+              variantes: pM.variantes ? JSON.parse(JSON.stringify(pM.variantes)) : null
+            };
+          }
         }
-      })
+
+        const pData = productosMap[itemInfo.productoId];
+        if (pData) {
+          pData.stock += Number(itemInfo.cantidad);
+          if (itemInfo.variante && pData.variantes) {
+            const v = pData.variantes.find(v => (v.nombre || null) === (itemInfo.variante || null));
+            if (v) v.stock = Number(v.stock) + Number(itemInfo.cantidad);
+          }
+        }
+      });
+
+      // Aplicar todos los cambios al batch
+      for (const id in productosMap) {
+        const pData = productosMap[id];
+        const prodRef = doc(db, 'productos', id);
+        let payload = { 
+          stock: pData.stock, 
+          estado: calcularEstado(pData.stock) 
+        };
+        if (pData.variantes) payload.variantes = pData.variantes;
+        batch.update(prodRef, payload);
+      }
 
       const colName = registro._tipo === 'merma' ? 'mermas' : 'pedidos'
       const docRef = doc(db, colName, registro.id)

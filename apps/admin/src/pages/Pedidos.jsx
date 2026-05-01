@@ -243,81 +243,71 @@ export default function Pedidos() {
       const batch = writeBatch(db)
 
       // 1. Manejar Stock (Inventario)
-      // Si estamos editando, primero debemos "devolver" virtualmente el stock anterior
-      // Y luego restar el nuevo.
-      
-      // Productos que estaban antes pero ya no están (eliminados del pedido)
+      const productosMap = {}; // productoId -> { stock: number, variantes: [] }
+
+      // Inicializar el mapa con los productos involucrados (los actuales y los previos si editamos)
+      const idsInvolucrados = new Set([
+        ...form.productosSeleccionados.map(p => p.productoId),
+        ...(editingId ? originalProductos.map(p => p.productoId) : [])
+      ]);
+
+      for (const id of idsInvolucrados) {
+        const pM = productos.find(p => p.id === id);
+        if (pM) {
+          productosMap[id] = { 
+            stock: Number(pM.stock), 
+            variantes: pM.variantes ? JSON.parse(JSON.stringify(pM.variantes)) : null 
+          };
+        }
+      }
+
       if (editingId) {
+        // Primero: "Devolver" virtualmente el stock que estaba reservado antes
         for (const oldItem of originalProductos) {
-          const newItem = form.productosSeleccionados.find(p => p.productoId === oldItem.productoId && (p.variante || null) === (oldItem.variante || null));
-          const pMaestro = productos.find(p => p.id === oldItem.productoId);
-          if (pMaestro) {
-            const prodRef = doc(db, 'productos', oldItem.productoId);
-            // Si el producto/variante fue eliminado del pedido, devolvemos todo su stock
-            if (!newItem) {
-              const nuevoStockTotal = pMaestro.stock + oldItem.cantidad;
-              let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
-              
-              if (oldItem.variante && pMaestro.variantes) {
-                payload.variantes = pMaestro.variantes.map(v => 
-                  v.nombre === oldItem.variante ? { ...v, stock: v.stock + oldItem.cantidad } : v
-                );
-              }
-              batch.update(prodRef, payload);
-            } else {
-              // Si sigue estando, calculamos la diferencia
-              const diferencia = oldItem.cantidad - newItem.cantidad; // Positivo si bajó cantidad (devolvemos), Negativo si subió (restamos)
-              if (diferencia !== 0) {
-                const nuevoStockTotal = pMaestro.stock + diferencia;
-                let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
-                
-                if (oldItem.variante && pMaestro.variantes) {
-                  payload.variantes = pMaestro.variantes.map(v => 
-                    v.nombre === oldItem.variante ? { ...v, stock: v.stock + diferencia } : v
-                  );
-                }
-                batch.update(prodRef, payload);
-              }
+          const pData = productosMap[oldItem.productoId];
+          if (pData) {
+            pData.stock += oldItem.cantidad;
+            if (oldItem.variante && pData.variantes) {
+              const v = pData.variantes.find(v => (v.nombre || null) === (oldItem.variante || null));
+              if (v) v.stock = Number(v.stock) + oldItem.cantidad;
             }
           }
         }
-        
-        // Productos que son completamente nuevos en el pedido (no estaban en originalProductos con esa variante)
+        // Segundo: Restar el nuevo stock solicitado
         for (const newItem of form.productosSeleccionados) {
-          const wasPresent = originalProductos.find(p => p.productoId === newItem.productoId && (p.variante || null) === (newItem.variante || null));
-          if (!wasPresent) {
-            const pMaestro = productos.find(p => p.id === newItem.productoId);
-            if (pMaestro) {
-              const prodRef = doc(db, 'productos', newItem.productoId);
-              const nuevoStockTotal = pMaestro.stock - newItem.cantidad;
-              let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
-              
-              if (newItem.variante && pMaestro.variantes) {
-                payload.variantes = pMaestro.variantes.map(v => 
-                  v.nombre === newItem.variante ? { ...v, stock: v.stock - newItem.cantidad } : v
-                );
-              }
-              batch.update(prodRef, payload);
+          const pData = productosMap[newItem.productoId];
+          if (pData) {
+            pData.stock -= newItem.cantidad;
+            if (newItem.variante && pData.variantes) {
+              const v = pData.variantes.find(v => (v.nombre || null) === (newItem.variante || null));
+              if (v) v.stock = Number(v.stock) - newItem.cantidad;
             }
           }
         }
       } else {
-        // Lógica normal para pedidos nuevos
+        // Pedido nuevo: solo restar
         for (const item of form.productosSeleccionados) {
-          const prodRef = doc(db, 'productos', item.productoId)
-          const pMaestro = productos.find(p => p.id === item.productoId)
-          if (pMaestro) {
-            const nuevoStockTotal = pMaestro.stock - item.cantidad;
-            let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
-            
-            if (item.variante && pMaestro.variantes) {
-              payload.variantes = pMaestro.variantes.map(v => 
-                v.nombre === item.variante ? { ...v, stock: v.stock - item.cantidad } : v
-              );
+          const pData = productosMap[item.productoId];
+          if (pData) {
+            pData.stock -= item.cantidad;
+            if (item.variante && pData.variantes) {
+              const v = pData.variantes.find(v => (v.nombre || null) === (item.variante || null));
+              if (v) v.stock = Number(v.stock) - item.cantidad;
             }
-            batch.update(prodRef, payload);
           }
         }
+      }
+
+      // Aplicar todos los cambios consolidados al batch
+      for (const id in productosMap) {
+        const pData = productosMap[id];
+        const prodRef = doc(db, 'productos', id);
+        let payload = { 
+          stock: pData.stock, 
+          estado: calcularEstado(pData.stock) 
+        };
+        if (pData.variantes) payload.variantes = pData.variantes;
+        batch.update(prodRef, payload);
       }
 
       // 2. Crear o Actualizar Pedido
@@ -455,21 +445,41 @@ export default function Pedidos() {
       onConfirm: async () => {
         try {
           const batch = writeBatch(db)
+          // 1. Consolidar Stock (Inventario) para devolver
+          const productosMap = {}; // productoId -> { stock: number, variantes: [] }
           const productosList = pedido.productos || []
+
           for (const item of productosList) {
-            const pMaestro = productos.find(p => p.id === item.productoId)
-            if (pMaestro) { 
-              const prodRef = doc(db, 'productos', item.productoId)
-              const nuevoStockTotal = Number(pMaestro.stock) + Number(item.cantidad)
-              let payload = { stock: nuevoStockTotal, estado: calcularEstado(nuevoStockTotal) };
-              
-              if (item.variante && pMaestro.variantes) {
-                payload.variantes = pMaestro.variantes.map(v => 
-                  v.nombre === item.variante ? { ...v, stock: Number(v.stock) + Number(item.cantidad) } : v
-                );
+            if (!productosMap[item.productoId]) {
+              const pM = productos.find(p => p.id === item.productoId);
+              if (pM) {
+                productosMap[item.productoId] = {
+                  stock: Number(pM.stock),
+                  variantes: pM.variantes ? JSON.parse(JSON.stringify(pM.variantes)) : null
+                };
               }
-              batch.update(prodRef, payload);
             }
+
+            const pData = productosMap[item.productoId];
+            if (pData) {
+              pData.stock += Number(item.cantidad);
+              if (item.variante && pData.variantes) {
+                const v = pData.variantes.find(v => (v.nombre || null) === (item.variante || null));
+                if (v) v.stock = Number(v.stock) + Number(item.cantidad);
+              }
+            }
+          }
+
+          // Aplicar todos los cambios al batch
+          for (const id in productosMap) {
+            const pData = productosMap[id];
+            const prodRef = doc(db, 'productos', id);
+            let payload = { 
+              stock: pData.stock, 
+              estado: calcularEstado(pData.stock) 
+            };
+            if (pData.variantes) payload.variantes = pData.variantes;
+            batch.update(prodRef, payload);
           }
           batch.delete(doc(db, 'pedidos', pedido.id))
           await batch.commit()
