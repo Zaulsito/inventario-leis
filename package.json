@@ -14,5 +14,9 @@
   "dependencies": {
     "core-js": "^3.49.0",
     "es-abstract": "^1.24.2"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "*",
+    "@rollup/rollup-linux-x64-musl": "*"
   }
 }
