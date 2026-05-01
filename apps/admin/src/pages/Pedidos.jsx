@@ -170,20 +170,22 @@ export default function Pedidos() {
   }
 
   function handleRemoveProduct(productoId, varianteNombre = null) {
-    setForm({
-      ...form,
-      productosSeleccionados: form.productosSeleccionados.filter(p => !(p.productoId === productoId && p.variante === varianteNombre))
-    })
+    setForm(prev => ({
+      ...prev,
+      productosSeleccionados: prev.productosSeleccionados.filter(p => 
+        !(p.productoId === productoId && (p.variante || null) === (varianteNombre || null))
+      )
+    }))
   }
 
   function handleQuantityChange(productoId, varianteNombre, cantidad) {
     const qty = Number(cantidad)
-    const prodRef = form.productosSeleccionados.find(p => p.productoId === productoId && p.variante === varianteNombre)
+    const prodRef = form.productosSeleccionados.find(p => p.productoId === productoId && (p.variante || null) === (varianteNombre || null))
     
     if (!prodRef) return;
 
     // Al editar, el "stock disponible" es el stock actual del maestro + lo que ya teníamos reservado en este pedido
-    const originalItem = originalProductos.find(op => op.productoId === productoId && op.variante === varianteNombre);
+    const originalItem = originalProductos.find(op => op.productoId === productoId && (op.variante || null) === (varianteNombre || null));
     const originalQty = originalItem?.cantidad || 0;
     const stockDisponibleTotal = prodRef.stockOriginal + (editingId ? originalQty : 0);
 
@@ -1757,13 +1759,17 @@ END:VCALENDAR`
                         <input 
                           type="number" 
                           min="1" 
-                          max={item.stockOriginal + (editingId ? (originalProductos.find(op => op.productoId === item.productoId && op.variante === item.variante)?.cantidad || 0) : 0)}
+                          max={item.stockOriginal + (editingId ? (originalProductos.find(op => op.productoId === item.productoId && (op.variante || null) === (item.variante || null))?.cantidad || 0) : 0)}
                           value={item.cantidad}
                           onChange={(e) => handleQuantityChange(item.productoId, item.variante, e.target.value)}
                           className="w-16 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:border-primary dark:text-white font-bold"
                         />
-                        <button onClick={() => handleRemoveProduct(item.productoId, item.variante)} className="text-error/70 hover:text-error ml-2" title="Quitar">
-                          <span className="material-symbols-outlined text-sm">close</span>
+                        <button 
+                          onClick={() => handleRemoveProduct(item.productoId, item.variante)} 
+                          className="w-8 h-8 flex items-center justify-center rounded-full bg-error/10 text-error hover:bg-error hover:text-white transition-all duration-200 active:scale-90" 
+                          title="Quitar producto"
+                        >
+                          <span className="material-symbols-outlined text-base">close</span>
                         </button>
                       </div>
                     </div>
