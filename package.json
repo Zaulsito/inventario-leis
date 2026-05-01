@@ -12,6 +12,7 @@
     "build:catalogo": "npm run build --workspace=@inventory-app/catalogo"
   },
   "dependencies": {
-    "core-js": "^3.49.0"
+    "core-js": "^3.49.0",
+    "es-abstract": "^1.24.2"
   }
 }
