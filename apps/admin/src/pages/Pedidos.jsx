@@ -152,7 +152,7 @@ export default function Pedidos() {
       return setErrorMsg(`El producto ${prod.nombre} ${varianteNombre ? `(${varianteNombre})` : ''} no tiene stock disponible.`)
     }
 
-    const yaExiste = form.productosSeleccionados.find(p => p.productoId === productoId && p.variante === varianteNombre)
+    const yaExiste = form.productosSeleccionados.find(p => p.productoId === productoId && (p.variante || null) === (varianteNombre || null))
     if (yaExiste) return
     
     setForm({
@@ -249,7 +249,7 @@ export default function Pedidos() {
       // Productos que estaban antes pero ya no están (eliminados del pedido)
       if (editingId) {
         for (const oldItem of originalProductos) {
-          const newItem = form.productosSeleccionados.find(p => p.productoId === oldItem.productoId && p.variante === oldItem.variante);
+          const newItem = form.productosSeleccionados.find(p => p.productoId === oldItem.productoId && (p.variante || null) === (oldItem.variante || null));
           const pMaestro = productos.find(p => p.id === oldItem.productoId);
           if (pMaestro) {
             const prodRef = doc(db, 'productos', oldItem.productoId);
@@ -284,7 +284,7 @@ export default function Pedidos() {
         
         // Productos que son completamente nuevos en el pedido (no estaban en originalProductos con esa variante)
         for (const newItem of form.productosSeleccionados) {
-          const wasPresent = originalProductos.find(p => p.productoId === newItem.productoId && p.variante === newItem.variante);
+          const wasPresent = originalProductos.find(p => p.productoId === newItem.productoId && (p.variante || null) === (newItem.variante || null));
           if (!wasPresent) {
             const pMaestro = productos.find(p => p.id === newItem.productoId);
             if (pMaestro) {
@@ -1677,7 +1677,7 @@ END:VCALENDAR`
                                 return yaAgregados.length === 0;
                               }
                               // Si tiene variantes, mostrar siempre que quede alguna por agregar
-                              return p.variantes.some(v => !yaAgregados.some(ya => ya.variante === v.nombre));
+                              return p.variantes.some(v => !yaAgregados.some(ya => (ya.variante || null) === (v.nombre || null)));
                             })
                             .filter(p => 
                               p.nombre.toLowerCase().includes(busquedaProd.toLowerCase()) || 
