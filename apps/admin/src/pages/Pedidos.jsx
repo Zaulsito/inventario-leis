@@ -723,10 +723,10 @@ END:VCALENDAR`
                           </td>
                         </tr>
                         {expandedId === p.id && (
-                          <tr className="bg-surface-container-low/50">
-                            <td colSpan={4} className="px-7 py-4">
-                              <div className="bg-surface rounded-2xl p-4 border border-outline-variant/20 shadow-inner">
-                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3">Detalle de Productos</h4>
+                          <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
+                            <td colSpan={4} className="px-7 py-6">
+                              <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
+                                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary dark:text-[#e2bd6c]/80 mb-4">Detalle de Productos</h4>
                                 <div className="space-y-2">
                                   {p.productos?.map((item, idx) => (
                                     <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
@@ -736,16 +736,22 @@ END:VCALENDAR`
                                           <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
                                         </div>
                                         {item.variante && (
-                                          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c] mt-1 bg-amber-500/10 dark:bg-[#e2bd6c]/10 px-2 py-0.5 rounded-md w-fit">
-                                            Color: {item.variante}
-                                          </span>
+                                          <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
+                                            <div 
+                                              className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                            />
+                                            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
+                                              {item.variante}
+                                            </span>
+                                          </div>
                                         )}
                                       </div>
-                                      <span className="font-black text-primary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                      <span className="font-black text-primary dark:text-[#e2bd6c] text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                                     </div>
                                   ))}
                                   {p.comprobante && (
-                                    <div className="mt-4 pt-4 border-t border-primary/10">
+                                    <div className="mt-4 pt-4 border-t border-primary/10 dark:border-white/5">
                                       <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Datos de Transferencia</p>
                                       <p className="text-sm text-on-surface-variant mt-1">
                                         Banco: <span className="font-bold text-on-surface dark:text-white/90">{p.banco}</span> | 
@@ -804,18 +810,34 @@ END:VCALENDAR`
                   </div>
                   
                   {expandedId === p.id && (
-                    <div className="mt-4 pt-4 border-t border-outline-variant/10 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="space-y-3 mb-5">
                         {p.productos?.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-xs">
-                            <span className="text-on-surface-variant font-medium">{item.cantidad}x {item.nombre}</span>
-                            <span className="font-bold text-on-surface">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                          <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
+                                <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                              </div>
+                              <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                            </div>
+                            {item.variante && (
+                              <div className="flex items-center gap-1.5 bg-primary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-primary/10 dark:border-white/5">
+                                <div 
+                                  className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                />
+                                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-primary dark:text-[#e2bd6c]">
+                                  {item.variante}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         ))}
                         {p.banco && (
-                          <div className="bg-primary/5 p-3 rounded-xl">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-primary">Datos de Transferencia</p>
-                            <p className="text-xs font-bold text-on-surface mt-1">{p.banco} | {p.comprobante}</p>
+                          <div className="bg-primary/5 dark:bg-white/5 p-3 rounded-xl border border-primary/10 dark:border-white/5">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Datos de Transferencia</p>
+                            <p className="text-xs font-bold text-on-surface dark:text-white/90 mt-1">{p.banco} | {p.comprobante}</p>
                           </div>
                         )}
                       </div>
@@ -1049,11 +1071,27 @@ END:VCALENDAR`
                   
                   {expandedId === p.id && (
                     <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="space-y-2 mb-4 bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5">
+                      <div className="space-y-2 mb-4">
                         {p.productos?.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-xs border-b border-outline-variant/5 dark:border-white/5 pb-2 last:border-0">
-                            <span className="text-on-surface-variant dark:text-white/70">{item.cantidad}x <span className="font-bold dark:text-white/90">{item.nombre}</span></span>
-                            <span className="font-bold text-on-surface dark:text-[#e2bd6c]">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                          <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
+                                <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                              </div>
+                              <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                            </div>
+                            {item.variante && (
+                              <div className="flex items-center gap-1.5 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
+                                <div 
+                                  className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                />
+                                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
+                                  {item.variante}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1289,19 +1327,27 @@ END:VCALENDAR`
                 </div>
                 {expandedId === p.id && (
                   <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="space-y-2 mb-4 bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5">
+                    <div className="space-y-2 mb-4">
                       {p.productos?.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-sm bg-surface-container-high/50 dark:bg-white/[0.03] p-4 rounded-2xl border border-outline-variant/5">
-                          <div className="flex flex-col">
+                        <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
+                          <div className="flex justify-between items-center mb-2">
                             <div className="flex items-center gap-2">
-                              <span className="font-black text-primary dark:text-[#e2bd6c] text-sm">{item.cantidad}x</span>
+                              <span className="text-secondary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
                               <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
                             </div>
-                            {item.variante && (
-                              <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c] mt-1">Color: {item.variante}</span>
-                            )}
+                            <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                           </div>
-                          <span className="font-black text-on-surface dark:text-[#e2bd6c] text-base">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                          {item.variante && (
+                            <div className="flex items-center gap-1.5 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
+                              <div 
+                                className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                              />
+                              <span className="text-[8px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
+                                {item.variante}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

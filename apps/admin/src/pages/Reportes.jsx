@@ -26,11 +26,12 @@ function getStartOfMonth() {
 }
 
 function getLocalStr(p) {
+  if (p.fechaEntrega) return p.fechaEntrega
   if (p.fechaCreacion) {
     const cDate = new Date(p.fechaCreacion)
     return cDate.getFullYear() + '-' + String(cDate.getMonth() + 1).padStart(2, '0') + '-' + String(cDate.getDate()).padStart(2, '0')
   }
-  return p.fechaEntrega
+  return ''
 }
 
 function formatMoney(value) {
@@ -101,6 +102,8 @@ export default function Reportes() {
   // Para el módulo de "Mermas"
   const [conteoMerma, setConteoMerma] = useState([])
   const [guardadoMerma, setGuardadoMerma] = useState(false)
+  const [motivoMerma, setMotivoMerma] = useState('Dañado')
+  const [fechaMerma, setFechaMerma] = useState(getLocalDateString()) // Estado para la fecha de merma
 
   const [procesando, setProcesando] = useState(false)
   
@@ -388,8 +391,8 @@ export default function Reportes() {
       const payloadProductos = itemsAMermar.map(i => ({ productoId: i.id, nombre: i.producto, cantidad: i.vendido }))
 
       batch.set(mermaRef, {
-        motivo: 'Producto Mermado',
-        fechaEntrega: getLocalDateString(),
+        motivo: motivoMerma,
+        fechaEntrega: fechaMerma, // Usar la fecha seleccionada
         productos: payloadProductos,
         fechaCreacion: new Date().toISOString(),
       })
@@ -745,146 +748,7 @@ export default function Reportes() {
         </div>
       </section>
 
-      {/* Formularios manuales de stock paralelos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 relative z-10 w-full">
-        
-        {/* Conteo semanal MANUAL (para Venta Directa) */}
-        <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2rem] p-8 border border-outline-variant/10 dark:border-white/5 flex flex-col h-[480px]">
-          <div className="flex justify-between items-center mb-6 shrink-0">
-            <div>
-              <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant dark:text-white/90">Registrar Venta Directa</h3>
-              <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-widest mt-1">Registra salidas al cliente final.</p>
-            </div>
-          </div>
-
-          {/* Buscador de productos */}
-          <div className="mb-4 relative z-50">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
-              <input
-                type="text"
-                placeholder="Buscar producto para vender..."
-                value={searchVenta}
-                onChange={e => setSearchVenta(e.target.value)}
-                className="w-full bg-surface-container-highest dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all dark:text-white"
-              />
-            </div>
-            {searchVenta && (
-              <div className="absolute top-full left-0 right-0 mt-3 bg-surface dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
-                {productos
-                  .filter(p => p.nombre.toLowerCase().includes(searchVenta.toLowerCase()))
-                  .map(p => (
-                    <button
-                      key={p.id}
-                      onMouseDown={(e) => { e.preventDefault(); addItemVenta(p); }}
-                      className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors flex justify-between items-center border-b border-outline-variant/5 dark:border-white/5 dark:text-white/80 group"
-                    >
-                      <span className="group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors">{p.nombre}</span>
-                      <span className="text-[10px] opacity-60 bg-outline-variant/10 dark:bg-white/5 px-2 py-0.5 rounded-full">Stock: {p.stock}</span>
-                    </button>
-                  ))
-                }
-                {productos.filter(p => p.nombre.toLowerCase().includes(searchVenta.toLowerCase())).length === 0 && (
-                  <div className="px-5 py-6 text-[10px] text-outline dark:text-gray-500 italic text-center font-bold uppercase tracking-widest">No se encontraron productos</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="overflow-y-auto flex-1 bg-surface-container-highest/20 dark:bg-[#121212]/40 rounded-3xl border border-outline-variant/20 dark:border-white/5 relative z-10 p-1">
-            {/* Overlay de Resumen de Confirmación */}
-            {mostrarResumenVenta && (
-              <div className="absolute inset-0 z-50 bg-surface-container-low/95 dark:bg-[#1e1e1e]/95 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
-                <h4 className="font-headline text-xl text-primary dark:text-[#e2bd6c] mb-4">Confirmar Registro</h4>
-                <div className="flex-1 overflow-y-auto pr-2">
-                  <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-widest mb-3">Vas a registrar lo siguiente:</p>
-                  <ul className="space-y-2">
-                    {conteo.filter(i => i.vendido > 0).map(i => (
-                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface dark:bg-white/5 p-3 rounded-xl border border-outline-variant/10 dark:border-white/5 dark:text-white/80">
-                        <span>{i.producto}</span>
-                        <span className="text-secondary dark:text-[#e2bd6c]">{i.vendido} unidades</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="mt-6 flex gap-3">
-                  <button 
-                    onClick={() => setMostrarResumenVenta(false)}
-                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest text-outline hover:bg-surface-variant transition-colors rounded-xl border border-outline-variant/20"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={guardar}
-                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black hover:scale-[1.02] active:scale-[0.98] transition-all rounded-xl shadow-md"
-                  >
-                    Confirmar Todo
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <table className="w-full text-left">
-              <thead className="sticky top-0 bg-surface-container-low dark:bg-[#1e1e1e] px-2 z-20 overflow-hidden">
-                <tr className="overflow-hidden rounded-t-2xl">
-                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500 rounded-tl-2xl">Producto</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500">Stock Disp.</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500">Cant.</th>
-                  <th className="py-4 pr-4 rounded-tr-2xl"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
-                {conteo.map((p) => (
-                  <tr key={p.id} className="hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors">
-                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px] dark:text-white/80">{p.producto}</td>
-                    <td className="py-3 text-center font-body text-[11px] font-bold dark:text-white/70">{p.stockFin.toLocaleString()}</td>
-                    <td className="py-3 text-center">
-                      <input
-                        type="number" min="0" max={p.stockIni} value={p.vendido}
-                        onChange={e => handleVendido(p.id, e.target.value)}
-                        className="w-14 bg-surface dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 rounded-md px-2 py-1 text-[11px] font-bold text-on-surface dark:text-white focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] text-center"
-                      />
-                    </td>
-                    <td className="py-3 pr-4 text-right">
-                      <button 
-                        onClick={() => removeItemVenta(p.id)}
-                        className="text-outline/40 hover:text-error transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {conteo.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="py-10 text-center text-[10px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest opacity-50 italic">
-                      Busca productos para agregar a la venta
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-6 flex justify-between items-center shrink-0">
-            <div>
-              {guardado && (
-                <span className="flex items-center gap-1 text-[10px] text-green-700 font-bold uppercase tracking-widest animate-pulse">
-                  <span className="material-symbols-outlined text-green-700 text-[14px]">check_circle</span>
-                  Registro Exitoso
-                </span>
-              )}
-            </div>
-            <button
-              onClick={guardar}
-              disabled={conteo.length === 0 || procesando}
-              className={`bg-primary-container dark:bg-[#e2bd6c] text-on-primary-container dark:text-black px-6 py-3 rounded-xl font-label text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 ${conteo.length === 0 || procesando ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
-            >
-              <span className="material-symbols-outlined text-lg">save</span>
-              Guardar Venta
-            </button>
-          </div>
-        </section>
+      <div className="grid grid-cols-1 gap-8 mb-10 relative z-10 w-full">
 
         {/* Mermas MANUAL */}
         <section className="bg-error/5 dark:bg-error/5 rounded-[2rem] p-8 border border-error/20 dark:border-error/20 flex flex-col h-[480px] tour-reportes-mermas">
@@ -892,6 +756,44 @@ export default function Reportes() {
             <div>
               <h3 className="font-headline text-2xl text-error dark:text-red-400">Registrar Pérdida</h3>
               <p className="text-[10px] text-error/70 dark:text-red-400/60 font-label uppercase tracking-widest mt-1">Registra productos dañados o mermas.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-8 shrink-0">
+            {/* Selector de Motivo del Ajuste */}
+            <div className="flex-1">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-error/40 dark:text-red-400/40 mb-3 ml-1">Motivo del Ajuste</p>
+              <div className="flex flex-wrap gap-2">
+                {['Dañado', 'Regalo', 'Devolución'].map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setMotivoMerma(m)}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border-2 flex items-center gap-2
+                      ${motivoMerma === m 
+                        ? 'bg-error border-transparent text-white shadow-lg shadow-error/20 scale-105' 
+                        : 'bg-transparent border-error/10 text-error/50 hover:bg-error/5 dark:hover:bg-red-950/20'}`}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {m === 'Dañado' ? 'inventory_2' : m === 'Regalo' ? 'featured_seasonal_and_gifts' : 'assignment_return'}
+                    </span>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Selector de Fecha */}
+            <div className="flex flex-col gap-2 min-w-[200px]">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-error/40 dark:text-red-400/40 ml-1">Fecha del Movimiento</p>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-error/50 text-base">calendar_today</span>
+                <input 
+                  type="date"
+                  value={fechaMerma}
+                  onChange={e => setFechaMerma(e.target.value)}
+                  className="w-full bg-surface-container-highest dark:bg-[#121212] border border-error/20 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[11px] font-bold text-error dark:text-red-400 focus:outline-none focus:border-error transition-all"
+                />
+              </div>
             </div>
           </div>
 
@@ -930,37 +832,7 @@ export default function Reportes() {
           </div>
 
           <div className="overflow-y-auto flex-1 bg-surface-container-lowest/50 dark:bg-[#121212]/40 rounded-3xl border border-error/10 dark:border-error/20 relative z-10 p-1">
-            {/* Overlay de Resumen de Confirmación Mermas */}
-            {mostrarResumenMerma && (
-              <div className="absolute inset-0 z-50 bg-error-container/95 dark:bg-red-950/90 backdrop-blur-sm p-6 flex flex-col animate-in fade-in duration-200">
-                <h4 className="font-headline text-xl text-error dark:text-red-400 mb-4">Confirmar Pérdida</h4>
-                <div className="flex-1 overflow-y-auto pr-2">
-                  <p className="text-[10px] text-error/70 dark:text-red-400/60 font-label uppercase tracking-widest mb-3">Se restará del inventario:</p>
-                  <ul className="space-y-2">
-                    {conteoMerma.filter(i => i.vendido > 0).map(i => (
-                      <li key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-surface dark:bg-white/5 p-3 rounded-xl border border-error/10 dark:border-white/5">
-                        <span className="text-error dark:text-red-400">{i.producto}</span>
-                        <span className="text-error dark:text-red-400">{i.vendido} unidades</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="mt-6 flex gap-3">
-                  <button 
-                    onClick={() => setMostrarResumenMerma(false)}
-                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest text-error/60 hover:bg-error/10 transition-colors rounded-xl border border-error/20"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={guardarMerma}
-                    className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest bg-error text-on-error hover:scale-[1.02] active:scale-[0.98] transition-all rounded-xl shadow-md"
-                  >
-                    Confirmar Pérdida
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* El modal se movió al final del componente para ser 'fixed' */}
 
             <table className="w-full text-left">
               <thead className="sticky top-0 bg-error/5 dark:bg-red-950/20 backdrop-blur-md px-2 z-20">
@@ -1196,6 +1068,88 @@ export default function Reportes() {
         </div>
       )}
       <Footer />
+
+      {/* Overlay de Resumen de Confirmación Mermas (Versión Modal Fija) */}
+      {mostrarResumenMerma && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+          {/* Backdrop con desenfoque */}
+          <div 
+            className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-md" 
+            onClick={() => !procesando && setMostrarResumenMerma(false)}
+          />
+          
+          <div className="w-full max-w-md bg-[#1a1a1a] dark:bg-[#121212] border border-white/10 dark:border-error/20 rounded-[3rem] p-8 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden animate-in zoom-in-95 duration-300">
+            {/* Línea decorativa superior */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-error to-transparent opacity-50" />
+            
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-error/30 shadow-[0_0_20px_rgba(186,26,26,0.2)]">
+                <span className="material-symbols-outlined text-error text-4xl">inventory_2</span>
+              </div>
+              <h4 className="font-headline text-3xl text-white italic mb-2 tracking-tight">Confirmar Ajuste</h4>
+              <p className="text-[10px] text-error/60 font-label uppercase tracking-[0.4em] font-black">Movimiento de Inventario</p>
+            </div>
+
+            <div className="space-y-6 mb-10">
+              <div className="grid grid-cols-2 gap-4 bg-white/5 rounded-2xl p-5 border border-white/5">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 font-black">Naturaleza</span>
+                  <span className="text-[11px] font-bold text-error flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">{motivoMerma === 'Dañado' ? 'inventory_2' : motivoMerma === 'Regalo' ? 'featured_seasonal_and_gifts' : 'assignment_return'}</span>
+                    {motivoMerma}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 items-end">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 font-black">Fecha Efectiva</span>
+                  <span className="text-[11px] font-bold text-white/90 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm opacity-60">calendar_today</span>
+                    {fechaMerma}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="text-[9px] text-white/30 font-black uppercase tracking-widest ml-1">Productos a retirar ({conteoMerma.filter(i => i.vendido > 0).length})</p>
+                <div className="max-h-[180px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
+                  {conteoMerma.filter(i => i.vendido > 0).map(i => (
+                    <div key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-error/30 transition-all group">
+                      <span className="text-white/80 group-hover:text-white transition-colors">{i.producto}</span>
+                      <span className="bg-error text-white px-3 py-1 rounded-xl text-[10px] shadow-lg shadow-error/20">-{i.vendido}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <button 
+                onClick={guardarMerma}
+                disabled={procesando}
+                className="w-full py-5 text-[11px] font-black uppercase tracking-[0.2em] bg-error text-white hover:bg-error/90 hover:scale-[1.02] active:scale-[0.98] transition-all rounded-2xl shadow-2xl shadow-error/30 flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {procesando ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-xl">check_circle</span>
+                    Confirmar Salida
+                  </>
+                )}
+              </button>
+              <button 
+                onClick={() => setMostrarResumenMerma(false)}
+                disabled={procesando}
+                className="w-full py-3 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white transition-colors text-center"
+              >
+                Volver a la edición
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
