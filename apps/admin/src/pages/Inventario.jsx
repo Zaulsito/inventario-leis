@@ -64,6 +64,14 @@ const getHexColor = (name) => {
   return colors[name.toLowerCase()] || null;
 };
 
+// Utilidad para normalizar texto (quitar acentos y convertir a minúsculas)
+const normalizeText = (text) => {
+  if (!text) return '';
+  return text.toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
 export default function Inventario() {
   const [busqueda, setBusqueda]   = useState('')
   const [filtroCol, setFiltroCol] = useState('TODOS')
@@ -200,7 +208,8 @@ export default function Inventario() {
   const colecciones = ['TODOS', ...categoriasUnicas]
 
   const filtrados = productos.filter(p => {
-    const matchBusq = p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.sku.toLowerCase().includes(busqueda.toLowerCase())
+    const searchTerm = normalizeText(busqueda);
+    const matchBusq = normalizeText(p.nombre).includes(searchTerm) || normalizeText(p.sku).includes(searchTerm)
     const matchCol  = filtroCol === 'TODOS' || (p.coleccion || '').trim().toUpperCase() === filtroCol
     return matchBusq && matchCol
   })

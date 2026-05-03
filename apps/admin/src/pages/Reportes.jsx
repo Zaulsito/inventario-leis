@@ -26,23 +26,28 @@ function getStartOfMonth() {
 }
 
 function getLocalStr(p) {
-  if (p.fechaEntrega) return p.fechaEntrega
-  if (p.fechaCreacion) {
-    const cDate = new Date(p.fechaCreacion)
-    return cDate.getFullYear() + '-' + String(cDate.getMonth() + 1).padStart(2, '0') + '-' + String(cDate.getDate()).padStart(2, '0')
+  if (!p) return ''
+  const f = p.fechaEntrega || p.fechaCreacion
+  if (!f) return ''
+  try {
+    const d = new Date(f)
+    if (isNaN(d.getTime())) return ''
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+  } catch (e) {
+    return ''
   }
-  return ''
 }
 
 function formatMoney(value) {
+  if (value === undefined || value === null || isNaN(value)) return '$0';
   // Manejo de valores negativos
   const neg = value < 0
   const abs = Math.abs(value)
   let f = ''
   if (abs >= 1000) {
-    f = '$' + (abs / 1000).toFixed(0) + 'k'
+    f = '$' + (abs / 1000).toFixed(abs >= 10000 ? 0 : 1) + 'k'
   } else {
-    f = '$' + abs
+    f = '$' + abs.toLocaleString('es-CL')
   }
   return neg ? '-' + f : f
 }
@@ -80,6 +85,14 @@ const getHexColor = (name) => {
     'bronce': '#cd7f32'
   };
   return colors[name.toLowerCase()] || null;
+};
+
+// Utilidad para normalizar texto (quitar acentos y convertir a minúsculas)
+const normalizeText = (text) => {
+  if (!text) return '';
+  return text.toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 };
 
 export default function Reportes() {
@@ -270,16 +283,31 @@ export default function Reportes() {
     }))
   }
 
-  function addItemVenta(p) {
+  function addItemVenta(p, variantName = null) {
+    const itemId = variantName ? `${p.id}-${variantName}` : p.id
     setConteo(prev => {
-      const exists = prev.find(x => x.id === p.id)
+      const exists = prev.find(x => x.id === itemId)
       if (exists) return prev
+      
+      let stockIni = Number(p.stock) || 0
+      let variantLabel = ''
+      
+      if (variantName && p.variantes) {
+        const v = p.variantes.find(vx => vx.nombre === variantName)
+        if (v) {
+          stockIni = Number(v.stock) || 0
+          variantLabel = ` (${variantName})`
+        }
+      }
+
       return [...prev, {
-        id: p.id,
-        producto: p.nombre,
-        stockIni: p.stock,
+        id: itemId,
+        productoId: p.id,
+        producto: p.nombre + variantLabel,
+        variante: variantName,
+        stockIni: stockIni,
         vendido: 1,
-        stockFin: p.stock - 1,
+        stockFin: stockIni - 1,
         precio: p.precio || 0
       }]
     })
@@ -346,16 +374,31 @@ export default function Reportes() {
     }))
   }
 
-  function addItemMerma(p) {
+  function addItemMerma(p, variantName = null) {
+    const itemId = variantName ? `${p.id}-${variantName}` : p.id
     setConteoMerma(prev => {
-      const exists = prev.find(x => x.id === p.id)
+      const exists = prev.find(x => x.id === itemId)
       if (exists) return prev
+      
+      let stockIni = Number(p.stock) || 0
+      let variantLabel = ''
+      
+      if (variantName && p.variantes) {
+        const v = p.variantes.find(vx => vx.nombre === variantName)
+        if (v) {
+          stockIni = Number(v.stock) || 0
+          variantLabel = ` (${variantName})`
+        }
+      }
+
       return [...prev, {
-        id: p.id,
-        producto: p.nombre,
-        stockIni: p.stock,
+        id: itemId,
+        productoId: p.id,
+        producto: p.nombre + variantLabel,
+        variante: variantName,
+        stockIni: stockIni,
         vendido: 1,
-        stockFin: p.stock - 1,
+        stockFin: stockIni - 1,
         precio: p.precio || 0
       }]
     })
@@ -381,20 +424,60 @@ export default function Reportes() {
     try {
       const batch = writeBatch(db)
       
+      // Consolidar actualizaciones por productoId (agrupando variantes)
+      const updatesMap = {}; // productoId -> { globalStock: number, variantes: [] }
+
       itemsAMermar.forEach(item => {
-        const ref = doc(db, 'productos', item.id)
-        const nuevoEstado = calcularEstado(item.stockFin)
-        batch.update(ref, { stock: item.stockFin, estado: nuevoEstado })
-      })
+        const pId = item.productoId || item.id; // Fallback por si acaso
+        if (!updatesMap[pId]) {
+          const pOrig = productos.find(p => p.id === pId);
+          if (pOrig) {
+            updatesMap[pId] = {
+              globalStock: Number(pOrig.stock),
+              variantes: pOrig.variantes ? JSON.parse(JSON.stringify(pOrig.variantes)) : null
+            };
+          }
+        }
+
+        const u = updatesMap[pId];
+        if (u) {
+          u.globalStock -= Number(item.vendido);
+          if (item.variante && u.variantes) {
+            const v = u.variantes.find(vx => vx.nombre === item.variante);
+            if (v) v.stock = Math.max(0, Number(v.stock) - Number(item.vendido));
+          }
+        }
+      });
+
+      // Aplicar actualizaciones al batch
+      for (const pId in updatesMap) {
+        const u = updatesMap[pId];
+        const ref = doc(db, 'productos', pId);
+        const nuevoEstado = calcularEstado(u.globalStock);
+        
+        let payload = { 
+          stock: u.globalStock, 
+          estado: nuevoEstado 
+        };
+        if (u.variantes) payload.variantes = u.variantes;
+        
+        batch.update(ref, payload);
+      }
 
       const mermaRef = doc(collection(db, 'mermas'))
-      const payloadProductos = itemsAMermar.map(i => ({ productoId: i.id, nombre: i.producto, cantidad: i.vendido }))
+      const payloadProductos = itemsAMermar.map(i => ({ 
+        productoId: i.productoId || i.id, 
+        nombre: i.producto, 
+        cantidad: i.vendido,
+        variante: i.variante || null
+      }))
 
       batch.set(mermaRef, {
         motivo: motivoMerma,
-        fechaEntrega: fechaMerma, // Usar la fecha seleccionada
+        fechaEntrega: fechaMerma,
         productos: payloadProductos,
         fechaCreacion: new Date().toISOString(),
+        _tipo: 'merma'
       })
 
       await batch.commit()
@@ -548,9 +631,12 @@ export default function Reportes() {
         </div>
       </header>
 
-      {/* Gráfico principal */}
-      <section className="mb-10 w-full h-auto md:h-[550px] bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2.5rem] p-6 md:p-10 border border-outline-variant/10 dark:border-white/5 flex flex-col relative z-0 tour-reportes-grafico shadow-xl">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6">
+      {/* Gráfico principal - Luxe Glass Redesign */}
+      <section className="mb-10 w-full min-h-[600px] md:min-h-[650px] bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2.5rem] p-6 md:p-10 border border-outline-variant/10 dark:border-white/5 flex flex-col relative z-10 tour-reportes-grafico shadow-xl overflow-hidden">
+        {/* Decoración de fondo */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
+        
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6 relative z-10">
           <div className="flex-1">
             <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
             <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-[0.2em] mt-1 font-extrabold">Evolución de Ganancias vs Pérdidas</p>
@@ -699,59 +785,103 @@ export default function Reportes() {
           </div>
         </div>
 
-        <div className="flex-1 w-full relative z-0 -ml-4 pr-4">
+        <div className="w-full h-[400px] relative z-10 animate-in fade-in zoom-in-95 duration-1000">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 20, right: 0, left: 10, bottom: 0 }}>
+            <AreaChart key={`${chartMode}-${periodo}`} data={chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorGanancia" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#a78b5e" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#a78b5e" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#e2bd6c" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#e2bd6c" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorPerdida" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ba1a1a" stopOpacity={0.3}/>
                   <stop offset="95%" stopColor="#ba1a1a" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" opacity={0.5} />
+              
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" opacity={0.05} />
+              
               <XAxis 
                 dataKey="label" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fontSize: 10, fill: '#808080', fontWeight: 'bold' }} 
-                dy={10} 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 10, fill: '#808080', fontWeight: 'bold' }}
+                dy={15}
               />
+              
               <YAxis 
-                type="number" 
-                tickFormatter={formatMoney} 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fontSize: 10, fill: '#808080', fontWeight: 'bold' }} 
-                dx={-5} 
+                hide={true} 
+                domain={['auto', 'auto']}
               />
+              
               <Tooltip 
-                formatter={(value, name) => {
-                  if (name === 'Pérdida') return [`-$${Math.abs(value).toLocaleString('es-CL')}`, 'Pérdida Mermas']
-                  if (name === 'Total') return [value < 0 ? `-$${Math.abs(value).toLocaleString('es-CL')}` : `+$${value.toLocaleString('es-CL')}`, 'Total Neto']
-                  return [`+$${value.toLocaleString('es-CL')}`, 'Ingresos Venta']
+                cursor={{ stroke: '#e2bd6c', strokeWidth: 1, strokeDasharray: '5 5' }}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-[#1e1e1e]/90 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-2">{label}</p>
+                        {payload.map((entry, index) => (
+                          <div key={index} className="flex items-center gap-3 mb-1 last:mb-0">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                            <span className="text-[11px] text-white/60 font-bold">{entry.name === 'Total' ? 'Neto' : entry.name}:</span>
+                            <span className={`text-sm font-black ${entry.value >= 0 ? 'text-[#e2bd6c]' : 'text-red-400'}`}>
+                              {formatMoney(entry.value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }
+                  return null
                 }}
-                labelStyle={{ fontWeight: 'bold', color: '#e2bd6c' }}
-                contentStyle={{ borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#1e1e1e', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
               />
+              
               {(chartMode === 'ambas' || chartMode === 'ventas') && (
-                <Area type="monotone" dataKey={chartMode === 'ambas' ? 'Total' : 'Ganancia'} stroke="#e2bd6c" strokeWidth={3} fillOpacity={1} fill="url(#colorGanancia)" />
+                <Area 
+                  type="monotone" 
+                  name="Ventas"
+                  dataKey={chartMode === 'ambas' ? 'Total' : 'Ganancia'} 
+                  stroke="#e2bd6c" 
+                  strokeWidth={4}
+                  fillOpacity={1} 
+                  fill="url(#colorGanancia)" 
+                  animationDuration={2000}
+                />
               )}
-              {chartMode === 'mermas' && (
-                <Area type="monotone" dataKey="Pérdida" stroke="#ba1a1a" strokeWidth={3} fillOpacity={1} fill="url(#colorPerdida)" />
+              
+              {(chartMode === 'ambas' || chartMode === 'mermas') && (
+                <Area 
+                  type="monotone" 
+                  name="Mermas"
+                  dataKey="Pérdida" 
+                  stroke="#ba1a1a" 
+                  strokeWidth={2}
+                  fillOpacity={1} 
+                  fill="url(#colorPerdida)"
+                  strokeDasharray="5 5"
+                  animationDuration={2000}
+                />
               )}
             </AreaChart>
           </ResponsiveContainer>
+          
+          {chartData.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-4">
+              <span className="material-symbols-outlined text-4xl text-white/10 animate-pulse">monitoring</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Esperando datos comerciales...</span>
+            </div>
+          )}
         </div>
       </section>
 
       <div className="grid grid-cols-1 gap-8 mb-10 relative z-10 w-full">
 
-        {/* Mermas MANUAL */}
-        <section className="bg-error/5 dark:bg-error/5 rounded-[2rem] p-8 border border-error/20 dark:border-error/20 flex flex-col h-[480px] tour-reportes-mermas">
+        {/* Mermas MANUAL - Luxe Redesign */}
+        <section className="bg-gradient-to-br from-error/10 to-surface dark:from-error/5 dark:to-[#1a1a1a] rounded-[2.5rem] p-6 md:p-10 border border-error/20 dark:border-white/5 flex flex-col min-h-[700px] h-auto relative overflow-hidden tour-reportes-mermas shadow-2xl">
+          {/* Fondo decorativo interno */}
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-error/10 blur-[100px] rounded-full pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-error/5 blur-[100px] rounded-full pointer-events-none" />
           <div className="flex justify-between items-center mb-6 shrink-0">
             <div>
               <h3 className="font-headline text-2xl text-error dark:text-red-400">Registrar Pérdida</h3>
@@ -812,42 +942,95 @@ export default function Reportes() {
             {searchMerma && (
               <div className="absolute top-full left-0 right-0 mt-3 bg-surface dark:bg-[#1e1e1e] border border-error/20 dark:border-error/30 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
                 {productos
-                  .filter(p => p.nombre.toLowerCase().includes(searchMerma.toLowerCase()))
-                  .map(p => (
-                    <button
-                      key={p.id}
-                      onMouseDown={(e) => { e.preventDefault(); addItemMerma(p); }}
-                      className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-error/10 dark:hover:bg-error/20 transition-colors flex justify-between items-center border-b border-error/5 dark:border-error/10 group"
-                    >
-                      <span className="text-error dark:text-red-400 group-hover:scale-105 transition-transform origin-left">{p.nombre}</span>
-                      <span className="text-[10px] text-error dark:text-red-400/60 opacity-60 bg-error/5 px-2 py-0.5 rounded-full font-extrabold">Stock: {p.stock}</span>
-                    </button>
-                  ))
+                  .filter(p => {
+                    const searchTerm = normalizeText(searchMerma);
+                    const nameMatch = normalizeText(p.nombre).includes(searchTerm);
+                    const skuMatch = normalizeText(p.sku).includes(searchTerm);
+                    const variantMatch = p.variantes?.some(v => normalizeText(v.nombre).includes(searchTerm));
+                    return nameMatch || skuMatch || variantMatch;
+                  })
+                  .flatMap(p => {
+                    if (p.variantes && p.variantes.length > 0) {
+                      return p.variantes.map(v => (
+                        <button
+                          key={`${p.id}-${v.nombre}`}
+                          onMouseDown={(e) => { e.preventDefault(); addItemMerma(p, v.nombre); }}
+                          className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-error/10 dark:hover:bg-error/20 transition-colors flex justify-between items-center border-b border-error/5 dark:border-error/10 group"
+                        >
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-error dark:text-red-400 group-hover:scale-105 transition-transform origin-left">{p.nombre}</span>
+                              <div className="flex items-center gap-1.5 bg-error/5 dark:bg-white/5 px-2 py-0.5 rounded-full border border-error/10 dark:border-white/10">
+                                <div 
+                                  className="w-2 h-2 rounded-full border border-black/5 dark:border-white/10"
+                                  style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
+                                />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-error/60 dark:text-red-400/60">{v.nombre}</span>
+                              </div>
+                            </div>
+                            <span className="text-[9px] text-outline/50 uppercase tracking-widest">{p.sku}</span>
+                          </div>
+                          <span className="text-[10px] text-error dark:text-red-400/60 opacity-60 bg-error/5 px-2 py-0.5 rounded-full font-extrabold">Stock: {v.stock}</span>
+                        </button>
+                      ));
+                    }
+                    return (
+                      <button
+                        key={p.id}
+                        onMouseDown={(e) => { e.preventDefault(); addItemMerma(p); }}
+                        className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-error/10 dark:hover:bg-error/20 transition-colors flex justify-between items-center border-b border-error/5 dark:border-error/10 group"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <span className="text-error dark:text-red-400 group-hover:scale-105 transition-transform origin-left">{p.nombre}</span>
+                          <span className="text-[9px] text-outline/50 uppercase tracking-widest">{p.sku}</span>
+                        </div>
+                        <span className="text-[10px] text-error dark:text-red-400/60 opacity-60 bg-error/5 px-2 py-0.5 rounded-full font-extrabold">Stock: {p.stock}</span>
+                      </button>
+                    );
+                  })
                 }
-                {productos.filter(p => p.nombre.toLowerCase().includes(searchMerma.toLowerCase())).length === 0 && (
+                {productos.filter(p => {
+                    const searchTerm = normalizeText(searchMerma);
+                    const nameMatch = normalizeText(p.nombre).includes(searchTerm);
+                    const skuMatch = normalizeText(p.sku).includes(searchTerm);
+                    const variantMatch = p.variantes?.some(v => normalizeText(v.nombre).includes(searchTerm));
+                    return nameMatch || skuMatch || variantMatch;
+                  }).length === 0 && (
                   <div className="px-5 py-6 text-[10px] text-error/50 italic text-center font-bold uppercase tracking-widest">No se encontraron productos</div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="overflow-y-auto flex-1 bg-surface-container-lowest/50 dark:bg-[#121212]/40 rounded-3xl border border-error/10 dark:border-error/20 relative z-10 p-1">
+          {/* Tabla de mermas seleccionadas - Luxe Glass Effect */}
+          <div className="flex-1 min-h-[300px] bg-white/5 dark:bg-black/40 backdrop-blur-md rounded-[2rem] border border-error/10 dark:border-white/5 relative z-10 p-2 luxe-scrollbar overflow-y-auto">
             {/* El modal se movió al final del componente para ser 'fixed' */}
 
             <table className="w-full text-left">
-              <thead className="sticky top-0 bg-error/5 dark:bg-red-950/20 backdrop-blur-md px-2 z-20">
-                <tr className="rounded-t-2xl overflow-hidden">
-                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] rounded-tl-2xl">Producto</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Stock Disp.</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c]">Cant.</th>
-                  <th className="py-4 pr-4 rounded-tr-2xl"></th>
+              <thead className="sticky top-0 bg-error/5 dark:bg-red-950/40 backdrop-blur-md px-2 z-20">
+                <tr className="border-b border-error/10 dark:border-error/20">
+                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80 rounded-tl-2xl">Producto</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80">Stock</th>
+                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80">Cant.</th>
+                  <th className="py-4 pr-5 text-right font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80 rounded-tr-2xl">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-error/5">
                 {conteoMerma.map((p) => (
-                  <tr key={p.id} className="hover:bg-error/5 transition-colors">
-                    <td className="py-3 pl-5 text-[11px] font-bold truncate max-w-[120px] text-[#5e2220] dark:text-red-400/80">{p.producto}</td>
-                    <td className="py-3 text-center font-body text-[11px] font-bold text-[#5e2220] dark:text-red-400/70">{p.stockFin.toLocaleString()}</td>
+                  <tr key={p.id} className="hover:bg-error/10 dark:hover:bg-red-900/20 transition-colors border-b border-error/5 dark:border-white/5 group">
+                    <td className="py-4 pl-5 text-[11px] font-bold truncate max-w-[180px] md:max-w-none text-[#5e2220] dark:text-red-200 group-hover:text-error dark:group-hover:text-red-400 transition-colors flex flex-col gap-1">
+                      <span>{p.producto}</span>
+                      {p.variante && (
+                        <div className="flex items-center gap-1.5 bg-error/5 dark:bg-white/5 px-2 py-0.5 rounded-full border border-error/10 dark:border-white/10 w-fit">
+                          <div 
+                            className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10"
+                            style={{ backgroundColor: getHexColor(p.variante) || '#ccc' }}
+                          />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-error/60 dark:text-red-400/60">{p.variante}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 text-center font-body text-[11px] font-bold text-[#5e2220] dark:text-red-300/80">{p.stockFin.toLocaleString()}</td>
                     <td className="py-3 text-center">
                       <input
                         type="number" min="0" max={p.stockIni} value={p.vendido}
@@ -876,22 +1059,38 @@ export default function Reportes() {
             </table>
           </div>
 
-          <div className="mt-6 flex justify-between items-center shrink-0">
-            <div>
+          <div className="mt-8 pt-6 border-t border-error/10 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 shrink-0 relative z-10">
+            <div className="flex items-center gap-3">
+              {conteoMerma.length > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-error/40 dark:text-white/30">Total a ajustar</span>
+                  <span className="text-xl font-headline font-bold text-error dark:text-red-400">
+                    {conteoMerma.reduce((acc, curr) => acc + curr.vendido, 0)} <span className="text-xs italic opacity-60">unidades</span>
+                  </span>
+                </div>
+              )}
               {guardadoMerma && (
-                <span className="flex items-center gap-1 text-[10px] text-error font-bold uppercase tracking-widest animate-pulse">
-                  <span className="material-symbols-outlined text-error text-[14px]">check_circle</span>
-                  Stock Eliminado
+                <span className="flex items-center gap-2 bg-error/10 px-4 py-2 rounded-full text-[10px] text-error font-black uppercase tracking-widest animate-in fade-in zoom-in duration-300">
+                  <span className="material-symbols-outlined text-error text-[16px] animate-bounce">verified</span>
+                  Stock Actualizado
                 </span>
               )}
             </div>
             <button
               onClick={guardarMerma}
               disabled={conteoMerma.length === 0 || procesando}
-              className={`bg-error text-on-error px-6 py-3 rounded-xl font-label text-[11px] font-bold uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${conteoMerma.length === 0 || procesando ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+              className={`group relative overflow-hidden px-10 py-5 rounded-2xl font-label text-[12px] font-black uppercase tracking-[0.25em] transition-all duration-500 shadow-2xl
+                ${conteoMerma.length === 0 || procesando 
+                  ? 'bg-outline/10 text-outline/40 grayscale cursor-not-allowed border border-white/5' 
+                  : 'bg-error text-white hover:scale-[1.05] active:scale-95 shadow-error/30'}`}
             >
-              <span className="material-symbols-outlined text-lg">remove_shopping_cart</span>
-              Eliminar Stock
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              <div className="flex items-center gap-3 relative z-10">
+                <span className="material-symbols-outlined text-xl group-hover:rotate-12 transition-transform">
+                  {procesando ? 'sync' : 'delete_sweep'}
+                </span>
+                {procesando ? 'PROCESANDO...' : 'CONFIRMAR AJUSTE'}
+              </div>
             </button>
           </div>
         </section>
@@ -1113,7 +1312,18 @@ export default function Reportes() {
                 <div className="max-h-[180px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                   {conteoMerma.filter(i => i.vendido > 0).map(i => (
                     <div key={i.id} className="flex justify-between items-center text-[11px] font-bold bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-error/30 transition-all group">
-                      <span className="text-white/80 group-hover:text-white transition-colors">{i.producto}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-white/80 group-hover:text-white transition-colors">{i.producto}</span>
+                        {i.variante && (
+                          <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-full border border-white/10 w-fit">
+                            <div 
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: getHexColor(i.variante) || '#ccc' }}
+                            />
+                            <span className="text-[8px] font-black uppercase tracking-widest text-white/40">{i.variante}</span>
+                          </div>
+                        )}
+                      </div>
                       <span className="bg-error text-white px-3 py-1 rounded-xl text-[10px] shadow-lg shadow-error/20">-{i.vendido}</span>
                     </div>
                   ))}
