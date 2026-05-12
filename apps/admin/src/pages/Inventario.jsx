@@ -26,6 +26,7 @@ const formInicial = {
   stock: '', 
   fechaIngreso: getLocalDateString(), 
   fotoUrl: '',
+  descripcion: '',
   variantes: []
 }
 
@@ -141,6 +142,7 @@ export default function Inventario() {
       stock: p.stock, 
       fechaIngreso: p.fechaIngreso || getLocalDateString(), 
       fotoUrl: p.fotoUrl || '',
+      descripcion: p.descripcion || '',
       variantes: p.variantes || []
     })
     setEditingId(p.id)
@@ -189,7 +191,8 @@ export default function Inventario() {
       variantes: form.variantes || [],
       estado: estadoFinal,
       fechaIngreso: form.fechaIngreso,
-      fotoUrl: form.fotoUrl || ''
+      fotoUrl: form.fotoUrl || '',
+      descripcion: form.descripcion || ''
     }
 
     try {
@@ -1139,6 +1142,17 @@ export default function Inventario() {
                     </p>
                   )}
                 </div>
+              </div>
+
+              {/* Fila: Descripción */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Descripción del Producto</label>
+                <textarea 
+                  value={form.descripcion} 
+                  onChange={e => setForm({...form, descripcion: e.target.value})}
+                  className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white min-h-[100px] resize-none"
+                  placeholder="Escribe una descripción detallada..."
+                />
               </div>
 
               {/* Fila 5: Otros */}

@@ -119,3 +119,40 @@ body {
   animation: crystal-shine 6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
+
+/* Animaciones de Swipe de Cartas */
+@keyframes slide-out-left {
+  0% { transform: translateX(0) rotate(0); opacity: 1; }
+  100% { transform: translateX(-150%) rotate(-15deg); opacity: 0; }
+}
+
+@keyframes slide-out-right {
+  0% { transform: translateX(0) rotate(0); opacity: 1; }
+  100% { transform: translateX(150%) rotate(15deg); opacity: 0; }
+}
+
+@keyframes slide-in-right {
+  0% { transform: translateX(100%) rotate(10deg); opacity: 0; }
+  100% { transform: translateX(0) rotate(0); opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  0% { transform: translateX(-100%) rotate(-10deg); opacity: 0; }
+  100% { transform: translateX(0) rotate(0); opacity: 1; }
+}
+
+.salir-izquierda {
+  animation: slide-out-left 0.3s forwards cubic-bezier(0.15, 0.85, 0.35, 1);
+}
+
+.salir-derecha {
+  animation: slide-out-right 0.3s forwards cubic-bezier(0.15, 0.85, 0.35, 1);
+}
+
+.entrar-derecha {
+  animation: slide-in-right 0.3s forwards cubic-bezier(0.15, 0.85, 0.35, 1);
+}
+
+.entrar-izquierda {
+  animation: slide-in-left 0.3s forwards cubic-bezier(0.15, 0.85, 0.35, 1);
+}

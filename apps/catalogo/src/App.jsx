@@ -33,9 +33,14 @@ export default function CatalogoPublico() {
   const [productParaAñadir, setProductParaAñadir] = useState(null)
   const [varianteSeleccionada, setVarianteSeleccionada] = useState('')
 
+  // Modal de detalle del producto
+  const [productoParaVer, setProductoParaVer] = useState(null)
+  
   // Modal checkout final
   const [showCheckout, setShowCheckout] = useState(false)
   const [clienteNombre, setClienteNombre] = useState('')
+
+  const [animacion, setAnimacion] = useState('') // '', 'salir-izquierda', 'salir-derecha', etc.
 
   useEffect(() => {
     // Escuchar productos en tiempo real
@@ -69,6 +74,62 @@ export default function CatalogoPublico() {
     if (filtroCategoria === 'TODAS') return true;
     return (p.coleccion || '').trim().toUpperCase() === filtroCategoria;
   })
+
+  const indexActual = productoParaVer ? productosFiltrados.findIndex(p => p.id === productoParaVer.id) : -1;
+
+  function irAAnterior() {
+    if (indexActual > 0 && !animacion) {
+      setAnimacion('salir-derecha');
+      setTimeout(() => {
+        setProductoParaVer(productosFiltrados[indexActual - 1]);
+        setAnimacion('entrar-izquierda');
+        setTimeout(() => setAnimacion(''), 300);
+      }, 300);
+    }
+  }
+
+  function irASiguiente() {
+    if (indexActual < productosFiltrados.length - 1 && !animacion) {
+      setAnimacion('salir-izquierda');
+      setTimeout(() => {
+        setProductoParaVer(productosFiltrados[indexActual + 1]);
+        setAnimacion('entrar-derecha');
+        setTimeout(() => setAnimacion(''), 300);
+      }, 300);
+    }
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (!productoParaVer) return;
+      if (e.key === 'ArrowLeft') irAAnterior();
+      if (e.key === 'ArrowRight') irASiguiente();
+      if (e.key === 'Escape') setProductoParaVer(null);
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [productoParaVer, indexActual]);
+
+  // Lógica de Swipe para móviles
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const minSwipeDistance = 50;
+
+  const handleTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    if (isLeftSwipe) irASiguiente();
+    if (isRightSwipe) irAAnterior();
+  };
 
   const [paginaActual, setPaginaActual] = useState(1)
   const ITEMS_POR_PAGINA = 20
@@ -296,7 +357,10 @@ export default function CatalogoPublico() {
               return (
                 <div key={p.id} className="bg-surface rounded-[24px] overflow-hidden border border-outline-variant/20 shadow-sm flex flex-col group hover:shadow-md transition-all">
                   {/* Imagen */}
-                  <div className="aspect-square bg-surface-variant/30 relative overflow-hidden flex items-center justify-center">
+                  <div 
+                    className="aspect-square bg-surface-variant/30 relative overflow-hidden flex items-center justify-center cursor-pointer"
+                    onClick={() => setProductoParaVer(p)}
+                  >
                     {p.fotoUrl ? (
                       <img src={p.fotoUrl} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
@@ -311,7 +375,12 @@ export default function CatalogoPublico() {
                   
                   {/* Info */}
                   <div className="p-4 flex flex-col flex-1">
-                    <h3 className="font-headline font-bold text-sm md:text-base text-on-surface leading-tight line-clamp-2 mb-1">{p.nombre}</h3>
+                    <h3 
+                      className="font-headline font-bold text-sm md:text-base text-on-surface leading-tight line-clamp-2 mb-1 cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => setProductoParaVer(p)}
+                    >
+                      {p.nombre}
+                    </h3>
                     <p className="text-[10px] text-outline uppercase tracking-wider mb-3">{(p.coleccion || '').toUpperCase()}</p>
                     
                     <div className="mt-auto flex items-end justify-between gap-2">
@@ -534,6 +603,98 @@ export default function CatalogoPublico() {
                 className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs transition-all ${varianteSeleccionada ? 'bg-primary text-on-primary shadow-lg hover:scale-[1.02]' : 'bg-surface-variant text-outline opacity-50 cursor-not-allowed'}`}
               >
                 Añadir al Carrito
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* MODAL DETALLE DE PRODUCTO */}
+      {productoParaVer && (
+        <div className="fixed inset-0 z-[65] flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setProductoParaVer(null)} />
+          
+          {/* BOTONES NAVEGACIÓN LATERAL (WEB) */}
+          <button 
+            disabled={indexActual <= 0}
+            onClick={(e) => { e.stopPropagation(); irAAnterior(); }}
+            className="fixed left-4 lg:left-10 top-1/2 -translate-y-1/2 z-[70] hidden md:flex w-14 h-14 items-center justify-center rounded-full bg-surface/90 backdrop-blur-md shadow-2xl border border-outline-variant/20 text-secondary hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+          >
+            <span className="material-symbols-outlined text-3xl group-hover:-translate-x-0.5 transition-transform">chevron_left</span>
+          </button>
+
+          <button 
+            disabled={indexActual >= productosFiltrados.length - 1}
+            onClick={(e) => { e.stopPropagation(); irASiguiente(); }}
+            className="fixed right-4 lg:right-10 top-1/2 -translate-y-1/2 z-[70] hidden md:flex w-14 h-14 items-center justify-center rounded-full bg-surface/90 backdrop-blur-md shadow-2xl border border-outline-variant/20 text-secondary hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+          >
+            <span className="material-symbols-outlined text-3xl group-hover:translate-x-0.5 transition-transform">chevron_right</span>
+          </button>
+
+          <div 
+            className={`bg-surface w-full max-w-lg rounded-[32px] shadow-2xl relative z-10 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh] ${animacion}`}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="p-6 border-b border-outline-variant/10 bg-surface-container-low shrink-0 flex justify-between items-center">
+              <h3 className="font-headline font-bold text-lg text-on-surface pr-4">Detalle del Producto</h3>
+              <button onClick={() => setProductoParaVer(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-variant text-outline">
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+            
+            <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
+              <div className="aspect-video bg-surface-variant/30 flex items-center justify-center overflow-hidden">
+                {productoParaVer.fotoUrl ? (
+                  <img src={productoParaVer.fotoUrl} alt={productoParaVer.nombre} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-5xl text-outline/20">image</span>
+                )}
+              </div>
+              
+              <div className="p-8 space-y-6">
+                <div>
+                  <div className="flex justify-between items-start gap-4 mb-2">
+                    <h2 className="font-headline font-bold text-2xl text-on-surface leading-tight">{productoParaVer.nombre}</h2>
+                    <p className="font-bold text-secondary text-2xl">${(productoParaVer.precio || 0).toLocaleString('es-CL')}</p>
+                  </div>
+                  <p className="text-xs text-outline uppercase tracking-widest font-bold">{(productoParaVer.coleccion || '').toUpperCase()} • {productoParaVer.marca || 'Sin marca'}</p>
+                </div>
+
+                {productoParaVer.descripcion ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-secondary">Descripción</p>
+                    <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap">{productoParaVer.descripcion}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-outline italic">No hay descripción disponible para este producto.</p>
+                )}
+
+                <div className="pt-4 border-t border-outline-variant/10 flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-outline mb-1">Disponibilidad</p>
+                    <p className="text-sm font-bold text-on-surface">
+                      {productoParaVer.variantes?.length > 0 
+                        ? `${productoParaVer.variantes.reduce((sum, v) => sum + Number(v.stock), 0)} unidades en total`
+                        : `${productoParaVer.stock} unidades disponibles`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-surface-container border-t border-outline-variant/10 shrink-0">
+              <button 
+                onClick={() => {
+                  abrirModalAñadir(productoParaVer);
+                  setProductoParaVer(null);
+                }}
+                className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                Añadir al Pedido
               </button>
             </div>
           </div>
