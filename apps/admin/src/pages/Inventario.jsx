@@ -26,6 +26,7 @@ const formInicial = {
   stock: '', 
   fechaIngreso: getLocalDateString(), 
   fotoUrl: '',
+  fotos: [],
   descripcion: '',
   variantes: []
 }
@@ -142,6 +143,7 @@ export default function Inventario() {
       stock: p.stock, 
       fechaIngreso: p.fechaIngreso || getLocalDateString(), 
       fotoUrl: p.fotoUrl || '',
+      fotos: p.fotos || (p.fotoUrl ? [p.fotoUrl] : []),
       descripcion: p.descripcion || '',
       variantes: p.variantes || []
     })
@@ -191,7 +193,8 @@ export default function Inventario() {
       variantes: form.variantes || [],
       estado: estadoFinal,
       fechaIngreso: form.fechaIngreso,
-      fotoUrl: form.fotoUrl || '',
+      fotoUrl: form.fotos && form.fotos.length > 0 ? form.fotos[0] : (form.fotoUrl || ''),
+      fotos: form.fotos || [],
       descripcion: form.descripcion || ''
     }
 
@@ -878,7 +881,7 @@ export default function Inventario() {
       {/* Modal CRUD (NUEVO / EDITAR) */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-surface dark:bg-[#1e1e1e] w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 dark:border-white/5 flex flex-col max-h-[90vh] overflow-hidden text-on-surface dark:text-white/90">
+          <div className="bg-surface dark:bg-[#1e1e1e] w-full max-w-4xl rounded-[40px] shadow-2xl border border-outline-variant/20 dark:border-white/5 flex flex-col max-h-[90vh] overflow-hidden text-on-surface dark:text-white/90 animate-in fade-in zoom-in-95 duration-300">
             {/* Header del Modal */}
             <div className="bg-surface-container-low dark:bg-white/5 px-6 py-5 flex justify-between items-center border-b border-outline-variant/20 dark:border-white/5 shrink-0">
               <h3 className="font-headline font-bold text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2">
@@ -1146,12 +1149,12 @@ export default function Inventario() {
 
               {/* Fila: Descripción */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Descripción del Producto</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-2 ml-1">Descripción Detallada del Producto</label>
                 <textarea 
                   value={form.descripcion} 
                   onChange={e => setForm({...form, descripcion: e.target.value})}
-                  className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white min-h-[100px] resize-none"
-                  placeholder="Escribe una descripción detallada..."
+                  className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-[32px] px-8 py-8 text-base md:text-lg focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-medium shadow-inner transition-all dark:text-white min-h-[450px] resize-none leading-relaxed custom-scrollbar"
+                  placeholder="Escribe una descripción profesional y detallada, usa números para los títulos para que el sistema los resalte automáticamente..."
                 />
               </div>
 
@@ -1166,15 +1169,63 @@ export default function Inventario() {
                     className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">URL Foto</label>
-                  <input 
-                    type="url" 
-                    value={form.fotoUrl} 
-                    onChange={e => setForm({...form, fotoUrl: e.target.value})}
-                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                    placeholder="https://..."
-                  />
+                <div className="col-span-2 bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">imagesmode</span>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 5)</p>
+                    </div>
+                    {(!form.fotos || form.fotos.length < 5) && (
+                      <button 
+                        type="button"
+                        onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
+                        className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all"
+                      >
+                        + Añadir URL
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    {(form.fotos || []).map((url, index) => (
+                      <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="w-8 h-8 rounded-lg bg-surface-container dark:bg-white/10 flex items-center justify-center shrink-0 border border-outline-variant/20">
+                          <span className="text-[10px] font-bold text-outline">{index + 1}</span>
+                        </div>
+                        <input 
+                          type="url" 
+                          value={url}
+                          onChange={e => {
+                            const newFotos = [...form.fotos]
+                            newFotos[index] = e.target.value
+                            setForm({...form, fotos: newFotos})
+                          }}
+                          className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                          placeholder="https://url-de-la-imagen.jpg"
+                        />
+                        <button 
+                          onClick={() => setForm({...form, fotos: form.fotos.filter((_, i) => i !== index)})}
+                          className="w-10 h-10 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all"
+                        >
+                          <span className="material-symbols-outlined text-xl">delete</span>
+                        </button>
+                      </div>
+                    ))}
+                    {(!form.fotos || form.fotos.length === 0) && (
+                      <div className="text-center py-4 space-y-2">
+                        <p className="text-[10px] text-outline italic font-medium opacity-60">
+                          No hay imágenes añadidas.
+                        </p>
+                        <button 
+                          type="button"
+                          onClick={() => setForm({...form, fotos: ['']})}
+                          className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline"
+                        >
+                          Añadir la primera imagen
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
