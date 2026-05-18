@@ -16,6 +16,8 @@ const estadoConfig = {
   sin_stock:  { label: 'Sin stock',  cls: 'bg-gray-400/10 text-gray-400 border border-gray-400/20 backdrop-blur-sm font-bold' },
 }
 
+const IMGBB_API_KEY = '938080794446e62c3e8860d25353123b'
+
 const formInicial = { 
   nombre: '', 
   sku: '', 
@@ -100,6 +102,10 @@ export default function Inventario() {
   const [editingId, setEditingId] = useState(null)
   const [expandedProduct, setExpandedProduct] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [previewImage, setPreviewImage] = useState(null)
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -193,7 +199,7 @@ export default function Inventario() {
       variantes: form.variantes || [],
       estado: estadoFinal,
       fechaIngreso: form.fechaIngreso,
-      fotoUrl: form.fotos && form.fotos.length > 0 ? form.fotos[0] : (form.fotoUrl || ''),
+      fotoUrl: form.fotos && form.fotos.length > 0 ? form.fotos[0] : '',
       fotos: form.fotos || [],
       descripcion: form.descripcion || ''
     }
@@ -204,6 +210,83 @@ export default function Inventario() {
       setShowModal(false)
     } catch (e) {
       setErrorMsg('Error al guardar: ' + e.message)
+    }
+  }
+
+  async function handleImageUpload(files) {
+    if (!files || files.length === 0) return;
+
+    const currentPhotos = form.fotos || [];
+    const spaceLeft = 5 - currentPhotos.length;
+    
+    if (spaceLeft <= 0) {
+      setErrorMsg('Máximo 5 imágenes permitidas.');
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, spaceLeft);
+
+    setIsUploadingImage(true);
+    setUploadProgress(`Subiendo 0 de ${filesToUpload.length}...`);
+    setErrorMsg('');
+
+    try {
+      const newUrls = [];
+      let completados = 0;
+
+      await Promise.all(filesToUpload.map(async (file) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        try {
+           const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: formData,
+           });
+           const data = await response.json();
+           if (data.success) {
+             newUrls.push(data.data.url);
+             completados++;
+             setUploadProgress(`Subiendo ${completados} de ${filesToUpload.length}...`);
+           }
+        } catch (err) {
+           console.error("Error subiendo una imagen", err);
+        }
+      }));
+
+      setForm(prev => ({
+        ...prev,
+        fotos: [...(prev.fotos || []), ...newUrls]
+      }));
+
+    } catch (error) {
+      setErrorMsg('Error de conexión al subir la imagen.');
+    } finally {
+      setIsUploadingImage(false);
+      setUploadProgress('');
+    }
+  }
+
+  function onFileInputChange(e) {
+    handleImageUpload(e.target.files);
+    e.target.value = '';
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleImageUpload(e.dataTransfer.files);
     }
   }
 
@@ -1176,22 +1259,112 @@ export default function Inventario() {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 5)</p>
                     </div>
                     {(!form.fotos || form.fotos.length < 5) && (
-                      <button 
-                        type="button"
-                        onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
-                        className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all"
-                      >
-                        + Añadir URL
-                      </button>
+                      <div className="flex gap-2">
+                        <label className="bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-primary/20 dark:border-[#e2bd6c]/20 hover:bg-primary/20 transition-all cursor-pointer flex items-center gap-1">
+                          {isUploadingImage ? (
+                            <span className="animate-pulse">Subiendo...</span>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-[12px]">upload</span>
+                              Subir PC
+                            </>
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleImageUpload}
+                            disabled={isUploadingImage}
+                          />
+                        </label>
+                        <button 
+                          type="button"
+                          onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
+                          className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">link</span>
+                          URL
+                        </button>
+                      </div>
                     )}
                   </div>
 
-                  <div className="space-y-3">
+                  <div 
+                    className={`space-y-3 border-2 border-dashed rounded-xl p-3 transition-colors ${
+                      isDragOver ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-transparent'
+                    }`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-surface-container-low dark:bg-white/5 p-3 rounded-xl border border-outline-variant/30">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-outline">cloud_upload</span>
+                        <span className="text-xs font-bold text-outline uppercase tracking-wider">Arrastra imágenes aquí</span>
+                      </div>
+                      <div className="flex gap-4 items-center">
+                        <label className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline cursor-pointer hover:text-primary/80 transition-colors">
+                          {isUploadingImage ? uploadProgress : 'Seleccionar Múltiples'}
+                          <input type="file" accept="image/*" multiple className="hidden" onChange={onFileInputChange} disabled={isUploadingImage} />
+                        </label>
+                        <button 
+                          type="button"
+                          onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
+                          className="text-[10px] font-bold text-secondary dark:text-gray-400 underline hover:text-secondary/80 transition-colors"
+                        >
+                          Añadir URL Vacía
+                        </button>
+                      </div>
+                    </div>
+
                     {(form.fotos || []).map((url, index) => (
                       <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="w-8 h-8 rounded-lg bg-surface-container dark:bg-white/10 flex items-center justify-center shrink-0 border border-outline-variant/20">
-                          <span className="text-[10px] font-bold text-outline">{index + 1}</span>
+                        <div className="w-8 h-8 rounded-lg bg-surface-container dark:bg-white/10 flex flex-col items-center justify-center shrink-0 border border-outline-variant/20 overflow-hidden">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (index > 0) {
+                                const newFotos = [...form.fotos];
+                                [newFotos[index - 1], newFotos[index]] = [newFotos[index], newFotos[index - 1]];
+                                setForm({...form, fotos: newFotos});
+                              }
+                            }}
+                            disabled={index === 0}
+                            className={`w-full flex-1 flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/20 transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'text-primary dark:text-[#e2bd6c]'}`}
+                          >
+                            <span className="material-symbols-outlined text-[12px] leading-none">expand_less</span>
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (index < form.fotos.length - 1) {
+                                const newFotos = [...form.fotos];
+                                [newFotos[index], newFotos[index + 1]] = [newFotos[index + 1], newFotos[index]];
+                                setForm({...form, fotos: newFotos});
+                              }
+                            }}
+                            disabled={index === form.fotos.length - 1}
+                            className={`w-full flex-1 flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/20 transition-colors ${index === form.fotos.length - 1 ? 'opacity-30 cursor-not-allowed' : 'text-primary dark:text-[#e2bd6c]'}`}
+                          >
+                            <span className="material-symbols-outlined text-[12px] leading-none">expand_more</span>
+                          </button>
                         </div>
+                        <button 
+                          type="button" 
+                          onClick={() => url && setPreviewImage(url)} 
+                          className="w-10 h-10 shrink-0 rounded-lg overflow-hidden border border-outline-variant/20 dark:border-white/10 hover:border-primary dark:hover:border-[#e2bd6c] transition-colors bg-surface-variant/30 flex items-center justify-center group relative cursor-zoom-in"
+                        >
+                          {url ? (
+                            <>
+                              <img src={url} alt={`Imagen ${index + 1}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="material-symbols-outlined text-white text-[16px]">zoom_in</span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="material-symbols-outlined text-outline/50 text-[16px]">image</span>
+                          )}
+                        </button>
                         <input 
                           type="url" 
                           value={url}
@@ -1212,17 +1385,10 @@ export default function Inventario() {
                       </div>
                     ))}
                     {(!form.fotos || form.fotos.length === 0) && (
-                      <div className="text-center py-4 space-y-2">
+                      <div className="text-center py-6">
                         <p className="text-[10px] text-outline italic font-medium opacity-60">
-                          No hay imágenes añadidas.
+                          Puedes subir o arrastrar hasta 5 imágenes.
                         </p>
-                        <button 
-                          type="button"
-                          onClick={() => setForm({...form, fotos: ['']})}
-                          className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline"
-                        >
-                          Añadir la primera imagen
-                        </button>
                       </div>
                     )}
                   </div>

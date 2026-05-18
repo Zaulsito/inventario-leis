@@ -9,9 +9,13 @@ export default function CatalogoPublico() {
   const [productos, setProductos] = useState([])
   const [loading, setLoading] = useState(true)
   
-  // Categorías
+  // Filtros Avanzados
   const [filtroCategoria, setFiltroCategoria] = useState('TODAS')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [precioMin, setPrecioMin] = useState('')
+  const [precioMax, setPrecioMax] = useState('')
+  const [soloDisponibles, setSoloDisponibles] = useState(false)
   const categoryContainerRef = useRef(null)
 
   // Carrito: array de { idCart, producto, variante, cantidad, precio, maxStock }
@@ -99,7 +103,17 @@ export default function CatalogoPublico() {
       const matchNombre = (p.nombre || '').toLowerCase().includes(s);
       const matchSku = (p.sku || '').toLowerCase().includes(s);
       const matchMarca = (p.marca || '').toLowerCase().includes(s);
-      return matchNombre || matchSku || matchMarca;
+      if (!(matchNombre || matchSku || matchMarca)) return false;
+    }
+
+    if (precioMin !== '' && p.precio < Number(precioMin)) return false;
+    if (precioMax !== '' && p.precio > Number(precioMax)) return false;
+
+    if (soloDisponibles) {
+      const tieneStock = p.variantes && p.variantes.length > 0 
+        ? p.variantes.some(v => Number(v.stock) > 0)
+        : Number(p.stock) > 0;
+      if (!tieneStock) return false;
     }
 
     return true;
@@ -356,7 +370,7 @@ export default function CatalogoPublico() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-container-lowest pb-32 relative">
+    <div className="flex h-[100dvh] bg-surface-container-lowest relative overflow-hidden">
       
       {/* ── BACKGROUND WATERMARK ── */}
       <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center opacity-15">
@@ -369,18 +383,175 @@ export default function CatalogoPublico() {
         </div>
       </div>
 
-      {/* HEADER PÚBLICO */}
-      <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-6 py-5 border-b border-outline-variant/20 shadow-sm flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3 md:gap-4">
-            <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center p-1 shrink-0">
-              <img src="/logo.jpeg" alt="Logo Leis" className="w-full h-full object-contain rounded-lg" />
+      {/* OVERLAY MÓVIL PARA SIDEBAR */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm animate-in fade-in"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── PANEL LATERAL (SIDEBAR) ── */}
+      <aside className={`fixed md:relative top-0 left-0 h-full w-[280px] bg-surface border-r border-outline-variant/20 z-50 flex flex-col transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        {/* CABECERA SIDEBAR */}
+        <div className="p-6 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-low shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-lg shadow-sm flex items-center justify-center p-1 shrink-0">
+              <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-contain rounded" />
             </div>
             <div>
-              <h1 className="font-headline text-xl md:text-2xl text-secondary font-bold italic">Catálogo de Productos</h1>
-              <p className="text-[10px] uppercase tracking-widest text-outline font-bold">Arma tu pedido online</p>
+              <h1 className="font-headline text-lg text-secondary font-bold italic leading-tight">Catálogo</h1>
+              <p className="text-[9px] uppercase tracking-widest text-outline font-bold">Filtros</p>
             </div>
           </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-outline hover:bg-surface-variant rounded-full transition-colors">
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+
+        {/* CONTENIDO SIDEBAR (FILTROS) */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+          
+          {/* BÚSQUEDA */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">search</span>
+              Búsqueda
+            </h3>
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Nombre, SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/5 transition-all"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-outline-variant/30 text-outline hover:bg-outline-variant/50 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[12px]">close</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* PRECIO */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">payments</span>
+              Rango de Precio
+            </h3>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-outline text-xs">$</span>
+                <input 
+                  type="number" 
+                  placeholder="Min"
+                  value={precioMin}
+                  onChange={e => setPrecioMin(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+                />
+              </div>
+              <span className="text-outline-variant">-</span>
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-outline text-xs">$</span>
+                <input 
+                  type="number" 
+                  placeholder="Max"
+                  value={precioMax}
+                  onChange={e => setPrecioMax(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* DISPONIBILIDAD */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">inventory_2</span>
+              Disponibilidad
+            </h3>
+            <label className="flex items-center justify-between p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low cursor-pointer hover:bg-surface-variant/50 transition-colors">
+              <span className="text-sm font-bold text-on-surface">En Stock Físico</span>
+              <div className="relative flex items-center">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer"
+                  checked={soloDisponibles}
+                  onChange={e => setSoloDisponibles(e.target.checked)}
+                />
+                <div className="w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </div>
+            </label>
+          </div>
+
+          {/* CATEGORÍAS */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">category</span>
+              Categorías
+            </h3>
+            <div className="flex flex-col gap-1">
+              {categoriasUnicas.map(c => (
+                <button
+                  key={c}
+                  onClick={() => {
+                    setFiltroCategoria(c)
+                    if (window.innerWidth < 768) setIsSidebarOpen(false)
+                  }}
+                  className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all
+                    ${filtroCategoria === c
+                      ? 'bg-secondary text-white shadow-md scale-[1.02]'
+                      : 'text-on-surface-variant hover:bg-surface-variant/50'
+                    }`}
+                >
+                  <span className="uppercase tracking-wide">{c}</span>
+                  {filtroCategoria === c && <span className="material-symbols-outlined text-sm">check</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+        </div>
+        
+        {/* FOOTER SIDEBAR */}
+        <div className="p-6 border-t border-outline-variant/20 bg-surface-container-lowest shrink-0">
+          <button 
+            onClick={() => {
+              setFiltroCategoria('TODAS')
+              setSearchTerm('')
+              setPrecioMin('')
+              setPrecioMax('')
+              setSoloDisponibles(false)
+            }}
+            className="w-full py-3 rounded-xl border border-outline-variant/30 text-on-surface font-bold text-xs uppercase tracking-widest hover:bg-surface-variant transition-colors"
+          >
+            Limpiar Filtros
+          </button>
+        </div>
+      </aside>
+
+      {/* ── CONTENIDO PRINCIPAL ── */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        
+        {/* HEADER PRINCIPAL COMPACTO */}
+        <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b border-outline-variant/20 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden w-10 h-10 flex items-center justify-center bg-surface-variant rounded-xl text-on-surface"
+            >
+              <span className="material-symbols-outlined">menu_open</span>
+            </button>
+            <h2 className="font-headline text-lg md:text-2xl font-bold text-secondary italic leading-tight">
+              {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
+              <span className="ml-2 text-sm font-sans font-normal text-outline not-italic">({productosFiltrados.length})</span>
+            </h2>
+          </div>
+
           <button 
             onClick={() => setIsCartOpen(true)}
             className="relative bg-primary/10 text-primary p-3 rounded-2xl hover:bg-primary/20 transition-colors shrink-0"
@@ -392,67 +563,11 @@ export default function CatalogoPublico() {
               </span>
             )}
           </button>
-        </div>
+        </header>
 
-        {/* BARRA DE BÚSQUEDA */}
-        <div className="relative">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-xl pointer-events-none">search</span>
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, SKU o marca..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-surface-container-low border border-outline-variant/30 rounded-2xl pl-12 pr-12 py-3.5 text-sm font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/5 transition-all"
-          />
-          {searchTerm && (
-            <button 
-              onClick={() => setSearchTerm('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-outline-variant/20 text-outline hover:bg-outline-variant/40 transition-all"
-            >
-              <span className="material-symbols-outlined text-sm">close</span>
-            </button>
-          )}
-        </div>
-
-        {/* FILTROS DE CATEGORÍA */}
-        <div className="relative flex items-center group">
-          <button 
-            onClick={() => scrollCategories('left')} 
-            className="absolute left-0 z-10 bg-surface/90 backdrop-blur-md p-1.5 rounded-full shadow-md border border-outline-variant/30 flex items-center justify-center scale-90 -translate-x-2 md:-translate-x-1/2 hover:scale-100 transition-all text-secondary"
-          >
-            <span className="material-symbols-outlined text-base">chevron_left</span>
-          </button>
-          
-          <div 
-            ref={categoryContainerRef}
-            className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-2 pt-1 px-4 md:px-2 mask-horizontal-fade w-full"
-          >
-            {categoriasUnicas.map(c => (
-              <button
-                key={c}
-                onClick={() => setFiltroCategoria(c)}
-                className={`px-5 py-2 text-[10px] font-bold uppercase tracking-widest rounded-full border transition-all whitespace-nowrap shrink-0
-                  ${filtroCategoria === c
-                    ? 'bg-secondary text-white border-secondary shadow-md scale-105'
-                    : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface/50 hover:border-outline-variant'
-                  }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-
-          <button 
-            onClick={() => scrollCategories('right')} 
-            className="absolute right-0 z-10 bg-surface/90 backdrop-blur-md p-1.5 rounded-full shadow-md border border-outline-variant/30 flex items-center justify-center scale-90 translate-x-2 md:translate-x-1/2 hover:scale-100 transition-all text-secondary"
-          >
-            <span className="material-symbols-outlined text-base">chevron_right</span>
-          </button>
-        </div>
-      </header>
-
-      {/* GRID DE PRODUCTOS */}
-      <main className="p-6 md:p-10 max-w-7xl mx-auto">
+        {/* MAIN SCROLLABLE AREA */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative z-10 pb-32 md:pb-8">
+          <div className="max-w-7xl mx-auto">
         {productosFiltrados.length === 0 ? (
           <div className="text-center py-20 text-on-surface-variant">
             No hay productos disponibles en esta categoría.
@@ -577,7 +692,9 @@ export default function CatalogoPublico() {
             )}
           </>
         )}
-      </main>
+          </div>
+        </main>
+      </div>
 
       {/* FAB CARRITO MÓVIL */}
       {totalItems > 0 && (

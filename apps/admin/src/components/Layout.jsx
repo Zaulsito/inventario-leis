@@ -512,7 +512,7 @@ export default function Layout() {
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? 'Mostrar panel' : 'Ocultar panel'}
-        className={`hidden md:flex fixed top-1/2 z-[120] w-8 h-8 items-center justify-center bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black rounded-full shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:scale-110 active:scale-95 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group -translate-y-1/2 -translate-x-1/2
+        className={`hidden md:flex fixed top-1/2 z-[120] w-8 h-8 items-center justify-center bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black rounded-full shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:scale-110 active:scale-95 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group -translate-y-1/2 -translate-x-1/2 [.modal-open_&]:hidden
         ${isCollapsed ? 'left-0' : 'left-72'}`}
       >
         <span className={`material-symbols-outlined text-lg transition-transform duration-700 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
