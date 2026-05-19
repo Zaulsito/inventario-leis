@@ -466,7 +466,7 @@ export default function CatalogoPublico() {
               Disponibilidad
             </h3>
             <label className="flex items-center justify-between p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low cursor-pointer hover:bg-surface-variant/50 transition-colors">
-              <span className="text-sm font-bold text-on-surface">En Stock Físico</span>
+              <span className="text-sm font-bold text-on-surface">Solo disponible</span>
               <div className="relative flex items-center">
                 <input 
                   type="checkbox" 
@@ -529,31 +529,36 @@ export default function CatalogoPublico() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* HEADER PRINCIPAL COMPACTO */}
-        <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b border-outline-variant/20 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b border-outline-variant/20 flex items-center shrink-0">
+          <div className="w-16 shrink-0">
             <button 
               onClick={() => setIsSidebarOpen(true)}
               className="md:hidden w-10 h-10 flex items-center justify-center bg-surface-variant rounded-xl text-on-surface"
             >
               <span className="material-symbols-outlined">menu_open</span>
             </button>
-            <h2 className="font-headline text-lg md:text-2xl font-bold text-secondary italic leading-tight">
+          </div>
+
+          <div className="flex-1 flex justify-center">
+            <h2 className="font-headline text-lg md:text-2xl font-bold text-secondary italic leading-tight text-center">
               {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
               <span className="ml-2 text-sm font-sans font-normal text-outline not-italic">({productosFiltrados.length})</span>
             </h2>
           </div>
 
-          <button 
-            onClick={() => setIsCartOpen(true)}
-            className="relative bg-primary/10 text-primary p-3 rounded-2xl hover:bg-primary/20 transition-colors shrink-0"
-          >
-            <span className="material-symbols-outlined">shopping_cart</span>
-            {totalItems > 0 && (
-              <span className="absolute -top-2 -right-2 bg-error text-on-error text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-in zoom-in">
-                {totalItems}
-              </span>
-            )}
-          </button>
+          <div className="w-16 flex justify-end shrink-0">
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative bg-primary/10 text-primary p-3 rounded-2xl hover:bg-primary/20 transition-colors shrink-0"
+            >
+              <span className="material-symbols-outlined">shopping_cart</span>
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-error text-on-error text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-in zoom-in">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
         </header>
 
         {/* MAIN SCROLLABLE AREA */}

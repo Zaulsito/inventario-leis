@@ -26,6 +26,7 @@ const formInicial = {
   marca: '',
   precio: '', 
   stock: '', 
+  ajusteStock: '',
   fechaIngreso: getLocalDateString(), 
   fotoUrl: '',
   fotos: [],
@@ -153,11 +154,12 @@ export default function Inventario() {
       marca: (p.marca || '').trim().toUpperCase(),
       precio: p.precio, 
       stock: p.stock, 
+      ajusteStock: '',
       fechaIngreso: p.fechaIngreso || getLocalDateString(), 
       fotoUrl: p.fotoUrl || '',
-      fotos: p.fotos || (p.fotoUrl ? [p.fotoUrl] : []),
+      fotos: p.fotos ? [...p.fotos] : (p.fotoUrl ? [p.fotoUrl] : []),
       descripcion: p.descripcion || '',
-      variantes: p.variantes || []
+      variantes: p.variantes ? p.variantes.map(v => ({...v})) : []
     })
     setEditingId(p.id)
     setErrorMsg('')
@@ -175,11 +177,12 @@ export default function Inventario() {
     try {
       const q = query(
         collection(db, 'historial_inventario'), 
-        where('productoId', '==', pId),
-        orderBy('fecha', 'desc')
+        where('productoId', '==', pId)
       )
       const snapshot = await getDocs(q)
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      // Ordenar en memoria para evitar requerir un índice compuesto en Firestore
+      logs.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
       setHistoryLogs(logs)
     } catch (e) {
       console.error("Error cargando historial", e)
@@ -210,9 +213,17 @@ export default function Inventario() {
       return setErrorMsg('Ya existe un producto con el mismo Nombre o Cód. Barra.')
     }
 
-    const stockCalculado = form.variantes && form.variantes.length > 0 
-      ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0)
-      : Math.floor(Number(form.stock))
+    const prodAnterior = editingId ? productos.find(p => p.id === editingId) : null;
+    const stockAnterior = prodAnterior ? Number(prodAnterior.stock) : 0;
+
+    let stockCalculado = 0;
+    if (form.variantes && form.variantes.length > 0) {
+      stockCalculado = form.variantes.reduce((sum, v) => sum + Number(v.stock), 0);
+    } else if (editingId) {
+      stockCalculado = stockAnterior + Number(form.ajusteStock || 0);
+    } else {
+      stockCalculado = Math.floor(Number(form.stock));
+    }
 
     const estadoFinal = calcularEstado(stockCalculado)
     
@@ -224,7 +235,7 @@ export default function Inventario() {
       marca: (form.marca || '').trim().toUpperCase(),
       precio: Math.floor(Number(form.precio)) || 0,
       stock: stockCalculado,
-      variantes: form.variantes || [],
+      variantes: (form.variantes || []).map(v => ({ ...v, stock: Number(v.stock) })),
       estado: estadoFinal,
       fechaIngreso: form.fechaIngreso,
       fotoUrl: form.fotos && form.fotos.length > 0 ? form.fotos[0] : '',
@@ -235,37 +246,72 @@ export default function Inventario() {
     try {
       let savedId = editingId;
       if (editingId) {
-        // Obtenemos el stock anterior para comparar
-        const prodAnterior = productos.find(p => p.id === editingId);
-        const stockAnterior = prodAnterior ? Number(prodAnterior.stock) : 0;
+        const variantesAnteriores = prodAnterior ? (prodAnterior.variantes || []) : [];
         
         await updateDoc(doc(db, 'productos', editingId), payload);
         
-        if (stockCalculado !== stockAnterior) {
-          const diferencia = stockCalculado - stockAnterior;
-          const accion = diferencia > 0 ? `Se sumaron ${diferencia}` : `Se restaron ${Math.abs(diferencia)}`;
-          await addDoc(collection(db, 'historial_inventario'), {
-            productoId: editingId,
-            fecha: new Date().toISOString(),
-            accion: accion,
-            cambio: diferencia,
-            stockAnterior: stockAnterior,
-            stockNuevo: stockCalculado,
-            motivo: "Edición manual desde panel"
-          });
+        if (form.variantes && form.variantes.length > 0) {
+          for (const vNuevo of form.variantes) {
+            const vAnterior = variantesAnteriores.find(v => v.nombre === vNuevo.nombre);
+            const stockVAnterior = vAnterior ? Number(vAnterior.stock) : 0;
+            const stockVNuevo = Number(vNuevo.stock);
+            
+            if (stockVNuevo !== stockVAnterior) {
+              const dif = stockVNuevo - stockVAnterior;
+              const accion = dif > 0 ? `Se sumaron ${dif} (${vNuevo.nombre})` : `Se restaron ${Math.abs(dif)} (${vNuevo.nombre})`;
+              await addDoc(collection(db, 'historial_inventario'), {
+                productoId: editingId,
+                fecha: new Date().toISOString(),
+                accion: accion,
+                cambio: dif,
+                stockAnterior: stockVAnterior,
+                stockNuevo: stockVNuevo,
+                motivo: "Edición manual de variante"
+              });
+            }
+          }
+        } else {
+          if (stockCalculado !== stockAnterior) {
+            const diferencia = stockCalculado - stockAnterior;
+            const accion = diferencia > 0 ? `Se sumaron ${diferencia}` : `Se restaron ${Math.abs(diferencia)}`;
+            await addDoc(collection(db, 'historial_inventario'), {
+              productoId: editingId,
+              fecha: new Date().toISOString(),
+              accion: accion,
+              cambio: diferencia,
+              stockAnterior: stockAnterior,
+              stockNuevo: stockCalculado,
+              motivo: "Edición manual desde panel"
+            });
+          }
         }
       } else {
         const docRef = await addDoc(collection(db, 'productos'), payload);
         savedId = docRef.id;
-        await addDoc(collection(db, 'historial_inventario'), {
-          productoId: savedId,
-          fecha: new Date().toISOString(),
-          accion: `Creación inicial`,
-          cambio: stockCalculado,
-          stockAnterior: 0,
-          stockNuevo: stockCalculado,
-          motivo: "Nuevo producto"
-        });
+
+        if (form.variantes && form.variantes.length > 0) {
+          for (const v of form.variantes) {
+            await addDoc(collection(db, 'historial_inventario'), {
+              productoId: savedId,
+              fecha: new Date().toISOString(),
+              accion: `Creación inicial (${v.nombre})`,
+              cambio: Number(v.stock),
+              stockAnterior: 0,
+              stockNuevo: Number(v.stock),
+              motivo: "Nuevo producto (Variante)"
+            });
+          }
+        } else {
+          await addDoc(collection(db, 'historial_inventario'), {
+            productoId: savedId,
+            fecha: new Date().toISOString(),
+            accion: `Creación inicial`,
+            cambio: stockCalculado,
+            stockAnterior: 0,
+            stockNuevo: stockCalculado,
+            motivo: "Nuevo producto"
+          });
+        }
       }
       setShowModal(false)
     } catch (e) {
@@ -1230,16 +1276,34 @@ export default function Inventario() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
-                    {form.variantes?.length > 0 ? 'Stock Total' : 'Stock Inicial'}
+                    {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Sumar / Restar Stock')}
                   </label>
-                  <input 
-                    type="number" 
-                    value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
-                    onChange={e => setForm({...form, stock: e.target.value})}
-                    readOnly={form.variantes?.length > 0}
-                    className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-white/5'}`}
-                    placeholder="0"
-                  />
+                  {!editingId || form.variantes?.length > 0 ? (
+                    <input 
+                      type="number" 
+                      value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
+                      onChange={e => setForm({...form, stock: e.target.value})}
+                      readOnly={form.variantes?.length > 0}
+                      className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-white/5'}`}
+                      placeholder="0"
+                    />
+                  ) : (
+                    <div className="flex gap-2 h-[46px]">
+                      <div className="flex-[2] relative h-full">
+                        <input 
+                          type="number" 
+                          value={form.ajusteStock} 
+                          onChange={e => setForm({...form, ajusteStock: e.target.value})}
+                          className="w-full h-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                          placeholder="Ej: 3 o -2"
+                        />
+                      </div>
+                      <div className="flex-1 h-full bg-surface-variant/30 dark:bg-white/5 rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center leading-tight py-1">
+                        <span className="text-[8px] font-bold uppercase text-outline">Stock Actual</span>
+                        <span className="text-[13px] font-black text-on-surface dark:text-white">{form.stock}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
