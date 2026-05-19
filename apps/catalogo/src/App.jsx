@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore'
+import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs } from 'firebase/firestore'
 import { db, auth } from './config/firebase'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth'
 
@@ -176,6 +176,14 @@ export default function CatalogoPublico() {
       } else {
         if (!authForm.nombre.trim()) throw new Error("El nombre es obligatorio")
         if (!authForm.whatsapp.trim()) throw new Error("El número de WhatsApp es obligatorio")
+        
+        // Verificar que el número de WhatsApp sea único
+        const normalizedWhatsapp = authForm.whatsapp.trim()
+        const q = query(collection(db, 'usuarios'), where('whatsapp', '==', normalizedWhatsapp))
+        const querySnapshot = await getDocs(q)
+        if (!querySnapshot.empty) {
+          throw new Error("Este número de WhatsApp ya está registrado con otra cuenta.")
+        }
         
         const userCred = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password)
         
