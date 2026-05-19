@@ -71,18 +71,9 @@ export default function CatalogoPublico() {
     // Escuchar productos en tiempo real
     const unsub = onSnapshot(collection(db, 'productos'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      // Filtrar productos que tengan al menos 1 de stock (ya sea general o sumando variantes)
-      const disponibles = data.filter(p => {
-        if (p.variantes && p.variantes.length > 0) {
-          const stockTotalVariantes = p.variantes.reduce((sum, v) => sum + Number(v.stock), 0)
-          return stockTotalVariantes > 0
-        }
-        return p.stock > 0
-      })
-      
       // Ordenar alfabéticamente
-      disponibles.sort((a, b) => a.nombre.localeCompare(b.nombre))
-      setProductos(disponibles)
+      data.sort((a, b) => a.nombre.localeCompare(b.nombre))
+      setProductos(data)
       setLoading(false)
     })
     return unsub
@@ -579,9 +570,12 @@ export default function CatalogoPublico() {
                 const tieneVariantes = p.variantes && p.variantes.length > 0;
               const cartItem = !tieneVariantes ? carrito.find(item => item.productoId === p.id) : null;
               const totalEnCarritoVariants = tieneVariantes ? carrito.filter(item => item.productoId === p.id).reduce((sum, i) => sum + i.cantidad, 0) : 0;
+              const tieneStock = tieneVariantes 
+                ? p.variantes.some(v => Number(v.stock) > 0)
+                : Number(p.stock) > 0;
 
               return (
-                <div key={p.id} className="bg-surface rounded-[24px] overflow-hidden border border-outline-variant/20 shadow-sm flex flex-col group hover:shadow-md transition-all">
+                <div key={p.id} className={`bg-surface rounded-[24px] overflow-hidden border border-outline-variant/20 shadow-sm flex flex-col group hover:shadow-md transition-all ${!tieneStock ? 'grayscale opacity-70' : ''}`}>
                   {/* Imagen */}
                   <div 
                     className="aspect-square bg-surface-variant/30 relative overflow-hidden flex items-center justify-center cursor-pointer"
@@ -613,7 +607,11 @@ export default function CatalogoPublico() {
                       <p className="font-bold text-secondary text-base md:text-lg">${(p.precio || 0).toLocaleString('es-CL')}</p>
                       
                       {/* LÓGICA DE BOTONES INLINE */}
-                      {tieneVariantes ? (
+                      {!tieneStock ? (
+                        <span className="bg-surface-variant text-on-surface-variant px-3 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold uppercase tracking-widest shrink-0">
+                          Agotado
+                        </span>
+                      ) : tieneVariantes ? (
                         <button 
                           onClick={() => abrirModalAñadir(p)}
                           className="bg-primary text-on-primary px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0"

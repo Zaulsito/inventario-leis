@@ -1,6 +1,6 @@
 // src/pages/Inventario.jsx
 import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -106,6 +106,12 @@ export default function Inventario() {
   const [uploadProgress, setUploadProgress] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const [previewImage, setPreviewImage] = useState(null)
+  
+  // Historial
+  const [historyProductId, setHistoryProductId] = useState(null)
+  const [historyLogs, setHistoryLogs] = useState([])
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -160,6 +166,28 @@ export default function Inventario() {
     setShowModal(true)
   }
 
+  async function openHistory(pId) {
+    setHistoryProductId(pId)
+    setIsHistoryLoading(true)
+    setHistoryLogs([])
+    setShowHistoryModal(true)
+    
+    try {
+      const q = query(
+        collection(db, 'historial_inventario'), 
+        where('productoId', '==', pId),
+        orderBy('fecha', 'desc')
+      )
+      const snapshot = await getDocs(q)
+      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setHistoryLogs(logs)
+    } catch (e) {
+      console.error("Error cargando historial", e)
+    } finally {
+      setIsHistoryLoading(false)
+    }
+  }
+
   async function handleDelete(id) {
     if (window.confirm("¿Estás seguro de eliminar este producto de la base de datos?")) {
       await deleteDoc(doc(db, 'productos', id))
@@ -205,8 +233,40 @@ export default function Inventario() {
     }
 
     try {
-      if (editingId)  await updateDoc(doc(db, 'productos', editingId), payload)
-      else            await addDoc(collection(db, 'productos'), payload)
+      let savedId = editingId;
+      if (editingId) {
+        // Obtenemos el stock anterior para comparar
+        const prodAnterior = productos.find(p => p.id === editingId);
+        const stockAnterior = prodAnterior ? Number(prodAnterior.stock) : 0;
+        
+        await updateDoc(doc(db, 'productos', editingId), payload);
+        
+        if (stockCalculado !== stockAnterior) {
+          const diferencia = stockCalculado - stockAnterior;
+          const accion = diferencia > 0 ? `Se sumaron ${diferencia}` : `Se restaron ${Math.abs(diferencia)}`;
+          await addDoc(collection(db, 'historial_inventario'), {
+            productoId: editingId,
+            fecha: new Date().toISOString(),
+            accion: accion,
+            cambio: diferencia,
+            stockAnterior: stockAnterior,
+            stockNuevo: stockCalculado,
+            motivo: "Edición manual desde panel"
+          });
+        }
+      } else {
+        const docRef = await addDoc(collection(db, 'productos'), payload);
+        savedId = docRef.id;
+        await addDoc(collection(db, 'historial_inventario'), {
+          productoId: savedId,
+          fecha: new Date().toISOString(),
+          accion: `Creación inicial`,
+          cambio: stockCalculado,
+          stockAnterior: 0,
+          stockNuevo: stockCalculado,
+          motivo: "Nuevo producto"
+        });
+      }
       setShowModal(false)
     } catch (e) {
       setErrorMsg('Error al guardar: ' + e.message)
@@ -768,6 +828,13 @@ export default function Inventario() {
                             Borrar
                           </button>
                         </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); openHistory(p.id); }}
+                          className="w-full flex items-center justify-center gap-2 bg-secondary/10 border border-secondary/20 text-secondary dark:text-[#e2bd6c] py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all mt-2"
+                        >
+                          <span className="material-symbols-outlined text-sm">history</span>
+                          Historial de Stock
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -794,6 +861,9 @@ export default function Inventario() {
                         <div className="flex flex-col gap-2 transition-all duration-300">
                           <button onClick={() => openEdit(p)} className="text-outline/60 dark:text-gray-500 hover:text-primary dark:hover:text-[#e2bd6c] transition-colors" title="Editar">
                             <span className="material-symbols-outlined text-[20px]">edit</span>
+                          </button>
+                          <button onClick={() => openHistory(p.id)} className="text-outline/60 dark:text-gray-500 hover:text-secondary dark:hover:text-[#e2bd6c] transition-colors" title="Historial">
+                            <span className="material-symbols-outlined text-[20px]">history</span>
                           </button>
                           <button onClick={() => handleDelete(p.id)} className="text-outline/60 dark:text-gray-500 hover:text-error transition-colors" title="Eliminar">
                             <span className="material-symbols-outlined text-[20px]">delete</span>
@@ -1428,6 +1498,65 @@ export default function Inventario() {
           onClose={() => setIsScanning(false)}
         />
       )}
+      {/* Modal Historial de Stock */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowHistoryModal(false)} />
+          <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] shadow-2xl w-full max-w-lg relative z-10 flex flex-col animate-in slide-in-from-bottom-4 duration-300 border border-outline-variant/20 dark:border-white/10 max-h-[85vh]">
+            <div className="p-6 border-b border-outline-variant/20 dark:border-white/10 flex justify-between items-center bg-surface-container-low dark:bg-white/5 rounded-t-[24px] shrink-0">
+              <div>
+                <h3 className="font-headline text-xl text-secondary dark:text-[#e2bd6c] font-bold italic leading-tight">Historial de Stock</h3>
+                <p className="text-[10px] uppercase tracking-widest text-outline dark:text-gray-400 font-bold mt-1">
+                  Movimientos Registrados
+                </p>
+              </div>
+              <button onClick={() => setShowHistoryModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-variant dark:bg-white/10 dark:hover:bg-white/20 text-on-surface dark:text-white transition-colors">
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+              {isHistoryLoading ? (
+                <div className="text-center py-10 text-outline animate-pulse text-sm font-medium">Cargando historial...</div>
+              ) : historyLogs.length === 0 ? (
+                <div className="text-center py-10">
+                  <span className="material-symbols-outlined text-4xl text-outline/30 mb-2">history_toggle_off</span>
+                  <p className="text-outline text-sm font-medium">No hay registros de movimientos para este producto.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {historyLogs.map(log => {
+                    const date = new Date(log.fecha)
+                    const isPositive = log.cambio > 0
+                    const isCreation = log.accion === 'Creación inicial'
+                    return (
+                      <div key={log.id} className="bg-surface-container-low dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl p-4 flex gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ${isCreation ? 'bg-secondary/10 text-secondary dark:text-[#e2bd6c]' : isPositive ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}`}>
+                          <span className="material-symbols-outlined text-lg">{isCreation ? 'inventory_2' : isPositive ? 'add' : 'remove'}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-outline dark:text-gray-500 font-bold tracking-widest uppercase mb-1">
+                            {date.toLocaleDateString('es-CL')} a las {date.toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'})}
+                          </p>
+                          <h4 className="text-sm font-bold text-on-surface dark:text-white mb-1">{log.accion}</h4>
+                          <p className="text-xs text-outline-variant dark:text-gray-400">{log.motivo}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-base font-bold ${isCreation ? 'text-secondary dark:text-[#e2bd6c]' : isPositive ? 'text-primary' : 'text-error'}`}>
+                            {isPositive ? '+' : ''}{log.cambio}
+                          </p>
+                          <p className="text-[10px] text-outline font-bold mt-1">Stock: {log.stockNuevo}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   )
