@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs } from 'firebase/firestore'
 import { db, auth } from './config/firebase'
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth'
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification } from 'firebase/auth'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
 const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
@@ -81,12 +81,14 @@ export default function CatalogoPublico() {
   const [authTab, setAuthTab] = useState('login') // 'login' | 'register'
   const [authForm, setAuthForm] = useState({ nombre: '', email: '', password: '', whatsapp: '' })
   const [authError, setAuthError] = useState('')
+  const [authSuccess, setAuthSuccess] = useState('')
   const [isAuthLoading, setIsAuthLoading] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
 
   // Referencias para evitar condiciones de carrera en la sincronización del carrito
   const loadingCartFromDb = useRef(false)
   const lastLoadedUid = useRef(null)
+  const isRegistering = useRef(false)
 
   const [animacion, setAnimacion] = useState('') // '', 'salir-izquierda', 'salir-derecha', etc.
   const [indexImagenActual, setIndexImagenActual] = useState(0)
@@ -123,6 +125,18 @@ export default function CatalogoPublico() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user && !user.emailVerified) {
+        if (!isRegistering.current) {
+          await signOut(auth)
+          setCurrentUser(null)
+          setUserData(null)
+          setCarrito([])
+          lastLoadedUid.current = null
+          loadingCartFromDb.current = false
+          return
+        }
+      }
+
       setCurrentUser(user)
       if (user) {
         if (lastLoadedUid.current !== user.uid) {
@@ -212,11 +226,25 @@ export default function CatalogoPublico() {
   const handleAuthSubmit = async (e) => {
     e.preventDefault()
     setAuthError('')
+    setAuthSuccess('')
     setIsAuthLoading(true)
 
     try {
       if (authTab === 'login') {
-        await signInWithEmailAndPassword(auth, authForm.email, authForm.password)
+        const userCred = await signInWithEmailAndPassword(auth, authForm.email, authForm.password)
+        if (!userCred.user.emailVerified) {
+          const now = Date.now()
+          const lastSent = Number(localStorage.getItem('lastVerificationSent_') || '0')
+          if (now - lastSent < 60000) {
+            await signOut(auth)
+            throw new Error("unverified-email-cooldown")
+          } else {
+            await sendEmailVerification(userCred.user)
+            localStorage.setItem('lastVerificationSent_', String(now))
+            await signOut(auth)
+            throw new Error("unverified-email-sent")
+          }
+        }
         setShowAuthModal(false)
       } else {
         if (!authForm.nombre.trim()) throw new Error("El nombre es obligatorio")
@@ -230,29 +258,52 @@ export default function CatalogoPublico() {
           throw new Error("Este número de WhatsApp ya está registrado con otra cuenta.")
         }
         
-        const userCred = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password)
+        isRegistering.current = true
         
-        // Actualizar el displayName
-        await updateProfile(userCred.user, { displayName: authForm.nombre })
-        
-        // Guardar whatsapp en firestore
-        await setDoc(doc(db, 'usuarios', userCred.user.uid), {
-          nombre: authForm.nombre,
-          email: authForm.email,
-          whatsapp: authForm.whatsapp,
-          createdAt: new Date().toISOString()
-        })
-        
-        setShowAuthModal(false)
+        try {
+          const userCred = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password)
+          
+          // Enviar correo de verificación
+          await sendEmailVerification(userCred.user)
+          localStorage.setItem('lastVerificationSent_', String(Date.now()))
+          
+          // Actualizar el displayName
+          await updateProfile(userCred.user, { displayName: authForm.nombre })
+          
+          // Guardar whatsapp en firestore
+          await setDoc(doc(db, 'usuarios', userCred.user.uid), {
+            nombre: authForm.nombre,
+            email: authForm.email,
+            whatsapp: authForm.whatsapp,
+            createdAt: new Date().toISOString()
+          })
+          
+          await signOut(auth)
+          
+          setAuthSuccess("¡Registro exitoso! Te hemos enviado un enlace de verificación. Por favor, verifica tu cuenta antes de iniciar sesión.")
+          setAuthForm({ nombre: '', email: '', password: '', whatsapp: '' })
+          setAuthTab('login')
+        } finally {
+          isRegistering.current = false
+        }
       }
     } catch (error) {
       console.error(error)
-      // Traducir algunos errores comunes de Firebase
-      if (error.code === 'auth/email-already-in-use') setAuthError('Este correo ya está registrado.')
-      else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') setAuthError('Credenciales incorrectas.')
-      else if (error.code === 'auth/user-not-found') setAuthError('No hay cuenta con este correo.')
-      else if (error.code === 'auth/weak-password') setAuthError('La contraseña debe tener al menos 6 caracteres.')
-      else setAuthError(error.message || 'Error al autenticar')
+      if (error.message === "unverified-email-cooldown") {
+        setAuthError("Tu correo electrónico no está verificado. Por favor, revisa tu bandeja de entrada (ya enviamos un enlace hace poco; espera un minuto antes de reintentar).")
+      } else if (error.message === "unverified-email-sent") {
+        setAuthError("Tu correo electrónico no está verificado. Hemos enviado un nuevo enlace de verificación a tu bandeja de entrada.")
+      } else if (error.code === 'auth/email-already-in-use') {
+        setAuthError('Este correo ya está registrado.')
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setAuthError('Credenciales incorrectas.')
+      } else if (error.code === 'auth/user-not-found') {
+        setAuthError('No hay cuenta con este correo.')
+      } else if (error.code === 'auth/weak-password') {
+        setAuthError('La contraseña debe tener al menos 6 caracteres.')
+      } else {
+        setAuthError(error.message || 'Error al autenticar')
+      }
     } finally {
       setIsAuthLoading(false)
     }
@@ -1404,13 +1455,13 @@ export default function CatalogoPublico() {
             <div className={`flex border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
               <button
                 className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'login' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
-                onClick={() => { setAuthTab('login'); setAuthError(''); }}
+                onClick={() => { setAuthTab('login'); setAuthError(''); setAuthSuccess(''); }}
               >
                 Ingresar
               </button>
               <button
                 className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'register' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
-                onClick={() => { setAuthTab('register'); setAuthError(''); }}
+                onClick={() => { setAuthTab('register'); setAuthError(''); setAuthSuccess(''); }}
               >
                 Registrarse
               </button>
@@ -1475,6 +1526,12 @@ export default function CatalogoPublico() {
               {authError && (
                 <div className="bg-error/10 text-error px-4 py-3 rounded-xl text-xs font-bold text-center border border-error/20">
                   {authError}
+                </div>
+              )}
+
+              {authSuccess && (
+                <div className="bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-3 rounded-xl text-xs font-bold text-center border border-green-500/20 animate-in fade-in">
+                  {authSuccess}
                 </div>
               )}
 
