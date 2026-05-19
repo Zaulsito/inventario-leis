@@ -9,6 +9,21 @@ const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
 export default function CatalogoPublico() {
   const [productos, setProductos] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme')
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  })
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }, [isDark])
   
   // Filtros Avanzados
   const [filtroCategoria, setFiltroCategoria] = useState('TODAS')
@@ -453,15 +468,15 @@ export default function CatalogoPublico() {
   }
 
   return (
-    <div className="flex h-[100dvh] bg-surface-container-lowest relative overflow-hidden">
+    <div className={`flex h-[100dvh] ${isDark ? 'bg-[#0c0c0c]' : 'bg-surface'} relative overflow-hidden transition-colors duration-500`}>
       
       {/* ── BACKGROUND WATERMARK ── */}
-      <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center opacity-15">
+      <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-opacity duration-500 ${isDark ? 'opacity-10' : 'opacity-15'}`}>
         <div className="w-[85%] md:w-[40%] max-w-lg rounded-[3.5rem] crystal-effect">
           <img 
-            src="/logo.jpeg" 
+            src={isDark ? "/logo-dark.png" : "/logo.jpeg"} 
             alt="Watermark" 
-            className="w-full h-full object-contain rounded-[3.5rem] shadow-sm mix-blend-darken"
+            className={`w-full h-full object-contain rounded-[3.5rem] shadow-sm transition-all duration-500 ${isDark ? 'mix-blend-overlay' : 'mix-blend-multiply'}`}
           />
         </div>
       </div>
@@ -475,19 +490,19 @@ export default function CatalogoPublico() {
       )}
 
       {/* ── PANEL LATERAL (SIDEBAR) ── */}
-      <aside className={`fixed md:relative top-0 left-0 h-full w-[280px] bg-surface border-r border-outline-variant/20 z-50 flex flex-col transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed md:relative top-0 left-0 h-full w-[280px] border-r z-50 flex flex-col transition-all duration-300 ease-in-out shadow-2xl md:shadow-none ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'} ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         {/* CABECERA SIDEBAR */}
-        <div className="p-6 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-low shrink-0">
+        <div className={`p-6 border-b flex justify-between items-center shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-low'}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg shadow-sm flex items-center justify-center p-1 shrink-0">
-              <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-contain rounded" />
+            <div className={`w-10 h-10 rounded-lg shadow-sm flex items-center justify-center p-1 shrink-0 ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+              <img src={isDark ? "/logo-dark.png" : "/logo.jpeg"} alt="Logo" className="w-full h-full object-contain rounded" />
             </div>
             <div>
-              <h1 className="font-headline text-lg text-secondary font-bold italic leading-tight">Catálogo</h1>
-              <p className="text-[9px] uppercase tracking-widest text-outline font-bold">Filtros</p>
+              <h1 className={`font-headline text-lg font-bold italic leading-tight ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>Catálogo</h1>
+              <p className={`text-[9px] uppercase tracking-widest font-bold ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>Filtros</p>
             </div>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-outline hover:bg-surface-variant rounded-full transition-colors">
+          <button onClick={() => setIsSidebarOpen(false)} className={`md:hidden p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:bg-white/5' : 'text-outline hover:bg-surface-variant'}`}>
             <span className="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
@@ -497,7 +512,7 @@ export default function CatalogoPublico() {
           
           {/* BÚSQUEDA */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
               <span className="material-symbols-outlined text-sm">search</span>
               Búsqueda
             </h3>
@@ -507,7 +522,7 @@ export default function CatalogoPublico() {
                 placeholder="Nombre, SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/5 transition-all"
+                className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'}`}
               />
               {searchTerm && (
                 <button 
@@ -522,30 +537,30 @@ export default function CatalogoPublico() {
 
           {/* PRECIO */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
               <span className="material-symbols-outlined text-sm">payments</span>
               Rango de Precio
             </h3>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-outline text-xs">$</span>
+                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${isDark ? 'text-gray-400' : 'text-outline'}`}>$</span>
                 <input 
                   type="number" 
                   placeholder="Min"
                   value={precioMin}
                   onChange={e => setPrecioMin(e.target.value)}
-                  className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+                  className={`w-full border rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'}`}
                 />
               </div>
-              <span className="text-outline-variant">-</span>
+              <span className={isDark ? 'text-white/20' : 'text-outline-variant'}>-</span>
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-outline text-xs">$</span>
+                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${isDark ? 'text-gray-400' : 'text-outline'}`}>$</span>
                 <input 
                   type="number" 
                   placeholder="Max"
                   value={precioMax}
                   onChange={e => setPrecioMax(e.target.value)}
-                  className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+                  className={`w-full border rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'}`}
                 />
               </div>
             </div>
@@ -553,12 +568,12 @@ export default function CatalogoPublico() {
 
           {/* DISPONIBILIDAD */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
               <span className="material-symbols-outlined text-sm">inventory_2</span>
               Disponibilidad
             </h3>
-            <label className="flex items-center justify-between p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low cursor-pointer hover:bg-surface-variant/50 transition-colors">
-              <span className="text-sm font-bold text-on-surface">Solo disponible</span>
+            <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-variant/50'}`}>
+              <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-on-surface'}`}>Solo disponible</span>
               <div className="relative flex items-center">
                 <input 
                   type="checkbox" 
@@ -566,14 +581,14 @@ export default function CatalogoPublico() {
                   checked={soloDisponibles}
                   onChange={e => setSoloDisponibles(e.target.checked)}
                 />
-                <div className="w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
               </div>
             </label>
           </div>
 
           {/* CATEGORÍAS */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-outline uppercase tracking-widest flex items-center gap-2">
+            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
               <span className="material-symbols-outlined text-sm">category</span>
               Categorías
             </h3>
@@ -587,8 +602,8 @@ export default function CatalogoPublico() {
                   }}
                   className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all
                     ${filtroCategoria === c
-                      ? 'bg-secondary text-white shadow-md scale-[1.02]'
-                      : 'text-on-surface-variant hover:bg-surface-variant/50'
+                      ? (isDark ? 'bg-[#e2bd6c] text-black shadow-md scale-[1.02]' : 'bg-secondary text-white shadow-md scale-[1.02]')
+                      : (isDark ? 'text-gray-300 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/50')
                     }`}
                 >
                   <span className="uppercase tracking-wide">{c}</span>
@@ -601,7 +616,7 @@ export default function CatalogoPublico() {
         </div>
         
         {/* FOOTER SIDEBAR */}
-        <div className="p-6 border-t border-outline-variant/20 bg-surface-container-lowest shrink-0">
+        <div className={`p-6 border-t shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-lowest'}`}>
           <button 
             onClick={() => {
               setFiltroCategoria('TODAS')
@@ -610,7 +625,7 @@ export default function CatalogoPublico() {
               setPrecioMax('')
               setSoloDisponibles(false)
             }}
-            className="w-full py-3 rounded-xl border border-outline-variant/30 text-on-surface font-bold text-xs uppercase tracking-widest hover:bg-surface-variant transition-colors"
+            className={`w-full py-3 rounded-xl border font-bold text-xs uppercase tracking-widest transition-colors ${isDark ? 'border-white/10 text-white hover:bg-white/5' : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant'}`}
           >
             Limpiar Filtros
           </button>
@@ -621,39 +636,50 @@ export default function CatalogoPublico() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* HEADER PRINCIPAL COMPACTO */}
-        <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b border-outline-variant/20 flex items-center shrink-0">
+        <header className={`sticky top-0 z-30 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b flex items-center shrink-0 transition-colors duration-500 ${isDark ? 'bg-[#0c0c0c]/80 border-white/5' : 'bg-white/80 border-outline-variant/20'}`}>
           <div className="w-16 shrink-0">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden w-10 h-10 flex items-center justify-center bg-surface-variant rounded-xl text-on-surface"
+              className={`md:hidden w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${isDark ? 'bg-white/5 text-white' : 'bg-surface-variant text-on-surface'}`}
             >
               <span className="material-symbols-outlined">menu_open</span>
             </button>
           </div>
 
           <div className="flex-1 flex justify-center">
-            <h2 className="font-headline text-lg md:text-2xl font-bold text-secondary italic leading-tight text-center">
+            <h2 className={`font-headline text-lg md:text-2xl font-bold italic leading-tight text-center ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
               {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
-              <span className="ml-2 text-sm font-sans font-normal text-outline not-italic">({productosFiltrados.length})</span>
+              <span className={`ml-2 text-sm font-sans font-normal not-italic ${isDark ? 'text-gray-400' : 'text-outline'}`}>({productosFiltrados.length})</span>
             </h2>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Botón de Apariencia (Modo Oscuro/Claro) */}
+            <button 
+              onClick={() => setIsDark(!isDark)}
+              className={`p-3 rounded-2xl transition-colors shrink-0 ${isDark ? 'bg-white/5 text-[#e2bd6c] hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant'}`}
+              title={isDark ? "Modo Claro" : "Modo Oscuro"}
+            >
+              <span className="material-symbols-outlined">
+                {isDark ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+
             {currentUser ? (
               <div className="relative">
                 <button 
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center hover:bg-secondary/20 transition-colors"
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-secondary/10 text-secondary hover:bg-secondary/20'}`}
                 >
                   <span className="font-bold text-sm">{currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}</span>
                 </button>
                 {showProfileMenu && (
                   <>
                     <div className="fixed inset-0 z-[110]" onClick={() => setShowProfileMenu(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-surface-container-lowest border border-outline-variant/20 rounded-2xl shadow-xl z-[120] py-2 animate-in fade-in slide-in-from-top-2">
-                      <div className="px-4 py-2 border-b border-outline-variant/10">
-                        <p className="text-xs font-bold text-on-surface truncate">{currentUser.displayName}</p>
-                        <p className="text-[10px] text-on-surface-variant truncate">{currentUser.email}</p>
+                    <div className={`absolute right-0 top-full mt-2 w-48 border rounded-2xl shadow-xl z-[120] py-2 animate-in fade-in slide-in-from-top-2 ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-lowest border-outline-variant/20'}`}>
+                      <div className={`px-4 py-2 border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
+                        <p className={`text-xs font-bold truncate ${isDark ? 'text-white' : 'text-on-surface'}`}>{currentUser.displayName}</p>
+                        <p className={`text-[10px] truncate ${isDark ? 'text-gray-400' : 'text-on-surface-variant'}`}>{currentUser.email}</p>
                       </div>
                       <button 
                         onClick={handleLogout}
@@ -669,7 +695,7 @@ export default function CatalogoPublico() {
             ) : (
               <button 
                 onClick={() => setShowAuthModal(true)}
-                className="bg-surface-container-high text-on-surface p-3 rounded-2xl hover:bg-surface-variant transition-colors shrink-0"
+                className={`p-3 rounded-2xl transition-colors shrink-0 ${isDark ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant'}`}
                 title="Iniciar Sesión / Crear Cuenta"
               >
                 <span className="material-symbols-outlined">person</span>
@@ -678,7 +704,7 @@ export default function CatalogoPublico() {
 
             <button 
               onClick={() => setIsCartOpen(true)}
-              className="relative bg-primary/10 text-primary p-3 rounded-2xl hover:bg-primary/20 transition-colors shrink-0 ml-1"
+              className={`relative p-3 rounded-2xl transition-colors shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
             >
               <span className="material-symbols-outlined">shopping_cart</span>
               {totalItems > 0 && (
@@ -709,20 +735,20 @@ export default function CatalogoPublico() {
                 : Number(p.stock) > 0;
 
               return (
-                <div key={p.id} className={`bg-surface rounded-[24px] overflow-hidden border border-outline-variant/20 shadow-sm flex flex-col group hover:shadow-md transition-all ${!tieneStock ? 'grayscale opacity-70' : ''}`}>
+                <div key={p.id} className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''}`}>
                   {/* Imagen */}
                   <div 
-                    className="aspect-square bg-surface-variant/30 relative overflow-hidden flex items-center justify-center cursor-pointer"
+                    className={`aspect-square relative overflow-hidden flex items-center justify-center cursor-pointer ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
                     onClick={() => setProductoParaVer(p)}
                   >
                     {p.fotoUrl ? (
-                      <img src={p.fotoUrl} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                       <img src={p.fotoUrl} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     ) : (
-                      <span className="material-symbols-outlined text-4xl text-outline/30">image</span>
+                       <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>image</span>
                     )}
                     {p.marca && (
-                      <div className="absolute top-2 right-2 bg-surface/90 backdrop-blur-sm px-2 py-1 rounded-md">
-                        <span className="text-[8px] font-bold uppercase tracking-widest text-on-surface">{p.marca}</span>
+                      <div className={`absolute top-2 right-2 backdrop-blur-sm px-2 py-1 rounded-md ${isDark ? 'bg-[#151515]/90' : 'bg-white/90'}`}>
+                        <span className={`text-[8px] font-bold uppercase tracking-widest ${isDark ? 'text-[#e2bd6c]' : 'text-on-surface'}`}>{p.marca}</span>
                       </div>
                     )}
                   </div>
@@ -730,45 +756,45 @@ export default function CatalogoPublico() {
                   {/* Info */}
                   <div className="p-4 flex flex-col flex-1">
                     <h3 
-                      className="font-headline font-bold text-sm md:text-xl text-on-surface leading-tight line-clamp-2 mb-1 cursor-pointer hover:text-primary transition-colors"
+                      className={`font-headline font-bold text-sm md:text-xl leading-tight line-clamp-2 mb-1 cursor-pointer transition-colors ${isDark ? 'text-white hover:text-[#e2bd6c]' : 'text-on-surface hover:text-primary'}`}
                       onClick={() => setProductoParaVer(p)}
                     >
                       {p.nombre}
                     </h3>
-                    <p className="text-[10px] md:text-xs text-outline uppercase tracking-wider mb-3">{(p.coleccion || '').toUpperCase()}</p>
+                    <p className={`text-[10px] md:text-xs uppercase tracking-wider mb-3 ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>{(p.coleccion || '').toUpperCase()}</p>
                     
                     <div className="mt-auto flex items-end justify-between gap-2">
-                      <p className="font-bold text-secondary text-base md:text-lg">${(p.precio || 0).toLocaleString('es-CL')}</p>
+                      <p className={`font-bold text-base md:text-lg ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>${(p.precio || 0).toLocaleString('es-CL')}</p>
                       
                       {/* LÓGICA DE BOTONES INLINE */}
                       {!tieneStock ? (
-                        <span className="bg-surface-variant text-on-surface-variant px-3 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold uppercase tracking-widest shrink-0">
+                        <span className={`px-3 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-white/5 text-gray-400' : 'bg-surface-variant text-on-surface-variant'}`}>
                           Agotado
                         </span>
                       ) : tieneVariantes ? (
                         <button 
                           onClick={() => abrirModalAñadir(p)}
-                          className="bg-primary text-on-primary px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0"
+                          className={`px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'}`}
                         >
-                          Opciones {totalEnCarritoVariants > 0 && <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded-md">{totalEnCarritoVariants}</span>}
+                          Opciones {totalEnCarritoVariants > 0 && <span className={`ml-1 px-1.5 py-0.5 rounded-md ${isDark ? 'bg-black/20 text-black/80' : 'bg-white/20 text-on-primary/80'}`}>{totalEnCarritoVariants}</span>}
                         </button>
                       ) : cartItem ? (
-                        <div className="flex items-center gap-1 bg-surface-container-highest rounded-xl p-1 h-10 shrink-0 border border-outline-variant/20">
+                        <div className={`flex items-center gap-1 rounded-xl p-1 h-10 shrink-0 border ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-highest border-outline-variant/20'}`}>
                           <button onClick={() => {
                             if(cartItem.cantidad === 1) eliminarDelCarrito(cartItem.idCart);
                             else actualizarCantidad(cartItem.idCart, -1);
-                          }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface text-on-surface">
+                          }} className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white text-on-surface'}`}>
                             <span className="material-symbols-outlined text-[16px]">remove</span>
                           </button>
-                          <span className="w-5 text-center font-bold text-xs">{cartItem.cantidad}</span>
-                          <button onClick={() => actualizarCantidad(cartItem.idCart, 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface text-on-surface">
+                          <span className={`w-5 text-center font-bold text-xs ${isDark ? 'text-white' : 'text-on-surface'}`}>{cartItem.cantidad}</span>
+                          <button onClick={() => actualizarCantidad(cartItem.idCart, 1)} className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white text-on-surface'}`}>
                             <span className="material-symbols-outlined text-[16px]">add</span>
                           </button>
                         </div>
                       ) : (
                         <button 
                           onClick={() => añadirAlCarrito(p, null)}
-                          className="bg-primary text-on-primary w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0"
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'}`}
                         >
                           <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
                         </button>
@@ -788,7 +814,7 @@ export default function CatalogoPublico() {
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
                   disabled={paginaActual === 1}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  className={`w-10 h-10 flex items-center justify-center rounded-xl border disabled:opacity-30 disabled:hover:bg-transparent transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant'}`}
                 >
                   <span className="material-symbols-outlined text-sm">chevron_left</span>
                 </button>
@@ -802,8 +828,8 @@ export default function CatalogoPublico() {
                     }}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl font-bold text-sm transition-all ${
                       paginaActual === pag
-                        ? 'bg-secondary text-white shadow-md'
-                        : 'border border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant'
+                        ? (isDark ? 'bg-[#e2bd6c] text-black shadow-md' : 'bg-secondary text-white shadow-md')
+                        : (isDark ? 'border border-white/10 text-gray-300 hover:bg-white/5' : 'border border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant')
                     }`}
                   >
                     {pag}
@@ -816,7 +842,7 @@ export default function CatalogoPublico() {
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
                   disabled={paginaActual === totalPaginas}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  className={`w-10 h-10 flex items-center justify-center rounded-xl border disabled:opacity-30 disabled:hover:bg-transparent transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant'}`}
                 >
                   <span className="material-symbols-outlined text-sm">chevron_right</span>
                 </button>
@@ -845,45 +871,45 @@ export default function CatalogoPublico() {
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={() => setIsCartOpen(false)} />
-          <div className="bg-surface w-full max-w-md h-full relative z-10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="p-6 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-low">
-              <h2 className="font-headline text-xl font-bold flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">shopping_cart</span>
+          <div className={`w-full max-w-md h-full relative z-10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 ${isDark ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+            <div className={`p-6 border-b flex justify-between items-center bg-surface-container-low shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-low'}`}>
+              <h2 className={`font-headline text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                <span className={`material-symbols-outlined ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>shopping_cart</span>
                 Tu Pedido
               </h2>
-              <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-surface-variant rounded-full text-outline transition-colors">
+              <button onClick={() => setIsCartOpen(false)} className={`p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:bg-white/5' : 'text-outline hover:bg-surface-variant'}`}>
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {carrito.length === 0 ? (
-                <div className="text-center py-10 opacity-50 flex flex-col items-center">
+                <div className={`text-center py-10 opacity-50 flex flex-col items-center ${isDark ? 'text-gray-400' : 'text-outline'}`}>
                   <span className="material-symbols-outlined text-5xl mb-2">production_quantity_limits</span>
                   <p>Aún no hay productos en el carrito</p>
                 </div>
               ) : (
                 carrito.map(item => (
-                  <div key={item.idCart} className="flex items-center gap-4 bg-surface-container-low p-4 rounded-[20px] border border-outline-variant/10">
+                  <div key={item.idCart} className={`flex items-center gap-4 p-4 rounded-[20px] border ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-low border-outline-variant/10'}`}>
                     <div className="flex-1">
-                      <p className="font-bold text-sm text-on-surface leading-tight">{item.nombre}</p>
-                      <p className="text-secondary font-bold text-xs mt-1">${item.precio.toLocaleString('es-CL')}</p>
+                      <p className={`font-bold text-sm leading-tight ${isDark ? 'text-white' : 'text-on-surface'}`}>{item.nombre}</p>
+                      <p className={`font-bold text-xs mt-1 ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>${item.precio.toLocaleString('es-CL')}</p>
                     </div>
                     
-                    <div className="flex items-center gap-2 bg-surface-container-highest rounded-xl p-1">
+                    <div className={`flex items-center gap-2 rounded-xl p-1 ${isDark ? 'bg-white/5' : 'bg-surface-container-highest'}`}>
                       <button onClick={() => {
                         if(item.cantidad === 1) eliminarDelCarrito(item.idCart);
                         else actualizarCantidad(item.idCart, -1);
-                      }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface text-on-surface">
+                      }} className={`w-7 h-7 flex items-center justify-center rounded-lg ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white text-on-surface'}`}>
                         <span className="material-symbols-outlined text-[16px]">remove</span>
                       </button>
-                      <span className="w-6 text-center font-bold text-xs">{item.cantidad}</span>
-                      <button onClick={() => actualizarCantidad(item.idCart, 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface text-on-surface">
+                      <span className={`w-6 text-center font-bold text-xs ${isDark ? 'text-white' : 'text-on-surface'}`}>{item.cantidad}</span>
+                      <button onClick={() => actualizarCantidad(item.idCart, 1)} className={`w-7 h-7 flex items-center justify-center rounded-lg ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white text-on-surface'}`}>
                         <span className="material-symbols-outlined text-[16px]">add</span>
                       </button>
                     </div>
 
-                    <button onClick={() => eliminarDelCarrito(item.idCart)} className="text-error/50 hover:text-error hover:bg-error/10 p-2 rounded-xl transition-colors shrink-0">
+                    <button onClick={() => eliminarDelCarrito(item.idCart)} className={`p-2 rounded-xl transition-colors shrink-0 ${isDark ? 'text-red-400/50 hover:text-red-400 hover:bg-red-500/10' : 'text-error/50 hover:text-error hover:bg-error/10'}`}>
                       <span className="material-symbols-outlined text-[20px]">delete</span>
                     </button>
                   </div>
@@ -892,14 +918,14 @@ export default function CatalogoPublico() {
             </div>
 
             {carrito.length > 0 && (
-              <div className="p-6 bg-surface-container border-t border-outline-variant/20 space-y-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+              <div className={`p-6 border-t space-y-4 ${isDark ? 'bg-[#151515] border-white/5 shadow-none' : 'bg-surface-container border-outline-variant/20 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]'}`}>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold uppercase tracking-widest text-outline">Total a Pagar</span>
-                  <span className="font-headline text-2xl font-bold text-secondary">${totalCarrito.toLocaleString('es-CL')}</span>
+                  <span className={`text-sm font-bold uppercase tracking-widest ${isDark ? 'text-gray-400' : 'text-outline'}`}>Total a Pagar</span>
+                  <span className={`font-headline text-2xl font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>${totalCarrito.toLocaleString('es-CL')}</span>
                 </div>
                 <button 
                   onClick={prepararCheckout}
-                  className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2"
+                  className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2 ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'}`}
                 >
                   <span className="material-symbols-outlined">send</span>
                   Hacer Pedido
@@ -914,21 +940,21 @@ export default function CatalogoPublico() {
       {productParaAñadir && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setProductParaAñadir(null)} />
-          <div className="bg-surface w-full max-w-sm rounded-[32px] sm:rounded-[32px] shadow-2xl relative z-10 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-outline-variant/10 bg-surface-container-low shrink-0 flex justify-between items-center">
-              <h3 className="font-headline font-bold text-lg text-on-surface pr-4">Selecciona una opción</h3>
-              <button onClick={() => setProductParaAñadir(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-variant text-outline">
+          <div className={`w-full max-w-sm rounded-[32px] sm:rounded-[32px] shadow-2xl relative z-10 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh] border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}>
+            <div className={`p-6 border-b shrink-0 flex justify-between items-center ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/10 bg-surface-container-low'}`}>
+              <h3 className={`font-headline font-bold text-lg pr-4 ${isDark ? 'text-white' : 'text-on-surface'}`}>Selecciona una opción</h3>
+              <button onClick={() => setProductParaAñadir(null)} className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isDark ? 'bg-white/5 text-gray-400' : 'bg-surface-variant text-outline'}`}>
                 <span className="material-symbols-outlined text-sm">close</span>
               </button>
             </div>
             <div className="p-6 overflow-y-auto space-y-3 custom-scrollbar">
-              <div className="flex items-center gap-4 mb-4 pb-4 border-b border-outline-variant/10">
+              <div className={`flex items-center gap-4 mb-4 pb-4 border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
                 {productParaAñadir.fotoUrl && (
-                  <img src={productParaAñadir.fotoUrl} alt={productParaAñadir.nombre} className="w-16 h-16 rounded-xl object-cover bg-surface-variant" />
+                  <img src={productParaAñadir.fotoUrl} alt={productParaAñadir.nombre} className={`w-16 h-16 rounded-xl object-cover border ${isDark ? 'bg-white/5 border-white/5' : 'bg-surface-variant border-outline-variant/20'}`} />
                 )}
                 <div>
-                  <p className="font-bold text-sm leading-tight mb-1">{productParaAñadir.nombre}</p>
-                  <p className="text-secondary font-bold">${(productParaAñadir.precio || 0).toLocaleString('es-CL')}</p>
+                  <p className={`font-bold text-sm leading-tight mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>{productParaAñadir.nombre}</p>
+                  <p className={`font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>${(productParaAñadir.precio || 0).toLocaleString('es-CL')}</p>
                 </div>
               </div>
 
@@ -941,26 +967,26 @@ export default function CatalogoPublico() {
                   <button
                     key={i}
                     onClick={() => setVarianteSeleccionada(v)}
-                    className={`w-full flex justify-between items-center p-4 rounded-[20px] border-2 transition-all ${varianteSeleccionada === v ? 'border-primary bg-primary/5' : 'border-outline-variant/10 bg-surface hover:border-primary/30'}`}
+                    className={`w-full flex justify-between items-center p-4 rounded-[20px] border-2 transition-all ${varianteSeleccionada === v ? (isDark ? 'border-[#e2bd6c] bg-[#e2bd6c]/5' : 'border-primary bg-primary/5') : (isDark ? 'border-white/10 bg-[#151515] hover:border-[#e2bd6c]/30' : 'border-outline-variant/10 bg-surface hover:border-primary/30')}`}
                   >
-                    <span className="font-bold text-sm text-on-surface uppercase flex items-center gap-2">
+                    <span className={`font-bold text-sm uppercase flex items-center gap-2 ${isDark ? 'text-white' : 'text-on-surface'}`}>
                       {v.nombre}
-                      {inCart && <span className="bg-primary/20 text-primary text-[9px] px-1.5 py-0.5 rounded-md">{inCart.cantidad} en pedido</span>}
+                      {inCart && <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/20 text-primary'}`}>{inCart.cantidad} en pedido</span>}
                     </span>
-                    <span className="text-[10px] font-bold text-secondary bg-secondary/10 px-2 py-1 rounded-lg">{v.stock} disp.</span>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${isDark ? 'text-[#e2bd6c] bg-[#e2bd6c]/10' : 'text-secondary bg-secondary/10'}`}>{v.stock} disp.</span>
                   </button>
                 )
               })}
               
               {productParaAñadir.variantes.filter(v => Number(v.stock) > 0).length === 0 && (
-                <p className="text-center text-sm text-error font-bold py-4">No hay stock disponible en ninguna variante.</p>
+                <p className={`text-center text-sm font-bold py-4 ${isDark ? 'text-red-400' : 'text-error'}`}>No hay stock disponible en ninguna variante.</p>
               )}
             </div>
-            <div className="p-6 bg-surface-container border-t border-outline-variant/10 shrink-0">
+            <div className={`p-6 border-t shrink-0 ${isDark ? 'bg-[#151515] border-white/5' : 'bg-surface-container border-outline-variant/10'}`}>
               <button 
                 disabled={!varianteSeleccionada}
                 onClick={() => añadirAlCarrito(productParaAñadir, varianteSeleccionada)}
-                className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs transition-all ${varianteSeleccionada ? 'bg-primary text-on-primary shadow-lg hover:scale-[1.02]' : 'bg-surface-variant text-outline opacity-50 cursor-not-allowed'}`}
+                className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs transition-all ${varianteSeleccionada ? (isDark ? 'bg-[#e2bd6c] text-black shadow-lg hover:scale-[1.02]' : 'bg-primary text-on-primary shadow-lg hover:scale-[1.02]') : (isDark ? 'bg-white/5 text-gray-500 opacity-50 cursor-not-allowed' : 'bg-surface-variant text-outline opacity-50 cursor-not-allowed')}`}
               >
                 Añadir al Carrito
               </button>
@@ -975,7 +1001,7 @@ export default function CatalogoPublico() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setProductoParaVer(null)} />
           
           <div 
-            className={`bg-surface w-full max-w-lg md:max-w-7xl rounded-[32px] md:rounded-[48px] shadow-2xl relative z-10 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 overflow-hidden flex flex-col md:flex-row h-full max-h-[92vh] md:h-[90vh] overscroll-contain`}
+            className={`w-full max-w-lg md:max-w-7xl rounded-[32px] md:rounded-[48px] shadow-2xl relative z-10 animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 overflow-hidden flex flex-col md:flex-row h-full max-h-[92vh] md:h-[90vh] overscroll-contain border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -983,16 +1009,16 @@ export default function CatalogoPublico() {
             {/* BOTÓN CERRAR FLOTANTE PARA MÓVIL / ESCRITORIO */}
             <button 
               onClick={() => setProductoParaVer(null)} 
-              className="absolute top-4 right-4 z-[70] w-10 h-10 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-on-surface backdrop-blur-md transition-all shadow-lg"
+              className={`absolute top-4 right-4 z-[70] w-10 h-10 flex items-center justify-center rounded-full transition-all shadow-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-black/10 hover:bg-black/20 text-on-surface'}`}
             >
               <span className="material-symbols-outlined">close</span>
             </button>
             
             <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden custom-scrollbar">
               {/* COLUMNA IZQUIERDA: GALERÍA */}
-              <div className="w-full md:w-[60%] flex flex-col bg-white border-b md:border-b-0 md:border-r border-outline-variant/10 shrink-0">
-                <div className="flex-1 relative group/gallery overflow-hidden flex items-center justify-center bg-[#fcfcfc] p-6 md:p-12">
-                  <div className="absolute inset-4 md:inset-8 rounded-[48px] overflow-hidden z-0 bg-white/50 backdrop-blur-sm shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)]">
+              <div className={`w-full md:w-[60%] flex flex-col border-b md:border-b-0 md:border-r shrink-0 ${isDark ? 'bg-[#0c0c0c] border-white/5' : 'bg-white border-outline-variant/10'}`}>
+                <div className={`flex-1 relative group/gallery overflow-hidden flex items-center justify-center p-6 md:p-12 ${isDark ? 'bg-[#0c0c0c]' : 'bg-[#fcfcfc]'}`}>
+                  <div className={`absolute inset-4 md:inset-8 rounded-[48px] overflow-hidden z-0 backdrop-blur-sm shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] ${isDark ? 'bg-black/40' : 'bg-white/50'}`}>
                     {/* FONDO DIFUMINADO DINÁMICO */}
                     {fotosProducto[indexImagenActual] && (
                       <div className="absolute inset-0">
@@ -1001,7 +1027,7 @@ export default function CatalogoPublico() {
                           className="w-full h-full object-cover blur-3xl scale-150 opacity-40 transition-all duration-1000 ease-in-out" 
                           alt="Dynamic background"
                         />
-                        <div className="absolute inset-0 bg-white/10" />
+                        <div className={`absolute inset-0 ${isDark ? 'bg-black/20' : 'bg-white/10'}`} />
                       </div>
                     )}
                   </div>
@@ -1014,13 +1040,13 @@ export default function CatalogoPublico() {
                       <img 
                         src={fotosProducto[indexImagenActual]} 
                         alt={productoParaVer.nombre} 
-                        className="max-w-full max-h-[70vh] w-auto h-auto object-contain rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border-8 border-white" 
+                        className={`max-w-full max-h-[70vh] w-auto h-auto object-contain rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border-8 ${isDark ? 'border-[#1e1e1e]' : 'border-white'}`} 
                       />
-                      <div className="absolute inset-0 rounded-[40px] hover:bg-black/5 transition-colors" />
+                      <div className={`absolute inset-0 rounded-[40px] transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} />
                     </div>
                   ) : (
                     <div className="relative z-10">
-                      <span className="material-symbols-outlined text-7xl text-outline/20">image</span>
+                      <span className={`material-symbols-outlined text-7xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>image</span>
                     </div>
                   )}
 
@@ -1029,13 +1055,13 @@ export default function CatalogoPublico() {
                     <>
                       <button 
                         onClick={(e) => { e.stopPropagation(); anteriorImagen(); }}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-xl text-secondary hover:scale-110 transition-all opacity-0 group-hover/gallery:opacity-100"
+                        className={`absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full transition-all opacity-0 group-hover/gallery:opacity-100 ${isDark ? 'bg-white/10 text-[#e2bd6c] hover:bg-white/20' : 'bg-white text-secondary hover:bg-surface-variant hover:scale-110 shadow-xl'}`}
                       >
                         <span className="material-symbols-outlined text-2xl">chevron_left</span>
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); siguienteImagen(); }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-xl text-secondary hover:scale-110 transition-all opacity-0 group-hover/gallery:opacity-100"
+                        className={`absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full transition-all opacity-0 group-hover/gallery:opacity-100 ${isDark ? 'bg-white/10 text-[#e2bd6c] hover:bg-white/20' : 'bg-white text-secondary hover:bg-surface-variant hover:scale-110 shadow-xl'}`}
                       >
                         <span className="material-symbols-outlined text-2xl">chevron_right</span>
                       </button>
@@ -1044,9 +1070,9 @@ export default function CatalogoPublico() {
 
                   {/* INDICADOR NUMÉRICO REFINADO (AUTO-OCULTABLE) */}
                   {fotosProducto.length > 1 && mostrarIndicador && (
-                    <div className="absolute bottom-10 right-10 z-20 flex items-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl border border-outline-variant/10 md:hidden animate-in fade-in zoom-in duration-500 animate-out fade-out zoom-out">
-                      <span className="material-symbols-outlined text-sm text-primary">imagesmode</span>
-                      <span className="text-[11px] font-black tracking-[0.1em] text-on-surface">
+                    <div className={`absolute bottom-10 right-10 z-20 flex items-center gap-2 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl border md:hidden animate-in fade-in zoom-in duration-500 animate-out fade-out zoom-out ${isDark ? 'bg-[#1e1e1e]/90 border-white/5' : 'bg-white/90 border-outline-variant/10'}`}>
+                      <span className={`material-symbols-outlined text-sm ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>imagesmode</span>
+                      <span className={`text-[11px] font-black tracking-[0.1em] ${isDark ? 'text-white' : 'text-on-surface'}`}>
                         {indexImagenActual + 1} <span className="text-outline/40 mx-0.5">/</span> {fotosProducto.length}
                       </span>
                     </div>
@@ -1055,12 +1081,12 @@ export default function CatalogoPublico() {
 
                 {/* MINIATURAS EN ESCRITORIO */}
                 {fotosProducto.length > 1 && (
-                  <div className="hidden md:flex gap-2 p-4 justify-center border-t border-outline-variant/5 overflow-x-auto">
+                  <div className={`hidden md:flex gap-2 p-4 justify-center border-t overflow-x-auto ${isDark ? 'border-white/5' : 'border-outline-variant/5'}`}>
                     {fotosProducto.map((f, i) => (
                       <button 
                         key={i}
                         onClick={() => setIndexImagenActual(i)}
-                        className={`w-20 h-20 rounded-2xl border-2 overflow-hidden transition-all shrink-0 p-1 bg-white ${indexImagenActual === i ? 'border-primary shadow-lg scale-110' : 'border-outline-variant/10 opacity-60 hover:opacity-100 hover:border-primary/30'}`}
+                        className={`w-20 h-20 rounded-2xl border-2 overflow-hidden transition-all shrink-0 p-1 ${isDark ? 'bg-[#1e1e1e]' : 'bg-white'} ${indexImagenActual === i ? (isDark ? 'border-[#e2bd6c] shadow-lg scale-110' : 'border-primary shadow-lg scale-110') : (isDark ? 'border-white/10 opacity-60 hover:opacity-100 hover:border-[#e2bd6c]/30' : 'border-outline-variant/10 opacity-60 hover:opacity-100 hover:border-primary/30')}`}
                       >
                         <img src={f} className="w-full h-full object-cover rounded-xl" />
                       </button>
@@ -1070,17 +1096,17 @@ export default function CatalogoPublico() {
               </div>
 
               {/* COLUMNA DERECHA: INFO */}
-              <div className="w-full md:w-[40%] flex flex-col bg-[#fafafa] md:overflow-y-auto custom-scrollbar">
+              <div className={`w-full md:w-[40%] flex flex-col md:overflow-y-auto custom-scrollbar ${isDark ? 'bg-[#121212]' : 'bg-surface-container-low'}`}>
                 <div className="p-8 md:p-12 flex-1 space-y-10">
                   {/* CABECERA: NOMBRE Y MARCA CENTRALIZADA ABAJO */}
                   <div className="animate-in fade-in slide-in-from-right duration-500 delay-100 text-center">
-                    <h2 className="font-headline font-bold text-3xl md:text-5xl text-on-surface leading-[1.1] mb-2">{productoParaVer.nombre}</h2>
-                    <p className="text-xs md:text-sm text-outline font-medium uppercase tracking-[0.2em] opacity-60 mb-6">{(productoParaVer.coleccion || 'SIN CATEGORÍA').toUpperCase()}</p>
+                    <h2 className={`font-headline font-bold text-3xl md:text-5xl leading-[1.1] mb-2 ${isDark ? 'text-white' : 'text-on-surface'}`}>{productoParaVer.nombre}</h2>
+                    <p className={`text-xs md:text-sm font-medium uppercase tracking-[0.2em] opacity-60 mb-6 ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>{(productoParaVer.coleccion || 'SIN CATEGORÍA').toUpperCase()}</p>
                     
                     <div className="flex items-center gap-4 justify-center">
-                      <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-primary/20" />
-                      <p className="text-xs md:text-sm text-primary font-bold uppercase tracking-[0.4em] px-2">{productoParaVer.marca || 'GENÉRICO'}</p>
-                      <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-primary/20" />
+                      <div className={`h-[1px] flex-1 bg-gradient-to-r ${isDark ? 'from-transparent to-[#e2bd6c]/20' : 'from-transparent to-primary/20'}`} />
+                      <p className={`text-xs md:text-sm font-bold uppercase tracking-[0.4em] px-2 ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>{productoParaVer.marca || 'GENÉRICO'}</p>
+                      <div className={`h-[1px] flex-1 bg-gradient-to-l ${isDark ? 'from-transparent to-[#e2bd6c]/20' : 'from-transparent to-primary/20'}`} />
                     </div>
                   </div>
 
@@ -1088,11 +1114,11 @@ export default function CatalogoPublico() {
                   {/* DESCRIPCIÓN REFINADA */}
                   <div className="space-y-5 animate-in fade-in slide-in-from-right duration-500 delay-300">
                     <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-secondary text-xl">description</span>
-                      <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] text-secondary">Descripción Detallada</p>
+                      <span className={`material-symbols-outlined text-xl ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>description</span>
+                      <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.3em] ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>Descripción Detallada</p>
                     </div>
                     
-                    <div className="bg-white/50 backdrop-blur-sm p-6 md:p-10 rounded-[40px] border border-outline-variant/5 shadow-sm">
+                    <div className={`backdrop-blur-sm p-6 md:p-10 rounded-[40px] border shadow-sm ${isDark ? 'bg-white/5 border-white/5' : 'bg-white/50 border-outline-variant/5'}`}>
                       {productoParaVer.descripcion ? (
                         <div className="space-y-6">
                           {productoParaVer.descripcion.split('\n').map((linea, index) => {
@@ -1104,8 +1130,8 @@ export default function CatalogoPublico() {
                                 key={index} 
                                 className={`text-sm md:text-xl leading-relaxed transition-all ${
                                   esTitulo 
-                                    ? 'text-on-surface font-black mb-2 mt-4' 
-                                    : 'text-on-surface-variant font-medium opacity-90'
+                                    ? (isDark ? 'text-white font-black mb-2 mt-4' : 'text-on-surface font-black mb-2 mt-4') 
+                                    : (isDark ? 'text-white/80 font-medium opacity-90' : 'text-on-surface-variant font-medium opacity-90')
                                 }`}
                               >
                                 {linea}
@@ -1115,8 +1141,8 @@ export default function CatalogoPublico() {
                         </div>
                       ) : (
                         <div className="flex flex-col items-center py-6 text-center space-y-3">
-                          <span className="material-symbols-outlined text-outline/30 text-4xl">info</span>
-                          <p className="text-sm md:text-lg text-outline italic">
+                          <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>info</span>
+                          <p className={`text-sm md:text-lg italic ${isDark ? 'text-gray-400' : 'text-outline'}`}>
                             No hay una descripción detallada disponible para este producto en este momento.
                           </p>
                         </div>
@@ -1126,17 +1152,17 @@ export default function CatalogoPublico() {
 
                   {/* STOCK CON DISEÑO DE TARJETA */}
                   <div className="animate-in fade-in slide-in-from-right duration-500 delay-400">
-                    <div className="bg-gradient-to-br from-white to-[#f5f5f5] p-6 md:p-10 rounded-[40px] border border-outline-variant/10 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] relative overflow-hidden group">
+                    <div className={`backdrop-blur-sm p-6 md:p-10 rounded-[40px] border relative overflow-hidden group shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] ${isDark ? 'bg-white/0 border-white/5' : 'bg-gradient-to-br from-white to-[#f5f5f5] border-outline-variant/10'}`}>
                       <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700">
-                        <span className="material-symbols-outlined text-8xl transform rotate-12">inventory_2</span>
+                        <span className={`material-symbols-outlined text-8xl transform rotate-12 ${isDark ? 'text-white' : 'text-primary'}`}>inventory_2</span>
                       </div>
                       <div className="flex items-center gap-6 relative z-10">
-                        <div className="w-16 h-16 rounded-2xl bg-secondary/5 flex items-center justify-center text-secondary">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c]' : 'bg-secondary/5 text-secondary'}`}>
                           <span className="material-symbols-outlined text-4xl">inventory_2</span>
                         </div>
                         <div>
-                          <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] text-outline mb-2">Disponibilidad en Bodega</p>
-                          <p className="text-xl md:text-3xl font-black text-on-surface">
+                          <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.3em] mb-2 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Disponibilidad en Bodega</p>
+                          <p className={`text-xl md:text-3xl font-black ${isDark ? 'text-white' : 'text-on-surface'}`}>
                             {productoParaVer.variantes?.length > 0 
                               ? `${productoParaVer.variantes.reduce((sum, v) => sum + Number(v.stock), 0)} UNIDADES`
                               : `${productoParaVer.stock} UNIDADES`}
@@ -1148,14 +1174,14 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* BARRA DE ACCIÓN INFERIOR CON PRECIO Y BOTÓN */}
-                <div className="p-6 md:p-8 bg-white/90 backdrop-blur-2xl border-t border-outline-variant/10 sticky bottom-0 z-20 animate-in fade-in slide-in-from-bottom duration-700 delay-500">
+                <div className={`p-6 md:p-8 backdrop-blur-2xl border-t sticky bottom-0 z-20 animate-in fade-in slide-in-from-bottom duration-700 delay-500 ${isDark ? 'bg-[#121212]/90 border-white/5' : 'bg-white/90 border-outline-variant/10'}`}>
                   <div className="flex flex-col md:flex-row items-center gap-6">
                     {/* PRECIO COMPACTO EN EL FOOTER */}
                     <div className="flex flex-col items-center md:items-start shrink-0">
-                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-outline mb-1">Precio Internet</p>
+                      <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Precio Internet</p>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-light text-secondary">$</span>
-                        <p className="font-black text-secondary text-4xl md:text-5xl tracking-tighter">
+                        <span className={`text-xl font-light ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>$</span>
+                        <p className={`font-black text-4xl md:text-5xl tracking-tighter ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
                           {(productoParaVer.precio || 0).toLocaleString('es-CL')}
                         </p>
                       </div>
@@ -1166,9 +1192,9 @@ export default function CatalogoPublico() {
                         abrirModalAñadir(productoParaVer);
                         setProductoParaVer(null);
                       }}
-                      className="group relative flex-1 w-full bg-primary text-on-primary py-5 md:py-7 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      className={`group relative flex-1 w-full py-5 md:py-7 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'}`}
                     >
-                      <div className="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-[-25deg] -translate-x-full group-hover:translate-x-[250%] transition-transform duration-1000 ease-in-out" />
+                      <div className={`absolute inset-0 w-1/2 h-full skew-x-[-25deg] -translate-x-full group-hover:translate-x-[250%] transition-transform duration-1000 ease-in-out ${isDark ? 'bg-black/20' : 'bg-white/20'}`} />
                       <div className="relative flex justify-center items-center gap-4">
                         <span className="material-symbols-outlined text-2xl md:text-3xl group-hover:rotate-12 transition-transform">shopping_cart_checkout</span>
                         <span>Añadir al Pedido</span>
@@ -1186,23 +1212,23 @@ export default function CatalogoPublico() {
       {showCheckout && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowCheckout(false)} />
-          <div className="bg-surface w-full max-w-sm rounded-[32px] shadow-2xl relative z-10 p-8 text-center animate-in zoom-in-95 duration-300">
+          <div className={`w-full max-w-sm rounded-[32px] shadow-2xl relative z-10 p-8 text-center animate-in zoom-in-95 duration-300 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}>
             <div className="w-16 h-16 bg-[#25D366]/10 text-[#25D366] rounded-2xl flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">chat</span>
             </div>
-            <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Confirmar Pedido</h3>
+            <h3 className={`font-headline font-bold text-xl mb-2 ${isDark ? 'text-white' : 'text-on-surface'}`}>Confirmar Pedido</h3>
             
             {currentUser ? (
-              <p className="text-sm text-on-surface-variant mb-6">
+              <p className={`text-sm mb-6 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
                 Enviaremos tu pedido a nuestro WhatsApp.<br/>
-                <span className="text-[10px] uppercase font-bold text-primary">Sesión iniciada como {currentUser.displayName}</span>
+                <span className={`text-[10px] uppercase font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>Sesión iniciada como {currentUser.displayName}</span>
               </p>
             ) : (
               <div className="mb-6">
-                <p className="text-sm text-on-surface-variant mb-2">Ingresa tu nombre para enviar el detalle de tu pedido directamente por WhatsApp.</p>
+                <p className={`text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>Ingresa tu nombre para enviar el detalle de tu pedido directamente por WhatsApp.</p>
                 <button 
                   onClick={() => {setShowCheckout(false); setShowAuthModal(true);}} 
-                  className="text-xs text-primary font-bold hover:underline"
+                  className={`text-xs font-bold hover:underline ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}
                 >
                   ¿Tienes cuenta? Inicia sesión aquí
                 </button>
@@ -1215,11 +1241,14 @@ export default function CatalogoPublico() {
               value={clienteNombre}
               onChange={(e) => setClienteNombre(e.target.value)}
               placeholder="Tu nombre y apellido..."
-              className="w-full bg-surface-container-low border-2 border-primary/20 focus:border-primary px-5 py-4 rounded-2xl text-center font-bold text-primary outline-none transition-all mb-6"
+              className={`w-full border-2 px-5 py-4 rounded-2xl text-center font-bold outline-none transition-all mb-6 ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-[#e2bd6c]' : 'bg-surface-container-low border-primary/20 focus:border-primary text-primary'}`}
             />
 
             <div className="flex gap-3">
-              <button onClick={() => setShowCheckout(false)} className="flex-1 bg-surface-container-high py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider text-on-surface-variant hover:bg-surface-variant transition-colors">
+              <button 
+                onClick={() => setShowCheckout(false)} 
+                className={`flex-1 py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider transition-colors ${isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'}`}
+              >
                 Cancelar
               </button>
               <button 
@@ -1301,33 +1330,33 @@ export default function CatalogoPublico() {
       {/* MODAL DE AUTENTICACIÓN */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 overflow-hidden relative animate-in zoom-in-95 duration-200">
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}>
             {/* Header del Modal */}
-            <div className="p-6 text-center relative border-b border-outline-variant/10">
-              <h3 className="font-headline text-2xl font-black text-secondary italic">
+            <div className={`p-6 text-center relative border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
+              <h3 className={`font-headline text-2xl font-black italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
                 {authTab === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
               </h3>
-              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-widest mt-2">
+              <p className={`text-xs font-bold uppercase tracking-widest mt-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
                 {authTab === 'login' ? 'Bienvenido de vuelta' : 'Únete a nosotros'}
               </p>
               <button 
                 onClick={() => setShowAuthModal(false)}
-                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-surface-variant/50 text-on-surface rounded-full hover:bg-surface-variant transition-colors"
+                className={`absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isDark ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-surface-variant/50 text-on-surface hover:bg-surface-variant'}`}
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
             {/* Pestañas */}
-            <div className="flex border-b border-outline-variant/10">
+            <div className={`flex border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
               <button
-                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'login' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:bg-surface-variant/30'}`}
+                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'login' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
                 onClick={() => { setAuthTab('login'); setAuthError(''); }}
               >
                 Ingresar
               </button>
               <button
-                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'register' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:bg-surface-variant/30'}`}
+                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'register' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
                 onClick={() => { setAuthTab('register'); setAuthError(''); }}
               >
                 Registrarse
@@ -1338,54 +1367,54 @@ export default function CatalogoPublico() {
             <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
               {authTab === 'register' && (
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Nombre Completo</label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Nombre Completo</label>
                   <input 
                     type="text" 
                     value={authForm.nombre}
                     onChange={e => setAuthForm({...authForm, nombre: e.target.value})}
                     required
-                    className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
                     placeholder="Ej. Juan Pérez"
                   />
                 </div>
               )}
               
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Correo Electrónico</label>
+                <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Correo Electrónico</label>
                 <input 
                   type="email" 
                   value={authForm.email}
                   onChange={e => setAuthForm({...authForm, email: e.target.value})}
                   required
-                  className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                  className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
                   placeholder="tu@correo.com"
                 />
               </div>
 
               {authTab === 'register' && (
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Número de WhatsApp</label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Número de WhatsApp</label>
                   <input 
                     type="tel" 
                     value={authForm.whatsapp}
                     onChange={e => setAuthForm({...authForm, whatsapp: e.target.value})}
                     required
-                    className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
                     placeholder="+56 9 1234 5678"
                   />
-                  <p className="text-[10px] text-outline mt-1 ml-1">Se usará para autocompletar tus pedidos.</p>
+                  <p className={`text-[10px] mt-1 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Se usará para autocompletar tus pedidos.</p>
                 </div>
               )}
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Contraseña</label>
+                <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Contraseña</label>
                 <input 
                   type="password" 
                   value={authForm.password}
                   onChange={e => setAuthForm({...authForm, password: e.target.value})}
                   required
                   minLength={6}
-                  className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                  className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
                   placeholder="••••••"
                 />
               </div>
@@ -1400,7 +1429,7 @@ export default function CatalogoPublico() {
                 <button 
                   type="submit"
                   disabled={isAuthLoading}
-                  className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-primary/90 transition-all shadow-md disabled:opacity-50 flex items-center justify-center"
+                  className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-md disabled:opacity-50 flex items-center justify-center ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary/90'}`}
                 >
                   {isAuthLoading ? (
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
@@ -1414,7 +1443,7 @@ export default function CatalogoPublico() {
                 <button 
                   type="button"
                   onClick={() => setShowAuthModal(false)}
-                  className="text-xs font-bold text-outline uppercase tracking-wider hover:text-on-surface transition-colors"
+                  className={`text-xs font-bold uppercase tracking-wider transition-colors ${isDark ? 'text-gray-400 hover:text-[#e2bd6c]' : 'text-outline hover:text-on-surface'}`}
                 >
                   Continuar como invitado
                 </button>

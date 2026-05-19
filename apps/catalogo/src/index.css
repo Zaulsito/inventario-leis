@@ -13,6 +13,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   touch-action: pan-x pan-y;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body {
+  background-color: #0c0c0c;
+  color: #e8e1d5;
 }
 
 .font-headline {
@@ -89,9 +95,19 @@ body {
   -webkit-backdrop-filter: blur(8px);
 }
 
+.dark .modal-overlay {
+  background: rgba(12, 12, 12, 0.75);
+}
+
 .modal-content {
   background: #fdfaf5;
   box-shadow: 0 20px 60px rgba(42, 27, 10, 0.15);
+}
+
+.dark .modal-content {
+  background: #1e1e1e;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Utilidades para scroll de categorías */
