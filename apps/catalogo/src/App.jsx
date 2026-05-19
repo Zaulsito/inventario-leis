@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
-import { db } from './config/firebase'
+import { collection, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore'
+import { db, auth } from './config/firebase'
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
 const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
@@ -44,6 +45,17 @@ export default function CatalogoPublico() {
   // Modal checkout final
   const [showCheckout, setShowCheckout] = useState(false)
   const [clienteNombre, setClienteNombre] = useState('')
+  const [clienteWhatsapp, setClienteWhatsapp] = useState('')
+
+  // Auth State
+  const [currentUser, setCurrentUser] = useState(null)
+  const [userData, setUserData] = useState(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authTab, setAuthTab] = useState('login') // 'login' | 'register'
+  const [authForm, setAuthForm] = useState({ nombre: '', email: '', password: '', whatsapp: '' })
+  const [authError, setAuthError] = useState('')
+  const [isAuthLoading, setIsAuthLoading] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
 
   const [animacion, setAnimacion] = useState('') // '', 'salir-izquierda', 'salir-derecha', etc.
   const [indexImagenActual, setIndexImagenActual] = useState(0)
@@ -66,6 +78,33 @@ export default function CatalogoPublico() {
       return () => clearTimeout(t)
     }
   }, [expandedImage, indexImagenActual])
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user)
+      if (user) {
+        // Intentar obtener datos extra (whatsapp)
+        try {
+          const userDoc = await getDoc(doc(db, 'usuarios', user.uid))
+          if (userDoc.exists()) {
+            setUserData(userDoc.data())
+            // Pre-llenar checkout
+            setClienteNombre(user.displayName || '')
+            setClienteWhatsapp(userDoc.data().whatsapp || '')
+          } else {
+            setClienteNombre(user.displayName || '')
+          }
+        } catch (e) {
+          console.error("Error cargando perfil", e)
+        }
+      } else {
+        setUserData(null)
+        setClienteNombre('')
+        setClienteWhatsapp('')
+      }
+    })
+    return unsub
+  }, [])
 
   useEffect(() => {
     // Escuchar productos en tiempo real
@@ -109,6 +148,56 @@ export default function CatalogoPublico() {
 
     return true;
   })
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault()
+    setAuthError('')
+    setIsAuthLoading(true)
+
+    try {
+      if (authTab === 'login') {
+        await signInWithEmailAndPassword(auth, authForm.email, authForm.password)
+        setShowAuthModal(false)
+      } else {
+        if (!authForm.nombre.trim()) throw new Error("El nombre es obligatorio")
+        if (!authForm.whatsapp.trim()) throw new Error("El número de WhatsApp es obligatorio")
+        
+        const userCred = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password)
+        
+        // Actualizar el displayName
+        await updateProfile(userCred.user, { displayName: authForm.nombre })
+        
+        // Guardar whatsapp en firestore
+        await setDoc(doc(db, 'usuarios', userCred.user.uid), {
+          nombre: authForm.nombre,
+          email: authForm.email,
+          whatsapp: authForm.whatsapp,
+          createdAt: new Date().toISOString()
+        })
+        
+        setShowAuthModal(false)
+      }
+    } catch (error) {
+      console.error(error)
+      // Traducir algunos errores comunes de Firebase
+      if (error.code === 'auth/email-already-in-use') setAuthError('Este correo ya está registrado.')
+      else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') setAuthError('Credenciales incorrectas.')
+      else if (error.code === 'auth/user-not-found') setAuthError('No hay cuenta con este correo.')
+      else if (error.code === 'auth/weak-password') setAuthError('La contraseña debe tener al menos 6 caracteres.')
+      else setAuthError(error.message || 'Error al autenticar')
+    } finally {
+      setIsAuthLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+      setShowProfileMenu(false)
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const fotosProducto = productoParaVer?.fotos || (productoParaVer?.fotoUrl ? [productoParaVer.fotoUrl] : []);
 
@@ -337,6 +426,9 @@ export default function CatalogoPublico() {
 
     let texto = `*NUEVO PEDIDO - CATÁLOGO ONLINE*%0A%0A`
     texto += `*Cliente:* ${clienteNombre}%0A`
+    if (clienteWhatsapp) {
+      texto += `*Teléfono Contacto:* ${clienteWhatsapp}%0A`
+    }
     texto += `*Detalle del pedido:*%0A%0A`
 
     carrito.forEach(item => {
@@ -546,10 +638,47 @@ export default function CatalogoPublico() {
             </h2>
           </div>
 
-          <div className="w-16 flex justify-end shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {currentUser ? (
+              <div className="relative">
+                <button 
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center hover:bg-secondary/20 transition-colors"
+                >
+                  <span className="font-bold text-sm">{currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}</span>
+                </button>
+                {showProfileMenu && (
+                  <>
+                    <div className="fixed inset-0 z-[110]" onClick={() => setShowProfileMenu(false)} />
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-surface-container-lowest border border-outline-variant/20 rounded-2xl shadow-xl z-[120] py-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="px-4 py-2 border-b border-outline-variant/10">
+                        <p className="text-xs font-bold text-on-surface truncate">{currentUser.displayName}</p>
+                        <p className="text-[10px] text-on-surface-variant truncate">{currentUser.email}</p>
+                      </div>
+                      <button 
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-3 text-xs font-bold text-error hover:bg-error/10 transition-colors flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">logout</span>
+                        Cerrar Sesión
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button 
+                onClick={() => setShowAuthModal(true)}
+                className="bg-surface-container-high text-on-surface p-3 rounded-2xl hover:bg-surface-variant transition-colors shrink-0"
+                title="Iniciar Sesión / Crear Cuenta"
+              >
+                <span className="material-symbols-outlined">person</span>
+              </button>
+            )}
+
             <button 
               onClick={() => setIsCartOpen(true)}
-              className="relative bg-primary/10 text-primary p-3 rounded-2xl hover:bg-primary/20 transition-colors shrink-0"
+              className="relative bg-primary/10 text-primary p-3 rounded-2xl hover:bg-primary/20 transition-colors shrink-0 ml-1"
             >
               <span className="material-symbols-outlined">shopping_cart</span>
               {totalItems > 0 && (
@@ -592,7 +721,7 @@ export default function CatalogoPublico() {
                       <span className="material-symbols-outlined text-4xl text-outline/30">image</span>
                     )}
                     {p.marca && (
-                      <div className="absolute top-2 left-2 bg-surface/90 backdrop-blur-sm px-2 py-1 rounded-md">
+                      <div className="absolute top-2 right-2 bg-surface/90 backdrop-blur-sm px-2 py-1 rounded-md">
                         <span className="text-[8px] font-bold uppercase tracking-widest text-on-surface">{p.marca}</span>
                       </div>
                     )}
@@ -1062,7 +1191,23 @@ export default function CatalogoPublico() {
               <span className="material-symbols-outlined text-3xl">chat</span>
             </div>
             <h3 className="font-headline font-bold text-xl text-on-surface mb-2">Confirmar Pedido</h3>
-            <p className="text-sm text-on-surface-variant mb-6">Ingresa tu nombre para enviar el detalle de tu pedido directamente por WhatsApp.</p>
+            
+            {currentUser ? (
+              <p className="text-sm text-on-surface-variant mb-6">
+                Enviaremos tu pedido a nuestro WhatsApp.<br/>
+                <span className="text-[10px] uppercase font-bold text-primary">Sesión iniciada como {currentUser.displayName}</span>
+              </p>
+            ) : (
+              <div className="mb-6">
+                <p className="text-sm text-on-surface-variant mb-2">Ingresa tu nombre para enviar el detalle de tu pedido directamente por WhatsApp.</p>
+                <button 
+                  onClick={() => {setShowCheckout(false); setShowAuthModal(true);}} 
+                  className="text-xs text-primary font-bold hover:underline"
+                >
+                  ¿Tienes cuenta? Inicia sesión aquí
+                </button>
+              </div>
+            )}
             
             <input 
               type="text"
@@ -1151,6 +1296,131 @@ export default function CatalogoPublico() {
               <span>Resetear Zoom</span>
             </button>
           )}
+        </div>
+      )}
+      {/* MODAL DE AUTENTICACIÓN */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest w-full max-w-md rounded-3xl shadow-2xl border border-outline-variant/20 overflow-hidden relative animate-in zoom-in-95 duration-200">
+            {/* Header del Modal */}
+            <div className="p-6 text-center relative border-b border-outline-variant/10">
+              <h3 className="font-headline text-2xl font-black text-secondary italic">
+                {authTab === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+              </h3>
+              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-widest mt-2">
+                {authTab === 'login' ? 'Bienvenido de vuelta' : 'Únete a nosotros'}
+              </p>
+              <button 
+                onClick={() => setShowAuthModal(false)}
+                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-surface-variant/50 text-on-surface rounded-full hover:bg-surface-variant transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Pestañas */}
+            <div className="flex border-b border-outline-variant/10">
+              <button
+                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'login' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:bg-surface-variant/30'}`}
+                onClick={() => { setAuthTab('login'); setAuthError(''); }}
+              >
+                Ingresar
+              </button>
+              <button
+                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'register' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:bg-surface-variant/30'}`}
+                onClick={() => { setAuthTab('register'); setAuthError(''); }}
+              >
+                Registrarse
+              </button>
+            </div>
+
+            {/* Formulario */}
+            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
+              {authTab === 'register' && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Nombre Completo</label>
+                  <input 
+                    type="text" 
+                    value={authForm.nombre}
+                    onChange={e => setAuthForm({...authForm, nombre: e.target.value})}
+                    required
+                    className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                    placeholder="Ej. Juan Pérez"
+                  />
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Correo Electrónico</label>
+                <input 
+                  type="email" 
+                  value={authForm.email}
+                  onChange={e => setAuthForm({...authForm, email: e.target.value})}
+                  required
+                  className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                  placeholder="tu@correo.com"
+                />
+              </div>
+
+              {authTab === 'register' && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Número de WhatsApp</label>
+                  <input 
+                    type="tel" 
+                    value={authForm.whatsapp}
+                    onChange={e => setAuthForm({...authForm, whatsapp: e.target.value})}
+                    required
+                    className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                    placeholder="+56 9 1234 5678"
+                  />
+                  <p className="text-[10px] text-outline mt-1 ml-1">Se usará para autocompletar tus pedidos.</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-outline mb-1.5 ml-1">Contraseña</label>
+                <input 
+                  type="password" 
+                  value={authForm.password}
+                  onChange={e => setAuthForm({...authForm, password: e.target.value})}
+                  required
+                  minLength={6}
+                  className="w-full bg-surface-container border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"
+                  placeholder="••••••"
+                />
+              </div>
+
+              {authError && (
+                <div className="bg-error/10 text-error px-4 py-3 rounded-xl text-xs font-bold text-center border border-error/20">
+                  {authError}
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button 
+                  type="submit"
+                  disabled={isAuthLoading}
+                  className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-primary/90 transition-all shadow-md disabled:opacity-50 flex items-center justify-center"
+                >
+                  {isAuthLoading ? (
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  ) : (
+                    authTab === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'
+                  )}
+                </button>
+              </div>
+
+              <div className="text-center pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowAuthModal(false)}
+                  className="text-xs font-bold text-outline uppercase tracking-wider hover:text-on-surface transition-colors"
+                >
+                  Continuar como invitado
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
