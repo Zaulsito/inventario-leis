@@ -6,6 +6,22 @@ import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndP
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
 const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
 
+function mergeCarts(localCart, dbCart) {
+  const merged = [...(dbCart || [])]
+  if (localCart && localCart.length > 0) {
+    localCart.forEach(localItem => {
+      const existingIdx = merged.findIndex(dbItem => dbItem.idCart === localItem.idCart)
+      if (existingIdx > -1) {
+        const combinedQty = merged[existingIdx].cantidad + localItem.cantidad
+        merged[existingIdx].cantidad = Math.min(combinedQty, merged[existingIdx].maxStock)
+      } else {
+        merged.push(localItem)
+      }
+    })
+  }
+  return merged
+}
+
 export default function CatalogoPublico() {
   const [productos, setProductos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -44,10 +60,6 @@ export default function CatalogoPublico() {
     }
   })
 
-  useEffect(() => {
-    localStorage.setItem('carritoLeis', JSON.stringify(carrito))
-  }, [carrito])
-
   const [isCartOpen, setIsCartOpen] = useState(false)
 
   // Modal de selección de variantes
@@ -72,11 +84,26 @@ export default function CatalogoPublico() {
   const [isAuthLoading, setIsAuthLoading] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
 
+  // Referencias para evitar condiciones de carrera en la sincronización del carrito
+  const loadingCartFromDb = useRef(false)
+  const lastLoadedUid = useRef(null)
+
   const [animacion, setAnimacion] = useState('') // '', 'salir-izquierda', 'salir-derecha', etc.
   const [indexImagenActual, setIndexImagenActual] = useState(0)
   const [mostrarIndicador, setMostrarIndicador] = useState(false)
   const [mostrarControlesZoom, setMostrarControlesZoom] = useState(true)
   const [expandedImage, setExpandedImage] = useState(null)
+
+  // Sincronización dual del carrito: localStorage + Firestore
+  useEffect(() => {
+    localStorage.setItem('carritoLeis', JSON.stringify(carrito))
+    
+    if (currentUser && !loadingCartFromDb.current) {
+      const userRef = doc(db, 'usuarios', currentUser.uid)
+      setDoc(userRef, { carrito }, { merge: true })
+        .catch(err => console.error("Error al sincronizar carrito:", err))
+    }
+  }, [carrito, currentUser])
 
   useEffect(() => {
     if (productoParaVer) {
@@ -98,24 +125,42 @@ export default function CatalogoPublico() {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user)
       if (user) {
-        // Intentar obtener datos extra (whatsapp)
+        if (lastLoadedUid.current !== user.uid) {
+          loadingCartFromDb.current = true
+          lastLoadedUid.current = user.uid
+        }
+        
         try {
           const userDoc = await getDoc(doc(db, 'usuarios', user.uid))
+          let dbCart = []
           if (userDoc.exists()) {
-            setUserData(userDoc.data())
+            const data = userDoc.data()
+            setUserData(data)
             // Pre-llenar checkout
             setClienteNombre(user.displayName || '')
-            setClienteWhatsapp(userDoc.data().whatsapp || '')
+            setClienteWhatsapp(data.whatsapp || '')
+            dbCart = data.carrito || []
           } else {
             setClienteNombre(user.displayName || '')
           }
+          
+          setCarrito(prev => {
+            const merged = mergeCarts(prev, dbCart)
+            localStorage.setItem('carritoLeis', JSON.stringify(merged))
+            loadingCartFromDb.current = false
+            return merged
+          })
         } catch (e) {
           console.error("Error cargando perfil", e)
+          loadingCartFromDb.current = false
         }
       } else {
         setUserData(null)
         setClienteNombre('')
         setClienteWhatsapp('')
+        setCarrito([])
+        lastLoadedUid.current = null
+        loadingCartFromDb.current = false
       }
     })
     return unsub
