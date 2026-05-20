@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs } from 'firebase/firestore'
+import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore'
 import { db, auth } from './config/firebase'
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification } from 'firebase/auth'
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
 const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
@@ -85,6 +85,20 @@ export default function CatalogoPublico() {
   const [isAuthLoading, setIsAuthLoading] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
 
+  // Edit Profile States
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false)
+  const [editProfileForm, setEditProfileForm] = useState({ nombre: '', whatsapp: '' })
+  const [editProfileError, setEditProfileError] = useState('')
+  const [editProfileSuccess, setEditProfileSuccess] = useState('')
+  const [isEditProfileLoading, setIsEditProfileLoading] = useState(false)
+
+  // Delete Account States
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteAccountError, setDeleteAccountError] = useState('')
+  const [deleteAccountSuccess, setDeleteAccountSuccess] = useState('')
+  const [isDeleteAccountLoading, setIsDeleteAccountLoading] = useState(false)
+
   // Referencias para evitar condiciones de carrera en la sincronización del carrito
   const loadingCartFromDb = useRef(false)
   const lastLoadedUid = useRef(null)
@@ -150,6 +164,14 @@ export default function CatalogoPublico() {
           if (userDoc.exists()) {
             const data = userDoc.data()
             setUserData(data)
+            
+            // Si el correo está verificado en Auth pero no en Firestore, lo actualizamos
+            if (data.emailVerified !== true) {
+              await setDoc(doc(db, 'usuarios', user.uid), { emailVerified: true }, { merge: true })
+              data.emailVerified = true
+              setUserData({ ...data })
+            }
+            
             // Pre-llenar checkout
             setClienteNombre(user.displayName || '')
             setClienteWhatsapp(data.whatsapp || '')
@@ -250,12 +272,29 @@ export default function CatalogoPublico() {
         if (!authForm.nombre.trim()) throw new Error("El nombre es obligatorio")
         if (!authForm.whatsapp.trim()) throw new Error("El número de WhatsApp es obligatorio")
         
-        // Verificar que el número de WhatsApp sea único
+        // Verificar que el número de WhatsApp sea único (con depuración perezosa de fantasmas expirados > 30 min)
         const normalizedWhatsapp = authForm.whatsapp.trim()
         const q = query(collection(db, 'usuarios'), where('whatsapp', '==', normalizedWhatsapp))
         const querySnapshot = await getDocs(q)
+        
+        let whatsappBloqueado = false
         if (!querySnapshot.empty) {
-          throw new Error("Este número de WhatsApp ya está registrado con otra cuenta.")
+          for (const docSnap of querySnapshot.docs) {
+            const data = docSnap.data()
+            const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : 0
+            const ahora = Date.now()
+            
+            // Si el usuario registrado anterior no verificó su correo y pasaron más de 30 minutos (1800000 ms), lo borramos
+            if (data.emailVerified === false && (ahora - createdAt > 1800000)) {
+              await deleteDoc(doc(db, 'usuarios', docSnap.id))
+            } else {
+              whatsappBloqueado = true
+            }
+          }
+        }
+        
+        if (whatsappBloqueado) {
+          throw new Error("Este número de WhatsApp ya está registrado con otra cuenta activa.")
         }
         
         isRegistering.current = true
@@ -270,11 +309,12 @@ export default function CatalogoPublico() {
           // Actualizar el displayName
           await updateProfile(userCred.user, { displayName: authForm.nombre })
           
-          // Guardar whatsapp en firestore
+          // Guardar whatsapp en firestore con emailVerified: false
           await setDoc(doc(db, 'usuarios', userCred.user.uid), {
             nombre: authForm.nombre,
             email: authForm.email,
             whatsapp: authForm.whatsapp,
+            emailVerified: false,
             createdAt: new Date().toISOString()
           })
           
@@ -294,7 +334,7 @@ export default function CatalogoPublico() {
       } else if (error.message === "unverified-email-sent") {
         setAuthError("Tu correo electrónico no está verificado. Hemos enviado un nuevo enlace de verificación a tu bandeja de entrada.")
       } else if (error.code === 'auth/email-already-in-use') {
-        setAuthError('Este correo ya está registrado.')
+        setAuthError('Este correo ya está registrado. Si aún no lo has verificado, intenta iniciar sesión para recibir un nuevo enlace de activación.')
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setAuthError('Credenciales incorrectas.')
       } else if (error.code === 'auth/user-not-found') {
@@ -315,6 +355,122 @@ export default function CatalogoPublico() {
       setShowProfileMenu(false)
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    setEditProfileError('')
+    setEditProfileSuccess('')
+    setIsEditProfileLoading(true)
+
+    try {
+      if (!editProfileForm.nombre.trim()) throw new Error("El nombre es obligatorio")
+      if (!editProfileForm.whatsapp.trim()) throw new Error("El número de WhatsApp es obligatorio")
+
+      const newNombre = editProfileForm.nombre.trim()
+      const newWhatsapp = editProfileForm.whatsapp.trim()
+
+      if (newWhatsapp !== (userData?.whatsapp || '')) {
+        const q = query(collection(db, 'usuarios'), where('whatsapp', '==', newWhatsapp))
+        const querySnapshot = await getDocs(q)
+        
+        let whatsappBloqueado = false
+        if (!querySnapshot.empty) {
+          for (const docSnap of querySnapshot.docs) {
+            if (docSnap.id === currentUser.uid) continue;
+            
+            const data = docSnap.data()
+            const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : 0
+            const ahora = Date.now()
+            
+            // Si el otro usuario no está verificado y pasaron más de 30 minutos, lo borramos de Firestore
+            if (data.emailVerified === false && (ahora - createdAt > 1800000)) {
+              await deleteDoc(doc(db, 'usuarios', docSnap.id))
+            } else {
+              whatsappBloqueado = true
+            }
+          }
+        }
+        
+        if (whatsappBloqueado) {
+          throw new Error("Este número de WhatsApp ya está registrado con otra cuenta activa.")
+        }
+      }
+
+      // Actualizar Perfil en Auth
+      await updateProfile(currentUser, { displayName: newNombre })
+      
+      // Actualizar en Firestore
+      await setDoc(doc(db, 'usuarios', currentUser.uid), {
+        nombre: newNombre,
+        whatsapp: newWhatsapp
+      }, { merge: true })
+
+      // Sincronizar estados locales
+      setUserData(prev => ({ ...prev, nombre: newNombre, whatsapp: newWhatsapp }))
+      setClienteNombre(newNombre)
+      setClienteWhatsapp(newWhatsapp)
+
+      setEditProfileSuccess("¡Perfil actualizado con éxito!")
+      setTimeout(() => {
+        setShowEditProfileModal(false)
+        setEditProfileSuccess('')
+      }, 1500)
+    } catch (err) {
+      console.error(err)
+      setEditProfileError(err.message || 'Error al actualizar el perfil')
+    } finally {
+      setIsEditProfileLoading(false)
+    }
+  }
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault()
+    setDeleteAccountError('')
+    setDeleteAccountSuccess('')
+    setIsDeleteAccountLoading(true)
+
+    try {
+      if (!deletePassword) throw new Error("La contraseña es obligatoria")
+
+      // 1. Re-autenticar al usuario para evitar errores de sesión expirada (requires-recent-login)
+      const credential = EmailAuthProvider.credential(currentUser.email, deletePassword)
+      await reauthenticateWithCredential(currentUser, credential)
+
+      const uid = currentUser.uid
+
+      // 2. Borrar documento de Firestore
+      await deleteDoc(doc(db, 'usuarios', uid))
+
+      // 3. Borrar de Firebase Auth
+      await deleteUser(currentUser)
+
+      // 4. Limpiar sesión y estados locales
+      setCarrito([])
+      localStorage.removeItem('carritoLeis')
+      setCurrentUser(null)
+      setUserData(null)
+      setClienteNombre('')
+      setClienteWhatsapp('')
+      lastLoadedUid.current = null
+      loadingCartFromDb.current = false
+      setDeletePassword('')
+
+      setDeleteAccountSuccess("¡Tu cuenta ha sido eliminada permanentemente!")
+      setTimeout(() => {
+        setShowDeleteAccountModal(false)
+        setDeleteAccountSuccess('')
+      }, 2000)
+    } catch (err) {
+      console.error(err)
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setDeleteAccountError('La contraseña introducida es incorrecta.')
+      } else {
+        setDeleteAccountError(err.message || 'Error al eliminar la cuenta')
+      }
+    } finally {
+      setIsDeleteAccountLoading(false)
     }
   }
 
@@ -786,8 +942,37 @@ export default function CatalogoPublico() {
                         <p className={`text-[10px] truncate ${isDark ? 'text-gray-400' : 'text-on-surface-variant'}`}>{currentUser.email}</p>
                       </div>
                       <button 
+                        onClick={() => {
+                          setEditProfileForm({
+                            nombre: currentUser.displayName || '',
+                            whatsapp: userData?.whatsapp || ''
+                          })
+                          setEditProfileError('')
+                          setEditProfileSuccess('')
+                          setShowEditProfileModal(true)
+                          setShowProfileMenu(false)
+                        }}
+                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors flex items-center gap-2 border-b ${isDark ? 'text-white border-white/5 hover:bg-white/5' : 'text-on-surface border-outline-variant/10 hover:bg-surface-variant/20'}`}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                        Editar Perfil
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setDeletePassword('')
+                          setDeleteAccountError('')
+                          setDeleteAccountSuccess('')
+                          setShowDeleteAccountModal(true)
+                          setShowProfileMenu(false)
+                        }}
+                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors flex items-center gap-2 border-b ${isDark ? 'text-error hover:bg-error/10' : 'text-error hover-bg-error/10'}`}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+                        Eliminar Cuenta
+                      </button>
+                      <button 
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-3 text-xs font-bold text-error hover:bg-error/10 transition-colors flex items-center gap-2"
+                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors flex items-center gap-2 ${isDark ? 'text-gray-300 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/20'}`}
                       >
                         <span className="material-symbols-outlined text-[16px]">logout</span>
                         Cerrar Sesión
@@ -1556,6 +1741,201 @@ export default function CatalogoPublico() {
                   className={`text-xs font-bold uppercase tracking-wider transition-colors ${isDark ? 'text-gray-400 hover:text-[#e2bd6c]' : 'text-outline hover:text-on-surface'}`}
                 >
                   Continuar como invitado
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EDITAR PERFIL */}
+      {showEditProfileModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}>
+            
+            {/* Header */}
+            <div className={`p-6 text-center relative border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
+              <h3 className={`font-headline text-2xl font-black italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                Editar Perfil
+              </h3>
+              <p className={`text-xs font-bold uppercase tracking-widest mt-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
+                Mantén tus datos actualizados
+              </p>
+              <button 
+                onClick={() => setShowEditProfileModal(false)}
+                className={`absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isDark ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-surface-variant/50 text-on-surface hover:bg-surface-variant'}`}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="p-6 space-y-4">
+              {editProfileError && (
+                <div className="p-4 bg-error/10 border border-error/20 text-error text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  <span>{editProfileError}</span>
+                </div>
+              )}
+
+              {editProfileSuccess && (
+                <div className="p-4 bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 text-[#e2bd6c] text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <span>{editProfileSuccess}</span>
+                </div>
+              )}
+
+              {/* Nombre completo */}
+              <div className="space-y-1.5">
+                <label className={`text-[10px] font-bold uppercase tracking-widest block ml-1 ${isDark ? 'text-gray-400' : 'text-on-surface-variant'}`}>
+                  Nombre Completo
+                </label>
+                <div className="relative">
+                  <span className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                    person
+                  </span>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="Tu nombre completo"
+                    value={editProfileForm.nombre}
+                    onChange={(e) => setEditProfileForm({ ...editProfileForm, nombre: e.target.value })}
+                    className={`w-full pl-12 pr-4 py-4 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#e2bd6c]/50 transition-all border ${isDark ? 'bg-black/20 border-white/5 text-white' : 'bg-surface-container-low border-outline-variant/30 text-on-surface'}`}
+                  />
+                </div>
+              </div>
+
+              {/* WhatsApp */}
+              <div className="space-y-1.5">
+                <label className={`text-[10px] font-bold uppercase tracking-widest block ml-1 ${isDark ? 'text-gray-400' : 'text-on-surface-variant'}`}>
+                  Número de WhatsApp
+                </label>
+                <div className="relative">
+                  <span className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                    phone
+                  </span>
+                  <input 
+                    type="tel"
+                    required
+                    placeholder="Ej: 56912345678"
+                    value={editProfileForm.whatsapp}
+                    onChange={(e) => setEditProfileForm({ ...editProfileForm, whatsapp: e.target.value })}
+                    className={`w-full pl-12 pr-4 py-4 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#e2bd6c]/50 transition-all border ${isDark ? 'bg-black/20 border-white/5 text-white' : 'bg-surface-container-low border-outline-variant/30 text-on-surface'}`}
+                  />
+                </div>
+                <span className={`text-[9px] block ml-1 ${isDark ? 'text-gray-500' : 'text-outline'}`}>
+                  Formato internacional sin el símbolo "+" (ej: 56912345678).
+                </span>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className={`flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-colors border ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-outline-variant text-on-surface hover:bg-surface-variant/30'}`}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isEditProfileLoading}
+                  className={`flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all shadow-md disabled:opacity-50 flex items-center justify-center ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary/90'}`}
+                >
+                  {isEditProfileLoading ? (
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  ) : (
+                    'Guardar Cambios'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ELIMINAR CUENTA */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}>
+            
+            {/* Header */}
+            <div className={`p-6 text-center relative border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
+              <h3 className="font-headline text-2xl font-black italic text-error">
+                Eliminar Cuenta
+              </h3>
+              <p className={`text-xs font-bold uppercase tracking-widest mt-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
+                Esta acción es irreversible
+              </p>
+              <button 
+                onClick={() => setShowDeleteAccountModal(false)}
+                className={`absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isDark ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-surface-variant/50 text-on-surface hover:bg-surface-variant'}`}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleDeleteAccount} className="p-6 space-y-4">
+              <div className="p-4 bg-error/5 border border-error/20 rounded-2xl flex gap-3 items-start">
+                <span className="material-symbols-outlined text-error shrink-0 mt-0.5">warning</span>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-error">Advertencia de Seguridad</p>
+                  <p className={`text-[10px] leading-relaxed ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
+                    Al eliminar tu cuenta, todos tus datos de perfil, historial de carrito y acceso serán borrados de forma permanente.
+                  </p>
+                </div>
+              </div>
+
+              {deleteAccountError && (
+                <div className="p-4 bg-error/10 border border-error/20 text-error text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  <span>{deleteAccountError}</span>
+                </div>
+              )}
+
+              {deleteAccountSuccess && (
+                <div className="p-4 bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 text-[#e2bd6c] text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <span>{deleteAccountSuccess}</span>
+                </div>
+              )}
+
+              {/* Confirmación con Contraseña */}
+              <div className="space-y-1.5">
+                <label className={`text-[10px] font-bold uppercase tracking-widest block ml-1 ${isDark ? 'text-gray-400' : 'text-on-surface-variant'}`}>
+                  Contraseña Actual
+                </label>
+                <div className="relative">
+                  <span className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                    lock
+                  </span>
+                  <input 
+                    type="password"
+                    required
+                    placeholder="Introduce tu contraseña para confirmar"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-4 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-error/50 transition-all border ${isDark ? 'bg-black/20 border-white/5 text-white' : 'bg-surface-container-low border-outline-variant/30 text-on-surface'}`}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowDeleteAccountModal(false)}
+                  className={`flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-colors border ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-outline-variant text-on-surface hover:bg-surface-variant/30'}`}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isDeleteAccountLoading}
+                  className="flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all shadow-md disabled:opacity-50 flex items-center justify-center bg-error text-on-error hover:bg-error-container/80"
+                >
+                  {isDeleteAccountLoading ? (
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  ) : (
+                    'Eliminar permanentemente'
+                  )}
                 </button>
               </div>
             </form>
