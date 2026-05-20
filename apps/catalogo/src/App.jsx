@@ -215,13 +215,15 @@ export default function CatalogoPublico() {
   }, [])
 
   // --- DERIVADOS ---
-  const categoriasUnicas = ['TODAS', ...new Set(productos.map(p => (p.coleccion || '').trim().toUpperCase()).filter(Boolean))].sort((a, b) => {
+  const productosVisibles = productos.filter(p => p.visibleEnCatalogo !== false)
+
+  const categoriasUnicas = ['TODAS', ...new Set(productosVisibles.map(p => (p.coleccion || '').trim().toUpperCase()).filter(Boolean))].sort((a, b) => {
     if (a === 'TODAS') return -1;
     if (b === 'TODAS') return 1;
     return a.localeCompare(b);
   })
 
-  const productosFiltrados = productos.filter(p => {
+  const productosFiltrados = productosVisibles.filter(p => {
     if (filtroCategoria !== 'TODAS' && (p.coleccion || '').trim().toUpperCase() !== filtroCategoria) return false;
     
     if (searchTerm.trim()) {

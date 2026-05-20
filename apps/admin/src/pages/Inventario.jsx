@@ -32,7 +32,8 @@ const formInicial = {
   fotoUrl: '',
   fotos: [],
   descripcion: '',
-  variantes: []
+  variantes: [],
+  visibleEnCatalogo: true
 }
 
 const getHexColor = (name) => {
@@ -303,7 +304,8 @@ export default function Inventario() {
       fotoUrl: p.fotoUrl || '',
       fotos: p.fotos ? [...p.fotos] : (p.fotoUrl ? [p.fotoUrl] : []),
       descripcion: p.descripcion || '',
-      variantes: p.variantes ? p.variantes.map(v => ({...v})) : []
+      variantes: p.variantes ? p.variantes.map(v => ({...v})) : [],
+      visibleEnCatalogo: p.visibleEnCatalogo !== false
     })
     setEditingId(p.id)
     setErrorMsg('')
@@ -386,7 +388,8 @@ export default function Inventario() {
       fechaIngreso: form.fechaIngreso,
       fotoUrl: form.fotos && form.fotos.length > 0 ? form.fotos[0] : '',
       fotos: form.fotos || [],
-      descripcion: form.descripcion || ''
+      descripcion: form.descripcion || '',
+      visibleEnCatalogo: form.visibleEnCatalogo !== false
     }
 
     try {
@@ -926,7 +929,15 @@ export default function Inventario() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-headline font-bold text-base text-on-surface dark:text-white/90 truncate leading-tight mb-0.5">{p.nombre}</h4>
+                      <h4 className="font-headline font-bold text-base text-on-surface dark:text-white/90 truncate leading-tight mb-0.5 flex items-center gap-2">
+                        <span>{p.nombre}</span>
+                        {p.visibleEnCatalogo === false && (
+                          <span className="inline-flex items-center gap-1 text-[8px] bg-error-container/20 text-error px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-error/10 shrink-0">
+                            <span className="material-symbols-outlined text-[10px]">visibility_off</span>
+                            Oculto
+                          </span>
+                        )}
+                      </h4>
                       {p.marca && <p className="text-[10px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest leading-none mt-0.5">Marca: {p.marca}</p>}
                       <p className="text-[10px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest leading-none">SKU: {p.sku}</p>
                     </div>
@@ -1077,7 +1088,15 @@ export default function Inventario() {
                             </div>
                           )}
                           <div>
-                            <p className="font-headline font-bold text-base text-on-surface dark:text-white/90 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors">{p.nombre}</p>
+                            <p className="font-headline font-bold text-base text-on-surface dark:text-white/90 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors flex items-center gap-2">
+                              <span>{p.nombre}</span>
+                              {p.visibleEnCatalogo === false && (
+                                <span className="inline-flex items-center gap-1 text-[8px] bg-error-container/20 text-error px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-error/10">
+                                  <span className="material-symbols-outlined text-[10px]">visibility_off</span>
+                                  Oculto
+                                </span>
+                              )}
+                            </p>
                             {p.marca && <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest mt-0.5">Marca: {p.marca}</p>}
                             <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest">Cód. Barra: {p.sku}</p>
                             {p.variantes && p.variantes.length > 0 && (
@@ -2150,22 +2169,66 @@ export default function Inventario() {
             </div>
 
             {/* Footer del Modal */}
-            <div className="bg-surface-container-low dark:bg-white/5 px-6 py-4 border-t border-outline-variant/20 dark:border-white/10 flex gap-3 shrink-0">
-              <button 
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/5"
-              >
-                Cancelar
-              </button>
-              <button 
-                type="button"
-                onClick={handleSave}
-                className="flex-[2] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary text-on-primary shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                 <span className="material-symbols-outlined text-base">{editingId ? 'save' : 'add_circle'}</span>
-                {editingId ? 'Guardar Cambios' : 'Registrar Producto'}
-              </button>
+            <div className="bg-surface-container-low dark:bg-white/5 px-6 py-4 border-t border-outline-variant/20 dark:border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
+              {/* Toggle de visibilidad en catálogo */}
+              <div className="w-full sm:w-auto flex justify-start">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, visibleEnCatalogo: !form.visibleEnCatalogo })}
+                  className="flex items-center gap-3 group focus:outline-none cursor-pointer"
+                >
+                  {/* The Toggle Track */}
+                  <div className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                    form.visibleEnCatalogo !== false 
+                      ? 'bg-[#e2bd6c]' 
+                      : 'bg-outline-variant/30 dark:bg-white/10'
+                  } border border-outline-variant/20 dark:border-white/5`}>
+                    {/* The Thumb */}
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white dark:bg-[#1e1e1e] shadow-md transition-transform duration-300 ${
+                      form.visibleEnCatalogo !== false 
+                        ? 'translate-x-6 bg-white dark:bg-white' 
+                        : 'translate-x-0'
+                    } flex items-center justify-center`}>
+                      <span className={`material-symbols-outlined text-[10px] font-bold ${
+                        form.visibleEnCatalogo !== false ? 'text-[#e2bd6c]' : 'text-outline/40'
+                      }`}>
+                        {form.visibleEnCatalogo !== false ? 'visibility' : 'visibility_off'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Label */}
+                  <div className="flex flex-col items-start text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 leading-none">
+                      Visible en Catálogo
+                    </span>
+                    <span className="text-[10px] text-outline/70 dark:text-white/40 mt-0.5">
+                      {form.visibleEnCatalogo !== false 
+                        ? 'El producto aparecerá en el catálogo' 
+                        : 'Oculto en el catálogo público'}
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="flex gap-3 w-full sm:w-auto sm:min-w-[280px]">
+                <button 
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/5"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleSave}
+                  className="flex-[2] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary text-on-primary shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-base">{editingId ? 'save' : 'add_circle'}</span>
+                  {editingId ? 'Guardar Cambios' : 'Registrar Producto'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
