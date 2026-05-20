@@ -1927,23 +1927,10 @@ export default function Inventario() {
                                 </p>
                               </div>
 
-                              <div className={`backdrop-blur-sm p-4 rounded-[20px] border shadow-inner max-h-[160px] md:max-h-[180px] overflow-y-auto custom-scrollbar text-[11px] ${
-                                isDark ? 'bg-white/5 border-white/5' : 'bg-white/50 border-outline-variant/10'
-                              }`}>
+                              <div className="max-h-[220px] md:max-h-[250px] overflow-y-auto custom-scrollbar pr-1.5">
                                 {form.descripcion ? (
-                                  <div className="space-y-2.5 leading-relaxed">
-                                    {form.descripcion.split('\n').map((linea, index) => {
-                                      const trimmed = linea.trim();
-                                      const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
-                                      const esTitulo = /^\d+\./.test(trimmed) || trimmed.endsWith(':') || esTituloStars;
-
-                                      let lineaLimpia = linea;
-                                      if (esTituloStars) {
-                                        const startIdx = linea.indexOf('**');
-                                        const endIdx = linea.lastIndexOf('**');
-                                        lineaLimpia = linea.substring(0, startIdx) + linea.substring(startIdx + 2, endIdx) + linea.substring(endIdx + 2);
-                                      }
-
+                                  <div className="space-y-4">
+                                    {(() => {
                                       const renderContent = (txt) => {
                                         if (!txt.includes('**')) return txt;
                                         const parts = txt.split(/(\*\*.*?\*\*)/g);
@@ -1965,22 +1952,125 @@ export default function Inventario() {
                                         });
                                       };
 
-                                      return (
-                                        <p
-                                          key={index}
-                                          className={`transition-all ${
-                                            esTitulo
-                                              ? (isDark ? 'text-white font-extrabold mb-1 mt-2 text-[12px]' : 'text-on-surface font-extrabold mb-1 mt-2 text-[12px]')
-                                              : (isDark ? 'text-white/80 font-normal opacity-90' : 'text-on-surface-variant font-normal opacity-90')
-                                          }`}
-                                        >
-                                          {renderContent(lineaLimpia)}
-                                        </p>
-                                      );
-                                    })}
+                                      const lineas = form.descripcion.split('\n');
+                                      const secciones = [];
+                                      let seccionActual = { title: '', contentLines: [] };
+
+                                      lineas.forEach(linea => {
+                                        const trimmed = linea.trim();
+                                        if (trimmed === '') {
+                                          if (seccionActual.contentLines.length > 0 || seccionActual.title) {
+                                            seccionActual.contentLines.push(linea);
+                                          }
+                                          return;
+                                        }
+
+                                        const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
+                                        const esTituloColon = trimmed.endsWith(':');
+                                        const esTituloNumber = /^\d+\./.test(trimmed);
+                                        const esTitulo = esTituloStars || esTituloColon || esTituloNumber;
+
+                                        if (esTitulo) {
+                                          if (seccionActual.title || seccionActual.contentLines.length > 0) {
+                                            secciones.push(seccionActual);
+                                          }
+
+                                          let cleanTitle = linea;
+                                          if (esTituloStars) {
+                                            const startIdx = linea.indexOf('**');
+                                            const endIdx = linea.lastIndexOf('**');
+                                            cleanTitle = linea.substring(0, startIdx) + linea.substring(startIdx + 2, endIdx) + linea.substring(endIdx + 2);
+                                          }
+
+                                          seccionActual = { title: cleanTitle, contentLines: [] };
+                                        } else {
+                                          seccionActual.contentLines.push(linea);
+                                        }
+                                      });
+
+                                      if (seccionActual.title || seccionActual.contentLines.length > 0) {
+                                        secciones.push(seccionActual);
+                                      }
+
+                                      return secciones.map((seccion, idx) => {
+                                        const hasTitle = seccion.title.trim().length > 0;
+                                        const matchNum = seccion.title.trim().match(/^(\d+)\s*[\.\-]?\s*(.*)$/);
+
+                                        let titleNode = null;
+                                        if (hasTitle) {
+                                          if (matchNum) {
+                                            const num = matchNum[1];
+                                            const textTitle = matchNum[2];
+                                            titleNode = (
+                                              <div className="flex items-center gap-2 mb-2">
+                                                <span className="w-5 h-5 flex items-center justify-center text-[9px] font-black bg-[#e2bd6c]/15 text-[#e2bd6c] border border-[#e2bd6c]/30 rounded-full shrink-0 shadow-sm">
+                                                  {num}
+                                                </span>
+                                                <h4 className={`text-[11px] font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                                                  {renderContent(textTitle)}
+                                                </h4>
+                                              </div>
+                                            );
+                                          } else {
+                                            titleNode = (
+                                              <div className="flex items-center gap-2 mb-2 border-l-2 border-[#e2bd6c] pl-2">
+                                                <h4 className={`text-[11px] font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                                                  {renderContent(seccion.title)}
+                                                </h4>
+                                              </div>
+                                            );
+                                          }
+                                        }
+
+                                        return (
+                                          <div
+                                            key={idx}
+                                            className={`backdrop-blur-sm p-4 rounded-[20px] border shadow-sm transition-all duration-300 ${
+                                              isDark
+                                                ? 'bg-white/[0.03] hover:bg-white/[0.06] border-white/5'
+                                                : 'bg-black/[0.01] hover:bg-black/[0.03] border-outline-variant/10 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.03)]'
+                                            }`}
+                                          >
+                                            {titleNode}
+                                            <div className="space-y-1.5 leading-relaxed">
+                                              {seccion.contentLines.map((line, lIdx) => {
+                                                const trimmedLine = line.trim();
+                                                if (trimmedLine === '') return <div key={lIdx} className="h-1.5" />;
+                                                
+                                                const esViñeta = trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*');
+                                                if (esViñeta) {
+                                                  const cleanLine = trimmedLine.replace(/^[•\-*]\s*/, '');
+                                                  return (
+                                                    <div key={lIdx} className="flex items-start gap-1.5 text-[11px]">
+                                                      <span className="text-[#e2bd6c] font-black select-none mt-0.5">•</span>
+                                                      <p className={`${isDark ? 'text-white/80 font-normal opacity-90' : 'text-on-surface-variant font-normal opacity-90'} flex-1`}>
+                                                        {renderContent(cleanLine)}
+                                                      </p>
+                                                    </div>
+                                                  );
+                                                }
+
+                                                return (
+                                                  <p
+                                                    key={lIdx}
+                                                    className={`text-[11px] ${
+                                                      isDark ? 'text-white/80 font-normal opacity-90' : 'text-on-surface-variant font-normal opacity-90'
+                                                    }`}
+                                                  >
+                                                    {renderContent(line)}
+                                                  </p>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        );
+                                      });
+                                    })()}
                                   </div>
                                 ) : (
-                                  <div className="flex flex-col items-center py-4 text-center space-y-2 text-outline/50 dark:text-white/20">
+                                  <div className={`backdrop-blur-sm p-6 rounded-[20px] border shadow-inner text-center space-y-2 text-outline/50 dark:text-white/20 ${
+                                    isDark ? 'bg-white/5 border-white/5' : 'bg-white/50 border-outline-variant/10'
+                                  }`}>
                                     <span className="material-symbols-outlined text-2xl">info</span>
                                     <p className="text-[10px] italic">
                                       Escribe en el editor para ver cómo se resalta y organiza tu descripción en tiempo real.

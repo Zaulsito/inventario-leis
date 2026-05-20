@@ -1407,21 +1407,10 @@ export default function CatalogoPublico() {
                       <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.3em] ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>Descripción Detallada</p>
                     </div>
                     
-                    <div className={`backdrop-blur-sm p-6 md:p-10 rounded-[40px] border shadow-sm ${isDark ? 'bg-white/5 border-white/5' : 'bg-white/50 border-outline-variant/5'}`}>
+                    <div className="space-y-4">
                       {productoParaVer.descripcion ? (
-                        <div className="space-y-6">
-                          {productoParaVer.descripcion.split('\n').map((linea, index) => {
-                            const trimmed = linea.trim();
-                            const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
-                            const esTitulo = /^\d+\./.test(trimmed) || trimmed.endsWith(':') || esTituloStars;
-                            
-                            let lineaLimpia = linea;
-                            if (esTituloStars) {
-                              const startIdx = linea.indexOf('**');
-                              const endIdx = linea.lastIndexOf('**');
-                              lineaLimpia = linea.substring(0, startIdx) + linea.substring(startIdx + 2, endIdx) + linea.substring(endIdx + 2);
-                            }
-
+                        <div className="space-y-4">
+                          {(() => {
                             const renderContent = (txt) => {
                               if (!txt.includes('**')) return txt;
                               const parts = txt.split(/(\*\*.*?\*\*)/g);
@@ -1429,8 +1418,8 @@ export default function CatalogoPublico() {
                                 if (part.startsWith('**') && part.endsWith('**')) {
                                   const cleanText = part.slice(2, -2);
                                   return (
-                                    <strong 
-                                      key={i} 
+                                    <strong
+                                      key={i}
                                       className={`font-black tracking-wide ${
                                         isDark ? 'text-[#e2bd6c]' : 'text-primary'
                                       }`}
@@ -1443,24 +1432,127 @@ export default function CatalogoPublico() {
                               });
                             };
 
-                            return (
-                              <p 
-                                key={index} 
-                                className={`text-sm md:text-xl leading-relaxed transition-all ${
-                                  esTitulo 
-                                    ? (isDark ? 'text-white font-black mb-2 mt-4' : 'text-on-surface font-black mb-2 mt-4') 
-                                    : (isDark ? 'text-white/80 font-medium opacity-90' : 'text-on-surface-variant font-medium opacity-90')
-                                }`}
-                              >
-                                {renderContent(lineaLimpia)}
-                              </p>
-                            );
-                          })}
+                            const lineas = productoParaVer.descripcion.split('\n');
+                            const secciones = [];
+                            let seccionActual = { title: '', contentLines: [] };
+
+                            lineas.forEach(linea => {
+                              const trimmed = linea.trim();
+                              if (trimmed === '') {
+                                if (seccionActual.contentLines.length > 0 || seccionActual.title) {
+                                  seccionActual.contentLines.push(linea);
+                                }
+                                return;
+                              }
+
+                              const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
+                              const esTituloColon = trimmed.endsWith(':');
+                              const esTituloNumber = /^\d+\./.test(trimmed);
+                              const esTitulo = esTituloStars || esTituloColon || esTituloNumber;
+
+                              if (esTitulo) {
+                                if (seccionActual.title || seccionActual.contentLines.length > 0) {
+                                  secciones.push(seccionActual);
+                                }
+
+                                let cleanTitle = linea;
+                                if (esTituloStars) {
+                                  const startIdx = linea.indexOf('**');
+                                  const endIdx = linea.lastIndexOf('**');
+                                  cleanTitle = linea.substring(0, startIdx) + linea.substring(startIdx + 2, endIdx) + linea.substring(endIdx + 2);
+                                }
+
+                                seccionActual = { title: cleanTitle, contentLines: [] };
+                              } else {
+                                seccionActual.contentLines.push(linea);
+                              }
+                            });
+
+                            if (seccionActual.title || seccionActual.contentLines.length > 0) {
+                              secciones.push(seccionActual);
+                            }
+
+                            return secciones.map((seccion, idx) => {
+                              const hasTitle = seccion.title.trim().length > 0;
+                              const matchNum = seccion.title.trim().match(/^(\d+)\s*[\.\-]?\s*(.*)$/);
+
+                              let titleNode = null;
+                              if (hasTitle) {
+                                if (matchNum) {
+                                  const num = matchNum[1];
+                                  const textTitle = matchNum[2];
+                                  titleNode = (
+                                    <div className="flex items-center gap-2.5 mb-3">
+                                      <span className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center text-[10px] md:text-xs font-black bg-[#e2bd6c]/15 text-[#e2bd6c] border border-[#e2bd6c]/30 rounded-full shrink-0 shadow-sm animate-pulse">
+                                        {num}
+                                      </span>
+                                      <h4 className={`text-xs md:text-sm font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                                        {renderContent(textTitle)}
+                                      </h4>
+                                    </div>
+                                  );
+                                } else {
+                                  titleNode = (
+                                    <div className="flex items-center gap-2 mb-3 border-l-2 border-[#e2bd6c] pl-2.5">
+                                      <h4 className={`text-xs md:text-sm font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                                        {renderContent(seccion.title)}
+                                      </h4>
+                                    </div>
+                                  );
+                                }
+                              }
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`backdrop-blur-sm p-5 md:p-6 rounded-[24px] border shadow-sm transition-all duration-300 hover:scale-[1.01] ${
+                                    isDark
+                                      ? 'bg-white/[0.03] hover:bg-white/[0.06] border-white/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)]'
+                                      : 'bg-black/[0.01] hover:bg-black/[0.03] border-outline-variant/10 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.03)]'
+                                  }`}
+                                >
+                                  {titleNode}
+                                  <div className="space-y-2 leading-relaxed">
+                                    {seccion.contentLines.map((line, lIdx) => {
+                                      const trimmedLine = line.trim();
+                                      if (trimmedLine === '') return <div key={lIdx} className="h-2" />;
+                                      
+                                      const esViñeta = trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*');
+                                      if (esViñeta) {
+                                        const cleanLine = trimmedLine.replace(/^[•\-*]\s*/, '');
+                                        return (
+                                          <div key={lIdx} className="flex items-start gap-2 text-xs md:text-sm">
+                                            <span className="text-[#e2bd6c] font-black select-none mt-0.5">•</span>
+                                            <p className={`${isDark ? 'text-white/80 font-normal opacity-90' : 'text-on-surface-variant font-normal opacity-90'} flex-1`}>
+                                              {renderContent(cleanLine)}
+                                            </p>
+                                          </div>
+                                        );
+                                      }
+
+                                      return (
+                                        <p
+                                          key={lIdx}
+                                          className={`text-xs md:text-sm ${
+                                            isDark ? 'text-white/80 font-normal opacity-90' : 'text-on-surface-variant font-normal opacity-90'
+                                          }`}
+                                        >
+                                          {renderContent(line)}
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center py-6 text-center space-y-3">
-                          <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>info</span>
-                          <p className={`text-sm md:text-lg italic ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                        <div className={`backdrop-blur-sm p-8 rounded-[24px] border shadow-inner text-center space-y-3 ${
+                          isDark ? 'bg-white/5 border-white/5 text-white/30' : 'bg-white/50 border-outline-variant/10 text-outline/50'
+                        }`}>
+                          <span className="material-symbols-outlined text-3xl">info</span>
+                          <p className="text-xs md:text-sm italic">
                             No hay una descripción detallada disponible para este producto en este momento.
                           </p>
                         </div>
