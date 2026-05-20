@@ -1,5 +1,6 @@
 // src/pages/Inventario.jsx
 import { useState, useEffect, useRef } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
@@ -78,6 +79,76 @@ const normalizeText = (text) => {
 };
 
 export default function Inventario() {
+  const { isDark = false } = useOutletContext() || {}
+  const [activeTabModal, setActiveTabModal] = useState('editar') // 'editar' | 'catalogo'
+  const [previewImageIndex, setPreviewImageIndex] = useState(0)
+
+  const plantillaCosmetica = `✨ DESCRIPCIÓN DEL PRODUCTO
+[Ingresa una descripción cautivadora aquí]
+
+1. Beneficios Clave:
+• Hidratación intensa y de larga duración.
+• Aporta luminosidad y rejuvenece el aspecto de la piel.
+• Fórmula ligera de rápida absorción sin sensación grasa.
+
+2. Modo de Uso Sugerido:
+• Aplicar 3 a 5 gotas sobre la piel limpia y seca.
+• Masajear suavemente con movimientos ascendentes en rostro y cuello.
+• Utilizar en tu rutina de día y noche para obtener máximos resultados.
+
+3. Ingredientes Principales:
+• Ácido Hialurónico Puro: retiene la humedad de la piel.
+• Extracto Natural de Rosas: calma y refresca.
+• Vitamina E: potente antioxidante protector.`;
+
+  const descriptionTextareaRef = useRef(null)
+
+  function insertTextIntoDescription(textToInsert) {
+    const textarea = descriptionTextareaRef.current
+    if (!textarea) {
+      setForm(prev => ({ ...prev, descripcion: (prev.descripcion || '') + textToInsert }))
+      return
+    }
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = form.descripcion || ''
+    
+    const newText = text.substring(0, start) + textToInsert + text.substring(end)
+    
+    setForm(prev => ({ ...prev, descripcion: newText }))
+    
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + textToInsert.length, start + textToInsert.length)
+    }, 50)
+  }
+
+  function insertNumberedHeader() {
+    const text = form.descripcion || ''
+    const regex = /(?:^|\n)(\d+)\./g
+    let match
+    let maxNumber = 0
+    while ((match = regex.exec(text)) !== null) {
+      const num = parseInt(match[1], 10)
+      if (num > maxNumber) {
+        maxNumber = num
+      }
+    }
+    const nextNumber = maxNumber + 1
+    insertTextIntoDescription(`\n\n${nextNumber}. Nuevo Título:\n• `)
+  }
+
+  function insertBullet() {
+    insertTextIntoDescription('\n• ')
+  }
+
+  function clearDescription() {
+    if (window.confirm('¿Estás seguro de que deseas vaciar todo el texto de la descripción?')) {
+      setForm(prev => ({ ...prev, descripcion: '' }))
+    }
+  }
+
   const [busqueda, setBusqueda]   = useState('')
   const [filtroCol, setFiltroCol] = useState('TODOS')
   const [orden, setOrden]         = useState('alfabetico-asc')
@@ -142,6 +213,8 @@ export default function Inventario() {
     setErrorMsg('')
     setEsNuevaCategoria(false)
     setEsNuevoProveedor(false)
+    setActiveTabModal('editar')
+    setPreviewImageIndex(0)
     setShowModal(true)
   }
 
@@ -165,6 +238,8 @@ export default function Inventario() {
     setErrorMsg('')
     setEsNuevaCategoria(false)
     setEsNuevoProveedor(false)
+    setActiveTabModal('editar')
+    setPreviewImageIndex(0)
     setShowModal(true)
   }
 
@@ -1080,465 +1155,808 @@ export default function Inventario() {
       {/* Modal CRUD (NUEVO / EDITAR) */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-surface dark:bg-[#1e1e1e] w-full max-w-4xl rounded-[40px] shadow-2xl border border-outline-variant/20 dark:border-white/5 flex flex-col max-h-[90vh] overflow-hidden text-on-surface dark:text-white/90 animate-in fade-in zoom-in-95 duration-300">
+          <div className={`bg-surface dark:bg-[#1e1e1e] w-full ${activeTabModal === 'catalogo' ? 'max-w-6xl' : 'max-w-4xl'} rounded-[40px] shadow-2xl border border-outline-variant/20 dark:border-white/5 flex flex-col max-h-[90vh] overflow-hidden text-on-surface dark:text-white/90 animate-in fade-in zoom-in-95 duration-300`}>
             {/* Header del Modal */}
-            <div className="bg-surface-container-low dark:bg-white/5 px-6 py-5 flex justify-between items-center border-b border-outline-variant/20 dark:border-white/5 shrink-0">
-              <h3 className="font-headline font-bold text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2">
-                <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
-                {editingId ? 'Editar Producto' : 'Nuevo Producto'}
-              </h3>
+            <div className="bg-surface-container-low dark:bg-white/5 px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-outline-variant/20 dark:border-white/5 shrink-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                <h3 className="font-headline font-bold text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2 shrink-0">
+                  <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
+                  {editingId ? 'Editar Producto' : 'Nuevo Producto'}
+                </h3>
+                
+                {/* Selector de pestañas deslizable premium / Luxe */}
+                <div className="relative flex bg-surface-variant/30 dark:bg-white/5 p-1 rounded-2xl border border-outline-variant/10 dark:border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabModal('editar')}
+                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 ${
+                      activeTabModal === 'editar' 
+                        ? 'text-primary dark:text-[#e2bd6c]' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">edit_note</span>
+                    Editar Producto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabModal('catalogo')}
+                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 ${
+                      activeTabModal === 'catalogo' 
+                        ? 'text-primary dark:text-[#e2bd6c]' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">visibility</span>
+                    Editar en Catálogo
+                  </button>
+                  {/* Sliding pill background */}
+                  <div 
+                    className="absolute top-1 bottom-1 left-1 rounded-xl bg-[#E5E0D3]/80 dark:bg-white/10 transition-all duration-300 ease-out"
+                    style={{
+                      width: 'calc(50% - 6px)',
+                      transform: activeTabModal === 'catalogo' ? 'translateX(100%)' : 'translateX(0%)',
+                      border: '1px solid rgba(226, 189, 108, 0.2)'
+                    }}
+                  />
+                </div>
+              </div>
+              
               <button 
+                type="button"
                 onClick={() => setShowModal(false)} 
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-outline"
+                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-outline shrink-0 ml-auto sm:ml-0"
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             
             {/* Cuerpo del Formulario (Scrollable) */}
-            <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+            <div className="overflow-y-auto custom-scrollbar flex-1 flex flex-col">
               {errorMsg && (
-                <div className="bg-error-container/20 text-error text-[11px] font-bold uppercase tracking-wider px-4 py-3 rounded-xl border border-error/10 flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+                <div className="m-6 bg-error-container/20 text-error text-[11px] font-bold uppercase tracking-wider px-4 py-3 rounded-xl border border-error/10 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 shrink-0">
                   <span className="material-symbols-outlined text-base">error</span>
                   <span>{errorMsg}</span>
                 </div>
               )}
 
-              {/* Fila 1: Nombre */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Nombre del Producto</label>
-                <input 
-                  type="text" 
-                  value={form.nombre} 
-                  onChange={e => setForm({...form, nombre: e.target.value})}
-                  className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
-                  placeholder="Ej. Crema Collagen"
-                />
-              </div>
-
-              {/* Fila 2: Marca y SKU */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Marca</label>
-                  <input 
-                    type="text" 
-                    value={form.marca} 
-                    onChange={e => setForm({...form, marca: e.target.value})}
-                    onFocus={() => setShowMarcaDropdown(true)}
-                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all uppercase dark:text-white"
-                    placeholder="BUSCAR MARCA..."
-                  />
-                  {showMarcaDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-[110]" onClick={() => setShowMarcaDropdown(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                        <button 
-                          type="button"
-                          onClick={() => setShowMarcaDropdown(false)}
-                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                        >
-                          <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
-                        </button>
-                        {marcasUnicas
-                          .filter(m => m.toLowerCase().includes((form.marca || '').toLowerCase()))
-                          .slice(0, 3)
-                          .map(m => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => { setForm({...form, marca: m}); setShowMarcaDropdown(false); }}
-                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
-                            >
-                              {m}
-                            </button>
-                          ))
-                        }
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Código de Barra / SKU</label>
-                  <div className="relative">
+              {activeTabModal === 'editar' ? (
+                <div className="p-6 space-y-5">
+                  {/* Fila 1: Nombre */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Nombre del Producto</label>
                     <input 
                       type="text" 
-                      value={form.sku} 
-                      onChange={e => setForm({...form, sku: e.target.value})}
-                      className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
-                      placeholder="Escribe o escanea..."
+                      value={form.nombre} 
+                      onChange={e => setForm({...form, nombre: e.target.value})}
+                      className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                      placeholder="Ej. Crema Collagen"
                     />
-                    <button 
-                      type="button" 
-                      onClick={() => setIsScanning(true)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-                    </button>
                   </div>
-                </div>
-              </div>
 
-              {/* Fila 3: Proveedor y Categoría */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Proveedor</label>
-                  <input 
-                    type="text" 
-                    value={form.proveedor} 
-                    onChange={e => setForm({...form, proveedor: e.target.value})}
-                    onFocus={() => setShowProvDropdown(true)}
-                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
-                    placeholder="BUSCAR PROVEEDOR..."
-                  />
-                  {showProvDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-[110]" onClick={() => setShowProvDropdown(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                        <button 
-                          type="button"
-                          onClick={() => setShowProvDropdown(false)}
-                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                        >
-                          <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVO
-                        </button>
-                        {proveedoresUnicos
-                          .filter(p => p.toLowerCase().includes((form.proveedor || '').toLowerCase()))
-                          .slice(0, 3)
-                          .map(p => (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => { setForm({...form, proveedor: p}); setShowProvDropdown(false); }}
-                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
-                            >
-                              {p}
-                            </button>
-                          ))
-                        }
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Categoría</label>
-                  <input 
-                    type="text" 
-                    value={form.coleccion} 
-                    onChange={e => setForm({...form, coleccion: e.target.value})}
-                    onFocus={() => setShowCatDropdown(true)}
-                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
-                    placeholder="BUSCAR CATEGORÍA..."
-                  />
-                  {showCatDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                        <button 
-                          type="button"
-                          onClick={() => setShowCatDropdown(false)}
-                          className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                        >
-                          <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
-                        </button>
-                        {categoriasUnicas
-                          .filter(c => c.toLowerCase().includes((form.coleccion || '').toLowerCase()))
-                          .slice(0, 3)
-                          .map(c => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => { setForm({...form, coleccion: c}); setShowCatDropdown(false); }}
-                              className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
-                            >
-                              {c}
-                            </button>
-                          ))
-                        }
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-
-              {/* Fila 4: Precio y Stock */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Unit. ($)</label>
-                  <input 
-                    type="number" 
-                    value={form.precio} 
-                    onChange={e => setForm({...form, precio: e.target.value})}
-                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
-                    {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Sumar / Restar Stock')}
-                  </label>
-                  {!editingId || form.variantes?.length > 0 ? (
-                    <input 
-                      type="number" 
-                      value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
-                      onChange={e => setForm({...form, stock: e.target.value})}
-                      readOnly={form.variantes?.length > 0}
-                      className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-white/5'}`}
-                      placeholder="0"
-                    />
-                  ) : (
-                    <div className="flex gap-2 h-[46px]">
-                      <div className="flex-[2] relative h-full">
-                        <input 
-                          type="number" 
-                          value={form.ajusteStock} 
-                          onChange={e => setForm({...form, ajusteStock: e.target.value})}
-                          className="w-full h-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                          placeholder="Ej: 3 o -2"
-                        />
-                      </div>
-                      <div className="flex-1 h-full bg-surface-variant/30 dark:bg-white/5 rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center leading-tight py-1">
-                        <span className="text-[8px] font-bold uppercase text-outline">Stock Actual</span>
-                        <span className="text-[13px] font-black text-on-surface dark:text-white">{form.stock}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
-              <div className="bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">diversity_2</span>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Variantes (Color, etc.)</p>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => setForm({...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0 }]})}
-                    className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all"
-                  >
-                    + Añadir
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {(form.variantes || []).map((variant, index) => (
-                    <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                  {/* Fila 2: Marca y SKU */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="relative">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Marca</label>
                       <input 
                         type="text" 
-                        value={variant.nombre}
-                        onChange={e => {
-                          const newV = [...form.variantes]
-                          newV[index].nombre = e.target.value
-                          setForm({...form, variantes: newV})
-                        }}
-                        className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                        placeholder="Ej. Verde"
+                        value={form.marca} 
+                        onChange={e => setForm({...form, marca: e.target.value})}
+                        onFocus={() => setShowMarcaDropdown(true)}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all uppercase dark:text-white"
+                        placeholder="BUSCAR MARCA..."
                       />
-                      <input 
-                        type="number" 
-                        value={variant.stock}
-                        onChange={e => {
-                          const newV = [...form.variantes]
-                          newV[index].stock = e.target.value
-                          setForm({...form, variantes: newV})
-                        }}
-                        className="w-20 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                        placeholder="0"
-                      />
-                      <button 
-                        onClick={() => setForm({...form, variantes: form.variantes.filter((_, i) => i !== index)})}
-                        className="w-10 h-10 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all"
-                      >
-                        <span className="material-symbols-outlined text-xl">delete</span>
-                      </button>
+                      {showMarcaDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-[110]" onClick={() => setShowMarcaDropdown(false)} />
+                          <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                            <button 
+                              type="button"
+                              onClick={() => setShowMarcaDropdown(false)}
+                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                            >
+                              <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
+                            </button>
+                            {marcasUnicas
+                              .filter(m => m.toLowerCase().includes((form.marca || '').toLowerCase()))
+                              .slice(0, 3)
+                              .map(m => (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => { setForm({...form, marca: m}); setShowMarcaDropdown(false); }}
+                                  className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
+                                >
+                                  {m}
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </>
+                      )}
                     </div>
-                  ))}
-                  {(!form.variantes || form.variantes.length === 0) && (
-                    <p className="text-[10px] text-outline text-center py-2 italic font-medium opacity-60">
-                      Ideal para productos con diferentes colores o tallas.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Fila: Descripción */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-2 ml-1">Descripción Detallada del Producto</label>
-                <textarea 
-                  value={form.descripcion} 
-                  onChange={e => setForm({...form, descripcion: e.target.value})}
-                  className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-[32px] px-8 py-8 text-base md:text-lg focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-medium shadow-inner transition-all dark:text-white min-h-[450px] resize-none leading-relaxed custom-scrollbar"
-                  placeholder="Escribe una descripción profesional y detallada, usa números para los títulos para que el sistema los resalte automáticamente..."
-                />
-              </div>
-
-              {/* Fila 5: Otros */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Fecha Ingreso</label>
-                  <input 
-                    type="date" 
-                    value={form.fechaIngreso} 
-                    onChange={e => setForm({...form, fechaIngreso: e.target.value})}
-                    className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                  />
-                </div>
-                <div className="col-span-2 bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">imagesmode</span>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 5)</p>
-                    </div>
-                    {(!form.fotos || form.fotos.length < 5) && (
-                      <div className="flex gap-2">
-                        <label className="bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-primary/20 dark:border-[#e2bd6c]/20 hover:bg-primary/20 transition-all cursor-pointer flex items-center gap-1">
-                          {isUploadingImage ? (
-                            <span className="animate-pulse">Subiendo...</span>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-[12px]">upload</span>
-                              Subir PC
-                            </>
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={handleImageUpload}
-                            disabled={isUploadingImage}
-                          />
-                        </label>
-                        <button 
-                          type="button"
-                          onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
-                          className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">link</span>
-                          URL
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div 
-                    className={`space-y-3 border-2 border-dashed rounded-xl p-3 transition-colors ${
-                      isDragOver ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-transparent'
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-surface-container-low dark:bg-white/5 p-3 rounded-xl border border-outline-variant/30">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-outline">cloud_upload</span>
-                        <span className="text-xs font-bold text-outline uppercase tracking-wider">Arrastra imágenes aquí</span>
-                      </div>
-                      <div className="flex gap-4 items-center">
-                        <label className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline cursor-pointer hover:text-primary/80 transition-colors">
-                          {isUploadingImage ? uploadProgress : 'Seleccionar Múltiples'}
-                          <input type="file" accept="image/*" multiple className="hidden" onChange={onFileInputChange} disabled={isUploadingImage} />
-                        </label>
-                        <button 
-                          type="button"
-                          onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
-                          className="text-[10px] font-bold text-secondary dark:text-gray-400 underline hover:text-secondary/80 transition-colors"
-                        >
-                          Añadir URL Vacía
-                        </button>
-                      </div>
-                    </div>
-
-                    {(form.fotos || []).map((url, index) => (
-                      <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="w-8 h-8 rounded-lg bg-surface-container dark:bg-white/10 flex flex-col items-center justify-center shrink-0 border border-outline-variant/20 overflow-hidden">
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              if (index > 0) {
-                                const newFotos = [...form.fotos];
-                                [newFotos[index - 1], newFotos[index]] = [newFotos[index], newFotos[index - 1]];
-                                setForm({...form, fotos: newFotos});
-                              }
-                            }}
-                            disabled={index === 0}
-                            className={`w-full flex-1 flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/20 transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'text-primary dark:text-[#e2bd6c]'}`}
-                          >
-                            <span className="material-symbols-outlined text-[12px] leading-none">expand_less</span>
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              if (index < form.fotos.length - 1) {
-                                const newFotos = [...form.fotos];
-                                [newFotos[index], newFotos[index + 1]] = [newFotos[index + 1], newFotos[index]];
-                                setForm({...form, fotos: newFotos});
-                              }
-                            }}
-                            disabled={index === form.fotos.length - 1}
-                            className={`w-full flex-1 flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/20 transition-colors ${index === form.fotos.length - 1 ? 'opacity-30 cursor-not-allowed' : 'text-primary dark:text-[#e2bd6c]'}`}
-                          >
-                            <span className="material-symbols-outlined text-[12px] leading-none">expand_more</span>
-                          </button>
-                        </div>
-                        <button 
-                          type="button" 
-                          onClick={() => url && setPreviewImage(url)} 
-                          className="w-10 h-10 shrink-0 rounded-lg overflow-hidden border border-outline-variant/20 dark:border-white/10 hover:border-primary dark:hover:border-[#e2bd6c] transition-colors bg-surface-variant/30 flex items-center justify-center group relative cursor-zoom-in"
-                        >
-                          {url ? (
-                            <>
-                              <img src={url} alt={`Imagen ${index + 1}`} className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <span className="material-symbols-outlined text-white text-[16px]">zoom_in</span>
-                              </div>
-                            </>
-                          ) : (
-                            <span className="material-symbols-outlined text-outline/50 text-[16px]">image</span>
-                          )}
-                        </button>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Código de Barra / SKU</label>
+                      <div className="relative">
                         <input 
-                          type="url" 
-                          value={url}
-                          onChange={e => {
-                            const newFotos = [...form.fotos]
-                            newFotos[index] = e.target.value
-                            setForm({...form, fotos: newFotos})
-                          }}
-                          className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                          placeholder="https://url-de-la-imagen.jpg"
+                          type="text" 
+                          value={form.sku} 
+                          onChange={e => setForm({...form, sku: e.target.value})}
+                          className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                          placeholder="Escribe o escanea..."
                         />
                         <button 
-                          onClick={() => setForm({...form, fotos: form.fotos.filter((_, i) => i !== index)})}
-                          className="w-10 h-10 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all"
+                          type="button" 
+                          onClick={() => setIsScanning(true)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
                         >
-                          <span className="material-symbols-outlined text-xl">delete</span>
+                          <span className="material-symbols-outlined text-[20px]">photo_camera</span>
                         </button>
                       </div>
-                    ))}
-                    {(!form.fotos || form.fotos.length === 0) && (
-                      <div className="text-center py-6">
-                        <p className="text-[10px] text-outline italic font-medium opacity-60">
-                          Puedes subir o arrastrar hasta 5 imágenes.
-                        </p>
+                    </div>
+                  </div>
+
+                  {/* Fila 3: Proveedor y Categoría */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="relative">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Proveedor</label>
+                      <input 
+                        type="text" 
+                        value={form.proveedor} 
+                        onChange={e => setForm({...form, proveedor: e.target.value})}
+                        onFocus={() => setShowProvDropdown(true)}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
+                        placeholder="BUSCAR PROVEEDOR..."
+                      />
+                      {showProvDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-[110]" onClick={() => setShowProvDropdown(false)} />
+                          <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                            <button 
+                              type="button"
+                              onClick={() => setShowProvDropdown(false)}
+                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                            >
+                              <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVO
+                            </button>
+                            {proveedoresUnicos
+                              .filter(p => p.toLowerCase().includes((form.proveedor || '').toLowerCase()))
+                              .slice(0, 3)
+                              .map(p => (
+                                <button
+                                  key={p}
+                                  type="button"
+                                  onClick={() => { setForm({...form, proveedor: p}); setShowProvDropdown(false); }}
+                                  className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
+                                >
+                                  {p}
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="relative">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Categoría</label>
+                      <input 
+                        type="text" 
+                        value={form.coleccion} 
+                        onChange={e => setForm({...form, coleccion: e.target.value})}
+                        onFocus={() => setShowCatDropdown(true)}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
+                        placeholder="BUSCAR CATEGORÍA..."
+                      />
+                      {showCatDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
+                          <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                            <button 
+                              type="button"
+                              onClick={() => setShowCatDropdown(false)}
+                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                            >
+                              <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
+                            </button>
+                            {categoriasUnicas
+                              .filter(c => c.toLowerCase().includes((form.coleccion || '').toLowerCase()))
+                              .slice(0, 3)
+                              .map(c => (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  onClick={() => { setForm({...form, coleccion: c}); setShowCatDropdown(false); }}
+                                  className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
+                                >
+                                  {c}
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fila 4: Precio y Stock */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Unit. ($)</label>
+                      <input 
+                        type="number" 
+                        value={form.precio} 
+                        onChange={e => setForm({...form, precio: e.target.value})}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                        {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Sumar / Restar Stock')}
+                      </label>
+                      {!editingId || form.variantes?.length > 0 ? (
+                        <input 
+                          type="number" 
+                          value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
+                          onChange={e => setForm({...form, stock: e.target.value})}
+                          readOnly={form.variantes?.length > 0}
+                          className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-white/5'}`}
+                          placeholder="0"
+                        />
+                      ) : (
+                        <div className="flex gap-2 h-[46px]">
+                          <div className="flex-[2] relative h-full">
+                            <input 
+                              type="number" 
+                              value={form.ajusteStock} 
+                              onChange={e => setForm({...form, ajusteStock: e.target.value})}
+                              className="w-full h-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                              placeholder="Ej: 3 o -2"
+                            />
+                          </div>
+                          <div className="flex-1 h-full bg-surface-variant/30 dark:bg-white/5 rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center leading-tight py-1">
+                            <span className="text-[8px] font-bold uppercase text-outline">Stock Actual</span>
+                            <span className="text-[13px] font-black text-on-surface dark:text-white">{form.stock}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
+                  <div className="bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">diversity_2</span>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Variantes (Color, etc.)</p>
                       </div>
-                    )}
+                      <button 
+                        type="button"
+                        onClick={() => setForm({...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0 }]})}
+                        className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all"
+                      >
+                        + Añadir
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(form.variantes || []).map((variant, index) => (
+                        <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                          <input 
+                            type="text" 
+                            value={variant.nombre}
+                            onChange={e => {
+                              const newV = [...form.variantes]
+                              newV[index].nombre = e.target.value
+                              setForm({...form, variantes: newV})
+                            }}
+                            className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                            placeholder="Ej. Verde"
+                          />
+                          <input 
+                            type="number" 
+                            value={variant.stock}
+                            onChange={e => {
+                              const newV = [...form.variantes]
+                              newV[index].stock = e.target.value
+                              setForm({...form, variantes: newV})
+                            }}
+                            className="w-20 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                            placeholder="0"
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setForm({...form, variantes: form.variantes.filter((_, i) => i !== index)})}
+                            className="w-10 h-10 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all"
+                          >
+                            <span className="material-symbols-outlined text-xl">delete</span>
+                          </button>
+                        </div>
+                      ))}
+                      {(!form.variantes || form.variantes.length === 0) && (
+                        <p className="text-[10px] text-outline text-center py-2 italic font-medium opacity-60">
+                          Ideal para productos con diferentes colores o tallas.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fila: Descripción */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-2 ml-1">Descripción Detallada del Producto</label>
+                    <textarea 
+                      ref={descriptionTextareaRef}
+                      value={form.descripcion} 
+                      onChange={e => setForm({...form, descripcion: e.target.value})}
+                      className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-[32px] px-8 py-8 text-base md:text-lg focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-medium shadow-inner transition-all dark:text-white min-h-[450px] resize-none leading-relaxed custom-scrollbar"
+                      placeholder="Escribe una descripción profesional y detallada, usa números para los títulos para que el sistema los resalte automáticamente..."
+                    />
+                  </div>
+
+                  {/* Fila 5: Otros */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Fecha Ingreso</label>
+                      <input 
+                        type="date" 
+                        value={form.fechaIngreso} 
+                        onChange={e => setForm({...form, fechaIngreso: e.target.value})}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                      />
+                    </div>
+                    <div className="col-span-2 bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">imagesmode</span>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 5)</p>
+                        </div>
+                        {(!form.fotos || form.fotos.length < 5) && (
+                          <div className="flex gap-2">
+                            <label className="bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-primary/20 dark:border-[#e2bd6c]/20 hover:bg-primary/20 transition-all cursor-pointer flex items-center gap-1">
+                              {isUploadingImage ? (
+                                <span className="animate-pulse">Subiendo...</span>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-[12px]">upload</span>
+                                  Subir PC
+                                </>
+                              )}
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handleImageUpload}
+                                disabled={isUploadingImage}
+                              />
+                            </label>
+                            <button 
+                              type="button"
+                              onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
+                              className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">link</span>
+                              URL
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div 
+                        className={`space-y-3 border-2 border-dashed rounded-xl p-3 transition-colors ${
+                          isDragOver ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-transparent'
+                        }`}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                      >
+                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-surface-container-low dark:bg-white/5 p-3 rounded-xl border border-outline-variant/30">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-outline">cloud_upload</span>
+                            <span className="text-xs font-bold text-outline uppercase tracking-wider">Arrastra imágenes aquí</span>
+                          </div>
+                          <div className="flex gap-4 items-center">
+                            <label className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline cursor-pointer hover:text-primary/80 transition-colors">
+                              {isUploadingImage ? uploadProgress : 'Seleccionar Múltiples'}
+                              <input type="file" accept="image/*" multiple className="hidden" onChange={onFileInputChange} disabled={isUploadingImage} />
+                            </label>
+                            <button 
+                              type="button"
+                              onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
+                              className="text-[10px] font-bold text-secondary dark:text-gray-400 underline hover:text-secondary/80 transition-colors"
+                            >
+                              Añadir URL Vacía
+                            </button>
+                          </div>
+                        </div>
+
+                        {(form.fotos || []).map((url, index) => (
+                          <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="w-8 h-8 rounded-lg bg-surface-container dark:bg-white/10 flex flex-col items-center justify-center shrink-0 border border-outline-variant/20 overflow-hidden">
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  if (index > 0) {
+                                    const newFotos = [...form.fotos];
+                                    [newFotos[index - 1], newFotos[index]] = [newFotos[index], newFotos[index - 1]];
+                                    setForm({...form, fotos: newFotos});
+                                  }
+                                }}
+                                disabled={index === 0}
+                                className={`w-full flex-1 flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/20 transition-colors ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'text-primary dark:text-[#e2bd6c]'}`}
+                              >
+                                <span className="material-symbols-outlined text-[12px] leading-none">expand_less</span>
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  if (index < form.fotos.length - 1) {
+                                    const newFotos = [...form.fotos];
+                                    [newFotos[index], newFotos[index + 1]] = [newFotos[index + 1], newFotos[index]];
+                                    setForm({...form, fotos: newFotos});
+                                  }
+                                }}
+                                disabled={index === form.fotos.length - 1}
+                                className={`w-full flex-1 flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/20 transition-colors ${index === form.fotos.length - 1 ? 'opacity-30 cursor-not-allowed' : 'text-primary dark:text-[#e2bd6c]'}`}
+                              >
+                                <span className="material-symbols-outlined text-[12px] leading-none">expand_more</span>
+                              </button>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => url && setPreviewImage(url)} 
+                              className="w-10 h-10 shrink-0 rounded-lg overflow-hidden border border-outline-variant/20 dark:border-white/10 hover:border-primary dark:hover:border-[#e2bd6c] transition-colors bg-surface-variant/30 flex items-center justify-center group relative cursor-zoom-in"
+                            >
+                              {url ? (
+                                <>
+                                  <img src={url} alt={`Imagen ${index + 1}`} className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-white text-[16px]">zoom_in</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="material-symbols-outlined text-outline/50 text-[16px]">image</span>
+                              )}
+                            </button>
+                            <input 
+                              type="url" 
+                              value={url}
+                              onChange={e => {
+                                const newFotos = [...form.fotos]
+                                newFotos[index] = e.target.value
+                                setForm({...form, fotos: newFotos})
+                              }}
+                              className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="https://url-de-la-imagen.jpg"
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => setForm({...form, fotos: form.fotos.filter((_, i) => i !== index)})}
+                              className="w-10 h-10 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all"
+                            >
+                              <span className="material-symbols-outlined text-xl">delete</span>
+                            </button>
+                          </div>
+                        ))}
+                        {(!form.fotos || form.fotos.length === 0) && (
+                          <div className="text-center py-6">
+                            <p className="text-[10px] text-outline italic font-medium opacity-60">
+                              Puedes subir o arrastrar hasta 5 imágenes.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* activeTabModal === 'catalogo' */
+                <div className="p-6 bg-surface-variant/10 dark:bg-black/10 flex-1 overflow-y-auto custom-scrollbar">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                    
+                    {/* Columna Izquierda: Editor de Descripción Avanzado (5 de 12 columnas) */}
+                    <div className="lg:col-span-5 flex flex-col gap-4 bg-surface dark:bg-[#1a1a1a] p-5 rounded-[28px] border border-outline-variant/20 dark:border-white/5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-black uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c]">
+                          Editor de Descripción
+                        </label>
+                        <span className="text-[10px] font-bold text-outline/80 dark:text-white/40 uppercase tracking-wider">
+                          caracteres: {form.descripcion?.length || 0} | palabras: {form.descripcion ? form.descripcion.trim().split(/\s+/).filter(Boolean).length : 0}
+                        </span>
+                      </div>
+
+                      {/* Barra de herramientas */}
+                      <div className="flex flex-wrap gap-1.5 p-2 bg-surface-container-low dark:bg-black/25 rounded-2xl border border-outline-variant/15 dark:border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => insertTextIntoDescription(plantillaCosmetica)}
+                          title="Insertar plantilla estética premium"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] hover:bg-[#e2bd6c]/20 border border-[#e2bd6c]/20 transition-all flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
+                          Plantilla
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={insertNumberedHeader}
+                          title="Añadir título auto-numerado"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">format_list_numbered</span>
+                          Título Auto
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={insertBullet}
+                          title="Insertar viñeta elegante"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">format_list_bulleted</span>
+                          Viñeta
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={clearDescription}
+                          title="Limpiar toda la descripción"
+                          className="ml-auto px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-error/10 text-error hover:bg-error/20 border border-error/20 transition-all flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">delete_sweep</span>
+                          Limpiar
+                        </button>
+                      </div>
+
+                      {/* Bandeja de emojis */}
+                      <div className="flex items-center gap-1.5 px-3 py-2 bg-surface-container-low dark:bg-white/5 rounded-xl border border-outline-variant/10 dark:border-white/5 overflow-x-auto custom-scrollbar">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-outline/60 dark:text-white/40 shrink-0">Emojis:</span>
+                        {['✨', '🧴', '💆‍♀️', '🌸', '🌿', '🧪', '💧', '💄', '☀️', '🌙'].map(emoji => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => insertTextIntoDescription(emoji)}
+                            className="w-7 h-7 flex items-center justify-center text-sm rounded-lg hover:bg-[#e2bd6c]/15 hover:scale-115 active:scale-95 transition-all shrink-0"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Textarea del editor */}
+                      <textarea
+                        ref={descriptionTextareaRef}
+                        value={form.descripcion}
+                        onChange={e => setForm({...form, descripcion: e.target.value})}
+                        placeholder="Escribe la descripción premium aquí..."
+                        className="w-full bg-surface-container-lowest dark:bg-black/35 border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-4 text-sm focus:outline-none focus:border-[#e2bd6c] font-medium shadow-inner transition-all dark:text-white min-h-[350px] lg:min-h-[400px] resize-none leading-relaxed custom-scrollbar"
+                      />
+                    </div>
+
+                    {/* Columna Derecha: Vista Previa en Catálogo Real-Time (7 de 12 columnas) */}
+                    <div className="lg:col-span-7 flex flex-col">
+                      {/* Live Catalog Preview Container */}
+                      <div className="flex flex-col h-full rounded-[32px] overflow-hidden border border-outline-variant/30 dark:border-white/10 bg-[#fdfcf7] dark:bg-[#121212] shadow-2xl text-on-surface dark:text-white/90">
+                        
+                        {/* Preview Header Banner */}
+                        <div className="bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/5 border-b border-[#e2bd6c]/20 px-5 py-3 flex items-center justify-between shrink-0">
+                          <span className="text-[10px] font-black tracking-widest text-[#8B7355] dark:text-[#e2bd6c] uppercase flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-sm animate-pulse">visibility</span>
+                            Vista de Catálogo (En Vivo)
+                          </span>
+                          <span className="text-[9px] font-bold text-outline/60 dark:text-white/40 uppercase tracking-widest">
+                            Réplica de Catálogo Público
+                          </span>
+                        </div>
+
+                        {/* Simulated catalog detail view */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-outline-variant/15 dark:divide-white/5">
+                          
+                          {/* GALLERY SECTION (left column of catalog detail) */}
+                          <div className="w-full md:w-[45%] flex flex-col relative select-none bg-surface-container-lowest dark:bg-[#161616] p-4">
+                            {/* Backdrop blur */}
+                            {form.fotos && form.fotos[previewImageIndex < (form.fotos?.length || 0) ? previewImageIndex : 0] && (
+                              <div 
+                                className="absolute inset-0 z-0 bg-cover bg-center filter blur-3xl opacity-25 scale-125 transition-all duration-500 pointer-events-none"
+                                style={{ backgroundImage: `url(${form.fotos[previewImageIndex < (form.fotos?.length || 0) ? previewImageIndex : 0]})` }}
+                              />
+                            )}
+
+                            <div className="relative z-10 flex-1 flex items-center justify-center min-h-[220px] md:min-h-[280px] max-h-[320px] rounded-2xl overflow-hidden bg-black/5 dark:bg-black/25 border border-outline-variant/10 dark:border-white/5">
+                              {form.fotos && form.fotos[previewImageIndex < (form.fotos?.length || 0) ? previewImageIndex : 0] ? (
+                                <img 
+                                  src={form.fotos[previewImageIndex < (form.fotos?.length || 0) ? previewImageIndex : 0]} 
+                                  alt={form.nombre}
+                                  className="max-w-full max-h-full object-contain rounded-xl shadow-md p-2 hover:scale-105 transition-transform duration-500"
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center p-6 text-center text-outline/40 dark:text-white/20">
+                                  <span className="material-symbols-outlined text-5xl mb-2">image_not_supported</span>
+                                  <span className="text-xs font-bold uppercase tracking-wider">Sin Imagen Cargada</span>
+                                </div>
+                              )}
+
+                              {/* Gallery navigation controls */}
+                              {form.fotos && form.fotos.length > 1 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewImageIndex(prev => (prev > 0 ? prev - 1 : form.fotos.length - 1))}
+                                    className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                                      isDark ? 'bg-white/10 text-[#e2bd6c] hover:bg-white/20' : 'bg-white text-secondary hover:bg-surface-variant shadow-md'
+                                    }`}
+                                  >
+                                    <span className="material-symbols-outlined text-base">chevron_left</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewImageIndex(prev => (prev < form.fotos.length - 1 ? prev + 1 : 0))}
+                                    className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                                      isDark ? 'bg-white/10 text-[#e2bd6c] hover:bg-white/20' : 'bg-white text-secondary hover:bg-surface-variant shadow-md'
+                                    }`}
+                                  >
+                                    <span className="material-symbols-outlined text-base">chevron_right</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Thumbnail carousel */}
+                            {form.fotos && form.fotos.length > 1 && (
+                              <div className="flex gap-1.5 mt-3 justify-center overflow-x-auto max-w-full py-1.5 shrink-0 select-none custom-scrollbar">
+                                {form.fotos.map((f, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setPreviewImageIndex(i)}
+                                    className={`w-9 h-9 rounded-lg border overflow-hidden transition-all shrink-0 p-0.5 bg-surface dark:bg-[#1a1a1a] ${
+                                      previewImageIndex === i 
+                                        ? (isDark ? 'border-[#e2bd6c] scale-105' : 'border-primary scale-105') 
+                                        : (isDark ? 'border-white/10 opacity-60 hover:opacity-100' : 'border-outline-variant/20 opacity-60 hover:opacity-100')
+                                    }`}
+                                  >
+                                    <img src={f || 'https://via.placeholder.com/80'} className="w-full h-full object-cover rounded-md" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* PRODUCT INFO & DETAILS (right column of catalog detail) */}
+                          <div className="w-full md:w-[55%] flex flex-col p-5 space-y-5 bg-surface dark:bg-[#121212]">
+                            
+                            {/* Name and brand header */}
+                            <div className="text-center md:text-left">
+                              <h2 className={`font-headline font-black text-lg md:text-xl leading-snug mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                                {form.nombre || 'Nombre del Producto Mockup'}
+                              </h2>
+                              <p className={`text-[9px] font-bold uppercase tracking-[0.2em] opacity-60 mb-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
+                                {(form.coleccion || 'SIN CATEGORÍA').toUpperCase()}
+                              </p>
+
+                              <div className="flex items-center gap-3 justify-center md:justify-start">
+                                <div className={`h-[1px] flex-1 max-w-[20px] bg-gradient-to-r ${isDark ? 'from-transparent to-[#e2bd6c]/20' : 'from-transparent to-primary/20'}`} />
+                                <p className={`text-[9px] font-extrabold uppercase tracking-[0.3em] ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                                  {form.marca || 'GENÉRICO'}
+                                </p>
+                                <div className={`h-[1px] flex-1 max-w-[20px] bg-gradient-to-l ${isDark ? 'from-transparent to-[#e2bd6c]/20' : 'from-transparent to-primary/20'}`} />
+                              </div>
+                            </div>
+
+                            {/* Description section */}
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`material-symbols-outlined text-sm ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>description</span>
+                                <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                                  Descripción Detallada
+                                </p>
+                              </div>
+
+                              <div className={`backdrop-blur-sm p-4 rounded-[20px] border shadow-inner max-h-[160px] md:max-h-[180px] overflow-y-auto custom-scrollbar text-[11px] ${
+                                isDark ? 'bg-white/5 border-white/5' : 'bg-white/50 border-outline-variant/10'
+                              }`}>
+                                {form.descripcion ? (
+                                  <div className="space-y-2.5 leading-relaxed">
+                                    {form.descripcion.split('\n').map((linea, index) => {
+                                      const esTitulo = /^\d+\./.test(linea.trim()) || linea.trim().endsWith(':');
+                                      return (
+                                        <p
+                                          key={index}
+                                          className={`transition-all ${
+                                            esTitulo
+                                              ? (isDark ? 'text-white font-extrabold mb-1 mt-2 text-[12px]' : 'text-on-surface font-extrabold mb-1 mt-2 text-[12px]')
+                                              : (isDark ? 'text-white/80 font-normal opacity-90' : 'text-on-surface-variant font-normal opacity-90')
+                                          }`}
+                                        >
+                                          {linea}
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center py-4 text-center space-y-2 text-outline/50 dark:text-white/20">
+                                    <span className="material-symbols-outlined text-2xl">info</span>
+                                    <p className="text-[10px] italic">
+                                      Escribe en el editor para ver cómo se resalta y organiza tu descripción en tiempo real.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Stock status card */}
+                            <div className={`p-3 rounded-2xl border relative overflow-hidden group shadow-sm ${
+                              isDark ? 'bg-white/0 border-white/5' : 'bg-gradient-to-br from-white to-[#f9f9f9] border-outline-variant/10'
+                            }`}>
+                              <div className="absolute top-0 right-0 p-3 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-500">
+                                <span className="material-symbols-outlined text-5xl transform rotate-12">inventory_2</span>
+                              </div>
+                              <div className="flex items-center gap-3 relative z-10">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c]' : 'bg-secondary/5 text-secondary'
+                                }`}>
+                                  <span className="material-symbols-outlined text-xl">inventory_2</span>
+                                </div>
+                                <div>
+                                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-outline/80 mb-0.5">
+                                    Disponibilidad en Bodega
+                                  </p>
+                                  <p className={`text-xs md:text-sm font-black ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                                    {form.variantes?.length > 0 
+                                      ? `${form.variantes.reduce((sum, v) => sum + Number(v.stock), 0)} UNIDADES`
+                                      : `${form.stock || 0} UNIDADES`}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+
+                        </div>
+
+                        {/* Price & Action mockup footer bar */}
+                        <div className={`p-4 border-t shrink-0 ${isDark ? 'bg-[#121212]/95 border-white/5' : 'bg-white/95 border-outline-variant/10'}`}>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="shrink-0 text-left">
+                              <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-outline/80 mb-0.5">
+                                Precio Internet
+                              </p>
+                              <div className="flex items-baseline gap-0.5">
+                                <span className={`text-xs font-light ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>$</span>
+                                <p className={`font-black text-xl md:text-2xl tracking-tighter ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                                  {(Number(form.precio) || 0).toLocaleString('es-CL')}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className={`flex-1 py-3 px-4 rounded-xl font-black uppercase tracking-[0.15em] text-[9px] text-center shadow-md flex justify-center items-center gap-2 cursor-default select-none ${
+                              isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'
+                            }`}>
+                              <span className="material-symbols-outlined text-base">shopping_cart_checkout</span>
+                              <span>Añadir al Pedido</span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Footer del Modal */}
             <div className="bg-surface-container-low dark:bg-white/5 px-6 py-4 border-t border-outline-variant/20 dark:border-white/10 flex gap-3 shrink-0">
               <button 
+                type="button"
                 onClick={() => setShowModal(false)}
                 className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/5"
               >
                 Cancelar
               </button>
               <button 
+                type="button"
                 onClick={handleSave}
                 className="flex-[2] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary text-on-primary shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
               >
