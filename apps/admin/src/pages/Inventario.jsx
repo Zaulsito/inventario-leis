@@ -83,23 +83,29 @@ export default function Inventario() {
   const [activeTabModal, setActiveTabModal] = useState('editar') // 'editar' | 'catalogo'
   const [previewImageIndex, setPreviewImageIndex] = useState(0)
 
-  const plantillaCosmetica = `✨ DESCRIPCIÓN DEL PRODUCTO
-[Ingresa una descripción cautivadora aquí]
+  const plantillaCosmetica = `1. Propósito Principal:
+• Restaurar la barrera de hidratación de forma inmediata y unificar el tono natural de la piel.
+• [Tip/Sugerencia]: Ideal para aplicar como primer paso después de la limpieza. Prepara la piel y optimiza la absorción de los siguientes tratamientos de tu rutina.
 
-1. Beneficios Clave:
-• Hidratación intensa y de larga duración.
-• Aporta luminosidad y rejuvenece el aspecto de la piel.
-• Fórmula ligera de rápida absorción sin sensación grasa.
+2. Ingredientes Clave:
+• Ácido Hialurónico Puro: Capaz de retener hasta 1000 veces su peso en agua para una hidratación profunda y rellenar líneas de expresión.
+• Niacinamida al 5%: Regula el exceso de sebo, calma rojeces y difumina manchas para una piel visiblemente más uniforme.
+• Extracto Orgánico de Aloe Vera: Calma instantáneamente, desinflama y promueve la regeneración celular activa en pieles sensibles.
 
-2. Modo de Uso Sugerido:
-• Aplicar 3 a 5 gotas sobre la piel limpia y seca.
-• Masajear suavemente con movimientos ascendentes en rostro y cuello.
-• Utilizar en tu rutina de día y noche para obtener máximos resultados.
+3. Beneficios Detallados:
+• Hidratación Tridimensional Activa: Mantiene la piel elástica y jugosa durante 24 horas continuas sin efecto graso ni obstruir los poros.
+• Barrera Antioxidante Reforzada: Combate los radicales libres del ambiente y el envejecimiento digital (luz azul) potenciando la luminosidad.
+• Absorción Ultra-Rápida: Textura ligera que se funde en segundos con la piel, dejando un acabado sedoso y aterciopelado de alta gama.
 
-3. Ingredientes Principales:
-• Ácido Hialurónico Puro: retiene la humedad de la piel.
-• Extracto Natural de Rosas: calma y refresca.
-• Vitamina E: potente antioxidante protector.`;
+4. Modo de Uso Sugerido:
+• Paso 1: Limpia y seca con suavidad el rostro, cuello y escote.
+• Paso 2: Dosifica de 3 a 4 gotas directamente o en la yema de tus dedos.
+• Paso 3: Distribuye con masajes ascendentes circulares y ligeros toques hasta su total absorción. ¡Apto para tu rutina de día y noche!
+
+5. ¿Para quién es ideal?
+• Tipo de Piel: Formulado para pieles secas, mixtas, sensibles o aquellas que muestren signos visibles de deshidratación y opacidad.
+• Preocupación: Excelente contra la pérdida de elasticidad, líneas finas, textura irregular o piel apagada por el estrés diario.
+• Combinación Perfecta: Acompáñalo con tu limpiador hidratante favorito y sella siempre con crema hidratante y protector solar FPS 50+ durante el día.`;
 
   const descriptionTextareaRef = useRef(null)
 
@@ -1725,9 +1731,20 @@ export default function Inventario() {
                         <label className="block text-[11px] font-black uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c]">
                           Editor de Descripción
                         </label>
-                        <span className="text-[10px] font-bold text-outline/80 dark:text-white/40 uppercase tracking-wider">
-                          caracteres: {form.descripcion?.length || 0} | palabras: {form.descripcion ? form.descripcion.trim().split(/\s+/).filter(Boolean).length : 0}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-outline/80 dark:text-white/40 uppercase tracking-wider">
+                            caracteres: {form.descripcion?.length || 0} | palabras: {form.descripcion ? form.descripcion.trim().split(/\s+/).filter(Boolean).length : 0}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={clearDescription}
+                            title="Limpiar toda la descripción"
+                            className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-error/10 text-error hover:bg-error/20 border border-error/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1 shrink-0 shadow-sm"
+                          >
+                            <span className="material-symbols-outlined text-[11px]">delete_sweep</span>
+                            Limpiar
+                          </button>
+                        </div>
                       </div>
 
                       {/* Barra de herramientas */}
@@ -1736,7 +1753,7 @@ export default function Inventario() {
                           type="button"
                           onClick={() => insertTextIntoDescription(plantillaCosmetica)}
                           title="Insertar plantilla estética premium"
-                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] hover:bg-[#e2bd6c]/20 border border-[#e2bd6c]/20 transition-all flex items-center gap-1"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] hover:bg-[#e2bd6c]/20 border border-[#e2bd6c]/20 transition-all flex items-center gap-1 hover:scale-105 active:scale-95"
                         >
                           <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
                           Plantilla
@@ -1746,7 +1763,7 @@ export default function Inventario() {
                           type="button"
                           onClick={insertNumberedHeader}
                           title="Añadir título auto-numerado"
-                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1 hover:scale-105 active:scale-95"
                         >
                           <span className="material-symbols-outlined text-[12px]">format_list_numbered</span>
                           Título Auto
@@ -1756,7 +1773,7 @@ export default function Inventario() {
                           type="button"
                           onClick={insertBullet}
                           title="Insertar viñeta elegante"
-                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1 hover:scale-105 active:scale-95"
                         >
                           <span className="material-symbols-outlined text-[12px]">format_list_bulleted</span>
                           Viñeta
@@ -1766,20 +1783,10 @@ export default function Inventario() {
                           type="button"
                           onClick={insertBold}
                           title="Poner en negrita"
-                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1 hover:scale-105 active:scale-95"
                         >
                           <span className="material-symbols-outlined text-[12px]">format_bold</span>
                           Negrita
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={clearDescription}
-                          title="Limpiar toda la descripción"
-                          className="ml-auto px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-error/10 text-error hover:bg-error/20 border border-error/20 transition-all flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">delete_sweep</span>
-                          Limpiar
                         </button>
                       </div>
 
