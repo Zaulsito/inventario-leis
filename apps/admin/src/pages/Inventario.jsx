@@ -1565,7 +1565,7 @@ export default function Inventario() {
                         </div>
                       ))}
                       {(!form.variantes || form.variantes.length === 0) && (
-                        <p className="text-[10px] text-outline text-center py-2 italic font-medium opacity-60">
+                        <p className="text-[10px] text-outline/80 dark:text-gray-300 text-center py-2 italic font-semibold">
                           Ideal para productos con diferentes colores o tallas.
                         </p>
                       )}
@@ -1631,8 +1631,8 @@ export default function Inventario() {
                       >
                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-surface-container-low dark:bg-white/5 p-3 rounded-xl border border-outline-variant/30">
                           <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-outline">cloud_upload</span>
-                            <span className="text-xs font-bold text-outline uppercase tracking-wider">Arrastra imágenes aquí</span>
+                            <span className="material-symbols-outlined text-outline/80 dark:text-gray-300">cloud_upload</span>
+                            <span className="text-xs font-bold text-outline/90 dark:text-gray-300 uppercase tracking-wider">Arrastra imágenes aquí</span>
                           </div>
                           <div className="flex gap-4 items-center">
                             <label className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline cursor-pointer hover:text-primary/80 transition-colors">
