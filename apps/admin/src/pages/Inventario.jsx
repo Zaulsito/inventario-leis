@@ -183,6 +183,47 @@ export default function Inventario() {
     }
   }
 
+  function insertNumberedList() {
+    const textarea = descriptionTextareaRef.current
+    if (!textarea) {
+      insertTextIntoDescription('\n1.- ')
+      return
+    }
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = form.descripcion || ''
+
+    if (start === end) {
+      insertTextIntoDescription('\n1.- ')
+    } else {
+      const selectedText = text.substring(start, end)
+      const lines = selectedText.split('\n')
+      
+      let numberCounter = 1
+      const numberedLines = lines.map(line => {
+        const trimmed = line.trim()
+        if (trimmed === '') return line
+        
+        const leadingWhitespace = line.match(/^\s*/)[0]
+        const contentWithoutPrefix = line.substring(leadingWhitespace.length)
+          .replace(/^(?:•|\-|\*|\d+\s*[\.\-]+\s*)\s*/, '')
+        
+        const formattedLine = `${leadingWhitespace}${numberCounter}.- ${contentWithoutPrefix}`
+        numberCounter++
+        return formattedLine
+      }).join('\n')
+
+      const newText = text.substring(0, start) + numberedLines + text.substring(end)
+      setForm(prev => ({ ...prev, descripcion: newText }))
+
+      setTimeout(() => {
+        textarea.focus()
+        textarea.setSelectionRange(start, start + numberedLines.length)
+      }, 50)
+    }
+  }
+
   function insertBold() {
     const textarea = descriptionTextareaRef.current
     if (!textarea) {
@@ -1785,6 +1826,16 @@ export default function Inventario() {
                         >
                           <span className="material-symbols-outlined text-[12px]">format_list_bulleted</span>
                           Viñeta
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={insertNumberedList}
+                          title="Insertar lista numerada premium"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] hover:bg-[#e2bd6c]/20 border border-[#e2bd6c]/20 transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">123</span>
+                          Números
                         </button>
 
                         <button
