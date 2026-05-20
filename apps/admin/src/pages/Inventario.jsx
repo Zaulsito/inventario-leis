@@ -1572,17 +1572,6 @@ export default function Inventario() {
                     </div>
                   </div>
 
-                  {/* Fila: Descripción */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-2 ml-1">Descripción Detallada del Producto</label>
-                    <textarea 
-                      ref={descriptionTextareaRef}
-                      value={form.descripcion} 
-                      onChange={e => setForm({...form, descripcion: e.target.value})}
-                      className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-[32px] px-8 py-8 text-base md:text-lg focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-medium shadow-inner transition-all dark:text-white min-h-[450px] resize-none leading-relaxed custom-scrollbar"
-                      placeholder="Escribe una descripción profesional y detallada, usa números para los títulos para que el sistema los resalte automáticamente..."
-                    />
-                  </div>
 
                   {/* Fila 5: Otros */}
                   <div className="grid grid-cols-2 gap-4">
