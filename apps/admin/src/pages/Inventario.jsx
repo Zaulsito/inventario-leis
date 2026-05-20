@@ -2064,6 +2064,20 @@ export default function Inventario() {
                                                   );
                                                 }
 
+                                                const matchNumero = trimmedLine.match(/^(\d+)(?:\.|\-|\.\-|\-\.|\s)*\s+(.*)$/);
+                                                if (matchNumero) {
+                                                  const num = matchNumero[1];
+                                                  const cleanLine = matchNumero[2];
+                                                  return (
+                                                    <div key={lIdx} className="flex items-start gap-2 text-[11px] py-0.5">
+                                                      <span className="text-[#e2bd6c] font-black select-none shrink-0">{num}.</span>
+                                                      <p className={`flex-1 font-semibold ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                                                        {renderContent(cleanLine)}
+                                                      </p>
+                                                    </div>
+                                                  );
+                                                }
+
                                                 return (
                                                   <p
                                                     key={lIdx}
