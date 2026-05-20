@@ -140,7 +140,72 @@ export default function Inventario() {
   }
 
   function insertBullet() {
-    insertTextIntoDescription('\n• ')
+    const textarea = descriptionTextareaRef.current
+    if (!textarea) {
+      insertTextIntoDescription('\n• ')
+      return
+    }
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = form.descripcion || ''
+
+    if (start === end) {
+      insertTextIntoDescription('\n• ')
+    } else {
+      const selectedText = text.substring(start, end)
+      const lines = selectedText.split('\n')
+      const bulletedLines = lines.map(line => {
+        const trimmed = line.trim()
+        if (trimmed === '') return line
+        if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+          return line
+        }
+        const leadingWhitespace = line.match(/^\s*/)[0]
+        const content = line.substring(leadingWhitespace.length)
+        return leadingWhitespace + '• ' + content
+      }).join('\n')
+
+      const newText = text.substring(0, start) + bulletedLines + text.substring(end)
+      setForm(prev => ({ ...prev, descripcion: newText }))
+
+      setTimeout(() => {
+        textarea.focus()
+        textarea.setSelectionRange(start, start + bulletedLines.length)
+      }, 50)
+    }
+  }
+
+  function insertBold() {
+    const textarea = descriptionTextareaRef.current
+    if (!textarea) {
+      insertTextIntoDescription('**Texto en Negrita**')
+      return
+    }
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = form.descripcion || ''
+
+    if (start === end) {
+      const placeholder = 'Texto en Negrita'
+      const textToInsert = `**${placeholder}**`
+      const newText = text.substring(0, start) + textToInsert + text.substring(end)
+      setForm(prev => ({ ...prev, descripcion: newText }))
+      setTimeout(() => {
+        textarea.focus()
+        textarea.setSelectionRange(start + 2, start + 2 + placeholder.length)
+      }, 50)
+    } else {
+      const selectedText = text.substring(start, end)
+      const textToInsert = `**${selectedText}**`
+      const newText = text.substring(0, start) + textToInsert + text.substring(end)
+      setForm(prev => ({ ...prev, descripcion: newText }))
+      setTimeout(() => {
+        textarea.focus()
+        textarea.setSelectionRange(start, start + textToInsert.length)
+      }, 50)
+    }
   }
 
   function clearDescription() {
@@ -1699,6 +1764,16 @@ export default function Inventario() {
 
                         <button
                           type="button"
+                          onClick={insertBold}
+                          title="Poner en negrita"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#8B7355]/10 text-[#8B7355] dark:text-[#e2bd6c]/90 hover:bg-[#8B7355]/20 dark:hover:bg-white/10 border border-[#8B7355]/20 dark:border-white/5 transition-all flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">format_bold</span>
+                          Negrita
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={clearDescription}
                           title="Limpiar toda la descripción"
                           className="ml-auto px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-error/10 text-error hover:bg-error/20 border border-error/20 transition-all flex items-center gap-1"
@@ -1858,7 +1933,38 @@ export default function Inventario() {
                                 {form.descripcion ? (
                                   <div className="space-y-2.5 leading-relaxed">
                                     {form.descripcion.split('\n').map((linea, index) => {
-                                      const esTitulo = /^\d+\./.test(linea.trim()) || linea.trim().endsWith(':');
+                                      const trimmed = linea.trim();
+                                      const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
+                                      const esTitulo = /^\d+\./.test(trimmed) || trimmed.endsWith(':') || esTituloStars;
+
+                                      let lineaLimpia = linea;
+                                      if (esTituloStars) {
+                                        const startIdx = linea.indexOf('**');
+                                        const endIdx = linea.lastIndexOf('**');
+                                        lineaLimpia = linea.substring(0, startIdx) + linea.substring(startIdx + 2, endIdx) + linea.substring(endIdx + 2);
+                                      }
+
+                                      const renderContent = (txt) => {
+                                        if (!txt.includes('**')) return txt;
+                                        const parts = txt.split(/(\*\*.*?\*\*)/g);
+                                        return parts.map((part, i) => {
+                                          if (part.startsWith('**') && part.endsWith('**')) {
+                                            const cleanText = part.slice(2, -2);
+                                            return (
+                                              <strong
+                                                key={i}
+                                                className={`font-black tracking-wide ${
+                                                  isDark ? 'text-[#e2bd6c]' : 'text-primary'
+                                                }`}
+                                              >
+                                                {cleanText}
+                                              </strong>
+                                            );
+                                          }
+                                          return part;
+                                        });
+                                      };
+
                                       return (
                                         <p
                                           key={index}
@@ -1868,7 +1974,7 @@ export default function Inventario() {
                                               : (isDark ? 'text-white/80 font-normal opacity-90' : 'text-on-surface-variant font-normal opacity-90')
                                           }`}
                                         >
-                                          {linea}
+                                          {renderContent(lineaLimpia)}
                                         </p>
                                       );
                                     })}

@@ -1411,9 +1411,38 @@ export default function CatalogoPublico() {
                       {productoParaVer.descripcion ? (
                         <div className="space-y-6">
                           {productoParaVer.descripcion.split('\n').map((linea, index) => {
-                            // Detectar si la línea es un título (Empieza por número, o es corta y termina en ':')
-                            const esTitulo = /^\d+\./.test(linea.trim()) || linea.trim().endsWith(':');
+                            const trimmed = linea.trim();
+                            const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
+                            const esTitulo = /^\d+\./.test(trimmed) || trimmed.endsWith(':') || esTituloStars;
                             
+                            let lineaLimpia = linea;
+                            if (esTituloStars) {
+                              const startIdx = linea.indexOf('**');
+                              const endIdx = linea.lastIndexOf('**');
+                              lineaLimpia = linea.substring(0, startIdx) + linea.substring(startIdx + 2, endIdx) + linea.substring(endIdx + 2);
+                            }
+
+                            const renderContent = (txt) => {
+                              if (!txt.includes('**')) return txt;
+                              const parts = txt.split(/(\*\*.*?\*\*)/g);
+                              return parts.map((part, i) => {
+                                if (part.startsWith('**') && part.endsWith('**')) {
+                                  const cleanText = part.slice(2, -2);
+                                  return (
+                                    <strong 
+                                      key={i} 
+                                      className={`font-black tracking-wide ${
+                                        isDark ? 'text-[#e2bd6c]' : 'text-primary'
+                                      }`}
+                                    >
+                                      {cleanText}
+                                    </strong>
+                                  );
+                                }
+                                return part;
+                              });
+                            };
+
                             return (
                               <p 
                                 key={index} 
@@ -1423,7 +1452,7 @@ export default function CatalogoPublico() {
                                     : (isDark ? 'text-white/80 font-medium opacity-90' : 'text-on-surface-variant font-medium opacity-90')
                                 }`}
                               >
-                                {linea}
+                                {renderContent(lineaLimpia)}
                               </p>
                             );
                           })}
