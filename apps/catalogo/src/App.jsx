@@ -1448,9 +1448,8 @@ export default function CatalogoPublico() {
                               }
 
                               const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
-                              const esTituloColon = trimmed.endsWith(':');
                               const esTituloNumber = /^\d+\./.test(trimmed);
-                              const esTitulo = esTituloStars || esTituloColon || esTituloNumber;
+                              const esTitulo = esTituloStars || esTituloNumber;
 
                               if (esTitulo) {
                                 if (seccionActual.title || seccionActual.contentLines.length > 0) {
