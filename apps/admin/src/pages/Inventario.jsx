@@ -1981,7 +1981,7 @@ export default function Inventario() {
                                         }
 
                                         const esTituloStars = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length >= 4;
-                                        const esTituloNumber = /^\d+\./.test(trimmed);
+                                        const esTituloNumber = /^\d+\./.test(trimmed) && trimmed.length <= 35;
                                         const esTitulo = esTituloStars || esTituloNumber;
 
                                         if (esTitulo) {
