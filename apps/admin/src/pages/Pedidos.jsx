@@ -78,6 +78,117 @@ export default function Pedidos() {
   const [busquedaCanal, setBusquedaCanal] = useState('')
   const [showCanalDropdown, setShowCanalDropdown] = useState(false)
   
+  // Estados para secciones colapsables y paginación
+  const [sectionsOpen, setSectionsOpen] = useState({
+    pendientes: true,
+    abonados: true,
+    finalizados: true
+  })
+  const [pagePendientes, setPagePendientes] = useState(1)
+  const [pageAbonados, setPageAbonados] = useState(1)
+  const [pageFinalizados, setPageFinalizados] = useState(1)
+
+  const renderPaginationControls = (currentPage, totalItems, setPage) => {
+    const itemsPerPage = 20;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    if (totalPages <= 1) return null;
+
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 pb-2 border-t border-outline-variant/10 dark:border-white/5 mt-4">
+        <span className="text-xs text-outline dark:text-gray-400 font-medium">
+          Mostrando <span className="font-semibold text-on-surface dark:text-white">{Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(totalItems, currentPage * itemsPerPage)}</span> de <span className="font-semibold text-on-surface dark:text-white">{totalItems}</span> pedidos
+        </span>
+        
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border border-outline-variant/20 dark:border-white/10 text-outline dark:text-gray-400 hover:bg-surface-container-high dark:hover:bg-white/5 disabled:opacity-40 disabled:hover:bg-transparent transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
+            title="Página Anterior"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {startPage > 1 && (
+            <>
+              <button
+                onClick={() => setPage(1)}
+                className={`min-w-[36px] h-9 flex items-center justify-center text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
+                  currentPage === 1
+                    ? 'bg-[#e2bd6c] text-black font-bold shadow-md shadow-[#e2bd6c]/20'
+                    : 'text-outline dark:text-gray-300 hover:bg-surface-container-high dark:hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                1
+              </button>
+              {startPage > 2 && (
+                <span className="px-1 text-outline dark:text-gray-500 select-none text-xs">...</span>
+              )}
+            </>
+          )}
+
+          {pages.map((p) => (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className={`min-w-[36px] h-9 flex items-center justify-center text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
+                currentPage === p
+                  ? 'bg-[#e2bd6c] text-black font-bold shadow-md shadow-[#e2bd6c]/20'
+                  : 'text-outline dark:text-gray-300 hover:bg-surface-container-high dark:hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+
+          {endPage < totalPages && (
+            <>
+              {endPage < totalPages - 1 && (
+                <span className="px-1 text-outline dark:text-gray-500 select-none text-xs">...</span>
+              )}
+              <button
+                onClick={() => setPage(totalPages)}
+                className={`min-w-[36px] h-9 flex items-center justify-center text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
+                  currentPage === totalPages
+                    ? 'bg-[#e2bd6c] text-black font-bold shadow-md shadow-[#e2bd6c]/20'
+                    : 'text-outline dark:text-gray-300 hover:bg-surface-container-high dark:hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                {totalPages}
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg border border-outline-variant/20 dark:border-white/10 text-outline dark:text-gray-400 hover:bg-surface-container-high dark:hover:bg-white/5 disabled:opacity-40 disabled:hover:bg-transparent transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
+            title="Página Siguiente"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  };
+  
   // Nuevo estado para diálogos personalizados
   const [dialog, setDialog] = useState({
     show: false,
@@ -603,6 +714,19 @@ END:VCALENDAR`
     URL.revokeObjectURL(url)
   }
 
+  // Filtrar y ordenar los pedidos para evitar desajustes en la paginación
+  const listPendientes = pedidos.filter(p => p.pagoEstado === 'sin pagar' || !p.pagoEstado);
+  const listAbonados = pedidos.filter(p => p.pagoEstado === 'parcial');
+  const listFinalizados = pedidos.filter(p => p.pagoEstado === 'pagado');
+
+  const safePagePendientes = Math.max(1, Math.min(pagePendientes, Math.ceil(listPendientes.length / 20) || 1));
+  const safePageAbonados = Math.max(1, Math.min(pageAbonados, Math.ceil(listAbonados.length / 20) || 1));
+  const safePageFinalizados = Math.max(1, Math.min(pageFinalizados, Math.ceil(listFinalizados.length / 20) || 1));
+
+  const paginatedPendientes = listPendientes.slice((safePagePendientes - 1) * 20, safePagePendientes * 20);
+  const paginatedAbonados = listAbonados.slice((safePageAbonados - 1) * 20, safePageAbonados * 20);
+  const paginatedFinalizados = listFinalizados.slice((safePageFinalizados - 1) * 20, safePageFinalizados * 20);
+
   return (
     <div className="p-8 md:p-10 relative flex flex-col min-h-full overflow-y-auto transition-colors duration-500">
       {/* Header sticky */}
@@ -644,761 +768,831 @@ END:VCALENDAR`
           <>
         {/* 1. Pedidos Pendientes (Sin Pagar) */}
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-error/10 dark:bg-white/5 flex items-center justify-center shadow-sm border border-error/5 dark:border-white/5">
-              <span className="material-symbols-outlined text-error text-2xl font-bold">priority_high</span>
+          <div 
+            onClick={() => setSectionsOpen(prev => ({ ...prev, pendientes: !prev.pendientes }))}
+            className="flex items-center justify-between group select-none cursor-pointer hover:opacity-90 transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-error/10 dark:bg-white/5 flex items-center justify-center shadow-sm border border-error/5 dark:border-white/5 transition-transform duration-300 group-hover:scale-105">
+                <span className="material-symbols-outlined text-error text-2xl font-bold">priority_high</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Pedidos Pendientes</h2>
+                  <span className="bg-error/10 dark:bg-white/5 text-error dark:text-red-400 font-bold px-2 py-0.5 rounded-full text-xs transition-colors">
+                    [ {listPendientes.length} ]
+                  </span>
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Sin ningún abono realizado</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Pedidos Pendientes</h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Sin ningún abono realizado</p>
+            <div className="w-10 h-10 rounded-full bg-secondary/5 dark:bg-white/5 flex items-center justify-center border border-outline-variant/10 dark:border-white/10 transition-transform duration-300">
+              <span className={`material-symbols-outlined text-outline dark:text-gray-400 transition-transform duration-300 ${sectionsOpen.pendientes ? 'rotate-180' : ''}`}>
+                expand_more
+              </span>
             </div>
           </div>
           <div className="h-px w-full bg-gradient-to-r from-error/20 via-outline-variant/10 dark:via-white/5 to-transparent mb-4" />
-          {/* Vista Desktop (Tabla) */}
-          <div className="hidden md:block bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl overflow-hidden shadow-sm border border-error/5 dark:border-white/5">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-surface-container dark:bg-white/5">
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Cliente</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Fecha de Entrega</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Detalle y Total</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline text-right dark:text-gray-500">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
-                  {pedidos.filter(p => p.pagoEstado === 'sin pagar' || !p.pagoEstado).map(p => {
-                    const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-                    const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3
+          
+          {sectionsOpen.pendientes && (
+            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              {/* Vista Desktop (Tabla) */}
+              <div className="hidden md:block bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl overflow-hidden shadow-sm border border-error/5 dark:border-white/5">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="bg-surface-container dark:bg-white/5">
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Cliente</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Fecha de Entrega</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Detalle y Total</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline text-right dark:text-gray-500">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
+                      {paginatedPendientes.map(p => {
+                        const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+                        const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3
 
-                    return (
-                      <Fragment key={p.id}>
-                        <tr 
-                          className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
-                          onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                        >
-                          <td className="px-7 py-5">
-                            <div className="flex items-center gap-3">
-                              <span className={`material-symbols-outlined text-outline dark:text-gray-500 transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
-                                keyboard_arrow_down
-                              </span>
-                              <div>
-                                <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{p.cliente}</p>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Vía {p.medioPago}</span>
-                                  {p.canalVenta && (
-                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                      {p.canalVenta}
-                                    </span>
-                                  )}
-                                  {p.banco && <span className="text-[9px] font-bold uppercase tracking-widest text-outline">| {p.banco}</span>}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-7 py-5">
-                            <div className="flex items-center gap-2">
-                              <span className={`material-symbols-outlined text-lg ${isCritico ? 'text-error' : 'text-outline'}`}>event</span>
-                              <span className={`font-bold ${isCritico ? 'text-error' : 'text-on-surface-variant'}`}>{p.fechaEntrega}</span>
-                            </div>
-                          </td>
-                          <td className="px-7 py-5">
-                            <p className="text-sm text-on-surface-variant mb-1">{p.productos.length} productos</p>
-                            <p className="text-sm font-bold text-error">Total: ${p.total?.toLocaleString('es-CL')}</p>
-                          </td>
-                          <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
-                              <span className="material-symbols-outlined text-xl">edit</span>
-                            </button>
-                            <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Marcar como Pagado">
-                              <span className="material-symbols-outlined text-xl">check_circle</span>
-                            </button>
-                            <button onClick={() => generarRecordatorio(p)} className="text-outline hover:bg-surface-container-high p-2 rounded-full transition-colors" title="Agendar Recordatorio">
-                              <span className="material-symbols-outlined text-xl">calendar_add_on</span>
-                            </button>
-                            <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors" title="Eliminar Pedido">
-                              <span className="material-symbols-outlined text-xl">delete</span>
-                            </button>
-                          </td>
-                        </tr>
-                        {expandedId === p.id && (
-                          <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
-                            <td colSpan={4} className="px-7 py-6">
-                              <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
-                                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary dark:text-[#e2bd6c]/80 mb-4">Detalle de Productos</h4>
-                                <div className="space-y-2">
-                                  {p.productos?.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
-                                      <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-primary font-black text-base">{item.cantidad}x</span>
-                                          <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
-                                        </div>
-                                        {item.variante && (
-                                          <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
-                                            <div 
-                                              className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                            />
-                                            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
-                                              {item.variante}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <span className="font-black text-primary dark:text-[#e2bd6c] text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                                    </div>
-                                  ))}
-                                  {p.comprobante && (
-                                    <div className="mt-4 pt-4 border-t border-primary/10 dark:border-white/5">
-                                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Datos de Transferencia</p>
-                                      <p className="text-sm text-on-surface-variant mt-1">
-                                        Banco: <span className="font-bold text-on-surface dark:text-white/90">{p.banco}</span> | 
-                                        Comprobante: <span className="font-bold text-on-surface dark:text-white/90">{p.comprobante}</span>
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    )
-                  })}
-                  {pedidos.filter(p => p.pagoEstado === 'sin pagar' || !p.pagoEstado).length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-7 py-12 text-center text-on-surface-variant text-sm italic">No hay pedidos pendientes de pago inicial.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Vista Mobile (Tarjetas) */}
-          <div className="md:hidden space-y-4">
-            {pedidos.filter(p => p.pagoEstado === 'sin pagar' || !p.pagoEstado).map(p => {
-              const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-              const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3
-              return (
-                <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-4 shadow-sm border border-outline-variant/10 dark:border-white/5 overflow-hidden">
-                  <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
-                    <div className="w-14 h-14 bg-error/10 dark:bg-white/5 rounded-2xl flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-error text-2xl font-bold italic leading-none">P</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{p.cliente}</h3>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">Entrega: {p.fechaEntrega}</p>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${isCritico ? 'bg-error text-on-error' : 'bg-primary/10 text-primary'}`}>
-                          {p.medioPago}
-                        </span>
-                        {p.canalVenta && (
-                          <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                            <span className="material-symbols-outlined text-[10px]">location_on</span>
-                            {p.canalVenta}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-base font-bold text-error leading-tight">${p.total?.toLocaleString('es-CL')}</p>
-                      <span className="material-symbols-outlined text-outline text-xl transition-transform" style={{ transform: expandedId === p.id ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                    </div>
-                  </div>
-                  
-                  {expandedId === p.id && (
-                    <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="space-y-3 mb-5">
-                        {p.productos?.map((item, idx) => (
-                          <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
-                            <div className="flex justify-between items-center mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
-                                <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
-                              </div>
-                              <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                            </div>
-                            {item.variante && (
-                              <div className="flex items-center gap-1.5 bg-primary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-primary/10 dark:border-white/5">
-                                <div 
-                                  className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                />
-                                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-primary dark:text-[#e2bd6c]">
-                                  {item.variante}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {p.banco && (
-                          <div className="bg-primary/5 dark:bg-white/5 p-3 rounded-xl border border-primary/10 dark:border-white/5">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Datos de Transferencia</p>
-                            <p className="text-xs font-bold text-on-surface dark:text-white/90 mt-1">{p.banco} | {p.comprobante}</p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                          Editar
-                        </button>
-                        <button onClick={() => handleCompletarPago(p)} className="flex-1 bg-secondary text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                          Pagar Todo
-                        </button>
-                        <button onClick={() => handleDelete(p)} className="w-12 bg-error/10 text-error flex items-center justify-center rounded-xl">
-                          <span className="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            {pedidos.filter(p => p.pagoEstado === 'sin pagar' || !p.pagoEstado).length === 0 && (
-              <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
-                <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
-                  <span className="material-symbols-outlined text-3xl">inventory_2</span>
-                </div>
-                <div>
-                  <p className="font-headline font-bold text-on-surface-variant text-lg">No hay pedidos pendientes</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">Todo el inventario está al día</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 2. Pedidos Abonados (En Proceso) */}
-        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-75">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-white/5 flex items-center justify-center shadow-sm border border-amber-500/5 dark:border-white/5">
-              <span className="material-symbols-outlined text-amber-600 dark:text-[#e2bd6c] text-2xl font-bold">payments</span>
-            </div>
-            <div>
-              <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Pedidos Abonados</h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">En proceso de pago parcial</p>
-            </div>
-          </div>
-          <div className="h-px w-full bg-gradient-to-r from-amber-500/20 via-outline-variant/10 dark:via-white/5 to-transparent mb-4" />
-          {/* Vista Desktop */}
-          <div className="hidden md:block bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl overflow-hidden shadow-sm border border-amber-500/5 dark:border-white/5">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead>
-                  <tr className="bg-surface-container dark:bg-[#2a2a2a]">
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Cliente</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Fecha Entrega</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Estado del Abono</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Saldo</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
-                  {pedidos.filter(p => p.pagoEstado === 'parcial').map(p => {
-                    const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0)
-                    return (
-                      <Fragment key={p.id}>
-                        <tr 
-                          className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
-                          onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                        >
-                          <td className="px-7 py-5">
-                            <div className="flex items-center gap-3">
-                              <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
-                                keyboard_arrow_down
-                              </span>
-                              <div>
-                                <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{p.cliente}</p>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Vía {p.medioPago}</span>
-                                  {p.canalVenta && (
-                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                      {p.canalVenta}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-7 py-5">
-                            <span className="font-bold text-on-surface-variant text-sm">{p.fechaEntrega}</span>
-                          </td>
-                          <td className="px-7 py-5">
-                            <div className="w-32 bg-outline-variant/20 h-1.5 rounded-full overflow-hidden mb-2">
-                              <div 
-                                className="h-full bg-amber-500 rounded-full transition-all duration-1000"
-                                style={{ width: `${Math.min(100, (p.abono / totalC) * 100)}%` }}
-                              />
-                            </div>
-                            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                              {Math.round((p.abono / totalC) * 100)}% Cubierto
-                            </p>
-                          </td>
-                          <td className="px-7 py-5 text-right">
-                            <div className="space-y-0.5">
-                              <p className="text-[10px] font-bold text-outline uppercase tracking-wider">Abonado: ${p.abono?.toLocaleString('es-CL')}</p>
-                              <p className="text-sm font-bold text-primary">Pendiente: ${(totalC - (p.abono || 0)).toLocaleString('es-CL')}</p>
-                            </div>
-                          </td>
-                          <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
-                              <span className="material-symbols-outlined text-xl">edit</span>
-                            </button>
-                            <button onClick={() => handleActualizarAbono(p)} className="text-amber-600 hover:bg-amber-100 p-2 rounded-full transition-colors" title="Actualizar Abono">
-                              <span className="material-symbols-outlined text-xl">edit_calendar</span>
-                            </button>
-                            <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Liquidar Saldo (Pagado)">
-                              <span className="material-symbols-outlined text-xl">price_check</span>
-                            </button>
-                            <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors">
-                              <span className="material-symbols-outlined text-xl">delete</span>
-                            </button>
-                          </td>
-                        </tr>
-                        {expandedId === p.id && (
-                          <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
-                            <td colSpan={5} className="px-7 py-6">
-                              <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
-                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Detalle de Productos</h4>
-                                <div className="space-y-2">
-                                  {p.productos?.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
-                                      <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-primary font-black text-base">{item.cantidad}x</span>
-                                          <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
-                                        </div>
-                                        {item.variante && (
-                                          <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
-                                            <div 
-                                              className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                            />
-                                            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
-                                              {item.variante}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <span className="font-black text-primary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {p.historialAbonos && p.historialAbonos.length > 0 && (
-                                  <div className="mt-8 pt-6 border-t border-amber-500/10 dark:border-white/5">
-                                    <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 mb-4">Historial de Pagos</h4>
-                                    <div className="space-y-2.5">
-                                      {p.historialAbonos.map((abono, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-5 py-3.5 rounded-2xl border border-outline-variant/5 dark:border-white/5 hover:bg-surface-variant/20 transition-colors">
-                                          <div className="flex flex-col">
-                                            <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                             {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                            <span className="text-[8px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
-                                          </div>
-                                          <div className="flex items-center gap-4">
-                                            <span className="font-bold text-amber-700 dark:text-[#f3d692] text-sm">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                            <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                              <span className="material-symbols-outlined text-[14px]">undo</span>
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ))}
+                        return (
+                          <Fragment key={p.id}>
+                            <tr 
+                              className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
+                              onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                            >
+                              <td className="px-7 py-5">
+                                <div className="flex items-center gap-3">
+                                  <span className={`material-symbols-outlined text-outline dark:text-gray-500 transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                    keyboard_arrow_down
+                                  </span>
+                                  <div>
+                                    <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{p.cliente}</p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Vía {p.medioPago}</span>
+                                      {p.canalVenta && (
+                                        <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                          <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                          {p.canalVenta}
+                                        </span>
+                                      )}
+                                      {p.banco && <span className="text-[9px] font-bold uppercase tracking-widest text-outline">| {p.banco}</span>}
                                     </div>
                                   </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                  {pedidos.filter(p => p.pagoEstado === 'parcial').length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-7 py-20 text-center">
-                        <div className="flex flex-col items-center gap-4 opacity-40">
-                          <span className="material-symbols-outlined text-5xl">payments</span>
-                          <div>
-                            <p className="font-headline font-bold text-lg">Sin abonos en curso</p>
-                            <p className="text-[10px] font-bold uppercase tracking-widest">No hay pagos parciales por liquidar</p>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          {/* Vista Mobile */}
-          <div className="md:hidden space-y-4">
-            {pedidos.filter(p => p.pagoEstado === 'parcial').map(p => {
-              const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0)
-              const perc = Math.round((p.abono / totalC) * 100)
-              return (
-                <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
-                  <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
-                    <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-amber-600 text-2xl font-bold italic leading-none">A</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{p.cliente}</h3>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-outline">Entrega: {p.fechaEntrega}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        {p.canalVenta && (
-                          <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                            <span className="material-symbols-outlined text-[10px]">location_on</span>
-                            {p.canalVenta}
-                          </span>
-                        )}
-                        <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden ml-auto">
-                          <div className="h-full bg-amber-500" style={{ width: `${perc}%` }} />
-                        </div>
-                        <span className="text-[9px] font-bold text-amber-600 uppercase">{perc}%</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-outline uppercase tracking-wider italic">Saldo</p>
-                      <p className="text-sm font-bold text-primary leading-tight">${(totalC - p.abono).toLocaleString('es-CL')}</p>
-                    </div>
-                  </div>
-                  
-                  {expandedId === p.id && (
-                    <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="space-y-2 mb-4">
-                        {p.productos?.map((item, idx) => (
-                          <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
-                            <div className="flex justify-between items-center mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
-                                <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
-                              </div>
-                              <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                            </div>
-                            {item.variante && (
-                              <div className="flex items-center gap-1.5 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
-                                <div 
-                                  className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                />
-                                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
-                                  {item.variante}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {p.historialAbonos && p.historialAbonos.length > 0 && (
-                        <div className="mb-6 space-y-3">
-                          <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 px-1">Registro de Pagos</p>
-                          <div className="space-y-2">
-                            {p.historialAbonos.map((abono, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-[10px] bg-amber-500/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-amber-500/10 dark:border-white/5">
-                                <div className="flex flex-col">
-                                  <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                    {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                  <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="font-bold text-amber-700 dark:text-[#f3d692] text-xs">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                  <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                    <span className="material-symbols-outlined text-[14px]">undo</span>
-                                  </button>
+                              </td>
+                              <td className="px-7 py-5">
+                                <div className="flex items-center gap-2">
+                                  <span className={`material-symbols-outlined text-lg ${isCritico ? 'text-error' : 'text-outline'}`}>event</span>
+                                  <span className={`font-bold ${isCritico ? 'text-error' : 'text-on-surface-variant'}`}>{p.fechaEntrega}</span>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => handleEdit(p)} className="col-span-2 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                          Editar Pedido
-                        </button>
-                        <button onClick={() => handleActualizarAbono(p)} className="bg-amber-100 text-amber-800 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest">
-                          Nuevo Abono
-                        </button>
-                        <button onClick={() => handleCompletarPago(p)} className="bg-secondary text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                          Liquidar Todo
-                        </button>
-                        <button onClick={() => handleDelete(p)} className="col-span-2 bg-error/10 text-error py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
-                          Eliminar Pedido
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            {pedidos.filter(p => p.pagoEstado === 'parcial').length === 0 && (
-              <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
-                <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
-                  <span className="material-symbols-outlined text-3xl">account_balance_wallet</span>
-                </div>
-                <div>
-                  <p className="font-headline font-bold text-on-surface-variant text-lg">Sin abonos pendientes</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">No hay saldos por cobrar actualmente</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 3. Historial de Finalizados */}
-        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-secondary/10 dark:bg-white/5 flex items-center justify-center shadow-sm border border-secondary/5 dark:border-white/5">
-              <span className="material-symbols-outlined text-secondary dark:text-green-400 text-2xl font-bold">verified_user</span>
-            </div>
-            <div>
-              <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Historial de Finalizados</h2>
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Pedidos con pago completado</p>
-            </div>
-          </div>
-          <div className="h-px w-full bg-gradient-to-r from-secondary/20 via-outline-variant/10 dark:via-white/5 to-transparent mb-4" />
-          {/* Vista Desktop */}
-          <div className="hidden md:block bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl overflow-hidden shadow-sm border border-outline-variant/5 dark:border-white/5">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-surface-container dark:bg-[#2a2a2a]">
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Cliente</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Fecha de Entrega</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Total Pagado</th>
-                    <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10">
-                  {pedidos.filter(p => p.pagoEstado === 'pagado').map(p => (
-                    <Fragment key={p.id}>
-                      <tr 
-                        className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
-                        onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                      >
-                        <td className="px-7 py-5">
-                          <div className="flex items-center gap-3">
-                            <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
-                              keyboard_arrow_down
-                            </span>
-                            <div>
-                              <p className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692]">{p.cliente}</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.medioPago}</span>
-                                {p.canalVenta && (
-                                  <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                    <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                    {p.canalVenta}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-7 py-5">
-                          <span className="font-bold text-on-surface-variant text-sm">{p.fechaEntrega}</span>
-                        </td>
-                        <td className="px-7 py-5">
-                          <p className="text-sm font-bold text-secondary">${p.total?.toLocaleString('es-CL')}</p>
-                        </td>
-                        <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
-                            <span className="material-symbols-outlined text-xl">edit</span>
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(p)} 
-                            className="text-error opacity-60 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-all"
-                            title="Eliminar registro permanentemente"
-                          >
-                            <span className="material-symbols-outlined text-xl">delete_forever</span>
-                          </button>
-                        </td>
-                      </tr>
-                      {expandedId === p.id && (
-                        <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
-                          <td colSpan={4} className="px-7 py-6">
-                            <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
-                              <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 mb-4">Detalle de la Venta</h4>
-                              <div className="space-y-2">
-                                {p.productos?.map((item, idx) => (
-                                  <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-secondary/10 hover:bg-secondary/10 transition-colors">
-                                    <div className="flex flex-col">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-secondary dark:text-[#e2bd6c] font-black text-base">{item.cantidad}x</span>
-                                        <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
-                                      </div>
-                                      {item.variante && (
-                                        <div className="flex items-center gap-1.5 mt-1 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
-                                          <div 
-                                            className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                            style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                          />
-                                          <span className="text-[9px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
-                                            {item.variante}
-                                          </span>
+                              </td>
+                              <td className="px-7 py-5">
+                                <p className="text-sm text-on-surface-variant mb-1">{p.productos.length} productos</p>
+                                <p className="text-sm font-bold text-error">Total: ${p.total?.toLocaleString('es-CL')}</p>
+                              </td>
+                              <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                                  <span className="material-symbols-outlined text-xl">edit</span>
+                                </button>
+                                <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Marcar como Pagado">
+                                  <span className="material-symbols-outlined text-xl">check_circle</span>
+                                </button>
+                                <button onClick={() => generarRecordatorio(p)} className="text-outline hover:bg-surface-container-high p-2 rounded-full transition-colors" title="Agendar Recordatorio">
+                                  <span className="material-symbols-outlined text-xl">calendar_add_on</span>
+                                </button>
+                                <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors" title="Eliminar Pedido">
+                                  <span className="material-symbols-outlined text-xl">delete</span>
+                                </button>
+                              </td>
+                            </tr>
+                            {expandedId === p.id && (
+                              <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
+                                <td colSpan={4} className="px-7 py-6">
+                                  <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
+                                    <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary dark:text-[#e2bd6c]/80 mb-4">Detalle de Productos</h4>
+                                    <div className="space-y-2">
+                                      {p.productos?.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
+                                          <div className="flex flex-col">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-primary font-black text-base">{item.cantidad}x</span>
+                                              <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
+                                            </div>
+                                            {item.variante && (
+                                              <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
+                                                <div 
+                                                  className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                                />
+                                                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
+                                                  {item.variante}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <span className="font-black text-primary dark:text-[#e2bd6c] text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                        </div>
+                                      ))}
+                                      {p.comprobante && (
+                                        <div className="mt-4 pt-4 border-t border-primary/10 dark:border-white/5">
+                                          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Datos de Transferencia</p>
+                                          <p className="text-sm text-on-surface-variant mt-1">
+                                            Banco: <span className="font-bold text-on-surface dark:text-white/90">{p.banco}</span> | 
+                                            Comprobante: <span className="font-bold text-on-surface dark:text-white/90">{p.comprobante}</span>
+                                          </p>
                                         </div>
                                       )}
                                     </div>
-                                    <span className="font-black text-secondary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                                   </div>
-                                ))}
-                              </div>
-
-                              {p.historialAbonos && p.historialAbonos.length > 0 && (
-                                <div className="mt-6 pt-4 border-t border-outline-variant/10">
-                                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {p.historialAbonos.map((abono, idx) => (
-                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
-                                        <div className="flex flex-col">
-                                          <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                            {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                          </span>
-                                          <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                          <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                            <span className="material-symbols-outlined text-[14px]">undo</span>
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </td>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        )
+                      })}
+                      {listPendientes.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-7 py-12 text-center text-on-surface-variant text-sm italic">No hay pedidos pendientes de pago inicial.</td>
                         </tr>
                       )}
-                    </Fragment>
-                  ))}
-                  {pedidos.filter(p => p.pagoEstado === 'pagado').length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-7 py-20 text-center">
-                        <div className="flex flex-col items-center gap-4 opacity-40">
-                          <span className="material-symbols-outlined text-5xl">history</span>
-                          <div>
-                            <p className="font-headline font-bold text-lg">Historial vacío</p>
-                            <p className="text-[10px] font-bold uppercase tracking-widest">Aún no hay pedidos finalizados registrados</p>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          {/* Vista Mobile */}
-          <div className="md:hidden space-y-4">
-            {pedidos.filter(p => p.pagoEstado === 'pagado').map(p => (
-              <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
-                <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
-                  <div className="w-14 h-14 bg-secondary/10 dark:bg-white/5 rounded-2xl flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl font-bold italic leading-none">H</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692] truncate">{p.cliente}</h3>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Finalizado el: {p.fechaEntrega}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-extrabold uppercase tracking-widest">
-                        {p.medioPago}
-                      </span>
-                      {p.canalVenta && (
-                        <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                          <span className="material-symbols-outlined text-[10px]">location_on</span>
-                          {p.canalVenta}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-base font-bold text-secondary dark:text-[#e2bd6c] leading-tight">${p.total?.toLocaleString('es-CL')}</p>
-                    <span className={`material-symbols-outlined text-outline dark:text-white/20 text-xl transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>expand_more</span>
-                  </div>
+                    </tbody>
+                  </table>
                 </div>
-                {expandedId === p.id && (
-                  <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="space-y-2 mb-4">
-                      {p.productos?.map((item, idx) => (
-                        <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
-                          <div className="flex justify-between items-center mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-secondary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
-                              <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
-                            </div>
-                            <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                          </div>
-                          {item.variante && (
-                            <div className="flex items-center gap-1.5 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
-                              <div 
-                                className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                              />
-                              <span className="text-[8px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
-                                {item.variante}
-                              </span>
-                            </div>
-                          )}
+              </div>
+
+              {/* Vista Mobile (Tarjetas) */}
+              <div className="md:hidden space-y-4">
+                {paginatedPendientes.map(p => {
+                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+                  const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3
+                  return (
+                    <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-4 shadow-sm border border-outline-variant/10 dark:border-white/5 overflow-hidden">
+                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                        <div className="w-14 h-14 bg-error/10 dark:bg-white/5 rounded-2xl flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-error text-2xl font-bold italic leading-none">P</span>
                         </div>
-                      ))}
-                    </div>
-                    {p.historialAbonos && p.historialAbonos.length > 0 && (
-                      <div className="mb-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-3">
-                        <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 px-1">Pagos Registrados</p>
-                        <div className="space-y-2">
-                          {p.historialAbonos.map((abono, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-[10px] bg-secondary/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-secondary/10 dark:border-white/5">
-                              <div className="flex flex-col">
-                                <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                  {new Date(abono.fecha).toLocaleDateString('es-CL')} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="font-bold text-secondary dark:text-[#f3d692]">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                  <span className="material-symbols-outlined text-[14px]">undo</span>
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{p.cliente}</h3>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">Entrega: {p.fechaEntrega}</p>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${isCritico ? 'bg-error text-on-error' : 'bg-primary/10 text-primary'}`}>
+                              {p.medioPago}
+                            </span>
+                            {p.canalVenta && (
+                              <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                {p.canalVenta}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-base font-bold text-error leading-tight">${p.total?.toLocaleString('es-CL')}</p>
+                          <span className="material-symbols-outlined text-outline text-xl transition-transform" style={{ transform: expandedId === p.id ? 'rotate(180deg)' : 'none' }}>expand_more</span>
                         </div>
                       </div>
-                    )}
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                        Editar Pedido
-                      </button>
-                      <button onClick={() => handleDelete(p)} className="flex-1 bg-error/10 text-error py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined text-sm">delete_forever</span>
-                        Eliminar
-                      </button>
+                      
+                      {expandedId === p.id && (
+                        <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="space-y-3 mb-5">
+                            {p.productos?.map((item, idx) => (
+                              <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
+                                <div className="flex justify-between items-center mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
+                                    <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                                  </div>
+                                  <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                </div>
+                                {item.variante && (
+                                  <div className="flex items-center gap-1.5 bg-primary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-primary/10 dark:border-white/5">
+                                    <div 
+                                      className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                      style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                    />
+                                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-primary dark:text-[#e2bd6c]">
+                                      {item.variante}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {p.banco && (
+                              <div className="bg-primary/5 dark:bg-white/5 p-3 rounded-xl border border-primary/10 dark:border-white/5">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Datos de Transferencia</p>
+                                <p className="text-xs font-bold text-on-surface dark:text-white/90 mt-1">{p.banco} | {p.comprobante}</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                              Editar
+                            </button>
+                            <button onClick={() => handleCompletarPago(p)} className="flex-1 bg-secondary text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                              Pagar Todo
+                            </button>
+                            <button onClick={() => handleDelete(p)} className="w-12 bg-error/10 text-error flex items-center justify-center rounded-xl">
+                              <span className="material-symbols-outlined">delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {listPendientes.length === 0 && (
+                  <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
+                      <span className="material-symbols-outlined text-3xl">inventory_2</span>
+                    </div>
+                    <div>
+                      <p className="font-headline font-bold text-on-surface-variant text-lg">No hay pedidos pendientes</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">Todo el inventario está al día</p>
                     </div>
                   </div>
                 )}
               </div>
-            ))}
-            {pedidos.filter(p => p.pagoEstado === 'pagado').length === 0 && (
-              <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4">
-                <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
-                  <span className="material-symbols-outlined text-3xl">auto_stories</span>
+
+              {/* Controles de Paginación */}
+              {renderPaginationControls(safePagePendientes, listPendientes.length, setPagePendientes)}
+            </div>
+          )}
+        </section>
+
+        {/* 2. Pedidos Abonados (En Proceso) */}
+        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-75">
+          <div 
+            onClick={() => setSectionsOpen(prev => ({ ...prev, abonados: !prev.abonados }))}
+            className="flex items-center justify-between group select-none cursor-pointer hover:opacity-90 transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-white/5 flex items-center justify-center shadow-sm border border-amber-500/5 dark:border-white/5 transition-transform duration-300 group-hover:scale-105">
+                <span className="material-symbols-outlined text-amber-600 dark:text-[#e2bd6c] text-2xl font-bold">payments</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Pedidos Abonados</h2>
+                  <span className="bg-amber-500/10 dark:bg-[#e2bd6c]/10 text-amber-600 dark:text-[#e2bd6c] font-bold px-2 py-0.5 rounded-full text-xs transition-colors">
+                    [ {listAbonados.length} ]
+                  </span>
                 </div>
-                <div>
-                  <p className="font-headline font-bold text-on-surface-variant text-lg">Historial vacío</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">Pronto verás tus ventas aquí</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">En proceso de pago parcial</p>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-secondary/5 dark:bg-white/5 flex items-center justify-center border border-outline-variant/10 dark:border-white/10 transition-transform duration-300">
+              <span className={`material-symbols-outlined text-outline dark:text-gray-400 transition-transform duration-300 ${sectionsOpen.abonados ? 'rotate-180' : ''}`}>
+                expand_more
+              </span>
+            </div>
+          </div>
+          <div className="h-px w-full bg-gradient-to-r from-amber-500/20 via-outline-variant/10 dark:via-white/5 to-transparent mb-4" />
+          
+          {sectionsOpen.abonados && (
+            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              {/* Vista Desktop */}
+              <div className="hidden md:block bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl overflow-hidden shadow-sm border border-amber-500/5 dark:border-white/5">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="bg-surface-container dark:bg-[#2a2a2a]">
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Cliente</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Fecha Entrega</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Estado del Abono</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Saldo</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
+                      {paginatedAbonados.map(p => {
+                        const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0)
+                        return (
+                          <Fragment key={p.id}>
+                            <tr 
+                              className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
+                              onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                            >
+                              <td className="px-7 py-5">
+                                <div className="flex items-center gap-3">
+                                  <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                    keyboard_arrow_down
+                                  </span>
+                                  <div>
+                                    <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{p.cliente}</p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Vía {p.medioPago}</span>
+                                      {p.canalVenta && (
+                                        <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                          <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                          {p.canalVenta}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-7 py-5">
+                                <span className="font-bold text-on-surface-variant text-sm">{p.fechaEntrega}</span>
+                              </td>
+                              <td className="px-7 py-5">
+                                <div className="w-32 bg-outline-variant/20 h-1.5 rounded-full overflow-hidden mb-2">
+                                  <div 
+                                    className="h-full bg-amber-500 rounded-full transition-all duration-1000"
+                                    style={{ width: `${Math.min(100, (p.abono / totalC) * 100)}%` }}
+                                  />
+                                </div>
+                                <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+                                  {Math.round((p.abono / totalC) * 100)}% Cubierto
+                                </p>
+                              </td>
+                              <td className="px-7 py-5 text-right">
+                                <div className="space-y-0.5">
+                                  <p className="text-[10px] font-bold text-outline uppercase tracking-wider">Abonado: ${p.abono?.toLocaleString('es-CL')}</p>
+                                  <p className="text-sm font-bold text-primary">Pendiente: ${(totalC - (p.abono || 0)).toLocaleString('es-CL')}</p>
+                                </div>
+                              </td>
+                              <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                                  <span className="material-symbols-outlined text-xl">edit</span>
+                                </button>
+                                <button onClick={() => handleActualizarAbono(p)} className="text-amber-600 hover:bg-amber-100 p-2 rounded-full transition-colors" title="Actualizar Abono">
+                                  <span className="material-symbols-outlined text-xl">edit_calendar</span>
+                                </button>
+                                <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Liquidar Saldo (Pagado)">
+                                  <span className="material-symbols-outlined text-xl">price_check</span>
+                                </button>
+                                <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors">
+                                  <span className="material-symbols-outlined text-xl">delete</span>
+                                </button>
+                              </td>
+                            </tr>
+                            {expandedId === p.id && (
+                              <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
+                                <td colSpan={5} className="px-7 py-6">
+                                  <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Detalle de Productos</h4>
+                                    <div className="space-y-2">
+                                      {p.productos?.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
+                                          <div className="flex flex-col">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-primary font-black text-base">{item.cantidad}x</span>
+                                              <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
+                                            </div>
+                                            {item.variante && (
+                                              <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
+                                                <div 
+                                                  className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                                />
+                                                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
+                                                  {item.variante}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <span className="font-black text-primary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {p.historialAbonos && p.historialAbonos.length > 0 && (
+                                      <div className="mt-8 pt-6 border-t border-amber-500/10 dark:border-white/5">
+                                        <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 mb-4">Historial de Pagos</h4>
+                                        <div className="space-y-2.5">
+                                          {p.historialAbonos.map((abono, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-5 py-3.5 rounded-2xl border border-outline-variant/5 dark:border-white/5 hover:bg-surface-variant/20 transition-colors">
+                                              <div className="flex flex-col">
+                                                <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                 {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                <span className="text-[8px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
+                                              </div>
+                                              <div className="flex items-center gap-4">
+                                                <span className="font-bold text-amber-700 dark:text-[#f3d692] text-sm">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                  <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                      {listAbonados.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-7 py-20 text-center">
+                            <div className="flex flex-col items-center gap-4 opacity-40">
+                              <span className="material-symbols-outlined text-5xl">payments</span>
+                              <div>
+                                <p className="font-headline font-bold text-lg">Sin abonos en curso</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest">No hay pagos parciales por liquidar</p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            )}
+              
+              {/* Vista Mobile */}
+              <div className="md:hidden space-y-4">
+                {paginatedAbonados.map(p => {
+                  const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0)
+                  const perc = Math.round((p.abono / totalC) * 100)
+                  return (
+                    <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
+                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                        <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-amber-600 text-2xl font-bold italic leading-none">A</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{p.cliente}</h3>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-outline">Entrega: {p.fechaEntrega}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {p.canalVenta && (
+                              <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                {p.canalVenta}
+                              </span>
+                            )}
+                            <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden ml-auto">
+                              <div className="h-full bg-amber-500" style={{ width: `${perc}%` }} />
+                            </div>
+                            <span className="text-[9px] font-bold text-amber-600 uppercase">{perc}%</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-outline uppercase tracking-wider italic">Saldo</p>
+                          <p className="text-sm font-bold text-primary leading-tight">${(totalC - p.abono).toLocaleString('es-CL')}</p>
+                        </div>
+                      </div>
+                      
+                      {expandedId === p.id && (
+                        <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="space-y-2 mb-4">
+                            {p.productos?.map((item, idx) => (
+                              <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
+                                <div className="flex justify-between items-center mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
+                                    <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                                  </div>
+                                  <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                </div>
+                                {item.variante && (
+                                  <div className="flex items-center gap-1.5 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
+                                    <div 
+                                      className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                      style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                    />
+                                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
+                                      {item.variante}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {p.historialAbonos && p.historialAbonos.length > 0 && (
+                            <div className="mb-6 space-y-3">
+                              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 px-1">Registro de Pagos</p>
+                              <div className="space-y-2">
+                                {p.historialAbonos.map((abono, idx) => (
+                                  <div key={idx} className="flex justify-between items-center text-[10px] bg-amber-500/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-amber-500/10 dark:border-white/5">
+                                    <div className="flex flex-col">
+                                      <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                        {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                      <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="font-bold text-amber-700 dark:text-[#f3d692] text-xs">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                      <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                        <span className="material-symbols-outlined text-[14px]">undo</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => handleEdit(p)} className="col-span-2 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                              Editar Pedido
+                            </button>
+                            <button onClick={() => handleActualizarAbono(p)} className="bg-amber-100 text-amber-800 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest">
+                              Nuevo Abono
+                            </button>
+                            <button onClick={() => handleCompletarPago(p)} className="bg-secondary text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                              Liquidar Todo
+                            </button>
+                            <button onClick={() => handleDelete(p)} className="col-span-2 bg-error/10 text-error py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
+                              Eliminar Pedido
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {listAbonados.length === 0 && (
+                  <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
+                      <span className="material-symbols-outlined text-3xl">account_balance_wallet</span>
+                    </div>
+                    <div>
+                      <p className="font-headline font-bold text-on-surface-variant text-lg">Sin abonos pendientes</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">No hay saldos por cobrar actualmente</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Controles de Paginación */}
+              {renderPaginationControls(safePageAbonados, listAbonados.length, setPageAbonados)}
+            </div>
+          )}
+        </section>
+
+        {/* 3. Historial de Finalizados */}
+        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
+          <div 
+            onClick={() => setSectionsOpen(prev => ({ ...prev, finalizados: !prev.finalizados }))}
+            className="flex items-center justify-between group select-none cursor-pointer hover:opacity-90 transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-secondary/10 dark:bg-white/5 flex items-center justify-center shadow-sm border border-secondary/5 dark:border-white/5 transition-transform duration-300 group-hover:scale-105">
+                <span className="material-symbols-outlined text-secondary dark:text-green-400 text-2xl font-bold">verified_user</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Historial de Finalizados</h2>
+                  <span className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-green-400 font-bold px-2 py-0.5 rounded-full text-xs transition-colors">
+                    [ {listFinalizados.length} ]
+                  </span>
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Pedidos con pago completado</p>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-secondary/5 dark:bg-white/5 flex items-center justify-center border border-outline-variant/10 dark:border-white/10 transition-transform duration-300">
+              <span className={`material-symbols-outlined text-outline dark:text-gray-400 transition-transform duration-300 ${sectionsOpen.finalizados ? 'rotate-180' : ''}`}>
+                expand_more
+              </span>
+            </div>
           </div>
+          <div className="h-px w-full bg-gradient-to-r from-secondary/20 via-outline-variant/10 dark:via-white/5 to-transparent mb-4" />
+          
+          {sectionsOpen.finalizados && (
+            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              {/* Vista Desktop */}
+              <div className="hidden md:block bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl overflow-hidden shadow-sm border border-outline-variant/5 dark:border-white/5">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="bg-surface-container dark:bg-[#2a2a2a]">
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Cliente</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Fecha de Entrega</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400">Total Pagado</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10">
+                      {paginatedFinalizados.map(p => (
+                        <Fragment key={p.id}>
+                          <tr 
+                            className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
+                            onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                          >
+                            <td className="px-7 py-5">
+                              <div className="flex items-center gap-3">
+                                <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                  keyboard_arrow_down
+                                </span>
+                                <div>
+                                  <p className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692]">{p.cliente}</p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.medioPago}</span>
+                                    {p.canalVenta && (
+                                      <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                        <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                        {p.canalVenta}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-7 py-5">
+                              <span className="font-bold text-on-surface-variant text-sm">{p.fechaEntrega}</span>
+                            </td>
+                            <td className="px-7 py-5">
+                              <p className="text-sm font-bold text-secondary">${p.total?.toLocaleString('es-CL')}</p>
+                            </td>
+                            <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                                <span className="material-symbols-outlined text-xl">edit</span>
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(p)} 
+                                className="text-error opacity-60 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-all"
+                                title="Eliminar registro permanentemente"
+                              >
+                                <span className="material-symbols-outlined text-xl">delete_forever</span>
+                              </button>
+                            </td>
+                          </tr>
+                          {expandedId === p.id && (
+                            <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
+                              <td colSpan={4} className="px-7 py-6">
+                                <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
+                                  <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 mb-4">Detalle de la Venta</h4>
+                                  <div className="space-y-2">
+                                    {p.productos?.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-secondary/10 hover:bg-secondary/10 transition-colors">
+                                        <div className="flex flex-col">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-secondary dark:text-[#e2bd6c] font-black text-base">{item.cantidad}x</span>
+                                            <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
+                                          </div>
+                                          {item.variante && (
+                                            <div className="flex items-center gap-1.5 mt-1 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
+                                              <div 
+                                                className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                                style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                              />
+                                              <span className="text-[9px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
+                                                {item.variante}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span className="font-black text-secondary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {p.historialAbonos && p.historialAbonos.length > 0 && (
+                                    <div className="mt-6 pt-4 border-t border-outline-variant/10">
+                                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {p.historialAbonos.map((abono, idx) => (
+                                          <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
+                                            <div className="flex flex-col">
+                                              <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                              </span>
+                                              <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                              <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                <span className="material-symbols-outlined text-[14px]">undo</span>
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      ))}
+                      {listFinalizados.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-7 py-20 text-center">
+                            <div className="flex flex-col items-center gap-4 opacity-40">
+                              <span className="material-symbols-outlined text-5xl">history</span>
+                              <div>
+                                <p className="font-headline font-bold text-lg">Historial vacío</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest">Aún no hay pedidos finalizados registrados</p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {/* Vista Mobile */}
+              <div className="md:hidden space-y-4">
+                {paginatedFinalizados.map(p => (
+                  <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
+                    <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                      <div className="w-14 h-14 bg-secondary/10 dark:bg-white/5 rounded-2xl flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl font-bold italic leading-none">H</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692] truncate">{p.cliente}</h3>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Finalizado el: {p.fechaEntrega}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-extrabold uppercase tracking-widest">
+                            {p.medioPago}
+                          </span>
+                          {p.canalVenta && (
+                            <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[10px]">location_on</span>
+                              {p.canalVenta}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-bold text-secondary dark:text-[#e2bd6c] leading-tight">${p.total?.toLocaleString('es-CL')}</p>
+                        <span className={`material-symbols-outlined text-outline dark:text-white/20 text-xl transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>expand_more</span>
+                      </div>
+                    </div>
+                    {expandedId === p.id && (
+                      <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-2 mb-4">
+                          {p.productos?.map((item, idx) => (
+                            <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-secondary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
+                                  <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                                </div>
+                                <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                              </div>
+                              {item.variante && (
+                                <div className="flex items-center gap-1.5 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
+                                  <div 
+                                    className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                    style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                  />
+                                  <span className="text-[8px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
+                                    {item.variante}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {p.historialAbonos && p.historialAbonos.length > 0 && (
+                          <div className="mb-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-3">
+                            <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 px-1">Pagos Registrados</p>
+                            <div className="space-y-2">
+                              {p.historialAbonos.map((abono, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-[10px] bg-secondary/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-secondary/10 dark:border-white/5">
+                                  <div className="flex flex-col">
+                                    <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                      {new Date(abono.fecha).toLocaleDateString('es-CL')} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-bold text-secondary dark:text-[#f3d692]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                      <span className="material-symbols-outlined text-[14px]">undo</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                            Editar Pedido
+                          </button>
+                          <button onClick={() => handleDelete(p)} className="flex-1 bg-error/10 text-error py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                            <span className="material-symbols-outlined text-sm">delete_forever</span>
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {listFinalizados.length === 0 && (
+                  <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4">
+                    <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
+                      <span className="material-symbols-outlined text-3xl">auto_stories</span>
+                    </div>
+                    <div>
+                      <p className="font-headline font-bold text-on-surface-variant text-lg">Historial vacío</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">Pronto verás tus ventas aquí</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Controles de Paginación */}
+              {renderPaginationControls(safePageFinalizados, listFinalizados.length, setPageFinalizados)}
+            </div>
+          )}
         </section>
           </>
         ) : (

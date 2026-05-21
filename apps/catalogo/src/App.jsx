@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore'
 import { db, auth } from './config/firebase'
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
 const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
@@ -98,6 +98,13 @@ export default function CatalogoPublico() {
   const [deleteAccountError, setDeleteAccountError] = useState('')
   const [deleteAccountSuccess, setDeleteAccountSuccess] = useState('')
   const [isDeleteAccountLoading, setIsDeleteAccountLoading] = useState(false)
+
+  // Password Recovery States
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [resetEmailSuccess, setResetEmailSuccess] = useState('')
+  const [resetEmailError, setResetEmailError] = useState('')
+  const [isResetEmailLoading, setIsResetEmailLoading] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
 
   // Referencias para evitar condiciones de carrera en la sincronización del carrito
   const loadingCartFromDb = useRef(false)
@@ -473,6 +480,51 @@ export default function CatalogoPublico() {
       }
     } finally {
       setIsDeleteAccountLoading(false)
+    }
+  }
+
+  const handleSendResetEmailLoggedIn = async () => {
+    setIsResetEmailLoading(true)
+    setResetEmailSuccess('')
+    setResetEmailError('')
+    try {
+      await sendPasswordResetEmail(auth, currentUser.email)
+      setResetEmailSuccess(`Se ha enviado un correo a ${currentUser.email} para restablecer tu contraseña.`)
+      setTimeout(() => {
+        setShowResetPasswordModal(false)
+        setResetEmailSuccess('')
+      }, 3500)
+    } catch (error) {
+      console.error(error)
+      setResetEmailError(error.message || 'Error al enviar el correo de recuperación.')
+    } finally {
+      setIsResetEmailLoading(false)
+    }
+  }
+
+  const handleSendResetEmailForgot = async (e) => {
+    e.preventDefault()
+    setIsResetEmailLoading(true)
+    setResetEmailSuccess('')
+    setResetEmailError('')
+    try {
+      if (!forgotEmail.trim()) throw new Error("El correo es obligatorio")
+      await sendPasswordResetEmail(auth, forgotEmail.trim())
+      setResetEmailSuccess(`Se ha enviado un correo a ${forgotEmail.trim()} para restablecer tu contraseña.`)
+      setForgotEmail('')
+      setTimeout(() => {
+        setAuthTab('login')
+        setResetEmailSuccess('')
+      }, 4500)
+    } catch (error) {
+      console.error(error)
+      if (error.code === 'auth/user-not-found') {
+        setResetEmailError('No hay ninguna cuenta registrada con este correo electrónico.')
+      } else {
+        setResetEmailError(error.message || 'Error al enviar el correo de recuperación.')
+      }
+    } finally {
+      setIsResetEmailLoading(false)
     }
   }
 
@@ -958,6 +1010,18 @@ export default function CatalogoPublico() {
                       >
                         <span className="material-symbols-outlined text-[16px]">edit</span>
                         Editar Perfil
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setResetEmailSuccess('')
+                          setResetEmailError('')
+                          setShowResetPasswordModal(true)
+                          setShowProfileMenu(false)
+                        }}
+                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors flex items-center gap-2 border-b ${isDark ? 'text-white border-white/5 hover:bg-white/5' : 'text-on-surface border-outline-variant/10 hover:bg-surface-variant/20'}`}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">lock_reset</span>
+                        Restablecer Contraseña
                       </button>
                       <button 
                         onClick={() => {
@@ -1759,10 +1823,10 @@ export default function CatalogoPublico() {
             {/* Header del Modal */}
             <div className={`p-6 text-center relative border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
               <h3 className={`font-headline text-2xl font-black italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
-                {authTab === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                {authTab === 'login' ? 'Iniciar Sesión' : authTab === 'register' ? 'Crear Cuenta' : 'Recuperar Contraseña'}
               </h3>
               <p className={`text-xs font-bold uppercase tracking-widest mt-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
-                {authTab === 'login' ? 'Bienvenido de vuelta' : 'Únete a nosotros'}
+                {authTab === 'login' ? 'Bienvenido de vuelta' : authTab === 'register' ? 'Únete a nosotros' : 'Restablece tus credenciales'}
               </p>
               <button 
                 onClick={() => setShowAuthModal(false)}
@@ -1772,114 +1836,185 @@ export default function CatalogoPublico() {
               </button>
             </div>
 
-            {/* Pestañas */}
-            <div className={`flex border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
-              <button
-                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'login' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
-                onClick={() => { setAuthTab('login'); setAuthError(''); setAuthSuccess(''); }}
-              >
-                Ingresar
-              </button>
-              <button
-                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'register' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
-                onClick={() => { setAuthTab('register'); setAuthError(''); setAuthSuccess(''); }}
-              >
-                Registrarse
-              </button>
-            </div>
-
-            {/* Formulario */}
-            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
-              {authTab === 'register' && (
-                <div>
-                  <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Nombre Completo</label>
-                  <input 
-                    type="text" 
-                    value={authForm.nombre}
-                    onChange={e => setAuthForm({...authForm, nombre: e.target.value})}
-                    required
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
-                    placeholder="Ej. Juan Pérez"
-                  />
+            {authTab !== 'forgot' ? (
+              <>
+                {/* Pestañas */}
+                <div className={`flex border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
+                  <button
+                    className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'login' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
+                    onClick={() => { setAuthTab('login'); setAuthError(''); setAuthSuccess(''); }}
+                  >
+                    Ingresar
+                  </button>
+                  <button
+                    className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${authTab === 'register' ? (isDark ? 'text-[#e2bd6c] border-b-2 border-[#e2bd6c]' : 'text-primary border-b-2 border-primary') : (isDark ? 'text-gray-400 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/30')}`}
+                    onClick={() => { setAuthTab('register'); setAuthError(''); setAuthSuccess(''); }}
+                  >
+                    Registrarse
+                  </button>
                 </div>
-              )}
-              
-              <div>
-                <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Correo Electrónico</label>
-                <input 
-                  type="email" 
-                  value={authForm.email}
-                  onChange={e => setAuthForm({...authForm, email: e.target.value})}
-                  required
-                  className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
-                  placeholder="tu@correo.com"
-                />
-              </div>
 
-              {authTab === 'register' && (
-                <div>
-                  <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Número de WhatsApp</label>
-                  <input 
-                    type="tel" 
-                    value={authForm.whatsapp}
-                    onChange={e => setAuthForm({...authForm, whatsapp: e.target.value})}
-                    required
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
-                    placeholder="+56 9 1234 5678"
-                  />
-                  <p className={`text-[10px] mt-1 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Se usará para autocompletar tus pedidos.</p>
-                </div>
-              )}
-
-              <div>
-                <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Contraseña</label>
-                <input 
-                  type="password" 
-                  value={authForm.password}
-                  onChange={e => setAuthForm({...authForm, password: e.target.value})}
-                  required
-                  minLength={6}
-                  className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
-                  placeholder="••••••"
-                />
-              </div>
-
-              {authError && (
-                <div className="bg-error/10 text-error px-4 py-3 rounded-xl text-xs font-bold text-center border border-error/20">
-                  {authError}
-                </div>
-              )}
-
-              {authSuccess && (
-                <div className="bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-3 rounded-xl text-xs font-bold text-center border border-green-500/20 animate-in fade-in">
-                  {authSuccess}
-                </div>
-              )}
-
-              <div className="pt-2">
-                <button 
-                  type="submit"
-                  disabled={isAuthLoading}
-                  className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-md disabled:opacity-50 flex items-center justify-center ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary/90'}`}
-                >
-                  {isAuthLoading ? (
-                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  ) : (
-                    authTab === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'
+                {/* Formulario de Login/Registro */}
+                <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
+                  {authTab === 'register' && (
+                    <div>
+                      <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Nombre Completo</label>
+                      <input 
+                        type="text" 
+                        value={authForm.nombre}
+                        onChange={e => setAuthForm({...authForm, nombre: e.target.value})}
+                        required
+                        className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
+                        placeholder="Ej. Juan Pérez"
+                      />
+                    </div>
                   )}
-                </button>
-              </div>
+                  
+                  <div>
+                    <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Correo Electrónico</label>
+                    <input 
+                      type="email" 
+                      value={authForm.email}
+                      onChange={e => setAuthForm({...authForm, email: e.target.value})}
+                      required
+                      className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
+                      placeholder="tu@correo.com"
+                    />
+                  </div>
 
-              <div className="text-center pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setShowAuthModal(false)}
-                  className={`text-xs font-bold uppercase tracking-wider transition-colors ${isDark ? 'text-gray-400 hover:text-[#e2bd6c]' : 'text-outline hover:text-on-surface'}`}
-                >
-                  Continuar como invitado
-                </button>
-              </div>
-            </form>
+                  {authTab === 'register' && (
+                    <div>
+                      <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Número de WhatsApp</label>
+                      <input 
+                        type="tel" 
+                        value={authForm.whatsapp}
+                        onChange={e => setAuthForm({...authForm, whatsapp: e.target.value})}
+                        required
+                        className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
+                        placeholder="+56 9 1234 5678"
+                      />
+                      <p className={`text-[10px] mt-1 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Se usará para autocompletar tus pedidos.</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Contraseña</label>
+                    <input 
+                      type="password" 
+                      value={authForm.password}
+                      onChange={e => setAuthForm({...authForm, password: e.target.value})}
+                      required
+                      minLength={6}
+                      className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
+                      placeholder="••••••"
+                    />
+                    {authTab === 'login' && (
+                      <div className="text-right mt-1.5">
+                        <button 
+                          type="button"
+                          onClick={() => { setAuthTab('forgot'); setAuthError(''); setAuthSuccess(''); setResetEmailSuccess(''); setResetEmailError(''); }}
+                          className={`text-[10px] font-extrabold uppercase tracking-wider transition-colors ${isDark ? 'text-gray-400 hover:text-[#e2bd6c]' : 'text-outline hover:text-primary'}`}
+                        >
+                          ¿Olvidaste tu contraseña?
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {authError && (
+                    <div className="bg-error/10 text-error px-4 py-3 rounded-xl text-xs font-bold text-center border border-error/20">
+                      {authError}
+                    </div>
+                  )}
+
+                  {authSuccess && (
+                    <div className="bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-3 rounded-xl text-xs font-bold text-center border border-green-500/20 animate-in fade-in">
+                      {authSuccess}
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <button 
+                      type="submit"
+                      disabled={isAuthLoading}
+                      className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-md disabled:opacity-50 flex items-center justify-center ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary/90'}`}
+                    >
+                      {isAuthLoading ? (
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      ) : (
+                        authTab === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="text-center pt-2">
+                    <button 
+                      type="button"
+                      onClick={() => setShowAuthModal(false)}
+                      className={`text-xs font-bold uppercase tracking-wider transition-colors ${isDark ? 'text-gray-400 hover:text-[#e2bd6c]' : 'text-outline hover:text-on-surface'}`}
+                    >
+                      Continuar como invitado
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              /* Formulario de Recuperación de Contraseña */
+              <form onSubmit={handleSendResetEmailForgot} className="p-6 space-y-4">
+                <div className={`p-4 rounded-2xl flex gap-3 items-start ${isDark ? 'bg-white/5 border border-white/10' : 'bg-surface-container border border-outline-variant/30'}`}>
+                  <span className={`material-symbols-outlined shrink-0 mt-0.5 ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>mail</span>
+                  <p className={`text-[10px] leading-relaxed ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
+                    Ingresa tu correo electrónico a continuación. Si la cuenta existe, te enviaremos un enlace seguro para restablecer tu contraseña.
+                  </p>
+                </div>
+
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Correo Electrónico</label>
+                  <input 
+                    type="email" 
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    required
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none font-medium ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-white' : 'bg-surface-container border-outline-variant/30 focus:border-primary text-on-surface'}`}
+                    placeholder="tu@correo.com"
+                  />
+                </div>
+
+                {resetEmailError && (
+                  <div className="bg-error/10 text-error px-4 py-3 rounded-xl text-xs font-bold text-center border border-error/20">
+                    {resetEmailError}
+                  </div>
+                )}
+
+                {resetEmailSuccess && (
+                  <div className="bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-3 rounded-xl text-xs font-bold text-center border border-green-500/20 animate-in fade-in">
+                    {resetEmailSuccess}
+                  </div>
+                )}
+
+                <div className="pt-2 space-y-3">
+                  <button 
+                    type="submit"
+                    disabled={isResetEmailLoading}
+                    className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-md disabled:opacity-50 flex items-center justify-center ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary/90'}`}
+                  >
+                    {isResetEmailLoading ? (
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    ) : (
+                      'Enviar Enlace'
+                    )}
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => { setAuthTab('login'); setAuthError(''); setAuthSuccess(''); setResetEmailSuccess(''); setResetEmailError(''); }}
+                    className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors border ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-outline-variant text-on-surface hover:bg-surface-variant/30'}`}
+                  >
+                    Volver a Iniciar Sesión
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -2075,6 +2210,80 @@ export default function CatalogoPublico() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE RESTABLECER CONTRASEÑA */}
+      {showResetPasswordModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}>
+            
+            {/* Header */}
+            <div className={`p-6 text-center relative border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
+              <h3 className={`font-headline text-2xl font-black italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                Restablecer Contraseña
+              </h3>
+              <p className={`text-xs font-bold uppercase tracking-widest mt-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
+                Enviar enlace de recuperación
+              </p>
+              <button 
+                onClick={() => setShowResetPasswordModal(false)}
+                className={`absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isDark ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-surface-variant/50 text-on-surface hover:bg-surface-variant'}`}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className={`p-4 rounded-2xl flex gap-3 items-start ${isDark ? 'bg-white/5 border border-white/10' : 'bg-surface-container border border-outline-variant/30'}`}>
+                <span className={`material-symbols-outlined shrink-0 mt-0.5 ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>info</span>
+                <div className="space-y-1">
+                  <p className={`text-xs font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>Verificación de Correo</p>
+                  <p className={`text-[10px] leading-relaxed ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
+                    Se enviará un correo con un enlace seguro para restablecer tu contraseña a tu dirección registrada:
+                  </p>
+                  <p className={`text-xs font-black truncate mt-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                    {currentUser?.email}
+                  </p>
+                </div>
+              </div>
+
+              {resetEmailError && (
+                <div className="p-4 bg-error/10 border border-error/20 text-error text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  <span>{resetEmailError}</span>
+                </div>
+              )}
+
+              {resetEmailSuccess && (
+                <div className="p-4 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <span>{resetEmailSuccess}</span>
+                </div>
+              )}
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowResetPasswordModal(false)}
+                  className={`flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-colors border ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-outline-variant text-on-surface hover:bg-surface-variant/30'}`}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSendResetEmailLoggedIn}
+                  disabled={isResetEmailLoading}
+                  className={`flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all shadow-md disabled:opacity-50 flex items-center justify-center ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary/90'}`}
+                >
+                  {isResetEmailLoading ? (
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  ) : (
+                    'Enviar Correo'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
