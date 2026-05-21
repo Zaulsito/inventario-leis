@@ -87,6 +87,8 @@ export default function Pedidos() {
   const [pagePendientes, setPagePendientes] = useState(1)
   const [pageAbonados, setPageAbonados] = useState(1)
   const [pageFinalizados, setPageFinalizados] = useState(1)
+  const [pageClientes, setPageClientes] = useState(1)
+  const [busquedaClientes, setBusquedaClientes] = useState('')
 
   const renderPaginationControls = (currentPage, totalItems, setPage) => {
     const itemsPerPage = 20;
@@ -726,6 +728,12 @@ END:VCALENDAR`
   const paginatedPendientes = listPendientes.slice((safePagePendientes - 1) * 20, safePagePendientes * 20);
   const paginatedAbonados = listAbonados.slice((safePageAbonados - 1) * 20, safePageAbonados * 20);
   const paginatedFinalizados = listFinalizados.slice((safePageFinalizados - 1) * 20, safePageFinalizados * 20);
+
+  const filteredClientes = sortedClientes.filter(c => 
+    c.nombre.toLowerCase().includes(busquedaClientes.toLowerCase())
+  );
+  const safePageClientes = Math.max(1, Math.min(pageClientes, Math.ceil(filteredClientes.length / 20) || 1));
+  const paginatedClientes = filteredClientes.slice((safePageClientes - 1) * 20, safePageClientes * 20);
 
   return (
     <div className="p-8 md:p-10 relative flex flex-col min-h-full overflow-y-auto transition-colors duration-500">
@@ -1607,10 +1615,36 @@ END:VCALENDAR`
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Ranking por frecuencia de compra</p>
                 </div>
               </div>
+
+              {/* Buscador de Clientes */}
+              <div className="relative w-full md:w-80">
+                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline dark:text-gray-400 text-sm">search</span>
+                <input
+                  type="text"
+                  value={busquedaClientes}
+                  onChange={e => {
+                    setBusquedaClientes(e.target.value);
+                    setPageClientes(1); // Reiniciar a la primera página al buscar
+                  }}
+                  placeholder="Buscar cliente por nombre..."
+                  className="w-full bg-surface-container-low dark:bg-white/5 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container dark:focus:ring-[#e2bd6c]/20 border border-outline-variant/20 dark:border-white/10 transition-all font-bold placeholder:font-normal dark:text-white dark:placeholder:text-gray-500"
+                />
+                {busquedaClientes && (
+                  <button
+                    onClick={() => {
+                      setBusquedaClientes('');
+                      setPageClientes(1);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-outline dark:text-gray-400 hover:text-on-surface dark:hover:text-white transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sortedClientes.map((cliente, idx) => (
+              {paginatedClientes.map((cliente, idx) => (
                 <div key={idx} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[32px] p-6 border border-outline-variant/10 dark:border-white/5 shadow-sm hover:shadow-md transition-all group">
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary font-headline text-2xl font-bold italic">
@@ -1642,7 +1676,7 @@ END:VCALENDAR`
                 </div>
               ))}
 
-              {sortedClientes.length === 0 && (
+              {sortedClientes.length === 0 ? (
                 <div className="col-span-full py-20 text-center">
                   <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto mb-4 opacity-40">
                     <span className="material-symbols-outlined text-3xl">person_search</span>
@@ -1650,8 +1684,19 @@ END:VCALENDAR`
                   <p className="font-headline font-bold text-on-surface-variant">Aún no hay historial de clientes</p>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">Registra tu primer pedido para ver estadísticas</p>
                 </div>
-              )}
+              ) : filteredClientes.length === 0 ? (
+                <div className="col-span-full py-20 text-center bg-surface-container-low dark:bg-[#1e1e1e] rounded-[32px] border border-outline-variant/10 dark:border-white/5">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-primary dark:text-[#e2bd6c]">
+                    <span className="material-symbols-outlined text-3xl">search_off</span>
+                  </div>
+                  <p className="font-headline font-bold text-on-surface-variant dark:text-white/80">No se encontraron clientes</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline mt-1">Intenta con otro nombre o término de búsqueda</p>
+                </div>
+              ) : null}
             </div>
+
+            {/* Controles de Paginación para Clientes */}
+            {renderPaginationControls(safePageClientes, filteredClientes.length, setPageClientes)}
           </section>
         )}
       </div>
