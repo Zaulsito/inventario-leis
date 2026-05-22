@@ -1024,19 +1024,6 @@ export default function CatalogoPublico() {
                         Restablecer Contraseña
                       </button>
                       <button 
-                        onClick={() => {
-                          setDeletePassword('')
-                          setDeleteAccountError('')
-                          setDeleteAccountSuccess('')
-                          setShowDeleteAccountModal(true)
-                          setShowProfileMenu(false)
-                        }}
-                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors flex items-center gap-2 border-b ${isDark ? 'text-error hover:bg-error/10' : 'text-error hover-bg-error/10'}`}
-                      >
-                        <span className="material-symbols-outlined text-[16px]">delete_forever</span>
-                        Eliminar Cuenta
-                      </button>
-                      <button 
                         onClick={handleLogout}
                         className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors flex items-center gap-2 ${isDark ? 'text-gray-300 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/20'}`}
                       >
@@ -2116,6 +2103,24 @@ export default function CatalogoPublico() {
                   ) : (
                     'Guardar Cambios'
                   )}
+                </button>
+              </div>
+
+              {/* Sección Peligro: Eliminar Cuenta */}
+              <div className={`pt-4 border-t flex flex-col items-center ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setDeletePassword('')
+                    setDeleteAccountError('')
+                    setDeleteAccountSuccess('')
+                    setShowDeleteAccountModal(true)
+                    setShowEditProfileModal(false)
+                  }}
+                  className="text-error hover:underline text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 py-2 px-4 rounded-xl hover:bg-error/10 transition-all duration-300"
+                >
+                  <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+                  Eliminar Cuenta
                 </button>
               </div>
             </form>
