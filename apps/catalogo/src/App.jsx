@@ -1295,7 +1295,7 @@ export default function CatalogoPublico() {
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={() => setIsCartOpen(false)} />
           <div className={`w-full max-w-md h-full relative z-10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 ${isDark ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
-            <div className={`p-6 border-b flex justify-between items-center bg-surface-container-low shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-low'}`}>
+            <div className={`p-6 border-b flex justify-between items-center shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-low'}`}>
               <h2 className={`font-headline text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-on-surface'}`}>
                 <span className={`material-symbols-outlined ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>shopping_cart</span>
                 Tu Pedido
