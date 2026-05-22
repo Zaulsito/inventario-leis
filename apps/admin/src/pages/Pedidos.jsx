@@ -89,6 +89,7 @@ export default function Pedidos() {
   const [pageFinalizados, setPageFinalizados] = useState(1)
   const [pageClientes, setPageClientes] = useState(1)
   const [busquedaClientes, setBusquedaClientes] = useState('')
+  const [expandedCliente, setExpandedCliente] = useState(null)
 
   const renderPaginationControls = (currentPage, totalItems, setPage) => {
     const itemsPerPage = 20;
@@ -211,15 +212,27 @@ export default function Pedidos() {
   const clientesData = pedidos.reduce((acc, p) => {
     const nombre = (p.cliente || 'Desconocido').trim()
     if (!acc[nombre]) {
-      acc[nombre] = { nombre, pedidosCount: 0, totalGastado: 0, ultimaCompra: p.fechaEntrega }
+      acc[nombre] = { nombre, pedidosCount: 0, totalGastado: 0, ultimaCompra: p.fechaEntrega, compras: [] }
     }
     acc[nombre].pedidosCount += 1
     acc[nombre].totalGastado += p.total || 0
     if (new Date(p.fechaEntrega) > new Date(acc[nombre].ultimaCompra)) {
       acc[nombre].ultimaCompra = p.fechaEntrega
     }
+    acc[nombre].compras.push({
+      id: p.id,
+      fecha: p.fechaEntrega,
+      total: p.total,
+      productos: p.productos || [],
+      pagoEstado: p.pagoEstado || 'sin pagar'
+    })
     return acc
   }, {})
+
+  // Ordenar las compras de cada cliente de la más reciente a la más antigua
+  Object.values(clientesData).forEach(c => {
+    c.compras.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  })
 
   const sortedClientes = Object.values(clientesData).sort((a, b) => b.pedidosCount - a.pedidosCount)
 
@@ -771,7 +784,7 @@ END:VCALENDAR`
         </div>
       </header>
 
-      <div className="space-y-20 flex-1 overflow-y-auto">
+      <div className="space-y-20 flex-1 overflow-y-auto pt-8 md:pt-10">
         {activeTab === 'pedidos' ? (
           <>
         {/* 1. Pedidos Pendientes (Sin Pagar) */}
@@ -1645,7 +1658,11 @@ END:VCALENDAR`
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginatedClientes.map((cliente, idx) => (
-                <div key={idx} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[32px] p-6 border border-outline-variant/10 dark:border-white/5 shadow-sm hover:shadow-md transition-all group">
+                <div 
+                  key={idx} 
+                  onClick={() => setExpandedCliente(expandedCliente === cliente.nombre ? null : cliente.nombre)}
+                  className={`bg-surface-container-low dark:bg-[#1e1e1e] rounded-[32px] p-6 border border-outline-variant/10 dark:border-white/5 shadow-sm hover:shadow-md transition-all group cursor-pointer ${expandedCliente === cliente.nombre ? 'ring-2 ring-primary/30 dark:ring-[#e2bd6c]/30 shadow-md' : ''}`}
+                >
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary font-headline text-2xl font-bold italic">
                       {cliente.nombre.charAt(0).toUpperCase()}
@@ -1672,6 +1689,56 @@ END:VCALENDAR`
                       <span className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest">Inversión Total</span>
                       <span className="text-base font-bold text-primary dark:text-[#e2bd6c]">${cliente.totalGastado.toLocaleString('es-CL')}</span>
                     </div>
+
+                    {/* Historial de Compras Expandible */}
+                    {expandedCliente === cliente.nombre && (
+                      <div className="pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300" onClick={(e) => e.stopPropagation()}>
+                        <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c] mb-2 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[14px]">history</span>
+                          Historial de Compras
+                        </h4>
+                        <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                          {cliente.compras.map((compra, cIdx) => (
+                            <div key={cIdx} className="bg-surface dark:bg-[#2a2a2a] p-3 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-2">
+                              <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
+                                <span className="text-outline dark:text-gray-400">Entrega: {compra.fecha}</span>
+                                <span className={`px-2 py-0.5 rounded-full ${
+                                  compra.pagoEstado === 'pagado' ? 'bg-secondary/15 text-secondary dark:text-green-400' :
+                                  compra.pagoEstado === 'parcial' ? 'bg-amber-500/15 text-amber-600 dark:text-[#e2bd6c]' :
+                                  'bg-error/15 text-error'
+                                }`}>
+                                  {compra.pagoEstado === 'pagado' ? 'Pagado' :
+                                   compra.pagoEstado === 'parcial' ? 'Abonado' :
+                                   'Sin Pagar'}
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                {compra.productos.map((prod, pIdx) => (
+                                  <div key={pIdx} className="flex justify-between items-center text-xs">
+                                    <span className="text-on-surface-variant dark:text-white/80">
+                                      <span className="font-bold text-primary dark:text-[#e2bd6c] mr-1">{prod.cantidad}x</span>
+                                      {prod.nombre}
+                                      {prod.variante && (
+                                        <span className="text-[9px] font-medium text-outline dark:text-gray-400 ml-1">
+                                          ({prod.variante})
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-[11px]">
+                                      ${(prod.precio * prod.cantidad).toLocaleString('es-CL')}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="pt-2 border-t border-dashed border-outline-variant/10 dark:border-white/5 flex justify-between items-center text-xs">
+                                <span className="text-[10px] font-bold text-outline dark:text-gray-400">Total Pedido</span>
+                                <span className="text-primary dark:text-[#e2bd6c] text-sm font-extrabold">${compra.total.toLocaleString('es-CL')}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
