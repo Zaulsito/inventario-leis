@@ -671,6 +671,82 @@ export default function CatalogoPublico() {
 
   // --- LÓGICA DEL CARRITO ---
 
+  const animateFlyToCart = (e, fotoUrl) => {
+    const button = e.currentTarget;
+    const rect = button.getBoundingClientRect();
+    
+    const headerCartBtn = document.getElementById('header-cart-btn');
+    const mobileCartFab = document.getElementById('mobile-cart-fab');
+    
+    let target = null;
+    if (mobileCartFab && window.getComputedStyle(mobileCartFab).display !== 'none') {
+      target = mobileCartFab;
+    } else if (headerCartBtn) {
+      target = headerCartBtn;
+    }
+    
+    if (!target) return;
+    
+    const targetRect = target.getBoundingClientRect();
+    
+    const flyer = document.createElement('div');
+    flyer.className = 'flyer-dot';
+    
+    flyer.style.position = 'fixed';
+    flyer.style.top = `${rect.top + rect.height / 2 - 16}px`;
+    flyer.style.left = `${rect.left + rect.width / 2 - 16}px`;
+    flyer.style.width = '32px';
+    flyer.style.height = '32px';
+    flyer.style.borderRadius = '50%';
+    flyer.style.zIndex = '9999';
+    flyer.style.pointerEvents = 'none';
+    
+    if (fotoUrl) {
+      flyer.style.backgroundImage = `url(${fotoUrl})`;
+      flyer.style.backgroundSize = 'cover';
+      flyer.style.backgroundPosition = 'center';
+      flyer.style.boxShadow = '0 8px 24px rgba(226, 189, 108, 0.4)';
+      flyer.style.border = '2px solid #e2bd6c';
+    } else {
+      flyer.style.backgroundColor = '#e2bd6c';
+      flyer.style.boxShadow = '0 0 12px #e2bd6c, 0 0 4px #e2bd6c';
+    }
+    
+    document.body.appendChild(flyer);
+    
+    const startX = rect.left + rect.width / 2;
+    const startY = rect.top + rect.height / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+    
+    flyer.animate([
+      {
+        transform: 'scale(1) translate(0, 0)',
+        opacity: 1
+      },
+      {
+        transform: `scale(0.8) translate(${(endX - startX) * 0.4}px, ${(endY - startY) * 0.1 - 100}px)`,
+        opacity: 0.95
+      },
+      {
+        transform: `scale(0.3) translate(${endX - startX}px, ${endY - startY}px)`,
+        opacity: 0.3
+      }
+    ], {
+      duration: 750,
+      easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+      fill: 'forwards'
+    });
+    
+    setTimeout(() => {
+      flyer.remove();
+      target.classList.add('animate-cart-pop');
+      setTimeout(() => {
+        target.classList.remove('animate-cart-pop');
+      }, 500);
+    }, 750);
+  };
+
   function abrirModalAñadir(p) {
     if (p.variantes && p.variantes.length > 0) {
       setProductParaAñadir(p)
@@ -1045,6 +1121,7 @@ export default function CatalogoPublico() {
             )}
 
             <button 
+              id="header-cart-btn"
               onClick={() => setIsCartOpen(true)}
               className={`relative p-3 rounded-2xl transition-colors shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
             >
@@ -1135,7 +1212,10 @@ export default function CatalogoPublico() {
                         </div>
                       ) : (
                         <button 
-                          onClick={() => añadirAlCarrito(p, null)}
+                          onClick={(e) => {
+                            animateFlyToCart(e, p.fotoUrl);
+                            añadirAlCarrito(p, null);
+                          }}
                           className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'}`}
                         >
                           <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
@@ -1200,6 +1280,7 @@ export default function CatalogoPublico() {
       {totalItems > 0 && (
         <div className="fixed bottom-6 inset-x-0 flex justify-center z-20 md:hidden">
           <button 
+            id="mobile-cart-fab"
             onClick={() => setIsCartOpen(true)}
             className="bg-secondary text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 font-bold uppercase tracking-widest text-xs animate-in slide-in-from-bottom-10 hover:scale-105 transition-transform"
           >
@@ -1327,7 +1408,10 @@ export default function CatalogoPublico() {
             <div className={`p-6 border-t shrink-0 ${isDark ? 'bg-[#151515] border-white/5' : 'bg-surface-container border-outline-variant/10'}`}>
               <button 
                 disabled={!varianteSeleccionada}
-                onClick={() => añadirAlCarrito(productParaAñadir, varianteSeleccionada)}
+                onClick={(e) => {
+                  animateFlyToCart(e, productParaAñadir.fotoUrl);
+                  añadirAlCarrito(productParaAñadir, varianteSeleccionada);
+                }}
                 className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs transition-all ${varianteSeleccionada ? (isDark ? 'bg-[#e2bd6c] text-black shadow-lg hover:scale-[1.02]' : 'bg-primary text-on-primary shadow-lg hover:scale-[1.02]') : (isDark ? 'bg-white/5 text-gray-500 opacity-50 cursor-not-allowed' : 'bg-surface-variant text-outline opacity-50 cursor-not-allowed')}`}
               >
                 Añadir al Carrito
@@ -1664,7 +1748,11 @@ export default function CatalogoPublico() {
                     </div>
 
                     <button 
-                      onClick={() => {
+                      onClick={(e) => {
+                        const hasVariants = productoParaVer.variantes && productoParaVer.variantes.length > 0;
+                        if (!hasVariants) {
+                          animateFlyToCart(e, productoParaVer.fotoUrl);
+                        }
                         abrirModalAñadir(productoParaVer);
                         setProductoParaVer(null);
                       }}
