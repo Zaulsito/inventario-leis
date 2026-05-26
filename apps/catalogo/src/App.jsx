@@ -117,6 +117,82 @@ export default function CatalogoPublico() {
   const [mostrarControlesZoom, setMostrarControlesZoom] = useState(true)
   const [expandedImage, setExpandedImage] = useState(null)
 
+  // --- Back button closing for mobile/browser history ---
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (
+        isCartOpen ||
+        productParaAñadir ||
+        productoParaVer ||
+        showCheckout ||
+        showAuthModal ||
+        showEditProfileModal ||
+        showDeleteAccountModal ||
+        showResetPasswordModal ||
+        expandedImage
+      ) {
+        setIsCartOpen(false);
+        setProductParaAñadir(null);
+        setProductoParaVer(null);
+        setShowCheckout(false);
+        setShowAuthModal(false);
+        setShowEditProfileModal(false);
+        setShowDeleteAccountModal(false);
+        setShowResetPasswordModal(false);
+        setExpandedImage(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [
+    isCartOpen,
+    productParaAñadir,
+    productoParaVer,
+    showCheckout,
+    showAuthModal,
+    showEditProfileModal,
+    showDeleteAccountModal,
+    showResetPasswordModal,
+    expandedImage
+  ]);
+
+  const wasModalOpenRef = useRef(false);
+
+  useEffect(() => {
+    const anyOpen = !!(
+      isCartOpen ||
+      productParaAñadir ||
+      productoParaVer ||
+      showCheckout ||
+      showAuthModal ||
+      showEditProfileModal ||
+      showDeleteAccountModal ||
+      showResetPasswordModal ||
+      expandedImage
+    );
+
+    if (anyOpen && !wasModalOpenRef.current) {
+      window.history.pushState({ modalOpen: true }, '');
+      wasModalOpenRef.current = true;
+    } else if (!anyOpen && wasModalOpenRef.current) {
+      if (window.history.state?.modalOpen) {
+        window.history.back();
+      }
+      wasModalOpenRef.current = false;
+    }
+  }, [
+    isCartOpen,
+    productParaAñadir,
+    productoParaVer,
+    showCheckout,
+    showAuthModal,
+    showEditProfileModal,
+    showDeleteAccountModal,
+    showResetPasswordModal,
+    expandedImage
+  ]);
+
   // Sincronización dual del carrito: localStorage + Firestore
   useEffect(() => {
     localStorage.setItem('carritoLeis', JSON.stringify(carrito))

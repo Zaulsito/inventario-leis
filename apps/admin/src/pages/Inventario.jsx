@@ -319,6 +319,34 @@ export default function Inventario() {
     }
   }, [showModal])
 
+  // --- Back button closing for mobile/browser history ---
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (showModal || showHistoryModal) {
+        setShowModal(false);
+        setShowHistoryModal(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showModal, showHistoryModal]);
+
+  const wasModalOpenRef = useRef(false);
+
+  useEffect(() => {
+    const anyOpen = showModal || showHistoryModal;
+    if (anyOpen && !wasModalOpenRef.current) {
+      window.history.pushState({ modalOpen: true }, '');
+      wasModalOpenRef.current = true;
+    } else if (!anyOpen && wasModalOpenRef.current) {
+      if (window.history.state?.modalOpen) {
+        window.history.back();
+      }
+      wasModalOpenRef.current = false;
+    }
+  }, [showModal, showHistoryModal]);
+
   // Handlers del CRUD
   function openNew() {
     setForm(formInicial)

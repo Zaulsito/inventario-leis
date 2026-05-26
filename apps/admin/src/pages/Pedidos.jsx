@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, Fragment, useRef } from 'react'
 import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { calcularEstado } from '../utils/date'
@@ -239,6 +239,32 @@ export default function Pedidos() {
   const canalesBase = ['Facebook', 'Instagram', 'WhatsApp', 'TikTok']
   const canalesExistentes = Array.from(new Set(pedidos.filter(p => p.canalVenta).map(p => p.canalVenta)))
   const canalesDisponibles = Array.from(new Set([...canalesBase, ...canalesExistentes]))
+
+  // --- Back button closing for mobile/browser history ---
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (showModal) {
+        setShowModal(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showModal]);
+
+  const wasModalOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (showModal && !wasModalOpenRef.current) {
+      window.history.pushState({ modalOpen: true }, '');
+      wasModalOpenRef.current = true;
+    } else if (!showModal && wasModalOpenRef.current) {
+      if (window.history.state?.modalOpen) {
+        window.history.back();
+      }
+      wasModalOpenRef.current = false;
+    }
+  }, [showModal]);
 
   useEffect(() => {
     // Escuchar productos
