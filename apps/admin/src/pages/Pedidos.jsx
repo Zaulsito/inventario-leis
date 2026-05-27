@@ -852,8 +852,8 @@ END:VCALENDAR`
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Pedidos Pendientes</h2>
-                  <span className="bg-error/10 dark:bg-white/5 text-error dark:text-red-400 font-bold px-2 py-0.5 rounded-full text-xs transition-colors">
-                    [ {listPendientes.length} ]
+                  <span className="bg-error/10 dark:bg-error/20 text-error dark:text-red-400 font-extrabold px-3 py-0.5 rounded-full text-xs transition-colors border border-error/20 dark:border-error/30 whitespace-nowrap">
+                    {listPendientes.length}
                   </span>
                 </div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Sin ningún abono realizado</p>
@@ -1203,8 +1203,8 @@ END:VCALENDAR`
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Pedidos Abonados</h2>
-                  <span className="bg-amber-500/10 dark:bg-[#e2bd6c]/10 text-amber-600 dark:text-[#e2bd6c] font-bold px-2 py-0.5 rounded-full text-xs transition-colors">
-                    [ {listAbonados.length} ]
+                  <span className="bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-[#e2bd6c] font-extrabold px-3 py-0.5 rounded-full text-xs transition-colors border border-amber-500/20 dark:border-amber-500/30 whitespace-nowrap">
+                    {listAbonados.length}
                   </span>
                 </div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">En proceso de pago parcial</p>
@@ -1599,8 +1599,8 @@ END:VCALENDAR`
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-headline text-2xl font-bold text-on-surface dark:text-white/90 leading-tight">Historial de Finalizados</h2>
-                  <span className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-green-400 font-bold px-2 py-0.5 rounded-full text-xs transition-colors">
-                    [ {listFinalizados.length} ]
+                  <span className="bg-secondary/10 dark:bg-secondary/20 text-secondary dark:text-green-400 font-extrabold px-3 py-0.5 rounded-full text-xs transition-colors border border-secondary/20 dark:border-secondary/30 whitespace-nowrap">
+                    {listFinalizados.length}
                   </span>
                 </div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Pedidos con pago completado</p>
