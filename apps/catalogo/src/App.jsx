@@ -110,6 +110,7 @@ export default function CatalogoPublico() {
   const loadingCartFromDb = useRef(false)
   const lastLoadedUid = useRef(null)
   const isRegistering = useRef(false)
+  const mainScrollRef = useRef(null)
 
   const [animacion, setAnimacion] = useState('') // '', 'salir-izquierda', 'salir-derecha', etc.
   const [indexImagenActual, setIndexImagenActual] = useState(0)
@@ -728,6 +729,12 @@ export default function CatalogoPublico() {
     setPaginaActual(1)
   }, [filtroCategoria])
 
+  useEffect(() => {
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [paginaActual])
+
   const totalPaginas = Math.ceil(productosFiltrados.length / ITEMS_POR_PAGINA)
   const productosPaginados = productosFiltrados.slice((paginaActual - 1) * ITEMS_POR_PAGINA, paginaActual * ITEMS_POR_PAGINA)
 
@@ -1212,7 +1219,7 @@ export default function CatalogoPublico() {
         </header>
 
         {/* MAIN SCROLLABLE AREA */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative z-10 pb-32 md:pb-8">
+        <main ref={mainScrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative z-10 pb-32 md:pb-8">
           <div className="max-w-7xl mx-auto">
         {productosFiltrados.length === 0 ? (
           <div className="text-center py-20 text-on-surface-variant">
