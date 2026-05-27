@@ -62,6 +62,27 @@ const getHexColor = (name) => {
   return colors[name.toLowerCase()] || null;
 };
 
+const groupOrdersByCustomer = (ordersList) => {
+  const groups = {};
+  const orderedKeys = [];
+  
+  ordersList.forEach(p => {
+    const name = (p.cliente || 'Desconocido').trim();
+    const key = name.toLowerCase();
+    if (!groups[key]) {
+      groups[key] = {
+        id: key,
+        cliente: name,
+        pedidos: []
+      };
+      orderedKeys.push(key);
+    }
+    groups[key].pedidos.push(p);
+  });
+  
+  return orderedKeys.map(k => groups[k]);
+};
+
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([])
   const [productos, setProductos] = useState([])
@@ -90,6 +111,7 @@ export default function Pedidos() {
   const [pageClientes, setPageClientes] = useState(1)
   const [busquedaClientes, setBusquedaClientes] = useState('')
   const [expandedCliente, setExpandedCliente] = useState(null)
+  const [expandedCustomer, setExpandedCustomer] = useState(null)
 
   const renderPaginationControls = (currentPage, totalItems, setPage) => {
     const itemsPerPage = 20;
@@ -760,13 +782,17 @@ END:VCALENDAR`
   const listAbonados = pedidos.filter(p => p.pagoEstado === 'parcial');
   const listFinalizados = pedidos.filter(p => p.pagoEstado === 'pagado');
 
-  const safePagePendientes = Math.max(1, Math.min(pagePendientes, Math.ceil(listPendientes.length / 20) || 1));
-  const safePageAbonados = Math.max(1, Math.min(pageAbonados, Math.ceil(listAbonados.length / 20) || 1));
-  const safePageFinalizados = Math.max(1, Math.min(pageFinalizados, Math.ceil(listFinalizados.length / 20) || 1));
+  const groupedPendientes = groupOrdersByCustomer(listPendientes);
+  const groupedAbonados = groupOrdersByCustomer(listAbonados);
+  const groupedFinalizados = groupOrdersByCustomer(listFinalizados);
 
-  const paginatedPendientes = listPendientes.slice((safePagePendientes - 1) * 20, safePagePendientes * 20);
-  const paginatedAbonados = listAbonados.slice((safePageAbonados - 1) * 20, safePageAbonados * 20);
-  const paginatedFinalizados = listFinalizados.slice((safePageFinalizados - 1) * 20, safePageFinalizados * 20);
+  const safePagePendientes = Math.max(1, Math.min(pagePendientes, Math.ceil(groupedPendientes.length / 20) || 1));
+  const safePageAbonados = Math.max(1, Math.min(pageAbonados, Math.ceil(groupedAbonados.length / 20) || 1));
+  const safePageFinalizados = Math.max(1, Math.min(pageFinalizados, Math.ceil(groupedFinalizados.length / 20) || 1));
+
+  const paginatedPendientes = groupedPendientes.slice((safePagePendientes - 1) * 20, safePagePendientes * 20);
+  const paginatedAbonados = groupedAbonados.slice((safePageAbonados - 1) * 20, safePageAbonados * 20);
+  const paginatedFinalizados = groupedFinalizados.slice((safePageFinalizados - 1) * 20, safePageFinalizados * 20);
 
   const filteredClientes = sortedClientes.filter(c => 
     c.nombre.toLowerCase().includes(busquedaClientes.toLowerCase())
@@ -851,112 +877,169 @@ END:VCALENDAR`
                       <tr className="bg-surface-container dark:bg-white/5">
                         <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Cliente</th>
                         <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Fecha de Entrega</th>
-                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Detalle y Total</th>
+                        <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-500">Total Pendiente</th>
                         <th className="px-7 py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline text-right dark:text-gray-500">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
-                      {paginatedPendientes.map(p => {
-                        const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-                        const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3
+                      {paginatedPendientes.map(group => {
+                        const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
+                        const uniqueFechas = Array.from(new Set(fechas)).sort();
+                        let fechaDisplay = "";
+                        if (uniqueFechas.length === 1) {
+                          fechaDisplay = uniqueFechas[0];
+                        } else if (uniqueFechas.length > 1) {
+                          fechaDisplay = `${uniqueFechas[0]} ... ${uniqueFechas[uniqueFechas.length - 1]}`;
+                        } else {
+                          fechaDisplay = "Sin fecha";
+                        }
+
+                        const totalDinero_acumulado = group.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0)), 0);
 
                         return (
-                          <Fragment key={p.id}>
+                          <Fragment key={group.id}>
                             <tr 
-                              className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
-                              onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                              className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors cursor-pointer ${expandedCustomer === group.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
+                              onClick={() => setExpandedCustomer(expandedCustomer === group.id ? null : group.id)}
                             >
                               <td className="px-7 py-5">
                                 <div className="flex items-center gap-3">
-                                  <span className={`material-symbols-outlined text-outline dark:text-gray-500 transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                  <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedCustomer === group.id ? 'rotate-180' : ''}`}>
                                     keyboard_arrow_down
                                   </span>
                                   <div>
-                                    <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{p.cliente}</p>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Vía {p.medioPago}</span>
-                                      {p.canalVenta && (
-                                        <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                          <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                          {p.canalVenta}
-                                        </span>
-                                      )}
-                                      {p.banco && <span className="text-[9px] font-bold uppercase tracking-widest text-outline">| {p.banco}</span>}
+                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{group.cliente}</p>
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-error/10 text-error dark:bg-red-400/10 dark:text-red-400">
+                                        {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-7 py-5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`material-symbols-outlined text-lg ${isCritico ? 'text-error' : 'text-outline'}`}>event</span>
-                                  <span className={`font-bold ${isCritico ? 'text-error' : 'text-on-surface-variant'}`}>{p.fechaEntrega}</span>
-                                </div>
+                                <span className="font-bold text-on-surface-variant text-sm">{fechaDisplay}</span>
                               </td>
                               <td className="px-7 py-5">
-                                <p className="text-sm text-on-surface-variant mb-1">{p.productos.length} productos</p>
-                                <p className="text-sm font-bold text-error">Total: ${p.total?.toLocaleString('es-CL')}</p>
+                                <p className="text-sm font-bold text-error">${totalDinero_acumulado.toLocaleString('es-CL')}</p>
                               </td>
-                              <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
-                                  <span className="material-symbols-outlined text-xl">edit</span>
-                                </button>
-                                <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Marcar como Pagado">
-                                  <span className="material-symbols-outlined text-xl">check_circle</span>
-                                </button>
-                                <button onClick={() => generarRecordatorio(p)} className="text-outline hover:bg-surface-container-high p-2 rounded-full transition-colors" title="Agendar Recordatorio">
-                                  <span className="material-symbols-outlined text-xl">calendar_add_on</span>
-                                </button>
-                                <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors" title="Eliminar Pedido">
-                                  <span className="material-symbols-outlined text-xl">delete</span>
-                                </button>
+                              <td className="px-7 py-5 text-right">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500 opacity-60">
+                                  {expandedCustomer === group.id ? 'Colapsar' : 'Ver pedidos'}
+                                </span>
                               </td>
                             </tr>
-                            {expandedId === p.id && (
-                              <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
+                            {expandedCustomer === group.id && (
+                              <tr className="bg-surface-container-low/30 dark:bg-white/[0.01]">
                                 <td colSpan={4} className="px-7 py-6">
-                                  <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
-                                    <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary dark:text-[#e2bd6c]/80 mb-4">Detalle de Productos</h4>
-                                    <div className="space-y-2">
-                                      {p.productos?.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
-                                          <div className="flex flex-col">
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-primary font-black text-base">{item.cantidad}x</span>
-                                              <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
-                                            </div>
-                                            {item.variante && (
-                                              <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
-                                                <div 
-                                                  className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                                />
-                                                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
-                                                  {item.variante}
-                                                </span>
+                                  <div className="space-y-4">
+                                    {group.pedidos.map(p => {
+                                      const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
+                                      const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1;
+                                      const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3;
+
+                                      return (
+                                        <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4">
+                                          <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                                              <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                                expand_more
+                                              </span>
+                                              <div>
+                                                <div className="flex items-center gap-2">
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                                  <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
+                                                    Vía {p.medioPago}
+                                                  </span>
+                                                  {p.canalVenta && (
+                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                                      {p.canalVenta}
+                                                    </span>
+                                                  )}
+                                                  {isCritico && (
+                                                    <span className="bg-error/10 text-error px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                                      Entrega Próxima
+                                                    </span>
+                                                  )}
+                                                </div>
                                               </div>
-                                            )}
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-6">
+                                              <div className="text-right">
+                                                <p className="text-[10px] font-bold text-outline uppercase tracking-wider">Total Pedido</p>
+                                                <p className="text-sm font-bold text-error">${totalC.toLocaleString('es-CL')}</p>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                                                  <span className="material-symbols-outlined text-xl">edit</span>
+                                                </button>
+                                                <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Marcar como Pagado">
+                                                  <span className="material-symbols-outlined text-xl">check_circle</span>
+                                                </button>
+                                                <button onClick={() => generarRecordatorio(p)} className="text-outline hover:bg-surface-container-high p-2 rounded-full transition-colors" title="Agendar Recordatorio">
+                                                  <span className="material-symbols-outlined text-xl">calendar_add_on</span>
+                                                </button>
+                                                <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors" title="Eliminar Pedido">
+                                                  <span className="material-symbols-outlined text-xl">delete</span>
+                                                </button>
+                                              </div>
+                                            </div>
                                           </div>
-                                          <span className="font-black text-primary dark:text-[#e2bd6c] text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+
+                                          {expandedId === p.id && (
+                                            <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                              <div>
+                                                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary dark:text-[#e2bd6c]/80 mb-3">Detalle de Productos</h4>
+                                                <div className="space-y-2">
+                                                  {p.productos?.map((item, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-surface-container-highest/20 dark:bg-white/[0.03] px-4 py-3 rounded-xl border border-outline-variant/5">
+                                                      <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                          <span className="text-primary font-black text-sm">{item.cantidad}x</span>
+                                                          <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                                                        </div>
+                                                        {item.variante && (
+                                                          <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-0.5 rounded-lg w-fit border border-amber-500/10 dark:border-[#e2bd6c]/10">
+                                                            <div 
+                                                              className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                                            />
+                                                            <span className="text-[8px] font-black uppercase tracking-widest text-[#e2bd6c]">
+                                                              {item.variante}
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                      <span className="font-black text-primary dark:text-[#e2bd6c] text-base">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+
+                                              {p.comprobante && (
+                                                <div className="mt-4 pt-4 border-t border-primary/10 dark:border-white/5">
+                                                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Datos de Transferencia</p>
+                                                  <p className="text-sm text-on-surface-variant mt-1">
+                                                    Banco: <span className="font-bold text-on-surface dark:text-white/90">{p.banco}</span> | 
+                                                    Comprobante: <span className="font-bold text-on-surface dark:text-white/90">{p.comprobante}</span>
+                                                  </p>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
                                         </div>
-                                      ))}
-                                      {p.comprobante && (
-                                        <div className="mt-4 pt-4 border-t border-primary/10 dark:border-white/5">
-                                          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Datos de Transferencia</p>
-                                          <p className="text-sm text-on-surface-variant mt-1">
-                                            Banco: <span className="font-bold text-on-surface dark:text-white/90">{p.banco}</span> | 
-                                            Comprobante: <span className="font-bold text-on-surface dark:text-white/90">{p.comprobante}</span>
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
+                                      );
+                                    })}
                                   </div>
                                 </td>
                               </tr>
                             )}
                           </Fragment>
-                        )
+                        );
                       })}
-                      {listPendientes.length === 0 && (
+                      {groupedPendientes.length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-7 py-12 text-center text-on-surface-variant text-sm italic">No hay pedidos pendientes de pago inicial.</td>
                         </tr>
@@ -968,85 +1051,127 @@ END:VCALENDAR`
 
               {/* Vista Mobile (Tarjetas) */}
               <div className="md:hidden space-y-4">
-                {paginatedPendientes.map(p => {
-                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-                  const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3
+                {paginatedPendientes.map(group => {
+                  const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
+                  const uniqueFechas = Array.from(new Set(fechas)).sort();
+                  let fechaDisplay = "";
+                  if (uniqueFechas.length === 1) {
+                    fechaDisplay = uniqueFechas[0];
+                  } else if (uniqueFechas.length > 1) {
+                    fechaDisplay = `${uniqueFechas[0]} ... ${uniqueFechas[uniqueFechas.length - 1]}`;
+                  } else {
+                    fechaDisplay = "Sin fecha";
+                  }
+
+                  const totalDinero_acumulado = group.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+
                   return (
-                    <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-4 shadow-sm border border-outline-variant/10 dark:border-white/5 overflow-hidden">
-                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
-                        <div className="w-14 h-14 bg-error/10 dark:bg-white/5 rounded-2xl flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined text-error text-2xl font-bold italic leading-none">P</span>
+                    <div key={group.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
+                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedCustomer(expandedCustomer === group.id ? null : group.id)}>
+                        <div className="w-12 h-12 bg-error/10 rounded-2xl flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-error text-xl font-bold">person</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{p.cliente}</h3>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">Entrega: {p.fechaEntrega}</p>
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${isCritico ? 'bg-error text-on-error' : 'bg-primary/10 text-primary'}`}>
-                              {p.medioPago}
-                            </span>
-                            {p.canalVenta && (
-                              <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                {p.canalVenta}
-                              </span>
-                            )}
+                          <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{group.cliente}</h3>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">
+                            {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-outline">
+                            <span className="material-symbols-outlined text-xs">event</span>
+                            <span>Pendientes: {fechaDisplay}</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-base font-bold text-error leading-tight">${p.total?.toLocaleString('es-CL')}</p>
-                          <span className="material-symbols-outlined text-outline text-xl transition-transform" style={{ transform: expandedId === p.id ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                        <div className="text-right flex items-center gap-2">
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase tracking-wider leading-none">Total</p>
+                            <p className="text-sm font-bold text-error leading-tight">${totalDinero_acumulado.toLocaleString('es-CL')}</p>
+                          </div>
+                          <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedCustomer === group.id ? 'rotate-180' : ''}`}>
+                            expand_more
+                          </span>
                         </div>
                       </div>
                       
-                      {expandedId === p.id && (
-                        <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="space-y-3 mb-5">
-                            {p.productos?.map((item, idx) => (
-                              <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
-                                <div className="flex justify-between items-center mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
-                                    <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                      {expandedCustomer === group.id && (
+                        <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          {group.pedidos.map(p => {
+                            const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
+                            const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1;
+                            const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3;
+                            return (
+                              <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
+                                <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                                  <div>
+                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                      <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
+                                        {p.medioPago}
+                                      </span>
+                                      {p.canalVenta && (
+                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                          <span className="material-symbols-outlined text-[9px]">location_on</span>
+                                          {p.canalVenta}
+                                        </span>
+                                      )}
+                                      {isCritico && (
+                                        <span className="bg-error/15 text-error px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                          Próximo
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                                </div>
-                                {item.variante && (
-                                  <div className="flex items-center gap-1.5 bg-primary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-primary/10 dark:border-white/5">
-                                    <div 
-                                      className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                      style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                    />
-                                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-primary dark:text-[#e2bd6c]">
-                                      {item.variante}
+                                  <div className="text-right flex items-center gap-2">
+                                    <div>
+                                      <p className="text-[9px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest">Total</p>
+                                      <p className="text-xs font-bold text-error">${totalC.toLocaleString('es-CL')}</p>
+                                    </div>
+                                    <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                      expand_more
                                     </span>
                                   </div>
+                                </div>
+
+                                {expandedId === p.id && (
+                                  <div className="space-y-2 mt-3 pt-3 border-t border-outline-variant/5">
+                                    {p.productos?.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-3 py-2 rounded-xl border border-secondary/10">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-secondary dark:text-[#e2bd6c] font-black text-xs">{item.cantidad}x</span>
+                                          <span className="font-bold text-on-surface dark:text-white/90 text-xs">{item.nombre}</span>
+                                        </div>
+                                        <span className="font-black text-secondary dark:text-[#e2bd6c] text-xs">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                      </div>
+                                    ))}
+
+                                    {p.banco && (
+                                      <div className="bg-primary/5 dark:bg-white/5 p-3 rounded-xl border border-primary/10 dark:border-white/5">
+                                        <p className="text-[9px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Datos de Transferencia</p>
+                                        <p className="text-xs font-bold text-on-surface dark:text-white/90 mt-1">{p.banco} | {p.comprobante}</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
+
+                                <div className="flex gap-2 pt-2">
+                                  <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => handleCompletarPago(p)} className="flex-1 bg-secondary text-white py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest shadow-sm">
+                                    Pagar Todo
+                                  </button>
+                                  <button onClick={() => handleDelete(p)} className="w-10 bg-error/10 text-error flex items-center justify-center rounded-xl">
+                                    <span className="material-symbols-outlined">delete</span>
+                                  </button>
+                                </div>
                               </div>
-                            ))}
-                            {p.banco && (
-                              <div className="bg-primary/5 dark:bg-white/5 p-3 rounded-xl border border-primary/10 dark:border-white/5">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Datos de Transferencia</p>
-                                <p className="text-xs font-bold text-on-surface dark:text-white/90 mt-1">{p.banco} | {p.comprobante}</p>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                              Editar
-                            </button>
-                            <button onClick={() => handleCompletarPago(p)} className="flex-1 bg-secondary text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                              Pagar Todo
-                            </button>
-                            <button onClick={() => handleDelete(p)} className="w-12 bg-error/10 text-error flex items-center justify-center rounded-xl">
-                              <span className="material-symbols-outlined">delete</span>
-                            </button>
-                          </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                  )
+                  );
                 })}
-                {listPendientes.length === 0 && (
+                {groupedPendientes.length === 0 && (
                   <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
                     <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
                       <span className="material-symbols-outlined text-3xl">inventory_2</span>

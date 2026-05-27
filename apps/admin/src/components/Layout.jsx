@@ -372,6 +372,7 @@ export default function Layout() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [tourActive, setTourActive] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false) // Estado para ocultar sidebar
+  const [dbUser, setDbUser] = useState(null)
   const location = useLocation()
 
   // ── Lógica de Modo Oscuro Nativo ──
