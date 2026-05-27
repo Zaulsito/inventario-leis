@@ -1060,7 +1060,7 @@ END:VCALENDAR`
               </div>
 
               {/* Controles de Paginación */}
-              {renderPaginationControls(safePagePendientes, listPendientes.length, setPagePendientes)}
+              {renderPaginationControls(safePagePendientes, groupedPendientes.length, setPagePendientes)}
             </div>
           )}
         </section>
@@ -1109,112 +1109,305 @@ END:VCALENDAR`
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
-                      {paginatedAbonados.map(p => {
-                        const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0)
+                      {paginatedAbonados.map(group => {
+                        const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
+                        const uniqueFechas = Array.from(new Set(fechas)).sort();
+                        let fechaDisplay = "";
+                        if (uniqueFechas.length === 1) {
+                          fechaDisplay = uniqueFechas[0];
+                        } else if (uniqueFechas.length > 1) {
+                          fechaDisplay = `${uniqueFechas[0]} ... ${uniqueFechas[uniqueFechas.length - 1]}`;
+                        } else {
+                          fechaDisplay = "Sin fecha";
+                        }
+
+                        const totalC_acumulado = group.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+                        const totalAbono_acumulado = group.pedidos.reduce((acc, p) => acc + (Number(p.abono) || 0), 0);
+                        const totalSaldo_acumulado = totalC_acumulado - totalAbono_acumulado;
+                        const perc = totalC_acumulado > 0 ? Math.round((totalAbono_acumulado / totalC_acumulado) * 100) : 0;
+
                         return (
-                          <Fragment key={p.id}>
+                          <Fragment key={group.id}>
                             <tr 
-                              className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
-                              onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                              className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group cursor-pointer ${expandedCustomer === group.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
+                              onClick={() => setExpandedCustomer(expandedCustomer === group.id ? null : group.id)}
                             >
                               <td className="px-7 py-5">
                                 <div className="flex items-center gap-3">
-                                  <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                  <span className={`material-symbols-outlined text-outline dark:text-gray-500 transition-transform duration-300 ${expandedCustomer === group.id ? 'rotate-180' : ''}`}>
                                     keyboard_arrow_down
                                   </span>
                                   <div>
-                                    <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{p.cliente}</p>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Vía {p.medioPago}</span>
-                                      {p.canalVenta && (
-                                        <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                          <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                          {p.canalVenta}
-                                        </span>
-                                      )}
+                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{group.cliente}</p>
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c]">
+                                        {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-7 py-5">
-                                <span className="font-bold text-on-surface-variant text-sm">{p.fechaEntrega}</span>
+                                <span className="font-bold text-on-surface-variant text-sm">{fechaDisplay}</span>
                               </td>
                               <td className="px-7 py-5">
                                 <div className="w-32 bg-outline-variant/20 h-1.5 rounded-full overflow-hidden mb-2">
                                   <div 
                                     className="h-full bg-amber-500 rounded-full transition-all duration-1000"
-                                    style={{ width: `${Math.min(100, (p.abono / totalC) * 100)}%` }}
+                                    style={{ width: `${perc}%` }}
                                   />
                                 </div>
                                 <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-                                  {Math.round((p.abono / totalC) * 100)}% Cubierto
+                                  {perc}% Cubierto
                                 </p>
                               </td>
                               <td className="px-7 py-5 text-right">
                                 <div className="space-y-0.5">
-                                  <p className="text-[10px] font-bold text-outline uppercase tracking-wider">Abonado: ${p.abono?.toLocaleString('es-CL')}</p>
-                                  <p className="text-sm font-bold text-primary">Pendiente: ${(totalC - (p.abono || 0)).toLocaleString('es-CL')}</p>
+                                  <p className="text-[10px] font-bold text-outline uppercase tracking-wider">Abonado: ${totalAbono_acumulado.toLocaleString('es-CL')}</p>
+                                  <p className="text-sm font-bold text-primary">Pendiente: ${totalSaldo_acumulado.toLocaleString('es-CL')}</p>
                                 </div>
                               </td>
-                              <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
-                                  <span className="material-symbols-outlined text-xl">edit</span>
-                                </button>
-                                <button onClick={() => handleActualizarAbono(p)} className="text-amber-600 hover:bg-amber-100 p-2 rounded-full transition-colors" title="Actualizar Abono">
-                                  <span className="material-symbols-outlined text-xl">edit_calendar</span>
-                                </button>
-                                <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Liquidar Saldo (Pagado)">
-                                  <span className="material-symbols-outlined text-xl">price_check</span>
-                                </button>
-                                <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors">
-                                  <span className="material-symbols-outlined text-xl">delete</span>
-                                </button>
+                              <td className="px-7 py-5 text-right">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500 opacity-60">
+                                  {expandedCustomer === group.id ? 'Colapsar' : 'Ver pedidos'}
+                                </span>
                               </td>
                             </tr>
-                            {expandedId === p.id && (
-                              <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
+                            {expandedCustomer === group.id && (
+                              <tr className="bg-surface-container-low/30 dark:bg-white/[0.01]">
                                 <td colSpan={5} className="px-7 py-6">
-                                  <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
-                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Detalle de Productos</h4>
-                                    <div className="space-y-2">
-                                      {p.productos?.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-surface-container-highest/30 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-outline-variant/5 hover:bg-surface-variant/20 transition-colors">
-                                          <div className="flex flex-col">
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-primary font-black text-base">{item.cantidad}x</span>
-                                              <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
-                                            </div>
-                                            {item.variante && (
-                                              <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
-                                                <div 
-                                                  className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                                  style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                                />
-                                                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
-                                                  {item.variante}
-                                                </span>
+                                  <div className="space-y-4">
+                                    {group.pedidos.map(p => {
+                                      const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
+                                      const singlePerc = totalC > 0 ? Math.round((p.abono / totalC) * 100) : 0;
+                                      return (
+                                        <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4">
+                                          <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                                              <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                                expand_more
+                                              </span>
+                                              <div>
+                                                <div className="flex items-center gap-2">
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                                  <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
+                                                    Vía {p.medioPago}
+                                                  </span>
+                                                  {p.canalVenta && (
+                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                                      {p.canalVenta}
+                                                    </span>
+                                                  )}
+                                                </div>
                                               </div>
-                                            )}
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-6">
+                                              <div className="text-right">
+                                                <p className="text-[10px] font-bold text-outline uppercase tracking-wider">Abonado: ${p.abono?.toLocaleString('es-CL')} ({singlePerc}%)</p>
+                                                <p className="text-sm font-bold text-primary">Saldo: ${(totalC - (p.abono || 0)).toLocaleString('es-CL')}</p>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                                                  <span className="material-symbols-outlined text-xl">edit</span>
+                                                </button>
+                                                <button onClick={() => handleActualizarAbono(p)} className="text-amber-600 hover:bg-amber-100 p-2 rounded-full transition-colors" title="Actualizar Abono">
+                                                  <span className="material-symbols-outlined text-xl">edit_calendar</span>
+                                                </button>
+                                                <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Liquidar Saldo (Pagado)">
+                                                  <span className="material-symbols-outlined text-xl">price_check</span>
+                                                </button>
+                                                <button onClick={() => handleDelete(p)} className="text-error opacity-50 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-colors" title="Eliminar Pedido">
+                                                  <span className="material-symbols-outlined text-xl">delete</span>
+                                                </button>
+                                              </div>
+                                            </div>
                                           </div>
-                                          <span className="font-black text-primary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+
+                                          {expandedId === p.id && (
+                                            <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                              <div>
+                                                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-primary dark:text-[#e2bd6c]/80 mb-3">Detalle de Productos</h4>
+                                                <div className="space-y-2">
+                                                  {p.productos?.map((item, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-surface-container-highest/20 dark:bg-white/[0.03] px-4 py-3 rounded-xl border border-outline-variant/5">
+                                                      <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                          <span className="text-primary font-black text-sm">{item.cantidad}x</span>
+                                                          <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                                                        </div>
+                                                        {item.variante && (
+                                                          <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-0.5 rounded-lg w-fit border border-amber-500/10 dark:border-[#e2bd6c]/10">
+                                                            <div 
+                                                              className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                                            />
+                                                            <span className="text-[8px] font-black uppercase tracking-widest text-[#e2bd6c]">
+                                                              {item.variante}
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                      <span className="font-black text-primary dark:text-[#e2bd6c] text-base">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+
+                                              {p.historialAbonos && p.historialAbonos.length > 0 && (
+                                                <div className="pt-4 border-t border-outline-variant/10 dark:border-white/5">
+                                                  <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 mb-3">Historial de Pagos</h4>
+                                                  <div className="space-y-2">
+                                                    {p.historialAbonos.map((abono, idx) => (
+                                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/20 dark:bg-white/5 px-4 py-3 rounded-xl border border-outline-variant/5 dark:border-white/5 hover:bg-surface-variant/20 transition-colors">
+                                                        <div className="flex flex-col">
+                                                          <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                           {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                          </span>
+                                                          <span className="text-[8px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                          <span className="font-bold text-amber-700 dark:text-[#f3d692] text-sm">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                          <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                            <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                          </button>
+                                                        </div>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
                                         </div>
-                                      ))}
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                      {groupedAbonados.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-7 py-20 text-center text-on-surface-variant text-sm italic">Sin abonos en curso.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              {/* Vista Mobile */}
+              <div className="md:hidden space-y-4">
+                {paginatedAbonados.map(group => {
+                  const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
+                  const uniqueFechas = Array.from(new Set(fechas)).sort();
+                  let fechaDisplay = "";
+                  if (uniqueFechas.length === 1) {
+                    fechaDisplay = uniqueFechas[0];
+                  } else if (uniqueFechas.length > 1) {
+                    fechaDisplay = `${uniqueFechas[0]} ... ${uniqueFechas[uniqueFechas.length - 1]}`;
+                  } else {
+                    fechaDisplay = "Sin fecha";
+                  }
+
+                  const totalC_acumulado = group.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+                  const totalAbono_acumulado = group.pedidos.reduce((acc, p) => acc + (Number(p.abono) || 0), 0);
+                  const totalSaldo_acumulado = totalC_acumulado - totalAbono_acumulado;
+                  const perc = totalC_acumulado > 0 ? Math.round((totalAbono_acumulado / totalC_acumulado) * 100) : 0;
+
+                  return (
+                    <div key={group.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
+                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedCustomer(expandedCustomer === group.id ? null : group.id)}>
+                        <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-amber-600 text-xl font-bold">person</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{group.cliente}</h3>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">
+                            {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Entrega: {fechaDisplay}</span>
+                            <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden ml-auto">
+                              <div className="h-full bg-amber-500" style={{ width: `${perc}%` }} />
+                            </div>
+                            <span className="text-[9px] font-bold text-amber-600 uppercase">{perc}%</span>
+                          </div>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase tracking-wider">Saldo</p>
+                            <p className="text-sm font-bold text-primary leading-tight">${totalSaldo_acumulado.toLocaleString('es-CL')}</p>
+                          </div>
+                          <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedCustomer === group.id ? 'rotate-180' : ''}`}>
+                            expand_more
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {expandedCustomer === group.id && (
+                        <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          {group.pedidos.map(p => {
+                            const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
+                            const singlePerc = totalC > 0 ? Math.round((p.abono / totalC) * 100) : 0;
+                            return (
+                              <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
+                                <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                                  <div>
+                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                      <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
+                                        {p.medioPago}
+                                      </span>
+                                      {p.canalVenta && (
+                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                          <span className="material-symbols-outlined text-[9px]">location_on</span>
+                                          {p.canalVenta}
+                                        </span>
+                                      )}
                                     </div>
+                                  </div>
+                                  <div className="text-right flex items-center gap-2">
+                                    <div>
+                                      <p className="text-[9px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest">Saldo</p>
+                                      <p className="text-xs font-bold text-primary">${(totalC - p.abono).toLocaleString('es-CL')}</p>
+                                    </div>
+                                    <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                      expand_more
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {expandedId === p.id && (
+                                  <div className="space-y-2 mt-3 pt-3 border-t border-outline-variant/5">
+                                    {p.productos?.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between items-center bg-surface-container-highest/20 dark:bg-white/[0.03] px-3 py-2 rounded-xl border border-outline-variant/5">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-primary font-black text-xs">{item.cantidad}x</span>
+                                          <span className="font-bold text-on-surface dark:text-white/90 text-xs">{item.nombre}</span>
+                                        </div>
+                                        <span className="font-black text-primary dark:text-[#e2bd6c] text-xs">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                      </div>
+                                    ))}
 
                                     {p.historialAbonos && p.historialAbonos.length > 0 && (
-                                      <div className="mt-8 pt-6 border-t border-amber-500/10 dark:border-white/5">
-                                        <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 mb-4">Historial de Pagos</h4>
-                                        <div className="space-y-2.5">
+                                      <div className="mb-2 space-y-2">
+                                        <p className="text-[8px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 px-1 mt-2">Registro de Pagos</p>
+                                        <div className="space-y-1.5">
                                           {p.historialAbonos.map((abono, idx) => (
-                                            <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-5 py-3.5 rounded-2xl border border-outline-variant/5 dark:border-white/5 hover:bg-surface-variant/20 transition-colors">
+                                            <div key={idx} className="flex justify-between items-center text-[10px] bg-amber-500/5 dark:bg-white/5 px-3 py-2 rounded-xl border border-amber-500/10 dark:border-white/5">
                                               <div className="flex flex-col">
                                                 <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                                 {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                  {new Date(abono.fecha).toLocaleDateString('es-CL')} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
-                                                <span className="text-[8px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
+                                                <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
                                               </div>
-                                              <div className="flex items-center gap-4">
-                                                <span className="font-bold text-amber-700 dark:text-[#f3d692] text-sm">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-bold text-amber-700 dark:text-[#f3d692] text-xs">+ ${abono.monto.toLocaleString('es-CL')}</span>
                                                 <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
                                                   <span className="material-symbols-outlined text-[14px]">undo</span>
                                                 </button>
@@ -1225,133 +1418,31 @@ END:VCALENDAR`
                                       </div>
                                     )}
                                   </div>
-                                </td>
-                              </tr>
-                            )}
-                          </Fragment>
-                        );
-                      })}
-                      {listAbonados.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="px-7 py-20 text-center">
-                            <div className="flex flex-col items-center gap-4 opacity-40">
-                              <span className="material-symbols-outlined text-5xl">payments</span>
-                              <div>
-                                <p className="font-headline font-bold text-lg">Sin abonos en curso</p>
-                                <p className="text-[10px] font-bold uppercase tracking-widest">No hay pagos parciales por liquidar</p>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              
-              {/* Vista Mobile */}
-              <div className="md:hidden space-y-4">
-                {paginatedAbonados.map(p => {
-                  const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0)
-                  const perc = Math.round((p.abono / totalC) * 100)
-                  return (
-                    <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
-                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
-                        <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined text-amber-600 text-2xl font-bold italic leading-none">A</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] truncate">{p.cliente}</h3>
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-outline">Entrega: {p.fechaEntrega}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            {p.canalVenta && (
-                              <span className={`inline-flex px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[9px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                {p.canalVenta}
-                              </span>
-                            )}
-                            <div className="w-16 bg-outline-variant/20 h-1 rounded-full overflow-hidden ml-auto">
-                              <div className="h-full bg-amber-500" style={{ width: `${perc}%` }} />
-                            </div>
-                            <span className="text-[9px] font-bold text-amber-600 uppercase">{perc}%</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold text-outline uppercase tracking-wider italic">Saldo</p>
-                          <p className="text-sm font-bold text-primary leading-tight">${(totalC - p.abono).toLocaleString('es-CL')}</p>
-                        </div>
-                      </div>
-                      
-                      {expandedId === p.id && (
-                        <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="space-y-2 mb-4">
-                            {p.productos?.map((item, idx) => (
-                              <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
-                                <div className="flex justify-between items-center mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-primary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
-                                    <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
-                                  </div>
-                                  <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                                </div>
-                                {item.variante && (
-                                  <div className="flex items-center gap-1.5 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-amber-500/10 dark:border-white/5">
-                                    <div 
-                                      className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                      style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                    />
-                                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-600 dark:text-[#e2bd6c]">
-                                      {item.variante}
-                                    </span>
-                                  </div>
                                 )}
+
+                                <div className="flex gap-2 pt-2">
+                                  <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => handleActualizarAbono(p)} className="flex-1 bg-amber-100 text-amber-800 py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
+                                    Abonar
+                                  </button>
+                                  <button onClick={() => handleCompletarPago(p)} className="flex-1 bg-secondary text-white py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
+                                    Liquidar
+                                  </button>
+                                  <button onClick={() => handleDelete(p)} className="w-10 bg-error/10 text-error flex items-center justify-center rounded-xl">
+                                    <span className="material-symbols-outlined text-base">delete</span>
+                                  </button>
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                          
-                          {p.historialAbonos && p.historialAbonos.length > 0 && (
-                            <div className="mb-6 space-y-3">
-                              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 px-1">Registro de Pagos</p>
-                              <div className="space-y-2">
-                                {p.historialAbonos.map((abono, idx) => (
-                                  <div key={idx} className="flex justify-between items-center text-[10px] bg-amber-500/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-amber-500/10 dark:border-white/5">
-                                    <div className="flex flex-col">
-                                      <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                        {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
-                                      </span>
-                                      <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <span className="font-bold text-amber-700 dark:text-[#f3d692] text-xs">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                      <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                        <span className="material-symbols-outlined text-[14px]">undo</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <div className="grid grid-cols-2 gap-2">
-                            <button onClick={() => handleEdit(p)} className="col-span-2 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                              Editar Pedido
-                            </button>
-                            <button onClick={() => handleActualizarAbono(p)} className="bg-amber-100 text-amber-800 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest">
-                              Nuevo Abono
-                            </button>
-                            <button onClick={() => handleCompletarPago(p)} className="bg-secondary text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                              Liquidar Todo
-                            </button>
-                            <button onClick={() => handleDelete(p)} className="col-span-2 bg-error/10 text-error py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
-                              Eliminar Pedido
-                            </button>
-                          </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                  )
+                  );
                 })}
-                {listAbonados.length === 0 && (
+                {groupedAbonados.length === 0 && (
                   <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
                     <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
                       <span className="material-symbols-outlined text-3xl">account_balance_wallet</span>
@@ -1365,7 +1456,7 @@ END:VCALENDAR`
               </div>
 
               {/* Controles de Paginación */}
-              {renderPaginationControls(safePageAbonados, listAbonados.length, setPageAbonados)}
+              {renderPaginationControls(safePageAbonados, groupedAbonados.length, setPageAbonados)}
             </div>
           )}
         </section>
@@ -1413,120 +1504,164 @@ END:VCALENDAR`
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10">
-                      {paginatedFinalizados.map(p => (
-                        <Fragment key={p.id}>
-                          <tr 
-                            className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors cursor-pointer ${expandedId === p.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
-                            onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                          >
-                            <td className="px-7 py-5">
-                              <div className="flex items-center gap-3">
-                                <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>
-                                  keyboard_arrow_down
-                                </span>
-                                <div>
-                                  <p className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692]">{p.cliente}</p>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[9px] font-bold uppercase tracking-widest text-outline">Vía {p.medioPago}</span>
-                                    {p.canalVenta && (
-                                      <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                        <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                        {p.canalVenta}
+                      {paginatedFinalizados.map(group => {
+                        const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
+                        const uniqueFechas = Array.from(new Set(fechas)).sort();
+                        let fechaDisplay = "";
+                        if (uniqueFechas.length === 1) {
+                          fechaDisplay = uniqueFechas[0];
+                        } else if (uniqueFechas.length > 1) {
+                          fechaDisplay = `${uniqueFechas[0]} ... ${uniqueFechas[uniqueFechas.length - 1]}`;
+                        } else {
+                          fechaDisplay = "Sin fecha";
+                        }
+                        const totalDinero_acumulado = group.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+
+                        return (
+                          <Fragment key={group.id}>
+                            <tr 
+                              className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors cursor-pointer ${expandedCustomer === group.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
+                              onClick={() => setExpandedCustomer(expandedCustomer === group.id ? null : group.id)}
+                            >
+                              <td className="px-7 py-5">
+                                <div className="flex items-center gap-3">
+                                  <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedCustomer === group.id ? 'rotate-180' : ''}`}>
+                                    keyboard_arrow_down
+                                  </span>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692]">{group.cliente}</p>
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-secondary/10 text-secondary dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c]">
+                                        {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
                                       </span>
-                                    )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-7 py-5">
-                              <span className="font-bold text-on-surface-variant text-sm">{p.fechaEntrega}</span>
-                            </td>
-                            <td className="px-7 py-5">
-                              <p className="text-sm font-bold text-secondary">${p.total?.toLocaleString('es-CL')}</p>
-                            </td>
-                            <td className="px-7 py-5 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                              <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
-                                <span className="material-symbols-outlined text-xl">edit</span>
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(p)} 
-                                className="text-error opacity-60 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-all"
-                                title="Eliminar registro permanentemente"
-                              >
-                                <span className="material-symbols-outlined text-xl">delete_forever</span>
-                              </button>
-                            </td>
-                          </tr>
-                          {expandedId === p.id && (
-                            <tr className="bg-surface-container-low/30 dark:bg-white/[0.02]">
-                              <td colSpan={4} className="px-7 py-6">
-                                <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-6 border border-outline-variant/20 dark:border-white/5 shadow-xl">
-                                  <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 mb-4">Detalle de la Venta</h4>
-                                  <div className="space-y-2">
-                                    {p.productos?.map((item, idx) => (
-                                      <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-5 py-4 rounded-2xl border border-secondary/10 hover:bg-secondary/10 transition-colors">
-                                        <div className="flex flex-col">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-secondary dark:text-[#e2bd6c] font-black text-base">{item.cantidad}x</span>
-                                            <span className="font-bold text-on-surface dark:text-white/90 text-base">{item.nombre}</span>
-                                          </div>
-                                          {item.variante && (
-                                            <div className="flex items-center gap-1.5 mt-1 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
-                                              <div 
-                                                className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                                style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                              />
-                                              <span className="text-[9px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
-                                                {item.variante}
+                              </td>
+                              <td className="px-7 py-5">
+                                <span className="font-bold text-on-surface-variant text-sm">{fechaDisplay}</span>
+                              </td>
+                              <td className="px-7 py-5">
+                                <p className="text-sm font-bold text-secondary">${totalDinero_acumulado.toLocaleString('es-CL')}</p>
+                              </td>
+                              <td className="px-7 py-5 text-right">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-500 opacity-60">
+                                  {expandedCustomer === group.id ? 'Colapsar' : 'Ver pedidos'}
+                                </span>
+                              </td>
+                            </tr>
+                            {expandedCustomer === group.id && (
+                              <tr className="bg-surface-container-low/30 dark:bg-white/[0.01]">
+                                <td colSpan={4} className="px-7 py-6">
+                                  <div className="space-y-4">
+                                    {group.pedidos.map(p => {
+                                      const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
+                                      return (
+                                        <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4">
+                                          <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                                              <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                                expand_more
                                               </span>
+                                              <div>
+                                                <div className="flex items-center gap-2">
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                                  <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
+                                                    Vía {p.medioPago}
+                                                  </span>
+                                                  {p.canalVenta && (
+                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                                      {p.canalVenta}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-6">
+                                              <div className="text-right">
+                                                <p className="text-sm font-bold text-secondary">${totalC.toLocaleString('es-CL')}</p>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
+                                                  <span className="material-symbols-outlined text-xl">edit</span>
+                                                </button>
+                                                <button onClick={() => handleDelete(p)} className="text-error opacity-60 hover:opacity-100 hover:bg-error-container p-2 rounded-full transition-all" title="Eliminar registro permanentemente">
+                                                  <span className="material-symbols-outlined text-xl">delete_forever</span>
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {expandedId === p.id && (
+                                            <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                              <div>
+                                                <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 mb-3">Detalle de la Venta</h4>
+                                                <div className="space-y-2">
+                                                  {p.productos?.map((item, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-4 py-3 rounded-xl border border-secondary/10">
+                                                      <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                          <span className="text-secondary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
+                                                          <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                                                        </div>
+                                                        {item.variante && (
+                                                          <div className="flex items-center gap-1.5 mt-1 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-0.5 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
+                                                            <div 
+                                                              className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
+                                                              style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
+                                                            />
+                                                            <span className="text-[8px] font-black uppercase tracking-widest text-[#e2bd6c]">
+                                                              {item.variante}
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                      <span className="font-black text-secondary dark:text-[#e2bd6c] text-base">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+
+                                              {p.historialAbonos && p.historialAbonos.length > 0 && (
+                                                <div className="pt-4 border-t border-outline-variant/10">
+                                                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {p.historialAbonos.map((abono, idx) => (
+                                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
+                                                        <div className="flex flex-col">
+                                                          <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                            {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                          </span>
+                                                          <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                          <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                          <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                            <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                          </button>
+                                                        </div>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
                                           )}
                                         </div>
-                                        <span className="font-black text-secondary text-lg">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
-
-                                  {p.historialAbonos && p.historialAbonos.length > 0 && (
-                                    <div className="mt-6 pt-4 border-t border-outline-variant/10">
-                                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {p.historialAbonos.map((abono, idx) => (
-                                          <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
-                                            <div className="flex flex-col">
-                                              <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                                {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                              </span>
-                                              <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                              <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                              <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                                <span className="material-symbols-outlined text-[14px]">undo</span>
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      ))}
-                      {listFinalizados.length === 0 && (
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                      {groupedFinalizados.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-7 py-20 text-center">
-                            <div className="flex flex-col items-center gap-4 opacity-40">
-                              <span className="material-symbols-outlined text-5xl">history</span>
-                              <div>
-                                <p className="font-headline font-bold text-lg">Historial vacío</p>
-                                <p className="text-[10px] font-bold uppercase tracking-widest">Aún no hay pedidos finalizados registrados</p>
-                              </div>
-                            </div>
-                          </td>
+                          <td colSpan={4} className="px-7 py-20 text-center text-on-surface-variant text-sm italic">Historial vacío.</td>
                         </tr>
                       )}
                     </tbody>
@@ -1535,95 +1670,134 @@ END:VCALENDAR`
               </div>
               {/* Vista Mobile */}
               <div className="md:hidden space-y-4">
-                {paginatedFinalizados.map(p => (
-                  <div key={p.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
-                    <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
-                      <div className="w-14 h-14 bg-secondary/10 dark:bg-white/5 rounded-2xl flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl font-bold italic leading-none">H</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692] truncate">{p.cliente}</h3>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-500">Finalizado el: {p.fechaEntrega}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-extrabold uppercase tracking-widest">
-                            {p.medioPago}
-                          </span>
-                          {p.canalVenta && (
-                            <span className="inline-flex px-2 py-0.5 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[10px]">location_on</span>
-                              {p.canalVenta}
-                            </span>
-                          )}
+                {paginatedFinalizados.map(group => {
+                  const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
+                  const uniqueFechas = Array.from(new Set(fechas)).sort();
+                  let fechaDisplay = "";
+                  if (uniqueFechas.length === 1) {
+                    fechaDisplay = uniqueFechas[0];
+                  } else if (uniqueFechas.length > 1) {
+                    fechaDisplay = `${uniqueFechas[0]} ... ${uniqueFechas[uniqueFechas.length - 1]}`;
+                  } else {
+                    fechaDisplay = "Sin fecha";
+                  }
+                  const totalDinero_acumulado = group.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+
+                  return (
+                    <div key={group.id} className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-5 shadow-sm border border-outline-variant/10 dark:border-white/5">
+                      <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedCustomer(expandedCustomer === group.id ? null : group.id)}>
+                        <div className="w-12 h-12 bg-secondary/10 dark:bg-white/5 rounded-2xl flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl font-bold">person</span>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-base font-bold text-secondary dark:text-[#e2bd6c] leading-tight">${p.total?.toLocaleString('es-CL')}</p>
-                        <span className={`material-symbols-outlined text-outline dark:text-white/20 text-xl transition-transform duration-300 ${expandedId === p.id ? 'rotate-180' : ''}`}>expand_more</span>
-                      </div>
-                    </div>
-                    {expandedId === p.id && (
-                      <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="space-y-2 mb-4">
-                          {p.productos?.map((item, idx) => (
-                            <div key={idx} className="bg-surface dark:bg-[#2a2a2a] p-4 rounded-2xl border border-outline-variant/10 dark:border-white/5 shadow-sm">
-                              <div className="flex justify-between items-center mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-secondary dark:text-[#e2bd6c] font-black text-sm">{item.cantidad}x</span>
-                                  <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
-                                </div>
-                                <span className="font-bold text-on-surface dark:text-[#e2bd6c] text-sm">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
-                              </div>
-                              {item.variante && (
-                                <div className="flex items-center gap-1.5 bg-secondary/5 dark:bg-[#e2bd6c]/5 px-2 py-1 rounded-lg w-fit border border-secondary/10 dark:border-white/5">
-                                  <div 
-                                    className="w-2 h-2 rounded-full border border-black/10 dark:border-white/20 shadow-sm"
-                                    style={{ backgroundColor: getHexColor(item.variante) || '#ccc' }}
-                                  />
-                                  <span className="text-[8px] font-black uppercase tracking-[0.15em] text-secondary dark:text-[#e2bd6c]">
-                                    {item.variante}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {p.historialAbonos && p.historialAbonos.length > 0 && (
-                          <div className="mb-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-3">
-                            <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 px-1">Pagos Registrados</p>
-                            <div className="space-y-2">
-                              {p.historialAbonos.map((abono, idx) => (
-                                <div key={idx} className="flex justify-between items-center text-[10px] bg-secondary/5 dark:bg-white/5 px-4 py-3 rounded-xl border border-secondary/10 dark:border-white/5">
-                                  <div className="flex flex-col">
-                                    <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                      {new Date(abono.fecha).toLocaleDateString('es-CL')} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                    <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota}</span>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="font-bold text-secondary dark:text-[#f3d692]">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                      <span className="material-symbols-outlined text-[14px]">undo</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692] truncate">{group.cliente}</h3>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">
+                            {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-outline">
+                            <span className="material-symbols-outlined text-xs">event</span>
+                            <span>Finalizados: {fechaDisplay}</span>
                           </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm">
-                            Editar Pedido
-                          </button>
-                          <button onClick={() => handleDelete(p)} className="flex-1 bg-error/10 text-error py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                            <span className="material-symbols-outlined text-sm">delete_forever</span>
-                            Eliminar
-                          </button>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <div>
+                            <p className="text-[9px] font-bold text-outline uppercase tracking-wider leading-none">Total</p>
+                            <p className="text-sm font-bold text-secondary dark:text-[#e2bd6c] leading-tight">${totalDinero_acumulado.toLocaleString('es-CL')}</p>
+                          </div>
+                          <span className={`material-symbols-outlined text-outline transition-transform duration-300 ${expandedCustomer === group.id ? 'rotate-180' : ''}`}>
+                            expand_more
+                          </span>
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-                {listFinalizados.length === 0 && (
+
+                      {expandedCustomer === group.id && (
+                        <div className="mt-4 pt-4 border-t border-outline-variant/10 dark:border-white/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          {group.pedidos.map(p => {
+                            const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
+                            return (
+                              <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
+                                <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+                                  <div>
+                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                      <span className="text-[8px] bg-secondary/5 dark:bg-white/5 border border-secondary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-secondary dark:text-gray-400">
+                                        {p.medioPago}
+                                      </span>
+                                      {p.canalVenta && (
+                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
+                                          <span className="material-symbols-outlined text-[9px]">location_on</span>
+                                          {p.canalVenta}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex items-center gap-2">
+                                    <div>
+                                      <p className="text-[9px] text-outline dark:text-gray-500 font-bold uppercase tracking-widest">Total</p>
+                                      <p className="text-xs font-bold text-secondary">${totalC.toLocaleString('es-CL')}</p>
+                                    </div>
+                                    <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
+                                      expand_more
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {expandedId === p.id && (
+                                  <div className="space-y-2 mt-3 pt-3 border-t border-outline-variant/5">
+                                    {p.productos?.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-3 py-2 rounded-xl border border-secondary/10">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-secondary dark:text-[#e2bd6c] font-black text-xs">{item.cantidad}x</span>
+                                          <span className="font-bold text-on-surface dark:text-white/90 text-xs">{item.nombre}</span>
+                                        </div>
+                                        <span className="font-black text-secondary dark:text-[#e2bd6c] text-xs">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
+                                      </div>
+                                    ))}
+
+                                    {p.historialAbonos && p.historialAbonos.length > 0 && (
+                                      <div className="mb-2 space-y-2">
+                                        <p className="text-[8px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 px-1 mt-2">Pagos Registrados</p>
+                                        <div className="space-y-1.5">
+                                          {p.historialAbonos.map((abono, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-[10px] bg-secondary/5 dark:bg-white/5 px-3 py-2 rounded-xl border border-secondary/10 dark:border-white/5">
+                                              <div className="flex flex-col">
+                                                <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                  {new Date(abono.fecha).toLocaleDateString('es-CL')} {new Date(abono.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-bold text-secondary dark:text-[#f3d692] text-xs">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                  <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className="flex gap-2 pt-2">
+                                  <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
+                                    Editar
+                                  </button>
+                                  <button onClick={() => handleDelete(p)} className="flex-1 bg-error/10 text-error py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest flex items-center justify-center gap-2">
+                                    <span className="material-symbols-outlined text-sm">delete_forever</span>
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {groupedFinalizados.length === 0 && (
                   <div className="bg-surface-container-lowest/50 rounded-[32px] border-2 border-dashed border-outline-variant/20 p-12 text-center space-y-4">
                     <div className="w-16 h-16 bg-outline-variant/10 rounded-full flex items-center justify-center mx-auto opacity-40">
                       <span className="material-symbols-outlined text-3xl">auto_stories</span>
@@ -1637,7 +1811,7 @@ END:VCALENDAR`
               </div>
 
               {/* Controles de Paginación */}
-              {renderPaginationControls(safePageFinalizados, listFinalizados.length, setPageFinalizados)}
+              {renderPaginationControls(safePageFinalizados, groupedFinalizados.length, setPageFinalizados)}
             </div>
           )}
         </section>
