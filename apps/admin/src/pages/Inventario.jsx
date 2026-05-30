@@ -262,6 +262,150 @@ export default function Inventario() {
     }
   }
 
+  async function autoFillWithAI() {
+    setErrorMsg('');
+    const apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+      setTempApiKey('');
+      setShowApiKeyModal(true);
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      let imagePart = null;
+      // Tratar de obtener la primera foto como base64 para análisis multimodal
+      const fotosList = form.fotos || [];
+      if (fotosList.length > 0) {
+        const base64Img = await fetchImageAsBase64(fotosList[0]);
+        if (base64Img) {
+          imagePart = {
+            inlineData: {
+              data: base64Img.data,
+              mimeType: base64Img.mimeType
+            }
+          };
+        }
+      }
+
+      if (!form.nombre && !imagePart) {
+        throw new Error('Por favor escribe el nombre del producto o sube una imagen de muestra para que la IA pueda identificar el producto.');
+      }
+
+      const promptText = `Eres un experto en marketing y cosmética premium para la marca Leis. Tu tarea es analizar el nombre del producto "${form.nombre || 'desconocido'}" y la imagen del producto (si está disponible) y redactar una descripción detallada, atractiva y profesional estructurada exactamente en las siguientes 5 secciones numeradas. Es FUNDAMENTAL que respetes el formato con números exactos y saltos de línea para que nuestro renderizador de catálogo lo formatee automáticamente como tarjetas separadas.
+
+Usa exactamente la siguiente estructura de números y títulos (no uses otros números ni títulos):
+
+1. Propósito Principal
+[Describe en un párrafo fluido y persuasivo el propósito principal de este producto, qué hace y cómo ayuda al cliente. Mantén un tono elegante y sofisticado].
+
+2. Ingredientes Clave
+• **[Nombre del Ingrediente 1]:** [Breve descripción de su beneficio]
+• **[Nombre del Ingrediente 2]:** [Breve descripción de su beneficio]
+• **[Nombre del Ingrediente 3]:** [Breve descripción de su beneficio]
+
+3. Beneficios Detallados
+• **[Nombre del Beneficio 1]:** [Breve descripción]
+• **[Nombre del Beneficio 2]:** [Breve descripción]
+• **[Nombre del Beneficio 3]:** [Breve descripción]
+
+4. Modo de Uso Sugerido
+• **Paso 1:** [Descripción del paso]
+• **Paso 2:** [Descripción del paso]
+• **Paso 3:** [Descripción del paso]
+
+5. ¿Para quién es ideal?
+[Explica brevemente qué tipo de persona, tipo de piel, tipo de cabello o necesidad particular se beneficiará al máximo de este producto].
+
+INSTRUCCIÓN IMPORTANTE PARA EL NOMBRE DEL PRODUCTO:
+Si el nombre del producto no está definido en el formulario (o sea, es 'desconocido'), identifícalo directamente de la etiqueta de la botella/pote en la imagen de muestra (por ejemplo: "Crema Collagen", "Mascarilla de Colágeno Absolute Hair Beauty").
+Si has identificado el nombre del producto desde la imagen (o deseas proponer una versión corregida y atractiva), escribe obligatoriamente en la primera línea de tu respuesta la palabra "PRODUCTO:" seguido del nombre identificado (ejemplo: "PRODUCTO: Mascarilla de Colágeno"). Luego da dos saltos de línea y comienza directamente con "1. Propósito Principal".
+Si ya hay un nombre definido y no deseas cambiarlo, puedes omitir la línea "PRODUCTO:".
+
+REGLAS DE FORMATO ESTRICTAS:
+- No agregues introducciones ni conclusiones. Comienza directamente con "1. Propósito Principal" o la línea "PRODUCTO:".
+- Asegúrate de usar el formato de negritas con doble asterisco \`**Texto**\` exactamente como se muestra para que el renderizador de catálogo resalte los nombres de los ingredientes y beneficios.
+- No antes del título uses otros números o negrita como \`###\` o \`**1. Propósito Principal**\`. Usa exactamente "1. Propósito Principal" en la cabecera (el número y punto es lo que activa el formateo en el frontend).`;
+
+      const contents = [
+        {
+          parts: [
+            { text: promptText }
+          ]
+        }
+      ];
+
+      if (imagePart) {
+        contents[0].parts.push(imagePart);
+      }
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 400 && errorData.error?.message?.includes('API key')) {
+          localStorage.removeItem('gemini_api_key');
+          throw new Error('API Key inválida. Por favor, vuelve a ingresarla.');
+        }
+        throw new Error(errorData.error?.message || `Error del servidor (${response.status})`);
+      }
+
+      const resData = await response.json();
+      const textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!textResult) {
+        throw new Error('La IA no devolvió un resultado válido.');
+      }
+
+      let cleanTextResult = textResult.trim();
+      let generatedName = "";
+
+      if (cleanTextResult.startsWith("PRODUCTO:")) {
+        const lines = cleanTextResult.split('\n');
+        const firstLine = lines[0];
+        generatedName = firstLine.replace("PRODUCTO:", "").trim();
+        cleanTextResult = lines.slice(1).join('\n').trim();
+      }
+
+      setForm(prev => {
+        const updated = { ...prev, descripcion: cleanTextResult };
+        if (generatedName) {
+          updated.nombre = generatedName;
+        }
+        return updated;
+      });
+
+    } catch (e) {
+      console.error(e);
+      setErrorMsg('Error de IA: ' + e.message);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  }
+
+  async function fetchImageAsBase64(url) {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      const blob = await res.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result.split(',')[1];
+          resolve({ data: base64data, mimeType: blob.type });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.warn("No se pudo obtener la imagen en base64 debido a CORS. Usando fallback de URL en texto.");
+      return null;
+    }
+  }
+
   const [busqueda, setBusqueda]   = useState('')
   const [filtroCol, setFiltroCol] = useState('TODOS')
   const [orden, setOrden]         = useState('alfabetico-asc')
@@ -291,6 +435,11 @@ export default function Inventario() {
   const [uploadProgress, setUploadProgress] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const [previewImage, setPreviewImage] = useState(null)
+  
+  // AI generation states
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false)
+  const [tempApiKey, setTempApiKey] = useState('')
   
   // Historial
   const [historyProductId, setHistoryProductId] = useState(null)
@@ -1828,6 +1977,19 @@ export default function Inventario() {
                       <div className="flex flex-wrap gap-1.5 p-2 bg-surface-container-low dark:bg-black/25 rounded-2xl border border-outline-variant/15 dark:border-white/5">
                         <button
                           type="button"
+                          onClick={autoFillWithAI}
+                          disabled={isGeneratingAI}
+                          title="Rellenar información automáticamente con IA usando el nombre y fotos"
+                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 dark:hover:bg-purple-500/30 border border-purple-500/20 dark:border-purple-500/30 transition-all flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-40 shadow-sm shrink-0"
+                        >
+                          <span className={`material-symbols-outlined text-[12px] ${isGeneratingAI ? 'animate-spin' : 'animate-pulse'}`}>
+                            {isGeneratingAI ? 'progress_activity' : 'psychology'}
+                          </span>
+                          {isGeneratingAI ? 'Generando...' : 'Generar con IA'}
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => insertTextIntoDescription(plantillaCosmetica)}
                           title="Insertar plantilla estética premium"
                           className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] hover:bg-[#e2bd6c]/20 border border-[#e2bd6c]/20 transition-all flex items-center gap-1 hover:scale-105 active:scale-95"
@@ -2381,6 +2543,66 @@ export default function Inventario() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal para configurar la API Key de Gemini */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in" onClick={() => setShowApiKeyModal(false)} />
+          <div className="bg-surface dark:bg-[#1a1a1a] rounded-[28px] shadow-2xl w-full max-w-md relative z-10 flex flex-col animate-in zoom-in-95 duration-300 border border-outline-variant/20 dark:border-white/10 p-6 text-on-surface dark:text-white/90">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-purple-500/10 text-purple-600 dark:text-purple-300 rounded-2xl flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-2xl animate-pulse">psychology</span>
+              </div>
+              <div>
+                <h3 className="font-headline text-lg font-bold text-secondary dark:text-[#e2bd6c] leading-tight">Configurar IA de Gemini</h3>
+                <p className="text-[9px] uppercase tracking-widest text-outline dark:text-gray-400 font-bold mt-1">Generación Inteligente de Contenido</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-on-surface-variant dark:text-gray-300 leading-relaxed mb-4">
+              Para rellenar descripciones automáticamente y analizar imágenes de producto, necesitamos conectarnos a Google Gemini API. 
+              <br /><br />
+              Puedes obtener una <strong>API Key gratis</strong> al instante en <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary dark:text-[#e2bd6c] underline hover:opacity-80 transition-opacity">Google AI Studio</a>. Esta clave se guardará de forma 100% segura únicamente en tu navegador.
+            </p>
+
+            <div className="space-y-4 mb-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Gemini API Key</label>
+                <input 
+                  type="password"
+                  className="w-full bg-surface-container-lowest dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                  placeholder="AIzaSy..."
+                  value={tempApiKey}
+                  onChange={(e) => setTempApiKey(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                type="button"
+                onClick={() => setShowApiKeyModal(false)}
+                className="flex-1 py-3 bg-surface-variant/30 text-outline hover:bg-surface-variant/50 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  if (tempApiKey.trim()) {
+                    localStorage.setItem('gemini_api_key', tempApiKey.trim());
+                    setShowApiKeyModal(false);
+                    autoFillWithAI();
+                  }
+                }}
+                disabled={!tempApiKey.trim()}
+                className="flex-1 py-3 bg-purple-600 dark:bg-[#e2bd6c] text-white dark:text-black rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100"
+              >
+                Guardar y Generar
+              </button>
             </div>
           </div>
         </div>
