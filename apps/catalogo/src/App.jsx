@@ -2667,7 +2667,7 @@ export default function CatalogoPublico() {
             <img 
               src="/gatita.png" 
               alt="Gatita Leis Mascota" 
-              className="w-20 h-20 md:w-28 md:h-28 object-contain relative z-10 drop-shadow-xl animate-in slide-in-from-right-10 duration-500 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+              className="w-40 h-40 md:w-56 md:h-56 object-contain relative z-10 drop-shadow-2xl animate-in slide-in-from-right-10 duration-500 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
               onClick={() => {
                 alert("🐾 ¡Miau! Estoy lista para guiarte en tu compra.");
               }}

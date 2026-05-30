@@ -19,5 +19,8 @@
     "@esbuild/linux-x64": "*",
     "@rollup/rollup-linux-x64-gnu": "*",
     "@rollup/rollup-linux-x64-musl": "*"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
   }
 }
