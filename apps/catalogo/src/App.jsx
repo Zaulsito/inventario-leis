@@ -22,6 +22,24 @@ function mergeCarts(localCart, dbCart) {
   return merged
 }
 
+const getCategoriaIcon = (catName) => {
+  const name = catName.toUpperCase().trim();
+  if (name === 'TODAS') return 'grid_view';
+  if (name.includes('ANILLO')) return 'panorama_fish_eye';
+  if (name.includes('ANTIFAZ')) return 'theater_comedy';
+  if (name.includes('ARO')) return 'trip_origin';
+  if (name.includes('CEJA')) return 'face';
+  if (name.includes('COLLAR')) return 'diamond';
+  if (name.includes('CONJUNTO')) return 'auto_awesome_motion';
+  if (name.includes('CORPORAL')) return 'accessibility_new';
+  if (name.includes('CUIDADO') || name.includes('CAPILAR') || name.includes('CABELLO')) return 'spa';
+  if (name.includes('LABIAL') || name.includes('LABIOS')) return 'volunteer_activism';
+  if (name.includes('MAQUILLAJE') || name.includes('FACIAL')) return 'brush';
+  if (name.includes('CREMA') || name.includes('PIEL')) return 'water_drop';
+  if (name.includes('PERFUME') || name.includes('AROMA')) return 'air';
+  return 'star_rate';
+}
+
 export default function CatalogoPublico() {
   const [productos, setProductos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -70,6 +88,13 @@ export default function CatalogoPublico() {
   // Paso actual del Viaje de Compra guiado (0 = inactivo, 1 a 7 = pasos)
   const [tourStep, setTourStep] = useState(0)
   const [isDialogMinimized, setIsDialogMinimized] = useState(false)
+
+  // Estados para colapsar barra lateral y secciones
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isBusquedaExpanded, setIsBusquedaExpanded] = useState(true)
+  const [isPrecioExpanded, setIsPrecioExpanded] = useState(true)
+  const [isDisponibilidadExpanded, setIsDisponibilidadExpanded] = useState(true)
+  const [isCategoriasExpanded, setIsCategoriasExpanded] = useState(true)
 
   // Auto-restaurar globo al cambiar de paso
   useEffect(() => {
@@ -999,147 +1024,233 @@ export default function CatalogoPublico() {
       )}
 
       {/* ── PANEL LATERAL (SIDEBAR) ── */}
-      <aside className={`fixed md:relative top-0 left-0 h-full w-[280px] border-r z-50 flex flex-col transition-all duration-300 ease-in-out shadow-2xl md:shadow-none ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'} ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        {/* CABECERA SIDEBAR */}
-        <div className={`p-6 border-b flex justify-between items-center shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-low'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg shadow-sm flex items-center justify-center p-1 shrink-0 ${isDark ? 'bg-white/5' : 'bg-white'}`}>
-              <img src={isDark ? "/logo-dark.png" : "/logo.jpeg"} alt="Logo" className="w-full h-full object-contain rounded" />
+      <aside className={`fixed md:relative top-0 left-0 h-full border-r z-50 flex flex-col transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-2xl md:shadow-none 
+        ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'} 
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} 
+        ${isSidebarCollapsed ? 'md:w-0 md:-translate-x-full md:border-r-transparent' : 'md:w-[280px] md:translate-x-0'}`}
+      >
+        <div className={`flex-1 flex flex-col h-full min-w-[280px] transition-all duration-500 ${isSidebarCollapsed ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
+          {/* CABECERA SIDEBAR */}
+          <div className={`p-6 border-b flex justify-between items-center shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-low'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg shadow-sm flex items-center justify-center p-1 shrink-0 ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+                <img src={isDark ? "/logo-dark.png" : "/logo.jpeg"} alt="Logo" className="w-full h-full object-contain rounded" />
+              </div>
+              <div>
+                <h1 className={`font-headline text-lg font-bold italic leading-tight ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>Catálogo</h1>
+                <p className={`text-[9px] uppercase tracking-widest font-bold ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>Filtros</p>
+              </div>
             </div>
-            <div>
-              <h1 className={`font-headline text-lg font-bold italic leading-tight ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>Catálogo</h1>
-              <p className={`text-[9px] uppercase tracking-widest font-bold ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>Filtros</p>
-            </div>
+            <button onClick={() => setIsSidebarOpen(false)} className={`md:hidden p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:bg-white/5' : 'text-outline hover:bg-surface-variant'}`}>
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className={`md:hidden p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:bg-white/5' : 'text-outline hover:bg-surface-variant'}`}>
-            <span className="material-symbols-outlined text-lg">close</span>
-          </button>
-        </div>
 
-        {/* CONTENIDO SIDEBAR (FILTROS) */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-          
-          {/* BÚSQUEDA */}
-          <div className="space-y-3">
-            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
-              <span className="material-symbols-outlined text-sm">search</span>
-              Búsqueda
-            </h3>
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Nombre, SKU..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''}`}
-              />
-              {searchTerm && (
-                <button 
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-outline-variant/30 text-outline hover:bg-outline-variant/50 transition-all"
-                >
-                  <span className="material-symbols-outlined text-[12px]">close</span>
-                </button>
+          {/* CONTENIDO SIDEBAR (FILTROS) */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            
+            {/* BÚSQUEDA */}
+            <div className="space-y-3">
+              <button 
+                onClick={() => setIsBusquedaExpanded(!isBusquedaExpanded)}
+                className="w-full flex items-center justify-between py-1 cursor-pointer select-none group focus:outline-none"
+              >
+                <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'} group-hover:text-[#e2bd6c] transition-colors`}>
+                  <span className="material-symbols-outlined text-sm">search</span>
+                  Búsqueda
+                </h3>
+                <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${isDark ? 'text-gray-400' : 'text-outline'} ${isBusquedaExpanded ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              
+              {isBusquedaExpanded && (
+                <div className="relative animate-in fade-in slide-in-from-top-1 duration-200">
+                  <input 
+                    type="text" 
+                    placeholder="Nombre, SKU..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''}`}
+                  />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-outline-variant/30 text-outline hover:bg-outline-variant/50 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">close</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
-          </div>
 
-          {/* PRECIO */}
-          <div className="space-y-3">
-            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
-              <span className="material-symbols-outlined text-sm">payments</span>
-              Rango de Precio
-            </h3>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${isDark ? 'text-gray-400' : 'text-outline'}`}>$</span>
-                <input 
-                  type="number" 
-                  placeholder="Min"
-                  value={precioMin}
-                  onChange={e => setPrecioMin(e.target.value)}
-                  className={`w-full border rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'}`}
-                />
-              </div>
-              <span className={isDark ? 'text-white/20' : 'text-outline-variant'}>-</span>
-              <div className="relative flex-1">
-                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${isDark ? 'text-gray-400' : 'text-outline'}`}>$</span>
-                <input 
-                  type="number" 
-                  placeholder="Max"
-                  value={precioMax}
-                  onChange={e => setPrecioMax(e.target.value)}
-                  className={`w-full border rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'}`}
-                />
-              </div>
+            {/* PRECIO */}
+            <div className="space-y-3">
+              <button 
+                onClick={() => setIsPrecioExpanded(!isPrecioExpanded)}
+                className="w-full flex items-center justify-between py-1 cursor-pointer select-none group focus:outline-none"
+              >
+                <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'} group-hover:text-[#e2bd6c] transition-colors`}>
+                  <span className="material-symbols-outlined text-sm">payments</span>
+                  Rango de Precio
+                </h3>
+                <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${isDark ? 'text-gray-400' : 'text-outline'} ${isPrecioExpanded ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              
+              {isPrecioExpanded && (
+                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="relative flex-1">
+                    <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${isDark ? 'text-gray-400' : 'text-outline'}`}>$</span>
+                    <input 
+                      type="number" 
+                      placeholder="Min"
+                      value={precioMin}
+                      onChange={e => setPrecioMin(e.target.value)}
+                      className={`w-full border rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'}`}
+                    />
+                  </div>
+                  <span className={isDark ? 'text-white/20' : 'text-outline-variant'}>-</span>
+                  <div className="relative flex-1">
+                    <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${isDark ? 'text-gray-400' : 'text-outline'}`}>$</span>
+                    <input 
+                      type="number" 
+                      placeholder="Max"
+                      value={precioMax}
+                      onChange={e => setPrecioMax(e.target.value)}
+                      className={`w-full border rounded-xl pl-7 pr-2 py-2.5 text-sm focus:outline-none transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'}`}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* DISPONIBILIDAD */}
-          <div className="space-y-3">
-            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
-              <span className="material-symbols-outlined text-sm">inventory_2</span>
-              Disponibilidad
-            </h3>
-            <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-variant/50'}`}>
-              <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-on-surface'}`}>Solo disponible</span>
-              <div className="relative flex items-center">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer"
-                  checked={soloDisponibles}
-                  onChange={e => setSoloDisponibles(e.target.checked)}
-                />
-                <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
-              </div>
-            </label>
-          </div>
-
-          {/* CATEGORÍAS */}
-          <div className="space-y-3">
-            <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'}`}>
-              <span className="material-symbols-outlined text-sm">category</span>
-              Categorías
-            </h3>
-            <div className="flex flex-col gap-1">
-              {categoriasUnicas.map(c => (
-                <button
-                  key={c}
-                  onClick={() => {
-                    setFiltroCategoria(c)
-                    if (window.innerWidth < 768) setIsSidebarOpen(false)
-                  }}
-                  className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all
-                    ${filtroCategoria === c
-                      ? (isDark ? 'bg-[#e2bd6c] text-black shadow-md scale-[1.02]' : 'bg-secondary text-white shadow-md scale-[1.02]')
-                      : (isDark ? 'text-gray-300 hover:bg-white/5' : 'text-on-surface-variant hover:bg-surface-variant/50')
-                    }`}
-                >
-                  <span className="uppercase tracking-wide">{c}</span>
-                  {filtroCategoria === c && <span className="material-symbols-outlined text-sm">check</span>}
-                </button>
-              ))}
+            {/* DISPONIBILIDAD */}
+            <div className="space-y-3">
+              <button 
+                onClick={() => setIsDisponibilidadExpanded(!isDisponibilidadExpanded)}
+                className="w-full flex items-center justify-between py-1 cursor-pointer select-none group focus:outline-none"
+              >
+                <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'} group-hover:text-[#e2bd6c] transition-colors`}>
+                  <span className="material-symbols-outlined text-sm">inventory_2</span>
+                  Disponibilidad
+                </h3>
+                <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${isDark ? 'text-gray-400' : 'text-outline'} ${isDisponibilidadExpanded ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              
+              {isDisponibilidadExpanded && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                  <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-variant/50'}`}>
+                    <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-on-surface'}`}>Solo disponible</span>
+                    <div className="relative flex items-center">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={soloDisponibles}
+                        onChange={e => setSoloDisponibles(e.target.checked)}
+                      />
+                      <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
-          </div>
 
-        </div>
-        
-        {/* FOOTER SIDEBAR */}
-        <div className={`p-6 border-t shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-lowest'}`}>
-          <button 
-            onClick={() => {
-              setFiltroCategoria('TODAS')
-              setSearchTerm('')
-              setPrecioMin('')
-              setPrecioMax('')
-              setSoloDisponibles(false)
-            }}
-            className={`w-full py-3 rounded-xl border font-bold text-xs uppercase tracking-widest transition-colors ${isDark ? 'border-white/10 text-white hover:bg-white/5' : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant'}`}
-          >
-            Limpiar Filtros
-          </button>
+            {/* CATEGORÍAS */}
+            <div className="space-y-3">
+              <button 
+                onClick={() => setIsCategoriasExpanded(!isCategoriasExpanded)}
+                className="w-full flex items-center justify-between py-1 cursor-pointer select-none group focus:outline-none"
+              >
+                <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'} group-hover:text-[#e2bd6c] transition-colors`}>
+                  <span className="material-symbols-outlined text-sm">category</span>
+                  Categorías
+                </h3>
+                <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${isDark ? 'text-gray-400' : 'text-outline'} ${isCategoriasExpanded ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              
+              {isCategoriasExpanded && (
+                <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {categoriasUnicas.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        setFiltroCategoria(c)
+                        if (window.innerWidth < 768) setIsSidebarOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-300 relative group overflow-hidden border cursor-pointer
+                        ${filtroCategoria === c
+                          ? (isDark 
+                              ? 'bg-gradient-to-r from-[#e2bd6c]/20 to-[#e2bd6c]/5 border-[#e2bd6c]/40 text-[#e2bd6c] shadow-[0_0_15px_rgba(226,189,108,0.15)] scale-[1.02]' 
+                              : 'bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 text-primary scale-[1.02]')
+                          : (isDark 
+                              ? 'bg-transparent border-transparent text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/5' 
+                              : 'bg-transparent border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 hover:border-surface-variant/10')
+                        }`}
+                    >
+                      {/* Left line indicator for active category */}
+                      {filtroCategoria === c && (
+                        <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-md ${isDark ? 'bg-[#e2bd6c]' : 'bg-primary'}`} />
+                      )}
+                      
+                      <div className="flex items-center gap-3">
+                        <span className={`material-symbols-outlined text-[16px] transition-transform duration-500 group-hover:rotate-[15deg] ${filtroCategoria === c ? (isDark ? 'text-[#e2bd6c]' : 'text-primary') : 'text-gray-500 group-hover:text-gray-300'}`}>
+                          {getCategoriaIcon(c)}
+                        </span>
+                        <span className="font-semibold tracking-widest text-[10px]">{c}</span>
+                      </div>
+                      
+                      {filtroCategoria === c ? (
+                        <span className={`material-symbols-outlined text-sm ${isDark ? 'text-[#e2bd6c]' : 'text-primary'} animate-pulse`}>check</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-40 group-hover:translate-x-0.5 transition-all text-gray-500">chevron_right</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+          
+          {/* FOOTER SIDEBAR */}
+          <div className={`p-6 border-t shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-lowest'}`}>
+            <button 
+              onClick={() => {
+                setFiltroCategoria('TODAS')
+                setSearchTerm('')
+                setPrecioMin('')
+                setPrecioMax('')
+                setSoloDisponibles(false)
+              }}
+              className={`w-full py-3 rounded-xl border font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer ${isDark ? 'border-white/10 text-white hover:bg-white/5' : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant'}`}
+            >
+              Limpiar Filtros
+            </button>
+          </div>
         </div>
       </aside>
+
+      {/* Botón Toggle Flotante (Círculo en el Borde de la Sidebar Desktop) */}
+      <button
+        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        title={isSidebarCollapsed ? 'Mostrar filtros' : 'Ocultar filtros'}
+        className={`hidden md:flex fixed top-1/2 z-[60] w-8 h-8 items-center justify-center rounded-full shadow-lg border hover:scale-110 active:scale-95 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] group -translate-y-1/2 -translate-x-1/2 cursor-pointer
+          ${isDark 
+            ? 'bg-[#1e1e1e] border-white/10 text-[#e2bd6c] hover:bg-[#e2bd6c] hover:text-black shadow-black/40' 
+            : 'bg-white border-outline-variant/30 text-secondary hover:bg-secondary hover:text-white shadow-black/10'}
+          ${isSidebarCollapsed ? 'left-0' : 'left-[280px]'}`}
+      >
+        <span className={`material-symbols-outlined text-sm font-bold transition-transform duration-500 ${isSidebarCollapsed ? 'rotate-0' : 'rotate-180'}`}>
+          chevron_right
+        </span>
+      </button>
 
       {/* ── CONTENIDO PRINCIPAL ── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
