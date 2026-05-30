@@ -67,13 +67,13 @@ export default function CatalogoPublico() {
     return localStorage.getItem('hide_catalogo_tutorial') !== 'true';
   })
 
-  // Paso actual del Viaje de Compra guiado (0 = inactivo, 1 a 5 = pasos)
+  // Paso actual del Viaje de Compra guiado (0 = inactivo, 1 a 7 = pasos)
   const [tourStep, setTourStep] = useState(0)
 
-  // Avanzar del paso 2 al 3 cuando el usuario abre el carrito
+  // Avanzar del paso 4 al 5 cuando el usuario abre el carrito
   useEffect(() => {
-    if (tourStep === 2 && isCartOpen) {
-      setTourStep(3)
+    if (tourStep === 4 && isCartOpen) {
+      setTourStep(5)
     }
   }, [isCartOpen, tourStep])
 
@@ -855,8 +855,8 @@ export default function CatalogoPublico() {
   }
 
   function añadirAlCarrito(producto, variante) {
-    if (tourStep === 1) {
-      setTourStep(2)
+    if (tourStep === 3) {
+      setTourStep(4)
     }
     const maxStock = variante ? variante.stock : producto.stock
     const nombreItem = variante ? `${producto.nombre} (${variante.nombre})` : producto.nombre
@@ -925,8 +925,8 @@ export default function CatalogoPublico() {
     if (carrito.length === 0) return alert('El carrito está vacío')
     setShowCheckout(true)
     setIsCartOpen(false)
-    if (tourStep === 3) {
-      setTourStep(4)
+    if (tourStep === 5) {
+      setTourStep(6)
     }
   }
 
@@ -954,8 +954,8 @@ export default function CatalogoPublico() {
     setShowCheckout(false)
     setClienteNombre('')
 
-    if (tourStep === 4) {
-      setTourStep(5)
+    if (tourStep === 6) {
+      setTourStep(7)
       setTimeout(() => {
         setTourStep(0)
       }, 7000)
@@ -1023,7 +1023,7 @@ export default function CatalogoPublico() {
                 placeholder="Nombre, SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'}`}
+                className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''}`}
               />
               {searchTerm && (
                 <button 
@@ -1224,7 +1224,7 @@ export default function CatalogoPublico() {
             ) : (
               <button 
                 onClick={() => setShowAuthModal(true)}
-                className={`p-3 rounded-2xl transition-colors shrink-0 ${isDark ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant'}`}
+                className={`p-3 rounded-2xl transition-all shrink-0 ${isDark ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
                 title="Iniciar Sesión / Crear Cuenta"
               >
                 <span className="material-symbols-outlined">person</span>
@@ -1252,7 +1252,7 @@ export default function CatalogoPublico() {
             <button 
               id="header-cart-btn"
               onClick={() => setIsCartOpen(true)}
-              className={`relative p-3 rounded-2xl transition-all shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-110') : ''}`}
+              className={`relative p-3 rounded-2xl transition-all shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} ${tourStep === 4 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-110') : ''}`}
             >
               <span className="material-symbols-outlined">shopping_cart</span>
               {totalItems > 0 && (
@@ -1373,10 +1373,11 @@ export default function CatalogoPublico() {
                 ? p.variantes.some(v => Number(v.stock) > 0)
                 : Number(p.stock) > 0;
 
-              const isStep1Highlight = tourStep === 1 && pIndex === 0;
+              const isStep3Highlight = tourStep === 3 && pIndex === 0;
+              const isGrayscaleTour = tourStep === 3 && pIndex !== 0;
 
               return (
-                <div key={p.id} className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''}`}>
+                <div key={p.id} className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''} ${isGrayscaleTour ? 'grayscale opacity-30 hover:grayscale-0 hover:opacity-90 duration-500 shadow-none border-dashed' : ''}`}>
                   {/* Imagen */}
                   <div 
                     className={`aspect-square relative overflow-hidden flex items-center justify-center cursor-pointer ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
@@ -1415,7 +1416,7 @@ export default function CatalogoPublico() {
                       ) : tieneVariantes ? (
                         <button 
                           onClick={() => abrirModalAñadir(p)}
-                          className={`px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep1Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
+                          className={`px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
                         >
                           Opciones {totalEnCarritoVariants > 0 && <span className={`ml-1 px-1.5 py-0.5 rounded-md ${isDark ? 'bg-black/20 text-black/80' : 'bg-white/20 text-on-primary/80'}`}>{totalEnCarritoVariants}</span>}
                         </button>
@@ -1438,7 +1439,7 @@ export default function CatalogoPublico() {
                             animateFlyToCart(e, p.fotoUrl);
                             añadirAlCarrito(p, null);
                           }}
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep1Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
                         >
                           <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
                         </button>
@@ -1570,7 +1571,7 @@ export default function CatalogoPublico() {
                 </div>
                 <button 
                   onClick={prepararCheckout}
-                  className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2 ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/10' : 'bg-primary text-on-primary shadow-primary/10'} ${tourStep === 3 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-[1.02]') : ''}`}
+                  className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2 ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/10' : 'bg-primary text-on-primary shadow-primary/10'} ${tourStep === 5 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-[1.02]') : ''}`}
                 >
                   <span className="material-symbols-outlined">send</span>
                   Hacer Pedido
@@ -2039,7 +2040,7 @@ export default function CatalogoPublico() {
               </button>
               <button 
                 onClick={enviarPedidoWhatsApp}
-                className={`flex-[2] bg-[#25D366] text-white py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all flex justify-center items-center gap-2 ${tourStep === 4 ? 'ring-4 ring-[#25D366] animate-pulse shadow-[0_0_25px_rgba(37,211,102,0.9)] scale-105' : ''}`}
+                className={`flex-[2] bg-[#25D366] text-white py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all flex justify-center items-center gap-2 ${tourStep === 6 ? 'ring-4 ring-[#25D366] animate-pulse shadow-[0_0_25px_rgba(37,211,102,0.9)] scale-105' : ''}`}
               >
                 Enviar a WhatsApp
               </button>
@@ -2603,7 +2604,7 @@ export default function CatalogoPublico() {
         </div>
       )}
 
-      {/* ── INTERACTIVE ONBOARDING MASCOT (LA GATITA LEIS) ── */}
+      {/* ── INTERACTIVE ONBOARDING MASCOT (LA GATITA YOSHITA) ── */}
       {tourStep > 0 && (
         <div className="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-3 pointer-events-none max-w-[280px] md:max-w-sm">
           
@@ -2614,7 +2615,7 @@ export default function CatalogoPublico() {
             
             <div className="flex items-center justify-between gap-3 mb-2 pb-2 border-b border-outline-variant/10">
               <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
-                Guía Gatita Leis 🐾
+                Guía Yoshita 🐾
               </span>
               <button 
                 onClick={() => setTourStep(0)}
@@ -2625,27 +2626,41 @@ export default function CatalogoPublico() {
             </div>
 
             <p className="text-[11px] md:text-xs leading-relaxed font-semibold">
-              {tourStep === 1 && "🐾 ¡Paso 1! Miau~ Explora el catálogo abajo, busca tu producto favorito y haz clic en su botón Añadir al Carrito 🛒."}
-              {tourStep === 2 && "🎉 ¡Miau-tástico! Ya tienes el producto en tu bolso. Ahora, mira arriba a la derecha y haz clic en el botón del Carrito de Compras 🛒."}
-              {tourStep === 3 && "📋 ¡Paso 3! Revisa que las cantidades y productos estén perfectos. Luego, pulsa el botón dorado Hacer Pedido 🚀 al final."}
-              {tourStep === 4 && "📲 ¡Último paso! Escribe tu nombre para el pedido y haz clic en Enviar a WhatsApp 💬. ¡La asesora te confirmará stock al instante!"}
-              {tourStep === 5 && "💖 ¡Miau! ¡Completaste el viaje! Tu pedido está en camino a WhatsApp. Gracias por preferirnos. 🐾"}
+              {tourStep === 1 && "🐾 ¡Hola! Miau~ Soy Yoshita 🐾 y te guiaré en este tutorial interactivo para realizar tu pedido. ¡Es súper fácil y rápido! Haz clic en Siguiente para empezar."}
+              {tourStep === 2 && "🔍 ¡Paso 2! Aquí a la izquierda tienes la barra de búsqueda y filtros. Puedes escribir nombres (ej. 'Aceite') o filtrar por categoría. También, arriba a la derecha puedes pulsar el icono de usuario 👤 para crear una cuenta o iniciar sesión y guardar tus datos automáticamente."}
+              {tourStep === 3 && "🛒 ¡Paso 3! Miau~ Ahora busquemos tu producto favorito (como el 'Aceite Collagen' de abajo) y haz clic en su botón Añadir al Carrito 🛒 para agregarlo."}
+              {tourStep === 4 && "🛍️ ¡Paso 4! ¡Miau-tástico! Ya tienes el producto en tu bolso. Ahora, mira arriba a la derecha y haz clic en el botón del Carrito de Compras 🛒."}
+              {tourStep === 5 && "📋 ¡Paso 5! Revisa que las cantidades y productos estén perfectos en tu bolsa. Luego, haz clic en el botón dorado Hacer Pedido 🚀 al final."}
+              {tourStep === 6 && "📲 ¡Último paso! Escribe tu nombre para el pedido y haz clic en Enviar a WhatsApp 💬. ¡La asesora te confirmará stock al instante!"}
+              {tourStep === 7 && "💖 ¡Miau! ¡Completaste el tutorial con éxito! Tu pedido está en camino a WhatsApp. Gracias por preferirnos. 🐾"}
             </p>
 
             {/* Acciones del Tour */}
-            {tourStep < 5 && (
+            {tourStep < 7 && (
               <div className="mt-3 flex justify-between items-center gap-2">
+                {/* Botón Atrás */}
+                <button
+                  disabled={tourStep === 1}
+                  onClick={() => setTourStep(prev => Math.max(1, prev - 1))}
+                  className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors disabled:opacity-30 ${isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'}`}
+                >
+                  Atrás
+                </button>
+
+                {/* Indicador de pasos (6 pasos interactivos) */}
                 <div className="flex gap-1">
-                  {[1, 2, 3, 4].map(stepNum => (
+                  {[1, 2, 3, 4, 5, 6].map(stepNum => (
                     <div 
                       key={stepNum} 
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${tourStep === stepNum ? (isDark ? 'bg-[#e2bd6c] w-3.5' : 'bg-indigo-600 w-3.5') : (isDark ? 'bg-white/10' : 'bg-outline-variant/30')}`}
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${tourStep === stepNum ? (isDark ? 'bg-[#e2bd6c] w-3.5' : 'bg-[#e2bd6c] w-3.5') : (isDark ? 'bg-white/10' : 'bg-outline-variant/30')}`}
                     />
                   ))}
                 </div>
+
+                {/* Botón Siguiente */}
                 <button
                   onClick={() => {
-                    if (tourStep < 4) {
+                    if (tourStep < 6) {
                       setTourStep(prev => prev + 1);
                     } else {
                       setTourStep(0);
@@ -2653,7 +2668,7 @@ export default function CatalogoPublico() {
                   }}
                   className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-[#e2bd6c]' : 'bg-primary/10 hover:bg-primary/20 text-primary'}`}
                 >
-                  {tourStep === 4 ? "Finalizar" : "Siguiente"}
+                  {tourStep === 6 ? "Finalizar" : "Siguiente"}
                 </button>
               </div>
             )}
@@ -2666,10 +2681,10 @@ export default function CatalogoPublico() {
             
             <img 
               src="/gatita.png" 
-              alt="Gatita Leis Mascota" 
+              alt="Gatita Yoshita Mascota" 
               className="w-40 h-40 md:w-56 md:h-56 object-contain relative z-10 drop-shadow-2xl animate-in slide-in-from-right-10 duration-500 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
               onClick={() => {
-                alert("🐾 ¡Miau! Estoy lista para guiarte en tu compra.");
+                alert("🐾 ¡Miau! Soy Yoshita y estoy lista para guiarte en tu compra.");
               }}
             />
           </div>

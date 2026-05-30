@@ -16,7 +16,7 @@ async function removeBackground() {
 
     console.log(`Procesando imagen: ${width}x${height}, canales: ${channels}`);
 
-    // 2. Obtener el color del primer píxel (esquina superior izquierda) como color de fondo
+    // Obtener el color del primer píxel (esquina superior izquierda) como color de fondo
     const targetR = data[0];
     const targetG = data[1];
     const targetB = data[2];
@@ -26,8 +26,73 @@ async function removeBackground() {
     const outputBuffer = Buffer.alloc(width * height * 4);
 
     // Tolerancia para la detección del color de fondo
-    const tolerance = 15;
+    const tolerance = 25;
 
+    // --- BORRAR LOGO GEMINI ---
+    // Borramos el área de la esquina inferior derecha (60x60 píxeles) antes de procesar
+    const logoMargin = 60;
+
+    // --- ALGORITMO FLOOD-FILL (BREADTH-FIRST SEARCH) ---
+    // Encontramos todos los píxeles de fondo conectados al borde exterior de la imagen.
+    const visited = new Uint8Array(width * height);
+    const queue = [];
+
+    function checkAndEnqueue(x, y) {
+      if (x < 0 || x >= width || y < 0 || y >= height) return;
+      const idx = y * width + x;
+      if (visited[idx]) return;
+
+      // Si cae dentro de la esquina del logo de Gemini, lo marcamos directamente como fondo
+      if (x > width - logoMargin && y > height - logoMargin) {
+        visited[idx] = 1;
+        queue.push(idx);
+        return;
+      }
+
+      const srcIdx = idx * channels;
+      const r = data[srcIdx];
+      const g = data[srcIdx + 1];
+      const b = data[srcIdx + 2];
+
+      const diff = Math.sqrt(
+        Math.pow(r - targetR, 2) +
+        Math.pow(g - targetG, 2) +
+        Math.pow(b - targetB, 2)
+      );
+
+      if (diff < tolerance) {
+        visited[idx] = 1;
+        queue.push(idx);
+      }
+    }
+
+    // Inicializar cola con todos los píxeles de los 4 bordes exteriores
+    for (let x = 0; x < width; x++) {
+      checkAndEnqueue(x, 0);
+      checkAndEnqueue(x, height - 1);
+    }
+    for (let y = 0; y < height; y++) {
+      checkAndEnqueue(0, y);
+      checkAndEnqueue(width - 1, y);
+    }
+
+    // Ejecutar BFS para expandir la máscara de fondo
+    console.log("Iniciando inundación de fondo (Flood-Fill)...");
+    let head = 0;
+    while (head < queue.length) {
+      const idx = queue[head++];
+      const x = idx % width;
+      const y = Math.floor(idx / width);
+
+      // 4 Vecinos
+      checkAndEnqueue(x + 1, y);
+      checkAndEnqueue(x - 1, y);
+      checkAndEnqueue(x, y + 1);
+      checkAndEnqueue(x, y - 1);
+    }
+    console.log(`Inundación completada. Píxeles de fondo identificados: ${queue.length}`);
+
+    // --- APLICAR MÁSCARA TRANSPARENTE ---
     for (let i = 0; i < width * height; i++) {
       const srcIdx = i * channels;
       const destIdx = i * 4;
@@ -37,30 +102,26 @@ async function removeBackground() {
       const b = data[srcIdx + 2];
       const a = channels === 4 ? data[srcIdx + 3] : 255;
 
-      // Calcular la diferencia de color (distancia euclidiana)
-      const diff = Math.sqrt(
-        Math.pow(r - targetR, 2) +
-        Math.pow(g - targetG, 2) +
-        Math.pow(b - targetB, 2)
-      );
+      const x = i % width;
+      const y = Math.floor(i / width);
 
-      if (diff < tolerance) {
-        // Píxel de fondo -> Hacerlo transparente
+      // Si el píxel fue visitado como parte del fondo exterior, hacerlo transparente
+      // O si está dentro del recuadro del logo Gemini, hacerlo transparente
+      if (visited[i] === 1 || (x > width - logoMargin && y > height - logoMargin)) {
         outputBuffer[destIdx] = 0;
         outputBuffer[destIdx + 1] = 0;
         outputBuffer[destIdx + 2] = 0;
         outputBuffer[destIdx + 3] = 0;
       } else {
-        // Píxel del gato -> Mantener color original
+        // Mantener color y opacidad 100% (gato completamente sólido por dentro)
         outputBuffer[destIdx] = r;
         outputBuffer[destIdx + 1] = g;
         outputBuffer[destIdx + 2] = b;
-        outputBuffer[destIdx + 3] = a;
+        outputBuffer[destIdx + 3] = 255; // Forzar 255 para evitar áreas semitransparentes en el pelo
       }
     }
 
-    // 3. Crear una nueva imagen Sharp a partir del buffer raw
-    // Y usar .trim() para recortar todo el espacio transparente sobrante
+    // 3. Crear una nueva imagen Sharp y recortar
     await sharp(outputBuffer, {
       raw: {
         width,
@@ -68,17 +129,17 @@ async function removeBackground() {
         channels: 4
       }
     })
-    .trim() // Recorta los bordes transparentes
+    .trim() // Recorta los bordes transparentes sobrantes
     .png()
     .toFile(outputPath + '.temp');
 
-    // Reemplazar la imagen original con la procesada
+    // Reemplazar la imagen original
     fs.unlinkSync(outputPath);
     fs.renameSync(outputPath + '.temp', outputPath);
 
-    console.log("¡Fondo removido con éxito y recortado!");
+    console.log("¡Yoshita procesada con éxito! Sin fondo, sin logo Gemini y 100% sólida.");
   } catch (error) {
-    console.error("Error al remover el fondo:", error);
+    console.error("Error al procesar la imagen de Yoshita:", error);
   }
 }
 
