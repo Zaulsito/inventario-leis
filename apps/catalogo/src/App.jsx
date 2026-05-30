@@ -95,6 +95,9 @@ export default function CatalogoPublico() {
   const [isPrecioExpanded, setIsPrecioExpanded] = useState(true)
   const [isDisponibilidadExpanded, setIsDisponibilidadExpanded] = useState(true)
   const [isCategoriasExpanded, setIsCategoriasExpanded] = useState(true)
+  
+  // Estado para el modal del video tutorial
+  const [showVideoModal, setShowVideoModal] = useState(false)
 
   // Auto-restaurar globo al cambiar de paso
   useEffect(() => {
@@ -1474,14 +1477,26 @@ export default function CatalogoPublico() {
                   </div>
                 </div>
 
-                {/* Botón de inicio del viaje interactivo */}
-                <div className="mt-6 flex justify-center">
+                {/* Botones de acción del tutorial */}
+                <div className="mt-6 flex flex-col sm:flex-row justify-center items-center gap-3">
                   <button
                     onClick={() => setTourStep(1)}
-                    className={`px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center gap-2 shadow-lg ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/20' : 'bg-primary text-on-primary shadow-primary/20'}`}
+                    className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 shadow-lg cursor-pointer ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/20' : 'bg-primary text-on-primary shadow-primary/20'}`}
                   >
                     <span className="material-symbols-outlined text-sm animate-pulse">play_circle</span>
                     Iniciar viaje de prueba 🐾
+                  </button>
+
+                  <button
+                    onClick={() => setShowVideoModal(true)}
+                    className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 border cursor-pointer ${
+                      isDark 
+                        ? 'border-white/10 text-white hover:bg-white/5 bg-white/5 shadow-md shadow-black/20' 
+                        : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant bg-surface-container-low shadow-sm'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm">smart_display</span>
+                    Ver Video Tutorial 🎬
                   </button>
                 </div>
 
@@ -2237,7 +2252,6 @@ export default function CatalogoPublico() {
               className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl select-none pointer-events-none" 
               alt="Imagen ampliada"
             />
-            
             {/* INDICADOR NUMÉRICO EN ZOOM (Solo si no hay zoom aplicado) */}
             {fotosProducto.length > 1 && scale === 1 && (
               <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-white/10 text-white/60 px-4 py-1.5 rounded-full text-xs font-black tracking-widest backdrop-blur-md border border-white/10">
@@ -2258,6 +2272,72 @@ export default function CatalogoPublico() {
           )}
         </div>
       )}
+
+      {/* ── MODAL VIDEO TUTORIAL ── */}
+      {showVideoModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowVideoModal(false)} />
+          
+          <div className={`relative w-full max-w-3xl border rounded-[2.5rem] p-6 md:p-8 shadow-2xl overflow-hidden animate-in zoom-in duration-300 ${
+            isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/90' : 'bg-white border-outline-variant/20 text-on-surface shadow-black/20'
+          }`}>
+            
+            {/* Brillos dorados de fondo en el modal */}
+            <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#e2bd6c]/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+
+            {/* Header del modal */}
+            <div className="flex items-start justify-between gap-4 mb-5 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${isDark ? 'bg-[#e2bd6c]/10 border-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+                  <span className="material-symbols-outlined font-bold">smart_display</span>
+                </div>
+                <div>
+                  <h2 className="font-headline text-lg md:text-xl font-bold">Video Tutorial de Compra</h2>
+                  <p className={`text-[10px] md:text-xs font-medium ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                    Aprende en 1 minuto cómo hacer tus pedidos con la guía de Yoshita
+                  </p>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setShowVideoModal(false)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                  isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-surface-variant text-outline hover:text-on-surface'
+                }`}
+                title="Cerrar"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Video Player Container */}
+            <div className="relative aspect-video rounded-2xl overflow-hidden border border-outline-variant/20 dark:border-white/5 shadow-inner bg-black mb-5">
+              <video
+                className="w-full h-full object-cover"
+                src="https://assets.mixkit.co/videos/preview/mixkit-skin-care-routine-of-a-woman-applying-cream-44564-large.mp4"
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+              ></video>
+            </div>
+
+            {/* Footer informativo modal */}
+            <div className={`flex items-center gap-4 p-4 rounded-2xl border relative z-10 ${
+              isDark ? 'bg-white/5 border-white/5' : 'bg-surface-container-low border-outline-variant/10'
+            }`}>
+              <span className="text-2xl shrink-0">🐾</span>
+              <p className={`text-[10px] md:text-xs leading-relaxed font-semibold ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
+                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Yoshita dice:</strong> "¡Miau! Para descargar este video de demostración, haz clic derecho sobre el reproductor y selecciona 'Guardar video como...'. Cuando tengas tu propio video grabado, guárdalo en la carpeta public de tu proyecto como 'tutorial.mp4', cambia el enlace de arriba a '/tutorial.mp4' y listo."
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE AUTENTICACIÓN */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
