@@ -67,6 +67,16 @@ export default function CatalogoPublico() {
     return localStorage.getItem('hide_catalogo_tutorial') !== 'true';
   })
 
+  // Paso actual del Viaje de Compra guiado (0 = inactivo, 1 a 5 = pasos)
+  const [tourStep, setTourStep] = useState(0)
+
+  // Avanzar del paso 2 al 3 cuando el usuario abre el carrito
+  useEffect(() => {
+    if (tourStep === 2 && isCartOpen) {
+      setTourStep(3)
+    }
+  }, [isCartOpen, tourStep])
+
   // Modal de selección de variantes
   const [productParaAñadir, setProductParaAñadir] = useState(null)
   const [varianteSeleccionada, setVarianteSeleccionada] = useState('')
@@ -845,6 +855,9 @@ export default function CatalogoPublico() {
   }
 
   function añadirAlCarrito(producto, variante) {
+    if (tourStep === 1) {
+      setTourStep(2)
+    }
     const maxStock = variante ? variante.stock : producto.stock
     const nombreItem = variante ? `${producto.nombre} (${variante.nombre})` : producto.nombre
     const idCart = variante ? `${producto.id}-${variante.nombre}` : producto.id
@@ -912,6 +925,9 @@ export default function CatalogoPublico() {
     if (carrito.length === 0) return alert('El carrito está vacío')
     setShowCheckout(true)
     setIsCartOpen(false)
+    if (tourStep === 3) {
+      setTourStep(4)
+    }
   }
 
   function enviarPedidoWhatsApp() {
@@ -937,6 +953,13 @@ export default function CatalogoPublico() {
     setCarrito([])
     setShowCheckout(false)
     setClienteNombre('')
+
+    if (tourStep === 4) {
+      setTourStep(5)
+      setTimeout(() => {
+        setTourStep(0)
+      }, 7000)
+    }
   }
 
   // --- RENDER ---
@@ -1229,7 +1252,7 @@ export default function CatalogoPublico() {
             <button 
               id="header-cart-btn"
               onClick={() => setIsCartOpen(true)}
-              className={`relative p-3 rounded-2xl transition-colors shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+              className={`relative p-3 rounded-2xl transition-all shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-110') : ''}`}
             >
               <span className="material-symbols-outlined">shopping_cart</span>
               {totalItems > 0 && (
@@ -1321,6 +1344,18 @@ export default function CatalogoPublico() {
                     </div>
                   </div>
                 </div>
+
+                {/* Botón de inicio del viaje interactivo */}
+                <div className="mt-6 flex justify-center">
+                  <button
+                    onClick={() => setTourStep(1)}
+                    className={`px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center gap-2 shadow-lg ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/20' : 'bg-primary text-on-primary shadow-primary/20'}`}
+                  >
+                    <span className="material-symbols-outlined text-sm animate-pulse">play_circle</span>
+                    Iniciar viaje de prueba 🐾
+                  </button>
+                </div>
+
               </div>
             )}
         {productosFiltrados.length === 0 ? (
@@ -1330,13 +1365,15 @@ export default function CatalogoPublico() {
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {productosPaginados.map(p => {
+              {productosPaginados.map((p, pIndex) => {
                 const tieneVariantes = p.variantes && p.variantes.length > 0;
               const cartItem = !tieneVariantes ? carrito.find(item => item.productoId === p.id) : null;
               const totalEnCarritoVariants = tieneVariantes ? carrito.filter(item => item.productoId === p.id).reduce((sum, i) => sum + i.cantidad, 0) : 0;
               const tieneStock = tieneVariantes 
                 ? p.variantes.some(v => Number(v.stock) > 0)
                 : Number(p.stock) > 0;
+
+              const isStep1Highlight = tourStep === 1 && pIndex === 0;
 
               return (
                 <div key={p.id} className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''}`}>
@@ -1378,7 +1415,7 @@ export default function CatalogoPublico() {
                       ) : tieneVariantes ? (
                         <button 
                           onClick={() => abrirModalAñadir(p)}
-                          className={`px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'}`}
+                          className={`px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep1Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
                         >
                           Opciones {totalEnCarritoVariants > 0 && <span className={`ml-1 px-1.5 py-0.5 rounded-md ${isDark ? 'bg-black/20 text-black/80' : 'bg-white/20 text-on-primary/80'}`}>{totalEnCarritoVariants}</span>}
                         </button>
@@ -1401,7 +1438,7 @@ export default function CatalogoPublico() {
                             animateFlyToCart(e, p.fotoUrl);
                             añadirAlCarrito(p, null);
                           }}
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'}`}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep1Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
                         >
                           <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
                         </button>
@@ -1533,7 +1570,7 @@ export default function CatalogoPublico() {
                 </div>
                 <button 
                   onClick={prepararCheckout}
-                  className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2 ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'}`}
+                  className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2 ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/10' : 'bg-primary text-on-primary shadow-primary/10'} ${tourStep === 3 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-[1.02]') : ''}`}
                 >
                   <span className="material-symbols-outlined">send</span>
                   Hacer Pedido
@@ -2002,7 +2039,7 @@ export default function CatalogoPublico() {
               </button>
               <button 
                 onClick={enviarPedidoWhatsApp}
-                className="flex-[2] bg-[#25D366] text-white py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all flex justify-center items-center gap-2"
+                className={`flex-[2] bg-[#25D366] text-white py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all flex justify-center items-center gap-2 ${tourStep === 4 ? 'ring-4 ring-[#25D366] animate-pulse shadow-[0_0_25px_rgba(37,211,102,0.9)] scale-105' : ''}`}
               >
                 Enviar a WhatsApp
               </button>
@@ -2563,6 +2600,80 @@ export default function CatalogoPublico() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── INTERACTIVE ONBOARDING MASCOT (LA GATITA LEIS) ── */}
+      {tourStep > 0 && (
+        <div className="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-3 pointer-events-none max-w-[280px] md:max-w-sm">
+          
+          {/* Globo de diálogo / Speech Bubble */}
+          <div className={`pointer-events-auto p-5 rounded-[2rem] border shadow-2xl relative animate-in slide-in-from-bottom-5 duration-500 ${isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/80' : 'bg-white border-outline-variant/30 text-on-surface shadow-black/10'}`}>
+            {/* Pequeño indicador del triángulo del globo */}
+            <div className={`absolute bottom-[-8px] right-8 w-4 h-4 rotate-45 border-r border-b ${isDark ? 'bg-[#151515] border-white/10' : 'bg-white border-outline-variant/30'}`} />
+            
+            <div className="flex items-center justify-between gap-3 mb-2 pb-2 border-b border-outline-variant/10">
+              <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                Guía Gatita Leis 🐾
+              </span>
+              <button 
+                onClick={() => setTourStep(0)}
+                className={`text-[10px] font-bold hover:underline ${isDark ? 'text-gray-400 hover:text-white' : 'text-outline hover:text-on-surface'}`}
+              >
+                Salir
+              </button>
+            </div>
+
+            <p className="text-[11px] md:text-xs leading-relaxed font-semibold">
+              {tourStep === 1 && "🐾 ¡Paso 1! Miau~ Explora el catálogo abajo, busca tu producto favorito y haz clic en su botón Añadir al Carrito 🛒."}
+              {tourStep === 2 && "🎉 ¡Miau-tástico! Ya tienes el producto en tu bolso. Ahora, mira arriba a la derecha y haz clic en el botón del Carrito de Compras 🛒."}
+              {tourStep === 3 && "📋 ¡Paso 3! Revisa que las cantidades y productos estén perfectos. Luego, pulsa el botón dorado Hacer Pedido 🚀 al final."}
+              {tourStep === 4 && "📲 ¡Último paso! Escribe tu nombre para el pedido y haz clic en Enviar a WhatsApp 💬. ¡La asesora te confirmará stock al instante!"}
+              {tourStep === 5 && "💖 ¡Miau! ¡Completaste el viaje! Tu pedido está en camino a WhatsApp. Gracias por preferirnos. 🐾"}
+            </p>
+
+            {/* Acciones del Tour */}
+            {tourStep < 5 && (
+              <div className="mt-3 flex justify-between items-center gap-2">
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4].map(stepNum => (
+                    <div 
+                      key={stepNum} 
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${tourStep === stepNum ? (isDark ? 'bg-[#e2bd6c] w-3.5' : 'bg-indigo-600 w-3.5') : (isDark ? 'bg-white/10' : 'bg-outline-variant/30')}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    if (tourStep < 4) {
+                      setTourStep(prev => prev + 1);
+                    } else {
+                      setTourStep(0);
+                    }
+                  }}
+                  className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-[#e2bd6c]' : 'bg-primary/10 hover:bg-primary/20 text-primary'}`}
+                >
+                  {tourStep === 4 ? "Finalizar" : "Siguiente"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Imagen de la Gatita Flotante */}
+          <div className="relative pointer-events-auto group">
+            {/* Efecto de halo brillante */}
+            <div className={`absolute inset-0 rounded-full blur-xl opacity-60 scale-95 group-hover:scale-105 transition-transform duration-500 animate-pulse ${isDark ? 'bg-[#e2bd6c]/20' : 'bg-primary/20'}`} />
+            
+            <img 
+              src="/gatita.png" 
+              alt="Gatita Leis Mascota" 
+              className="w-20 h-20 md:w-28 md:h-28 object-contain relative z-10 drop-shadow-xl animate-in slide-in-from-right-10 duration-500 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+              onClick={() => {
+                alert("🐾 ¡Miau! Estoy lista para guiarte en tu compra.");
+              }}
+            />
+          </div>
+
         </div>
       )}
     </div>
