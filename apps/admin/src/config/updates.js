@@ -1,25 +1,24 @@
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 
 export const LATEST_CHANGES = [
   {
-    title: 'Rellenado Inteligente con IA (Gemini 2.5)',
-    description: 'Analiza imágenes de productos y nombres para generar automáticamente secciones estructuradas con un toque premium.',
-    icon: 'psychology'
+    title: 'Yoshita: Guía de Compra 🐾',
+    description: 'Un tutorial interactivo de 7 pasos guiado por nuestra gatita Yoshita. Incluye navegación adelante/atrás y atenuación de enfoque.',
+    icon: 'auto_awesome'
   },
   {
-    title: 'Pedidos Agrupados por Cliente',
-    description: 'Agrupación elegante y desplegable de clientes repetidos en la sección de pedidos para optimizar el espacio en web y móvil.',
-    icon: 'group'
+    title: 'Mascota 100% Sólida y Optimizada',
+    description: 'Yoshita es ahora totalmente sólida e impermeable al scroll tras refinar el recorte BFS. Erradicamos la marca de Gemini.',
+    icon: 'image'
   },
   {
-    title: 'Categorías Estilizadas Sin Saltos',
-    description: 'Nuevos bordes pill-badge ultra estéticos para las categorías en el catálogo, previniendo incómodos saltos de línea.',
-    icon: 'label'
+    title: 'Cabecera Móvil Optimizada',
+    description: 'Oculta el título del header en celular para que no se corten los iconos de acción, colocándolo de forma elegante arriba del catálogo.',
+    icon: 'phone_iphone'
   },
   {
-    title: 'Actualización en Caliente Segura',
-    description: 'Recarga automática del catálogo y panel tras actualizar para garantizar el renderizado limpio de todos los iconos de la interfaz.',
-    icon: 'sync'
+    title: 'Barra Lateral y Acordeones de Filtros',
+    description: 'Barra lateral de catálogo colapsable con botón circular (estilo administrador), filtros en acordeón e iconos dinámicos para categorías.',
+    icon: 'menu_open'
   }
 ];
-
