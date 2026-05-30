@@ -1137,7 +1137,7 @@ export default function CatalogoPublico() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* HEADER PRINCIPAL COMPACTO */}
-        <header className={`sticky top-0 z-30 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b flex items-center shrink-0 transition-colors duration-500 ${isDark ? 'bg-[#0c0c0c]/80 border-white/5' : 'bg-white/80 border-outline-variant/20'}`}>
+        <header className={`sticky top-0 z-30 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b flex items-center justify-between shrink-0 transition-colors duration-500 ${isDark ? 'bg-[#0c0c0c]/80 border-white/5' : 'bg-white/80 border-outline-variant/20'}`}>
           <div className="w-16 shrink-0">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -1147,7 +1147,7 @@ export default function CatalogoPublico() {
             </button>
           </div>
 
-          <div className="flex-1 flex justify-center">
+          <div className="flex-1 hidden md:flex justify-center">
             <h2 className={`font-headline text-lg md:text-2xl font-bold italic leading-tight text-center ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
               {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
               <span className={`ml-2 text-sm font-sans font-normal not-italic ${isDark ? 'text-gray-400' : 'text-outline'}`}>({productosFiltrados.length})</span>
@@ -1267,6 +1267,16 @@ export default function CatalogoPublico() {
         {/* MAIN SCROLLABLE AREA */}
         <main ref={mainScrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative z-10 pb-32 md:pb-8">
           <div className="max-w-7xl mx-auto">
+            {/* Título de categoría solo para celulares */}
+            <div className="md:hidden mb-6 flex justify-between items-center px-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <h1 className={`font-headline text-2xl font-bold italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
+              </h1>
+              <span className={`text-xs font-sans font-normal not-italic px-3 py-1 rounded-full ${isDark ? 'bg-white/5 text-gray-400' : 'bg-surface-container-high text-outline'}`}>
+                {productosFiltrados.length} {productosFiltrados.length === 1 ? 'producto' : 'productos'}
+              </span>
+            </div>
+
             {/* ── TUTORIAL INTERACTIVO DE PASOS PARA PEDIDOS ── */}
             {showTutorial && (
               <div className={`mb-8 p-6 md:p-8 rounded-[2rem] border relative overflow-hidden transition-all duration-500 animate-in fade-in slide-in-from-top-4 duration-700 ${isDark ? 'bg-[#151515]/90 border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]' : 'bg-white/70 border-outline-variant/30 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]'} backdrop-blur-md`}>
