@@ -62,6 +62,11 @@ export default function CatalogoPublico() {
 
   const [isCartOpen, setIsCartOpen] = useState(false)
 
+  // Estado del Tutorial de Compra interactivo
+  const [showTutorial, setShowTutorial] = useState(() => {
+    return localStorage.getItem('hide_catalogo_tutorial') !== 'true';
+  })
+
   // Modal de selección de variantes
   const [productParaAñadir, setProductParaAñadir] = useState(null)
   const [varianteSeleccionada, setVarianteSeleccionada] = useState('')
@@ -1204,6 +1209,24 @@ export default function CatalogoPublico() {
             )}
 
             <button 
+              onClick={() => {
+                setShowTutorial(prev => {
+                  const newVal = !prev;
+                  if (!newVal) {
+                    localStorage.setItem('hide_catalogo_tutorial', 'true');
+                  } else {
+                    localStorage.removeItem('hide_catalogo_tutorial');
+                  }
+                  return newVal;
+                });
+              }}
+              className={`p-3 rounded-2xl transition-colors shrink-0 ml-1 ${showTutorial ? (isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/20 text-primary') : (isDark ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant')}`}
+              title="Guía de Compra / Ayuda"
+            >
+              <span className="material-symbols-outlined">help</span>
+            </button>
+
+            <button 
               id="header-cart-btn"
               onClick={() => setIsCartOpen(true)}
               className={`relative p-3 rounded-2xl transition-colors shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
@@ -1221,6 +1244,85 @@ export default function CatalogoPublico() {
         {/* MAIN SCROLLABLE AREA */}
         <main ref={mainScrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative z-10 pb-32 md:pb-8">
           <div className="max-w-7xl mx-auto">
+            {/* ── TUTORIAL INTERACTIVO DE PASOS PARA PEDIDOS ── */}
+            {showTutorial && (
+              <div className={`mb-8 p-6 md:p-8 rounded-[2rem] border relative overflow-hidden transition-all duration-500 animate-in fade-in slide-in-from-top-4 duration-700 ${isDark ? 'bg-[#151515]/90 border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]' : 'bg-white/70 border-outline-variant/30 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]'} backdrop-blur-md`}>
+                {/* Brillos decorativos */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#e2bd6c]/10 blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+                
+                {/* Header del tutorial */}
+                <div className="flex items-start justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className={`font-headline text-lg md:text-2xl font-bold flex items-center gap-2 mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                      <span className="material-symbols-outlined text-[#e2bd6c] animate-bounce">auto_awesome</span>
+                      ¿Cómo realizar tu pedido?
+                    </h2>
+                    <p className={`text-xs md:text-sm ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                      Sigue esta sencilla guía de 3 pasos para asegurar tus productos favoritos al instante.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowTutorial(false);
+                      localStorage.setItem('hide_catalogo_tutorial', 'true');
+                    }}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-surface-variant text-outline hover:text-on-surface'}`}
+                    title="Ocultar Guía"
+                  >
+                    <span className="material-symbols-outlined text-lg">close</span>
+                  </button>
+                </div>
+
+                {/* Grid de 3 pasos */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                  {/* Paso 1 */}
+                  <div className={`p-5 rounded-2xl border transition-all hover:scale-[1.02] flex gap-4 ${isDark ? 'bg-white/5 border-white/5 hover:border-[#e2bd6c]/30' : 'bg-surface-container-lowest border-outline-variant/20 hover:border-primary/30'}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${isDark ? 'bg-[#e2bd6c]/10 border-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+                      <span className="material-symbols-outlined font-bold">add_shopping_cart</span>
+                    </div>
+                    <div>
+                      <h3 className={`font-bold text-xs md:text-sm uppercase tracking-wider mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                        1. Agrega al Carrito
+                      </h3>
+                      <p className={`text-[11px] md:text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                        Explora el catálogo, elige tus productos o variantes ideales y haz clic en **Añadir al Carrito**.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Paso 2 */}
+                  <div className={`p-5 rounded-2xl border transition-all hover:scale-[1.02] flex gap-4 ${isDark ? 'bg-white/5 border-white/5 hover:border-[#e2bd6c]/30' : 'bg-surface-container-lowest border-outline-variant/20 hover:border-primary/30'}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${isDark ? 'bg-[#e2bd6c]/10 border-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+                      <span className="material-symbols-outlined font-bold">receipt_long</span>
+                    </div>
+                    <div>
+                      <h3 className={`font-bold text-xs md:text-sm uppercase tracking-wider mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                        2. Confirma tu Carro
+                      </h3>
+                      <p className={`text-[11px] md:text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                        Abre tu bolsa de compras arriba a la derecha, revisa tus cantidades y pulsa **Confirmar Pedido**.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Paso 3 */}
+                  <div className={`p-5 rounded-2xl border transition-all hover:scale-[1.02] flex gap-4 ${isDark ? 'bg-white/5 border-white/5 hover:border-[#e2bd6c]/30' : 'bg-surface-container-lowest border-outline-variant/20 hover:border-primary/30'}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${isDark ? 'bg-[#e2bd6c]/10 border-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+                      <span className="material-symbols-outlined font-bold">chat</span>
+                    </div>
+                    <div>
+                      <h3 className={`font-bold text-xs md:text-sm uppercase tracking-wider mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                        3. Envía por WhatsApp
+                      </h3>
+                      <p className={`text-[11px] md:text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                        Se generará un mensaje automático. Envíalo a la asesora para **confirmar stock al instante** y coordinar el pago.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
         {productosFiltrados.length === 0 ? (
           <div className="text-center py-20 text-on-surface-variant">
             No hay productos disponibles en esta categoría.
