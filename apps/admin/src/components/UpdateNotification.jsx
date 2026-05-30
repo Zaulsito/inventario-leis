@@ -18,6 +18,8 @@ export default function UpdateNotification() {
   const handleClose = () => {
     localStorage.setItem('app_version', APP_VERSION);
     setIsOpen(false);
+    // Forzar la recarga limpia para asegurar que se rendericen correctamente todas las fuentes e iconos
+    window.location.reload();
   };
 
   if (!isOpen) return null;

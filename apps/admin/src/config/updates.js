@@ -1,24 +1,25 @@
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 export const LATEST_CHANGES = [
   {
-    title: 'Efectos Cinemáticos "Luxe Reveal"',
-    description: 'Animaciones de entrada suaves y elegantes con desenfoque dinámico en todos los encabezados de la aplicación.',
-    icon: 'auto_awesome'
+    title: 'Rellenado Inteligente con IA (Gemini 2.5)',
+    description: 'Analiza imágenes de productos y nombres para generar automáticamente secciones estructuradas con un toque premium.',
+    icon: 'psychology'
   },
   {
-    title: 'Campo Estelar Dinámico',
-    description: 'Fondo animado con estrellas que se adaptan al tema: café/dorado en modo claro y blanco brillante en modo oscuro.',
-    icon: 'stars'
+    title: 'Pedidos Agrupados por Cliente',
+    description: 'Agrupación elegante y desplegable de clientes repetidos en la sección de pedidos para optimizar el espacio en web y móvil.',
+    icon: 'group'
   },
   {
-    title: 'Logo con Respiración y Brillo',
-    description: 'Efecto de brillo cristalino y pulsación sutil en la marca de agua para una estética premium y profesional.',
-    icon: 'blur_on'
+    title: 'Categorías Estilizadas Sin Saltos',
+    description: 'Nuevos bordes pill-badge ultra estéticos para las categorías en el catálogo, previniendo incómodos saltos de línea.',
+    icon: 'label'
   },
   {
-    title: 'Dashboard de Alta Gama',
-    description: 'Tarjetas métricas refinadas con efectos de translucidez y vidrio (glassmorphism) optimizados para el modo claro.',
-    icon: 'dashboard_customize'
+    title: 'Actualización en Caliente Segura',
+    description: 'Recarga automática del catálogo y panel tras actualizar para garantizar el renderizado limpio de todos los iconos de la interfaz.',
+    icon: 'sync'
   }
 ];
+
