@@ -69,6 +69,14 @@ export default function CatalogoPublico() {
 
   // Paso actual del Viaje de Compra guiado (0 = inactivo, 1 a 7 = pasos)
   const [tourStep, setTourStep] = useState(0)
+  const [isDialogMinimized, setIsDialogMinimized] = useState(false)
+
+  // Auto-restaurar globo al cambiar de paso
+  useEffect(() => {
+    if (tourStep > 0) {
+      setIsDialogMinimized(false)
+    }
+  }, [tourStep])
 
   // Avanzar del paso 4 al 5 cuando el usuario abre el carrito
   useEffect(() => {
@@ -1505,6 +1513,21 @@ export default function CatalogoPublico() {
             )}
           </>
         )}
+
+            {/* FOOTER DEL CATALOGO */}
+            <footer className="mt-16 pt-16 pb-12 border-t border-outline-variant/10 dark:border-white/5 flex flex-col items-center gap-4 opacity-50">
+              <div className="flex items-center gap-3">
+                <span className={`font-headline font-bold text-sm tracking-tight ${isDark ? 'text-white/80' : 'text-on-surface/80'}`}>Leis Catálogo V1.2</span>
+              </div>
+              <p className={`text-[10px] font-bold uppercase tracking-[0.3em] text-center ${isDark ? 'text-gray-500' : 'text-outline'}`}>
+                "Tu éxito está en nuestros productos"
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-[#e2bd6c]/40' : 'bg-primary/40'}`} />
+                <span className={`text-[8px] font-extrabold uppercase tracking-widest text-center ${isDark ? 'text-gray-600' : 'text-outline'}`}>© 2026 Todos los derechos reservados</span>
+                <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-[#e2bd6c]/40' : 'bg-primary/40'}`} />
+              </div>
+            </footer>
           </div>
         </main>
       </div>
@@ -2618,71 +2641,96 @@ export default function CatalogoPublico() {
       {tourStep > 0 && (
         <div className="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-3 pointer-events-none max-w-[280px] md:max-w-sm">
           
-          {/* Globo de diálogo / Speech Bubble */}
-          <div className={`pointer-events-auto p-5 rounded-[2rem] border shadow-2xl relative animate-in slide-in-from-bottom-5 duration-500 ${isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/80' : 'bg-white border-outline-variant/30 text-on-surface shadow-black/10'}`}>
-            {/* Pequeño indicador del triángulo del globo */}
-            <div className={`absolute bottom-[-8px] right-8 w-4 h-4 rotate-45 border-r border-b ${isDark ? 'bg-[#151515] border-white/10' : 'bg-white border-outline-variant/30'}`} />
-            
-            <div className="flex items-center justify-between gap-3 mb-2 pb-2 border-b border-outline-variant/10">
-              <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
-                Guía Yoshita 🐾
-              </span>
-              <button 
-                onClick={() => setTourStep(0)}
-                className={`text-[10px] font-bold hover:underline ${isDark ? 'text-gray-400 hover:text-white' : 'text-outline hover:text-on-surface'}`}
-              >
-                Salir
-              </button>
-            </div>
-
-            <p className="text-[11px] md:text-xs leading-relaxed font-semibold">
-              {tourStep === 1 && "🐾 ¡Hola! Miau~ Soy Yoshita 🐾 y te guiaré en este tutorial interactivo para realizar tu pedido. ¡Es súper fácil y rápido! Haz clic en Siguiente para empezar."}
-              {tourStep === 2 && "🔍 ¡Paso 2! Aquí a la izquierda tienes la barra de búsqueda y filtros. Puedes escribir nombres (ej. 'Aceite') o filtrar por categoría. También, arriba a la derecha puedes pulsar el icono de usuario 👤 para crear una cuenta o iniciar sesión y guardar tus datos automáticamente."}
-              {tourStep === 3 && "🛒 ¡Paso 3! Miau~ Ahora busquemos tu producto favorito (como el 'Aceite Collagen' de abajo) y haz clic en su botón Añadir al Carrito 🛒 para agregarlo."}
-              {tourStep === 4 && "🛍️ ¡Paso 4! ¡Miau-tástico! Ya tienes el producto en tu bolso. Ahora, mira arriba a la derecha y haz clic en el botón del Carrito de Compras 🛒."}
-              {tourStep === 5 && "📋 ¡Paso 5! Revisa que las cantidades y productos estén perfectos en tu bolsa. Luego, haz clic en el botón dorado Hacer Pedido 🚀 al final."}
-              {tourStep === 6 && "📲 ¡Último paso! Escribe tu nombre para el pedido y haz clic en Enviar a WhatsApp 💬. ¡La asesora te confirmará stock al instante!"}
-              {tourStep === 7 && "💖 ¡Miau! ¡Completaste el tutorial con éxito! Tu pedido está en camino a WhatsApp. Gracias por preferirnos. 🐾"}
-            </p>
-
-            {/* Acciones del Tour */}
-            {tourStep < 7 && (
-              <div className="mt-3 flex justify-between items-center gap-2">
-                {/* Botón Atrás */}
-                <button
-                  disabled={tourStep === 1}
-                  onClick={() => setTourStep(prev => Math.max(1, prev - 1))}
-                  className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors disabled:opacity-30 ${isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'}`}
-                >
-                  Atrás
-                </button>
-
-                {/* Indicador de pasos (6 pasos interactivos) */}
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5, 6].map(stepNum => (
-                    <div 
-                      key={stepNum} 
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${tourStep === stepNum ? (isDark ? 'bg-[#e2bd6c] w-3.5' : 'bg-[#e2bd6c] w-3.5') : (isDark ? 'bg-white/10' : 'bg-outline-variant/30')}`}
-                    />
-                  ))}
+          {isDialogMinimized ? (
+            <button 
+              onClick={() => setIsDialogMinimized(false)}
+              className={`pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-full border shadow-lg text-[10px] font-black uppercase tracking-wider animate-bounce transition-all hover:scale-105 active:scale-95 ${
+                isDark 
+                  ? 'bg-[#e2bd6c] text-black border-[#e2bd6c] shadow-[#e2bd6c]/20' 
+                  : 'bg-primary text-white border-primary shadow-primary/20'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[14px]">visibility</span>
+              Mostrar Guía 🐾
+            </button>
+          ) : (
+            /* Globo de diálogo / Speech Bubble */
+            <div className={`pointer-events-auto p-5 rounded-[2rem] border shadow-2xl relative animate-in slide-in-from-bottom-5 duration-500 ${isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/80' : 'bg-white border-outline-variant/30 text-on-surface shadow-black/10'}`}>
+              {/* Pequeño indicador del triángulo del globo */}
+              <div className={`absolute bottom-[-8px] right-8 w-4 h-4 rotate-45 border-r border-b ${isDark ? 'bg-[#151515] border-white/10' : 'bg-white border-outline-variant/30'}`} />
+              
+              <div className="flex items-center justify-between gap-3 mb-2 pb-2 border-b border-outline-variant/10">
+                <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                  Guía Yoshita 🐾
+                </span>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setIsDialogMinimized(true)}
+                    className={`text-[10px] font-bold flex items-center gap-1 hover:underline ${isDark ? 'text-gray-400 hover:text-white' : 'text-outline hover:text-on-surface'}`}
+                    title="Ocultar globo de texto"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">visibility_off</span>
+                    Ocultar
+                  </button>
+                  <span className="opacity-30">|</span>
+                  <button 
+                    onClick={() => setTourStep(0)}
+                    className={`text-[10px] font-bold hover:underline ${isDark ? 'text-gray-400 hover:text-white' : 'text-outline hover:text-on-surface'}`}
+                  >
+                    Salir
+                  </button>
                 </div>
-
-                {/* Botón Siguiente */}
-                <button
-                  onClick={() => {
-                    if (tourStep < 6) {
-                      setTourStep(prev => prev + 1);
-                    } else {
-                      setTourStep(0);
-                    }
-                  }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-[#e2bd6c]' : 'bg-primary/10 hover:bg-primary/20 text-primary'}`}
-                >
-                  {tourStep === 6 ? "Finalizar" : "Siguiente"}
-                </button>
               </div>
-            )}
-          </div>
+
+              <p className="text-[11px] md:text-xs leading-relaxed font-semibold">
+                {tourStep === 1 && "🐾 ¡Hola! Miau~ Soy Yoshita 🐾 y te guiaré en este tutorial interactivo para realizar tu pedido. ¡Es súper fácil y rápido! Haz clic en Siguiente para empezar."}
+                {tourStep === 2 && "🔍 ¡Paso 2! Aquí a la izquierda tienes la barra de búsqueda y filtros. Puedes escribir nombres (ej. 'Aceite') o filtrar por categoría. También, arriba a la derecha puedes pulsar el icono de usuario 👤 para crear una cuenta o iniciar sesión y guardar tus datos automáticamente."}
+                {tourStep === 3 && "🛒 ¡Paso 3! Miau~ Ahora busquemos tu producto favorito (como el 'Aceite Collagen' de abajo) y haz clic en su botón Añadir al Carrito 🛒 para agregarlo."}
+                {tourStep === 4 && "🛍️ ¡Paso 4! ¡Miau-tástico! Ya tienes el producto en tu bolso. Ahora, mira arriba a la derecha y haz clic en el botón del Carrito de Compras 🛒."}
+                {tourStep === 5 && "📋 ¡Paso 5! Revisa que las cantidades y productos estén perfectos en tu bolsa. Luego, haz clic en el botón dorado Hacer Pedido 🚀 al final."}
+                {tourStep === 6 && "📲 ¡Último paso! Escribe tu nombre para el pedido y haz clic en Enviar a WhatsApp 💬. ¡La asesora te confirmará stock al instante!"}
+                {tourStep === 7 && "💖 ¡Miau! ¡Completaste el tutorial con éxito! Tu pedido está en camino a WhatsApp. Gracias por preferirnos. 🐾"}
+              </p>
+
+              {/* Acciones del Tour */}
+              {tourStep < 7 && (
+                <div className="mt-3 flex justify-between items-center gap-2">
+                  {/* Botón Atrás */}
+                  <button
+                    disabled={tourStep === 1}
+                    onClick={() => setTourStep(prev => Math.max(1, prev - 1))}
+                    className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors disabled:opacity-30 ${isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'}`}
+                  >
+                    Atrás
+                  </button>
+
+                  {/* Indicador de pasos (6 pasos interactivos) */}
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5, 6].map(stepNum => (
+                      <div 
+                        key={stepNum} 
+                        className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${tourStep === stepNum ? (isDark ? 'bg-[#e2bd6c] w-3.5' : 'bg-[#e2bd6c] w-3.5') : (isDark ? 'bg-white/10' : 'bg-outline-variant/30')}`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Botón Siguiente */}
+                  <button
+                    onClick={() => {
+                      if (tourStep < 6) {
+                        setTourStep(prev => prev + 1);
+                      } else {
+                        setTourStep(0);
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-[#e2bd6c]' : 'bg-primary/10 hover:bg-primary/20 text-primary'}`}
+                  >
+                    {tourStep === 6 ? "Finalizar" : "Siguiente"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Imagen de la Gatita Flotante */}
           <div className="relative pointer-events-auto group">
