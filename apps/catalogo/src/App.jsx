@@ -2315,7 +2315,7 @@ export default function CatalogoPublico() {
             <div className="relative aspect-video rounded-2xl overflow-hidden border border-outline-variant/20 dark:border-white/5 shadow-inner bg-black mb-5">
               <video
                 className="w-full h-full object-cover"
-                src="https://assets.mixkit.co/videos/preview/mixkit-skin-care-routine-of-a-woman-applying-cream-44564-large.mp4"
+                src="/tutorial.mp4"
                 controls
                 autoPlay
                 loop
@@ -2330,7 +2330,7 @@ export default function CatalogoPublico() {
             }`}>
               <span className="text-2xl shrink-0">🐾</span>
               <p className={`text-[10px] md:text-xs leading-relaxed font-semibold ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
-                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Yoshita dice:</strong> "¡Miau! Para descargar este video de demostración, haz clic derecho sobre el reproductor y selecciona 'Guardar video como...'. Cuando tengas tu propio video grabado, guárdalo en la carpeta public de tu proyecto como 'tutorial.mp4', cambia el enlace de arriba a '/tutorial.mp4' y listo."
+                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Yoshita dice:</strong> "¡Miau! Aquí tienes el video explicativo del catálogo de Leis. He preparado este hermoso tutorial para enseñarte paso a paso cómo navegar por nuestras exclusivas categorías, filtrar tus productos de belleza favoritos, elegir las mejores marcas y enviar tu pedido directamente por WhatsApp de la forma más rápida y elegante. ¡Disfrútalo!"
               </p>
             </div>
 
