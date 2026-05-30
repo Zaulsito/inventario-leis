@@ -96,8 +96,35 @@ export default function CatalogoPublico() {
   const [isDisponibilidadExpanded, setIsDisponibilidadExpanded] = useState(true)
   const [isCategoriasExpanded, setIsCategoriasExpanded] = useState(true)
   
-  // Estado para el modal del video tutorial
+  // Estado para el modal del video tutorial e interfaz interactiva simulada
   const [showVideoModal, setShowVideoModal] = useState(false)
+  const [videoIsPlaying, setVideoIsPlaying] = useState(false)
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0)
+  const [videoIsMuted, setVideoIsMuted] = useState(false)
+  const videoDuration = 25 // 25 segundos (5s por diapositiva)
+
+  useEffect(() => {
+    let interval = null;
+    if (showVideoModal && videoIsPlaying) {
+      interval = setInterval(() => {
+        setVideoCurrentTime((prevTime) => {
+          if (prevTime >= videoDuration) {
+            return 0; // Bucle continuo
+          }
+          return Number((prevTime + 0.1).toFixed(1));
+        });
+      }, 100);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [showVideoModal, videoIsPlaying]);
+
+  const activeSlide = Math.min(4, Math.floor(videoCurrentTime / 5));
+  const formatVideoTime = (seconds) => {
+    const secs = Math.floor(seconds);
+    return `0:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   // Auto-restaurar globo al cambiar de paso
   useEffect(() => {
@@ -2311,17 +2338,266 @@ export default function CatalogoPublico() {
               </button>
             </div>
 
-            {/* Video Player Container */}
-            <div className="relative aspect-video rounded-2xl overflow-hidden border border-outline-variant/20 dark:border-white/5 shadow-inner bg-black mb-5">
-              <video
-                className="w-full h-full object-cover"
-                src="/tutorial.mp4"
-                controls
-                autoPlay
-                loop
-                muted
-                playsInline
-              ></video>
+            {/* Custom Interactive HTML5 Video Tutorial Simulator */}
+            <div className="relative aspect-video rounded-3xl overflow-hidden border border-[#e2bd6c]/20 dark:border-white/5 shadow-2xl bg-[#0f0f12] mb-5 select-none group">
+              
+              {/* Contenido Dinámico de las Diapositivas */}
+              <div className="absolute inset-0 flex items-center justify-center p-6 md:p-10 transition-all duration-700 overflow-hidden">
+                
+                {/* Fondo Degradado Dinámico según Diapositiva */}
+                <div className="absolute inset-0 opacity-10 blur-xl scale-110 pointer-events-none transition-all duration-1000"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 50% 50%, ${
+                      activeSlide === 0 ? 'rgba(226,189,108,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      activeSlide === 1 ? 'rgba(59,130,246,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      activeSlide === 2 ? 'rgba(236,72,153,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      activeSlide === 3 ? 'rgba(16,185,129,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      'rgba(168,85,247,0.2) 0%, rgba(15,15,18,1) 80%'
+                    })`
+                  }}
+                />
+
+                {/* Diapositiva 0: Bienvenida */}
+                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                  activeSlide === 0 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[-100px] scale-95 pointer-events-none'
+                }`}>
+                  <div className="flex-1 text-center md:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-2 animate-pulse">
+                      ¡Miau! Introducción
+                    </span>
+                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                      Bienvenido al <br/>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e2bd6c] to-[#f3d99d]">Catálogo Leis</span> ✨
+                    </h3>
+                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                      Hola, soy la gatita Yoshita. Te enseñaré en 3 sencillos pasos cómo explorar nuestra colección exclusiva de cosméticos y accesorios, y cómo enviar tu pedido directamente por WhatsApp. ¡Comencemos!
+                    </p>
+                  </div>
+                  <div className="w-28 h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-bounce duration-1000 shrink-0">
+                    <span className="text-6xl md:text-7xl">🐱</span>
+                    <span className="absolute bottom-2 right-2 text-2xl animate-pulse">🐾</span>
+                  </div>
+                </div>
+
+                {/* Diapositiva 1: Paso 1 - Filtrar */}
+                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                  activeSlide === 1 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 1 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
+                }`}>
+                  <div className="flex-1 text-center md:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-2">
+                      Paso 1 de 3
+                    </span>
+                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                      Explora y Filtra <br/>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Tus Favoritos</span> 🔍
+                    </h3>
+                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                      Usa el buscador para ubicar un producto al instante o despliega nuestro panel lateral interactivo con iconos de cristal para navegar entre categorías, marcas y precios.
+                    </p>
+                  </div>
+                  
+                  {/* Mockup Interactivo de Filtro */}
+                  <div className="w-40 h-28 md:h-32 bg-black/40 border border-white/10 rounded-2xl p-3 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
+                    <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                      <span className="w-2 h-2 rounded-full bg-red-500/80" />
+                      <span className="w-2 h-2 rounded-full bg-yellow-500/80" />
+                      <span className="w-2 h-2 rounded-full bg-green-500/80" />
+                      <span className="text-[6px] text-gray-500 uppercase tracking-widest ml-auto font-mono">Filtros</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 my-auto">
+                      <div className="h-4 bg-white/5 rounded flex items-center px-1.5 border border-white/5">
+                        <span className="material-symbols-outlined text-[8px] text-[#e2bd6c] mr-1">diamond</span>
+                        <span className="text-[7px] text-white font-semibold">Joyas & Collares</span>
+                      </div>
+                      <div className="h-4 bg-white/10 rounded flex items-center px-1.5 border border-white/10 relative">
+                        <span className="material-symbols-outlined text-[8px] text-blue-400 mr-1 animate-pulse">spa</span>
+                        <span className="text-[7px] text-blue-300 font-bold">Cuidado Capilar</span>
+                        <span className="absolute right-1 w-1 h-1 rounded-full bg-blue-400 animate-ping" />
+                      </div>
+                    </div>
+                    <div className="w-4 h-4 rounded-full bg-white/20 absolute bottom-3 right-6 flex items-center justify-center border border-white/30 animate-pulse pointer-events-none">
+                      <span className="material-symbols-outlined text-[10px] text-white">ads_click</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Diapositiva 2: Paso 2 - Carrito */}
+                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                  activeSlide === 2 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 2 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
+                }`}>
+                  <div className="flex-1 text-center md:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-pink-500/10 text-pink-400 border border-pink-500/20 mb-2">
+                      Paso 2 de 3
+                    </span>
+                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                      Añade a tu <br/>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-300">Bolsa de Compras</span> 🛒
+                    </h3>
+                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                      Elige el producto que desees e incorpóralo con un simple clic. Verás de inmediato cómo se actualiza el contador de artículos y el total en tu bolsa flotante en la cabecera.
+                    </p>
+                  </div>
+
+                  {/* Mockup Interactivo de Tarjeta de Producto */}
+                  <div className="w-32 h-32 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
+                    <div className="h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/5 relative overflow-hidden">
+                      <span className="text-2xl animate-pulse">🧴</span>
+                      <div className="absolute top-0.5 right-0.5 px-1 py-0.2 bg-[#e2bd6c]/20 text-[#e2bd6c] rounded text-[5px] border border-[#e2bd6c]/30 font-bold uppercase">Cosmético</div>
+                    </div>
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <span className="text-[7px] font-bold text-white truncate">Sérum Facial Leis</span>
+                      <span className="text-[6px] text-[#e2bd6c] font-black font-mono">$18,500</span>
+                    </div>
+                    <button className="w-full h-4.5 bg-gradient-to-r from-pink-500 to-rose-600 rounded text-[6px] font-black text-white flex items-center justify-center gap-0.5 shadow-md shadow-pink-500/20 relative animate-pulse">
+                      <span className="material-symbols-outlined text-[7px]">shopping_bag</span>
+                      AGREGAR
+                    </button>
+                  </div>
+                </div>
+
+                {/* Diapositiva 3: Paso 3 - WhatsApp */}
+                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                  activeSlide === 3 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 3 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
+                }`}>
+                  <div className="flex-1 text-center md:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+                      Paso 3 de 3
+                    </span>
+                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                      Confirma por <br/>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300">WhatsApp Directo</span> 📲
+                    </h3>
+                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                      Abre tu carrito en el header, revisa tu selección final y haz clic en "Hacer Pedido por WhatsApp". Se enviará un mensaje automático con tu lista detallada y formateada para procesar tu entrega de inmediato.
+                    </p>
+                  </div>
+
+                  {/* Mockup Interactivo de Envío */}
+                  <div className="w-36 h-28 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
+                    <div className="text-[6px] text-gray-400 leading-tight bg-white/5 border border-white/5 p-1 rounded font-mono">
+                      <div className="text-[5px] font-bold text-[#e2bd6c]">MENSAJE LEIS:</div>
+                      <div>• 1x Sérum Facial ($18,500)</div>
+                      <div>• 1x Colgante Oro ($24,000)</div>
+                    </div>
+                    <button className="w-full h-5.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-[7px] font-black text-white flex items-center justify-center gap-1 shadow-lg shadow-emerald-500/20 animate-bounce relative">
+                      <span className="text-[8px]">💬</span>
+                      ENVIAR POR WHATSAPP
+                    </button>
+                  </div>
+                </div>
+
+                {/* Diapositiva 4: Cierre */}
+                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                  activeSlide === 4 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[100px] scale-95 pointer-events-none'
+                }`}>
+                  <div className="flex-1 text-center md:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20 mb-2">
+                      ¡Listo!
+                    </span>
+                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                      Tu Éxito está en <br/>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-300">Nuestros Productos</span> 💖
+                    </h3>
+                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                      ¡Excelente! Ya estás listo para comprar. Recuerda que si necesitas ayuda o deseas revivir esta explicación interactiva paso a paso, puedes usar la guía de Yoshita en cualquier momento. ¡Que tengas una experiencia fantástica!
+                    </p>
+                  </div>
+                  <div className="w-20 h-20 md:w-28 md:h-28 flex items-center justify-center bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-full relative shrink-0">
+                    <span className="text-4xl md:text-5xl animate-pulse">👑</span>
+                    <div className="absolute inset-0 rounded-full border border-dashed border-[#e2bd6c]/30 animate-spin duration-[8s]" />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Watermark de Marca */}
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity">
+                <span className="w-2 h-2 rounded-full bg-[#e2bd6c]" />
+                <span className="text-[8px] font-bold tracking-widest text-[#e2bd6c] uppercase font-headline">Leis Catalog Tutorial</span>
+              </div>
+
+              {/* Controles del Video Player Simulados */}
+              <div className="absolute bottom-0 left-0 right-0 z-30 p-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-2 translate-y-2 group-hover:translate-y-0 transition-transform">
+                
+                {/* Línea de Tiempo / Progress Bar */}
+                <div 
+                  className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer relative group/timeline"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const width = rect.width;
+                    const newPct = clickX / width;
+                    setVideoCurrentTime(Number((newPct * videoDuration).toFixed(1)));
+                  }}
+                >
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#e2bd6c] to-primary transition-all duration-75"
+                    style={{ width: `${(videoCurrentTime / videoDuration) * 100}%` }}
+                  />
+                  <div 
+                    className="absolute h-3 w-3 rounded-full bg-white border border-[#e2bd6c] -top-[3px] -ml-1.5 opacity-0 group-hover/timeline:opacity-100 transition-opacity pointer-events-none"
+                    style={{ left: `${(videoCurrentTime / videoDuration) * 100}%` }}
+                  />
+                </div>
+
+                {/* Fila de Botones del Reproductor */}
+                <div className="flex items-center justify-between text-white text-xs">
+                  
+                  {/* Controles de la izquierda (Play, Pause, Tiempo) */}
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setVideoIsPlaying(!videoIsPlaying)}
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors cursor-pointer text-white border-0"
+                      title={videoIsPlaying ? 'Pausar' : 'Reproducir'}
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        {videoIsPlaying ? 'pause' : 'play_arrow'}
+                      </span>
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        setVideoCurrentTime(0);
+                        setVideoIsPlaying(true);
+                      }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
+                      title="Reiniciar"
+                    >
+                      <span className="material-symbols-outlined text-sm">replay</span>
+                    </button>
+
+                    {/* Tiempo Transcurrido */}
+                    <span className="text-[10px] font-mono text-gray-300">
+                      {formatVideoTime(videoCurrentTime)} / {formatVideoTime(videoDuration)}
+                    </span>
+                  </div>
+
+                  {/* Leyenda de la Diapositiva Activa */}
+                  <span className="text-[9px] uppercase tracking-widest font-black text-[#e2bd6c] hidden sm:inline-block bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 px-2 py-0.5 rounded">
+                    {activeSlide === 0 ? 'Intro' : activeSlide === 1 ? 'Paso 1: Explorar' : activeSlide === 2 ? 'Paso 2: Comprar' : activeSlide === 3 ? 'Paso 3: Enviar' : 'Listo'}
+                  </span>
+
+                  {/* Controles de la derecha (Silenciar, Pantalla Completa) */}
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setVideoIsMuted(!videoIsMuted)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
+                      title={videoIsMuted ? 'Activar Sonido' : 'Silenciar'}
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        {videoIsMuted ? 'volume_off' : 'volume_up'}
+                      </span>
+                    </button>
+                    
+                    <span className="text-[8px] text-gray-400 font-semibold tracking-wider bg-white/5 px-2 py-0.5 rounded">
+                      {videoIsMuted ? 'Silenciado 🔇' : 'Música Suave 🎵'}
+                    </span>
+                  </div>
+
+                </div>
+
+              </div>
+
             </div>
 
             {/* Footer informativo modal */}
@@ -2330,7 +2606,7 @@ export default function CatalogoPublico() {
             }`}>
               <span className="text-2xl shrink-0">🐾</span>
               <p className={`text-[10px] md:text-xs leading-relaxed font-semibold ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
-                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Yoshita dice:</strong> "¡Miau! Aquí tienes el video explicativo del catálogo de Leis. He preparado este hermoso tutorial para enseñarte paso a paso cómo navegar por nuestras exclusivas categorías, filtrar tus productos de belleza favoritos, elegir las mejores marcas y enviar tu pedido directamente por WhatsApp de la forma más rápida y elegante. ¡Disfrútalo!"
+                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Yoshita dice:</strong> "¡Miau! Aquí tienes el video explicativo interactivo del catálogo de Leis. He preparado este hermoso simulador paso a paso para enseñarte cómo explorar categorías, buscar productos, agregarlos al carrito y enviar tu pedido a nuestro WhatsApp de forma 100% clara y en español. ¡Disfrútalo!"
               </p>
             </div>
 
