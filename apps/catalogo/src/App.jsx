@@ -2372,10 +2372,10 @@ export default function CatalogoPublico() {
             </div>
 
             {/* Custom Interactive HTML5 Video Tutorial Simulator */}
-            <div className="relative aspect-video rounded-3xl overflow-hidden border border-[#e2bd6c]/20 dark:border-white/5 shadow-2xl bg-[#0f0f12] mb-5 select-none group">
+            <div className="relative h-[290px] xs:h-[310px] sm:h-auto sm:aspect-video rounded-3xl overflow-hidden border border-[#e2bd6c]/20 dark:border-white/5 shadow-2xl bg-[#0f0f12] mb-5 select-none group">
               
               {/* Contenido Dinámico de las Diapositivas */}
-              <div className="absolute inset-0 flex items-center justify-center p-6 md:p-10 transition-all duration-700 overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4 sm:p-10 transition-all duration-700 overflow-hidden">
                 
                 {/* Fondo Degradado Dinámico según Diapositiva */}
                 <div className="absolute inset-0 opacity-10 blur-xl scale-110 pointer-events-none transition-all duration-1000"
@@ -2391,46 +2391,46 @@ export default function CatalogoPublico() {
                 />
 
                 {/* Diapositiva 0: Bienvenida */}
-                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
                   activeSlide === 0 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[-100px] scale-95 pointer-events-none'
                 }`}>
-                  <div className="flex-1 text-center md:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-2 animate-pulse">
+                  <div className="flex-1 text-center sm:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-1.5 sm:mb-2 animate-pulse">
                       Introducción
                     </span>
-                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
                       Bienvenido al <br/>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e2bd6c] to-[#f3d99d]">Catálogo Leis</span> ✨
                     </h3>
-                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
                       Bienvenido al tutorial exclusivo del Catálogo Leis. Te guiaremos en 3 sencillos pasos para explorar nuestra colección exclusiva de cosméticos y accesorios, y enviar tu pedido directamente por WhatsApp. ¡Comencemos!
                     </p>
                   </div>
-                  <div className="w-28 h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse shrink-0">
-                    <span className="text-6xl md:text-7xl">👑</span>
-                    <span className="absolute bottom-2 right-2 text-2xl animate-spin duration-[6s]">✨</span>
+                  <div className="w-16 h-16 sm:w-28 sm:h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse shrink-0">
+                    <span className="text-3xl sm:text-6xl md:text-7xl">👑</span>
+                    <span className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 text-base sm:text-2xl animate-spin duration-[6s]">✨</span>
                   </div>
                 </div>
 
                 {/* Diapositiva 1: Paso 1 - Filtrar */}
-                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
                   activeSlide === 1 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 1 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
                 }`}>
-                  <div className="flex-1 text-center md:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-1.5 sm:mb-2">
                       Paso 1 de 3
                     </span>
-                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
                       Explora y Filtra <br/>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Tus Favoritos</span> 🔍
                     </h3>
-                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
                       Usa el buscador para ubicar un producto al instante o despliega nuestro panel lateral interactivo con iconos de cristal para navegar entre categorías, marcas y precios.
                     </p>
                   </div>
                   
                   {/* Mockup Interactivo de Filtro */}
-                  <div className="w-40 h-28 md:h-32 bg-black/40 border border-white/10 rounded-2xl p-3 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
+                  <div className="hidden sm:flex w-40 h-28 md:h-32 bg-black/40 border border-white/10 rounded-2xl p-3 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
                     <div className="flex items-center gap-2 border-b border-white/5 pb-2">
                       <span className="w-2 h-2 rounded-full bg-red-500/80" />
                       <span className="w-2 h-2 rounded-full bg-yellow-500/80" />
@@ -2455,24 +2455,24 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* Diapositiva 2: Paso 2 - Carrito */}
-                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
                   activeSlide === 2 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 2 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
                 }`}>
-                  <div className="flex-1 text-center md:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-pink-500/10 text-pink-400 border border-pink-500/20 mb-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-pink-500/10 text-pink-400 border border-pink-500/20 mb-1.5 sm:mb-2">
                       Paso 2 de 3
                     </span>
-                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
                       Añade a tu <br/>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-300">Bolsa de Compras</span> 🛒
                     </h3>
-                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
                       Elige el producto que desees e incorpóralo con un simple clic. Verás de inmediato cómo se actualiza el contador de artículos y el total en tu bolsa flotante en la cabecera.
                     </p>
                   </div>
 
                   {/* Mockup Interactivo de Tarjeta de Producto */}
-                  <div className="w-32 h-32 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
+                  <div className="hidden sm:flex w-32 h-32 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
                     <div className="h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/5 relative overflow-hidden">
                       <span className="text-2xl animate-pulse">🧴</span>
                       <div className="absolute top-0.5 right-0.5 px-1 py-0.2 bg-[#e2bd6c]/20 text-[#e2bd6c] rounded text-[5px] border border-[#e2bd6c]/30 font-bold uppercase">Cosmético</div>
@@ -2489,24 +2489,24 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* Diapositiva 3: Paso 3 - WhatsApp */}
-                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
                   activeSlide === 3 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 3 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
                 }`}>
-                  <div className="flex-1 text-center md:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-1.5 sm:mb-2">
                       Paso 3 de 3
                     </span>
-                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
                       Confirma por <br/>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300">WhatsApp Directo</span> 📲
                     </h3>
-                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
                       Abre tu carrito en el header, revisa tu selección final y haz clic en "Hacer Pedido por WhatsApp". Se enviará un mensaje automático con tu lista detallada y formateada para procesar tu entrega de inmediato.
                     </p>
                   </div>
 
                   {/* Mockup Interactivo de Envío */}
-                  <div className="w-36 h-28 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
+                  <div className="hidden sm:flex w-36 h-28 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
                     <div className="text-[6px] text-gray-400 leading-tight bg-white/5 border border-white/5 p-1 rounded font-mono">
                       <div className="text-[5px] font-bold text-[#e2bd6c]">MENSAJE LEIS:</div>
                       <div>• 1x Sérum Facial ($18,500)</div>
@@ -2520,23 +2520,23 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* Diapositiva 4: Cierre */}
-                <div className={`absolute inset-0 flex flex-col md:flex-row items-center justify-center gap-6 p-6 md:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
                   activeSlide === 4 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[100px] scale-95 pointer-events-none'
                 }`}>
-                  <div className="flex-1 text-center md:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20 mb-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20 mb-1.5 sm:mb-2">
                       ¡Listo!
                     </span>
-                    <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
+                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
                       Tu Éxito está en <br/>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-300">Nuestros Productos</span> 💖
                     </h3>
-                    <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
+                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
                       ¡Excelente! Ya estás listo para comprar. Recuerda que si necesitas ayuda o deseas revivir esta explicación interactiva paso a paso, puedes abrir este tutorial en cualquier momento. ¡Que tengas una experiencia fantástica!
                     </p>
                   </div>
-                  <div className="w-20 h-20 md:w-28 md:h-28 flex items-center justify-center bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-full relative shrink-0">
-                    <span className="text-4xl md:text-5xl animate-pulse">👑</span>
+                  <div className="w-16 h-16 sm:w-28 sm:h-28 flex items-center justify-center bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-full relative shrink-0">
+                    <span className="text-3xl sm:text-5xl animate-pulse">👑</span>
                     <div className="absolute inset-0 rounded-full border border-dashed border-[#e2bd6c]/30 animate-spin duration-[8s]" />
                   </div>
                 </div>
@@ -2544,17 +2544,17 @@ export default function CatalogoPublico() {
               </div>
 
               {/* Watermark de Marca */}
-              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity">
-                <span className="w-2 h-2 rounded-full bg-[#e2bd6c]" />
-                <span className="text-[8px] font-bold tracking-widest text-[#e2bd6c] uppercase font-headline">Leis Catalog Tutorial</span>
+              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#e2bd6c]" />
+                <span className="text-[7px] sm:text-[8px] font-bold tracking-widest text-[#e2bd6c] uppercase font-headline">Leis Catalog Tutorial</span>
               </div>
 
               {/* Controles del Video Player Simulados */}
-              <div className="absolute bottom-0 left-0 right-0 z-30 p-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-2 translate-y-2 group-hover:translate-y-0 transition-transform">
+              <div className="absolute bottom-0 left-0 right-0 z-30 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/50 to-transparent flex flex-col gap-1.5 sm:gap-2 translate-y-1 sm:translate-y-2 sm:group-hover:translate-y-0 transition-transform">
                 
                 {/* Línea de Tiempo / Progress Bar */}
                 <div 
-                  className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer relative group/timeline"
+                  className="w-full h-1 bg-white/10 rounded-full overflow-hidden cursor-pointer relative group/timeline"
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const clickX = e.clientX - rect.left;
@@ -2568,7 +2568,7 @@ export default function CatalogoPublico() {
                     style={{ width: `${(videoCurrentTime / videoDuration) * 100}%` }}
                   />
                   <div 
-                    className="absolute h-3 w-3 rounded-full bg-white border border-[#e2bd6c] -top-[3px] -ml-1.5 opacity-0 group-hover/timeline:opacity-100 transition-opacity pointer-events-none"
+                    className="absolute h-2.5 w-2.5 rounded-full bg-white border border-[#e2bd6c] -top-[3px] -ml-1 opacity-0 sm:group-hover/timeline:opacity-100 transition-opacity pointer-events-none"
                     style={{ left: `${(videoCurrentTime / videoDuration) * 100}%` }}
                   />
                 </div>
@@ -2577,13 +2577,13 @@ export default function CatalogoPublico() {
                 <div className="flex items-center justify-between text-white text-xs">
                   
                   {/* Controles de la izquierda (Play, Pause, Tiempo) */}
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-4">
                     <button 
                       onClick={() => setVideoIsPlaying(!videoIsPlaying)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors cursor-pointer text-white border-0"
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors cursor-pointer text-white border-0"
                       title={videoIsPlaying ? 'Pausar' : 'Reproducir'}
                     >
-                      <span className="material-symbols-outlined text-lg">
+                      <span className="material-symbols-outlined text-base sm:text-lg">
                         {videoIsPlaying ? 'pause' : 'play_arrow'}
                       </span>
                     </button>
@@ -2593,37 +2593,37 @@ export default function CatalogoPublico() {
                         setVideoCurrentTime(0);
                         setVideoIsPlaying(true);
                       }}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
                       title="Reiniciar"
                     >
-                      <span className="material-symbols-outlined text-sm">replay</span>
+                      <span className="material-symbols-outlined text-xs sm:text-sm">replay</span>
                     </button>
 
                     {/* Tiempo Transcurrido */}
-                    <span className="text-[10px] font-mono text-gray-300">
+                    <span className="text-[9px] sm:text-[10px] font-mono text-gray-300">
                       {formatVideoTime(videoCurrentTime)} / {formatVideoTime(videoDuration)}
                     </span>
                   </div>
 
                   {/* Leyenda de la Diapositiva Activa */}
-                  <span className="text-[9px] uppercase tracking-widest font-black text-[#e2bd6c] hidden sm:inline-block bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 px-2 py-0.5 rounded">
+                  <span className="text-[8px] sm:text-[9px] uppercase tracking-widest font-black text-[#e2bd6c] hidden xs:inline-block bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 px-2 py-0.5 rounded">
                     {activeSlide === 0 ? 'Intro' : activeSlide === 1 ? 'Paso 1: Explorar' : activeSlide === 2 ? 'Paso 2: Comprar' : activeSlide === 3 ? 'Paso 3: Enviar' : 'Listo'}
                   </span>
 
                   {/* Controles de la derecha (Silenciar, Pantalla Completa) */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <button 
                       onClick={() => setVideoIsMuted(!videoIsMuted)}
-                      className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
+                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
                       title={videoIsMuted ? 'Activar Sonido' : 'Silenciar'}
                     >
-                      <span className="material-symbols-outlined text-base">
+                      <span className="material-symbols-outlined text-sm sm:text-base">
                         {videoIsMuted ? 'volume_off' : 'volume_up'}
                       </span>
                     </button>
                     
-                    <span className="text-[8px] text-gray-400 font-semibold tracking-wider bg-white/5 px-2 py-0.5 rounded">
-                      {videoIsMuted ? 'Silenciado 🔇' : 'Música Suave 🎵'}
+                    <span className="text-[8px] text-gray-400 font-semibold tracking-wider bg-white/5 px-2 py-0.5 rounded hidden sm:inline-block">
+                      {videoIsMuted ? 'Silenciado' : 'Música'}
                     </span>
                   </div>
 
