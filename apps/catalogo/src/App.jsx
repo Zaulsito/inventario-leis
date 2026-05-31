@@ -2747,7 +2747,7 @@ export default function CatalogoPublico() {
                 />
 
                 {/* Unified Laptop/Browser Mockup Centered and Enlarged (For all active slides!) */}
-                <div className="w-full max-w-xl xs:max-w-2xl sm:max-w-[90%] md:max-w-[95%] aspect-[16/10] max-h-[85%] bg-black/40 border border-white/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl relative select-none animate-in zoom-in duration-300">
+                <div className="w-full max-w-xl xs:max-w-2xl sm:max-w-[90%] md:max-w-[95%] aspect-[1024/556] max-h-[85%] bg-black/40 border border-white/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl relative select-none animate-in zoom-in duration-300">
                   {/* Browser Header Bar */}
                   <div className="h-4.5 sm:h-6 bg-white/5 border-b border-white/5 flex items-center px-2 sm:px-3 gap-1 sm:gap-1.5 shrink-0">
                     <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-red-500/80" />
@@ -2775,7 +2775,7 @@ export default function CatalogoPublico() {
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black/50 backdrop-blur-sm z-50 animate-in fade-in duration-500">
                           {/* Blurred catalog background image */}
                           <div className="absolute inset-0 opacity-20 blur-[1px] pointer-events-none -z-10">
-                            <img src="/tutorial_step3.png" className="w-full h-full object-cover" alt="Fondo Leis" />
+                            <img src="/tutorial_step3.png" className="w-full h-full object-fill" alt="Fondo Leis" />
                           </div>
                           
                           <div className="w-10 h-10 sm:w-16 sm:h-16 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse mb-3">
@@ -2798,7 +2798,7 @@ export default function CatalogoPublico() {
                       {/* Slide 1 Screen: Explorar filtros */}
                       {activeSlide === 1 && (
                         <div className="absolute inset-0 animate-in fade-in duration-500">
-                          <img src="/tutorial_step2.png" className="w-full h-full object-cover" alt="Explorar filtros" />
+                          <img src="/tutorial_step2.png" className="w-full h-full object-fill" alt="Explorar filtros" />
                           
                           {/* Search bar highlights */}
                           <GlowingHighlight className="text-[#e2bd6c]" style={{ left: '2.2%', top: '17.5%', width: '13.5%', height: '4.5%' }} />
@@ -2821,7 +2821,7 @@ export default function CatalogoPublico() {
                       {/* Slide 2 Screen: Agregar al carrito */}
                       {activeSlide === 2 && (
                         <div className="absolute inset-0 animate-in fade-in duration-500">
-                          <img src="/tutorial_step3.png" className="w-full h-full object-cover" alt="Agregar al carrito" />
+                          <img src="/tutorial_step3.png" className="w-full h-full object-fill" alt="Agregar al carrito" />
                           
                           {/* Add to cart button highlight */}
                           <PulsingRing className="text-[#e2bd6c]" style={{ left: '86.0%', top: '90.0%', width: '16px', height: '16px' }} />
@@ -2836,17 +2836,19 @@ export default function CatalogoPublico() {
                       {/* Slide 3 Screen: Abrir carrito */}
                       {activeSlide === 3 && (
                         <div className="absolute inset-0 animate-in fade-in duration-500">
-                          <img src="/tutorial_step3.png" className="w-full h-full object-cover blur-[0.5px]" alt="Abrir pedido" />
+                          {/* Before click: show detail modal. After click: show full screen cart drawer screenshot */}
+                          {(videoCurrentTime - 15) < 1.2 ? (
+                            <img src="/tutorial_step3.png" className="w-full h-full object-fill blur-[0.5px]" alt="Abrir pedido" />
+                          ) : (
+                            <img src="/tutorial_step4.png" className="w-full h-full object-fill animate-in fade-in duration-300" alt="Carrito de compras" />
+                          )}
                           
-                          {/* Simulated Cart Drawer overlay on the right */}
+                          {/* Pulsing indicator on Hacer Pedido yellow button - absolute coordinate on full screenshot! */}
                           {(videoCurrentTime - 15) >= 1.2 && (
-                            <div className="absolute top-0 right-0 bottom-0 w-[30%] bg-black border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-500 z-30">
-                              <img src="/tutorial_step4.png" className="w-full h-full object-cover" alt="Carrito de compras" />
-                              
-                              {/* Pulsing indicator on Hacer Pedido yellow button */}
-                              <PulsingRing className="text-[#e2bd6c]" style={{ left: '50%', bottom: '5.5%', width: '16px', height: '16px' }} />
-                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '50%', bottom: '16.0%' }} direction="down" />
-                            </div>
+                            <>
+                              <PulsingRing className="text-[#e2bd6c]" style={{ left: '85.5%', top: '94.5%', width: '16px', height: '16px' }} />
+                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '85.5%', top: '83.0%' }} direction="down" />
+                            </>
                           )}
                         </div>
                       )}
@@ -2854,12 +2856,12 @@ export default function CatalogoPublico() {
                       {/* Slide 4 Screen: Enviar WhatsApp */}
                       {activeSlide === 4 && (
                         <div className="absolute inset-0 animate-in fade-in duration-500">
-                          <img src="/tutorial_step3.png" className="w-full h-full object-cover blur-[1.5px]" alt="Enviar WhatsApp" />
+                          <img src="/tutorial_step3.png" className="w-full h-full object-fill blur-[1.5px]" alt="Enviar WhatsApp" />
                           
                           {/* Simulated modal popup container */}
                           <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
-                            <div className="w-[45%] aspect-square bg-[#151515] border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 relative">
-                              <img src="/tutorial_step1.png" className="w-full h-full object-cover" alt="Confirmar pedido" />
+                            <div className="w-[45%] aspect-[577/533] bg-[#151515] border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 relative">
+                              <img src="/tutorial_step1.png" className="w-full h-full object-fill" alt="Confirmar pedido" />
                               
                               {/* Typing Name overlay */}
                               <div className="absolute font-sans text-[4.5px] sm:text-[6.5px] font-semibold text-white/80 select-none flex items-center" style={{ left: '19.5%', top: '64.5%', width: '61%', height: '7%', paddingLeft: '6px' }}>
