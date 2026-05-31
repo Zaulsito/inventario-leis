@@ -2746,21 +2746,12 @@ export default function CatalogoPublico() {
                   }}
                 />
 
-                {/* Unified Laptop/Browser Mockup Centered and Enlarged (For all active slides!) */}
+                {/* Unified Mockup Contenedor Centrado (Sin Cabecera de Mac) */}
                 <div className="w-full max-w-xl xs:max-w-2xl sm:max-w-[90%] md:max-w-[95%] aspect-[1024/556] max-h-[85%] bg-black/40 border border-white/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl relative select-none animate-in zoom-in duration-300">
-                  {/* Browser Header Bar */}
-                  <div className="h-4.5 sm:h-6 bg-white/5 border-b border-white/5 flex items-center px-2 sm:px-3 gap-1 sm:gap-1.5 shrink-0">
-                    <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-red-500/80" />
-                    <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-yellow-500/80" />
-                    <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-green-500/80" />
-                    <div className="h-3 sm:h-3.5 bg-white/5 rounded px-2 flex items-center justify-center text-[5px] sm:text-[6px] text-gray-500 font-mono w-24 sm:w-40 mx-auto select-none">
-                      leis-catalogo.com/tienda
-                    </div>
-                  </div>
                   
-                  {/* Browser Viewport Area */}
-                  <div className="relative w-full h-[calc(100%-1.125rem)] sm:h-[calc(100%-1.5rem)] bg-[#0f0f12] overflow-hidden">
-                    
+                  {/* Browser Viewport Area (Ocupa el 100% de la maqueta) */}
+                  <div className="relative w-full h-full bg-[#0f0f12] overflow-hidden">
+
                     {/* Cinematic Pan-and-Zoom Camera Wrapper */}
                     <div 
                       className="w-full h-full relative"
