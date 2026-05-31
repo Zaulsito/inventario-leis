@@ -232,6 +232,173 @@ export default function CatalogoPublico() {
   }, [showVideoModal]);
 
   const activeSlide = Math.min(4, Math.floor(videoCurrentTime / 5));
+
+  // ── MATH INTERPOLATION FOR SIMULATED VIDEO SCREENCAST ──
+  const interpolate = (t, tStart, tEnd, valStart, valEnd) => {
+    if (t <= tStart) return valStart;
+    if (t >= tEnd) return valEnd;
+    const pct = (t - tStart) / (tEnd - tStart);
+    const ease = pct * pct * (3 - 2 * pct); // Ease-in-out curve
+    return valStart + (valEnd - valStart) * ease;
+  };
+
+  const getSimulatedCursor = (t) => {
+    let x = 50;
+    let y = 50;
+    let opacity = 0;
+    let isClicking = false;
+
+    if (t < 5) {
+      // Intro slide: cursor hidden
+      return { x: 50, y: 50, opacity: 0, isClicking: false };
+    } else if (t >= 5 && t < 10) {
+      // Slide 1: Explorar filtros (5.0s to 10.0s)
+      const st = t - 5;
+      opacity = 1;
+      if (st < 1.5) {
+        // Move from center (50, 50) to Search input (10%, 15.5%)
+        x = interpolate(st, 0, 1.5, 50, 10);
+        y = interpolate(st, 0, 1.5, 50, 15.5);
+      } else if (st >= 1.5 && st < 3.0) {
+        // Stay on search input typing
+        x = 10;
+        y = 15.5;
+      } else if (st >= 3.0 && st < 4.2) {
+        // Move from search input (10, 15.5) to "Cuidado Capilar" category (6%, 83.5%)
+        x = interpolate(st, 3.0, 4.2, 10, 6);
+        y = interpolate(st, 3.0, 4.2, 15.5, 83.5);
+      } else {
+        // Stay and click "Cuidado Capilar" category
+        x = 6;
+        y = 83.5;
+        if (st >= 4.2 && st < 4.5) {
+          isClicking = true;
+        }
+      }
+    } else if (t >= 10 && t < 15) {
+      // Slide 2: Agregar al carrito (10.0s to 15.0s)
+      const st = t - 10;
+      opacity = 1;
+      if (st < 1.5) {
+        // Move from last position (6, 83.5) to Product Cart button (23%, 61.5%)
+        x = interpolate(st, 0, 1.5, 6, 23);
+        y = interpolate(st, 0, 1.5, 83.5, 61.5);
+      } else if (st >= 1.5 && st < 2.5) {
+        // Stay and click product cart button (at t=11.5s)
+        x = 23;
+        y = 61.5;
+        if (st >= 1.5 && st < 1.8) {
+          isClicking = true;
+        }
+      } else {
+        // Move cursor to header cart (97.5%, 6%)
+        x = interpolate(st, 2.5, 4.8, 23, 97.5);
+        y = interpolate(st, 2.5, 4.8, 61.5, 6);
+      }
+    } else if (t >= 15 && t < 20) {
+      // Slide 3: Abrir carrito drawer (15.0s to 20.0s)
+      const st = t - 15;
+      opacity = 1;
+      if (st < 1.2) {
+        // Hold and click header cart icon at t=16.2s
+        x = 97.5;
+        y = 6;
+        if (st >= 0.8 && st < 1.1) {
+          isClicking = true;
+        }
+      } else if (st >= 1.2 && st < 3.0) {
+        // Move from header cart (97.5, 6) down to drawer "Hacer Pedido" brown button (85%, 91.5%)
+        x = interpolate(st, 1.2, 3.0, 97.5, 85);
+        y = interpolate(st, 1.2, 3.0, 6, 91.5);
+      } else {
+        // Click drawer "Hacer Pedido" brown button at t=18.0s
+        x = 85;
+        y = 91.5;
+        if (st >= 3.0 && st < 3.3) {
+          isClicking = true;
+        }
+      }
+    } else if (t >= 20 && t <= 25) {
+      // Slide 4: Confirmar y enviar WhatsApp (20.0s to 25.0s)
+      const st = t - 20;
+      opacity = t >= 24.8 ? 0 : 1;
+      if (st < 1.2) {
+        // Move from drawer button (85, 91.5) to modal Name Input (50%, 61.5%)
+        x = interpolate(st, 0, 1.2, 85, 50);
+        y = interpolate(st, 0, 1.2, 91.5, 61.5);
+      } else if (st >= 1.2 && st < 3.5) {
+        // Typing on Name Input
+        x = 50;
+        y = 61.5;
+      } else if (st >= 3.5 && st < 4.5) {
+        // Move from Name Input (50, 61.5) to "Enviar a WhatsApp" green button (62%, 84.5%)
+        x = interpolate(st, 3.5, 4.5, 50, 62);
+        y = interpolate(st, 3.5, 4.5, 61.5, 84.5);
+      } else {
+        // Click green button at t=24.5s
+        x = 62;
+        y = 84.5;
+        if (st >= 4.5 && st < 4.8) {
+          isClicking = true;
+        }
+      }
+    }
+    return { x, y, opacity, isClicking };
+  };
+
+  const cursor = getSimulatedCursor(videoCurrentTime);
+
+  // Compute typing values pure-functionally
+  let simulatedSearchVal = "";
+  let simulatedNameVal = "";
+  let isCategoryClicked = false;
+  let simulatedCartCountVal = 0;
+  let simulatedSuccessOpen = false;
+  let showFlyingDot = false;
+  let dotX = 23;
+  let dotY = 61.5;
+
+  if (videoCurrentTime >= 5 && videoCurrentTime < 10) {
+    const st = videoCurrentTime - 5;
+    if (st >= 1.5 && st < 3.0) {
+      const text = "Aceite";
+      const chars = Math.min(text.length, Math.floor((st - 1.5) / 0.25));
+      simulatedSearchVal = text.substring(0, chars);
+    } else if (st >= 3.0) {
+      simulatedSearchVal = "Aceite";
+    }
+    if (st >= 4.2) {
+      isCategoryClicked = true;
+    }
+  } else if (videoCurrentTime >= 10 && videoCurrentTime < 15) {
+    const st = videoCurrentTime - 10;
+    simulatedSearchVal = "Aceite";
+    isCategoryClicked = true;
+    if (st >= 1.5 && st < 2.8) {
+      showFlyingDot = true;
+      const pct = (st - 1.5) / 1.3;
+      const easePct = pct * pct * (3 - 2 * pct);
+      dotX = 23 + (97.5 - 23) * easePct;
+      dotY = 61.5 + (6 - 61.5) * easePct;
+    }
+    simulatedCartCountVal = (st >= 2.8) ? 1 : 0;
+  } else if (videoCurrentTime >= 15 && videoCurrentTime < 20) {
+    simulatedCartCountVal = 1;
+  } else if (videoCurrentTime >= 20) {
+    simulatedCartCountVal = 1;
+    const st = videoCurrentTime - 20;
+    if (st >= 1.2 && st < 3.5) {
+      const text = "Yamir Leis";
+      const chars = Math.min(text.length, Math.floor((st - 1.2) / 0.23));
+      simulatedNameVal = text.substring(0, chars);
+    } else if (st >= 3.5) {
+      simulatedNameVal = "Yamir Leis";
+    }
+    if (st >= 4.5) {
+      simulatedSuccessOpen = true;
+    }
+  }
+
   const formatVideoTime = (seconds) => {
     const secs = Math.floor(seconds);
     return `0:${secs < 10 ? '0' : ''}${secs}`;
@@ -2590,6 +2757,7 @@ export default function CatalogoPublico() {
                       <div className="relative w-full h-[calc(100%-1.125rem)] sm:h-[calc(100%-1.5rem)] bg-[#0f0f12]">
                         
                         {/* Slide 1 Screen: Explorar filtros */}
+                        {/* Slide 1 Screen: Explorar filtros */}
                         {activeSlide === 1 && (
                           <div className="absolute inset-0 animate-in fade-in duration-500">
                             <img src="/tutorial_step2.png" className="w-full h-full object-cover" alt="Explorar filtros" />
@@ -2599,6 +2767,19 @@ export default function CatalogoPublico() {
                             
                             <GlowingHighlight className="text-[#e2bd6c]" style={{ left: '1.5%', top: '38%', width: '13%', height: '54%' }} />
                             <FloatingArrow className="text-[#e2bd6c]" style={{ left: '16%', top: '55%' }} direction="left" />
+
+                            {/* Typing Search overlay */}
+                            <div className="absolute font-mono text-[5px] sm:text-[7px] font-semibold text-white/95 select-none flex items-center" style={{ left: '2.5%', top: '14.5%', width: '11%', height: '4%', paddingLeft: '4px' }}>
+                              {simulatedSearchVal}
+                              {activeSlide === 1 && (videoCurrentTime - 5) >= 1.5 && (videoCurrentTime - 5) < 3.0 && Math.floor(videoCurrentTime * 3) % 2 === 0 && (
+                                <span className="w-[1px] h-[65%] bg-[#e2bd6c] ml-0.5" />
+                              )}
+                            </div>
+
+                            {/* Active Category Border highlight */}
+                            {isCategoryClicked && (
+                              <div className="absolute border border-[#e2bd6c] bg-[#e2bd6c]/10 rounded z-30 pointer-events-none" style={{ left: '1.8%', top: '83.3%', width: '12%', height: '4.8%' }} />
+                            )}
                           </div>
                         )}
                         
@@ -2622,13 +2803,15 @@ export default function CatalogoPublico() {
                             <img src="/tutorial_step3.png" className="w-full h-full object-cover blur-[0.5px]" alt="Abrir pedido" />
                             
                             {/* Simulated Cart Drawer overlay on the right */}
-                            <div className="absolute top-0 right-0 bottom-0 w-[30%] bg-black border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-500">
-                              <img src="/tutorial_step4.png" className="w-full h-full object-cover" alt="Carrito de compras" />
-                              
-                              {/* Pulsing indicator on Hacer Pedido brown button */}
-                              <PulsingRing className="text-[#e2bd6c]" style={{ left: '48%', bottom: '8%', width: '10px', height: '10px' }} />
-                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '38%', bottom: '15%' }} direction="down" />
-                            </div>
+                            {(videoCurrentTime - 15) >= 1.2 && (
+                              <div className="absolute top-0 right-0 bottom-0 w-[30%] bg-black border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-500 z-30">
+                                <img src="/tutorial_step4.png" className="w-full h-full object-cover" alt="Carrito de compras" />
+                                
+                                {/* Pulsing indicator on Hacer Pedido brown button */}
+                                <PulsingRing className="text-[#e2bd6c]" style={{ left: '48%', bottom: '8%', width: '10px', height: '10px' }} />
+                                <FloatingArrow className="text-[#e2bd6c]" style={{ left: '38%', bottom: '15%' }} direction="down" />
+                              </div>
+                            )}
                           </div>
                         )}
                         
@@ -2642,12 +2825,83 @@ export default function CatalogoPublico() {
                               <div className="w-[45%] aspect-square bg-[#151515] border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 relative">
                                 <img src="/tutorial_step1.png" className="w-full h-full object-cover" alt="Confirmar pedido" />
                                 
+                                {/* Typing Name overlay */}
+                                <div className="absolute font-sans text-[4.5px] sm:text-[6.5px] font-semibold text-white/80 select-none flex items-center" style={{ left: '11.5%', top: '61.5%', width: '77%', height: '7%', paddingLeft: '4px' }}>
+                                  {simulatedNameVal}
+                                  {activeSlide === 4 && (videoCurrentTime - 20) >= 1.2 && (videoCurrentTime - 20) < 3.5 && Math.floor(videoCurrentTime * 3) % 2 === 0 && (
+                                    <span className="w-[1px] h-[65%] bg-emerald-400 ml-0.5 animate-pulse" />
+                                  )}
+                                </div>
+
                                 {/* Pulsing indicator on Enviar a WhatsApp green button */}
                                 <PulsingRing className="text-emerald-400" style={{ right: '28%', bottom: '13%', width: '10px', height: '10px' }} />
                                 <FloatingArrow className="text-emerald-400" style={{ right: '23%', bottom: '22%' }} direction="down" />
                               </div>
                             </div>
                           </div>
+                        )}
+
+                        {/* Floating Header Cart Count Badge overlay (Slides 2 & 3) */}
+                        {simulatedCartCountVal > 0 && (activeSlide === 2 || activeSlide === 3) && (
+                          <div className="absolute z-40 bg-pink-500 text-white rounded-full font-bold text-[5px] sm:text-[6px] flex items-center justify-center scale-100 animate-in zoom-in duration-300"
+                               style={{ right: '1.2%', top: '4.8%', width: '8px', height: '8px' }}>
+                            {simulatedCartCountVal}
+                          </div>
+                        )}
+
+                        {/* Flying Pink Dot (Slide 2) */}
+                        {showFlyingDot && (
+                          <div 
+                            className="absolute z-50 w-2 h-2 -ml-1 -mt-1 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899] pointer-events-none"
+                            style={{ left: `${dotX}%`, top: `${dotY}%` }}
+                          />
+                        )}
+
+                        {/* Emerald Success Screen overlay (Slide 4) */}
+                        {simulatedSuccessOpen && activeSlide === 4 && (
+                          <div className="absolute inset-0 bg-[#0f0f12]/95 backdrop-blur-sm z-[80] flex flex-col items-center justify-center text-center p-3 animate-in fade-in duration-500">
+                            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-2 animate-bounce">
+                              <span className="material-symbols-outlined text-emerald-400 text-lg sm:text-2xl font-black">check_circle</span>
+                            </div>
+                            <h4 className="font-headline text-[8px] sm:text-xs font-bold text-white tracking-widest uppercase">¡Pedido Enviado! 📲</h4>
+                            <p className="text-[6px] sm:text-[9px] text-gray-400 mt-1 max-w-[80%] leading-relaxed">
+                              Abriendo chat de WhatsApp Leis con los detalles formateados de tu pedido. ¡Gracias por tu compra!
+                            </p>
+                            <span className="mt-2.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[5px] sm:text-[7px] font-bold text-emerald-400 tracking-wider uppercase font-mono">
+                              Estado: Listo
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Simulated Custom Cursor Pointer & Ripples */}
+                        {cursor.opacity > 0 && (
+                          <>
+                            {/* Click ripple circle */}
+                            {cursor.isClicking && (
+                              <div 
+                                className="absolute z-[85] w-6 h-6 rounded-full bg-[#e2bd6c]/30 border border-[#e2bd6c]/50 animate-ping pointer-events-none animate-duration-300"
+                                style={{ 
+                                  left: `${cursor.x}%`, 
+                                  top: `${cursor.y}%`,
+                                  transform: 'translate(-50%, -50%)'
+                                }}
+                              />
+                            )}
+                            {/* Cursor arrow pointer */}
+                            <div 
+                              className="absolute pointer-events-none z-[90] transition-all duration-75 flex flex-col items-start"
+                              style={{ 
+                                left: `${cursor.x}%`, 
+                                top: `${cursor.y}%`,
+                                transform: 'translate(-1px, -1px) rotate(300deg)',
+                                opacity: cursor.opacity
+                              }}
+                            >
+                              <span className="material-symbols-outlined text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-[11px] sm:text-[14px] font-bold select-none">
+                                navigation
+                              </span>
+                            </div>
+                          </>
                         )}
 
                       </div>
