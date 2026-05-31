@@ -109,9 +109,7 @@ export default function CatalogoPublico() {
   const [isCartOpen, setIsCartOpen] = useState(false)
 
   // Estado del Tutorial de Compra interactivo
-  const [showTutorial, setShowTutorial] = useState(() => {
-    return localStorage.getItem('hide_catalogo_tutorial') !== 'true';
-  })
+  const [showTutorial, setShowTutorial] = useState(false)
 
   // Paso actual del Viaje de Compra guiado (0 = inactivo, 1 a 7 = pasos)
   const [tourStep, setTourStep] = useState(0)
@@ -1792,17 +1790,7 @@ export default function CatalogoPublico() {
                     Iniciar viaje de prueba 🐾
                   </button>
 
-                  <button
-                    onClick={() => setShowVideoModal(true)}
-                    className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 border cursor-pointer ${
-                      isDark 
-                        ? 'border-white/10 text-white hover:bg-white/5 bg-white/5 shadow-md shadow-black/20' 
-                        : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant bg-surface-container-low shadow-sm'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-sm">smart_display</span>
-                    Ver Video Tutorial 🎬
-                  </button>
+                  {/* El tutorial del video está temporalmente oculto por solicitud del cliente */}
                 </div>
 
               </div>
