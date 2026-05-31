@@ -2355,7 +2355,7 @@ export default function CatalogoPublico() {
                 <div>
                   <h2 className="font-headline text-lg md:text-xl font-bold">Video Tutorial de Compra</h2>
                   <p className={`text-[10px] md:text-xs font-medium ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                    Aprende en 1 minuto cómo hacer tus pedidos con la guía de Yoshita
+                    Aprende en 1 minuto cómo realizar tus pedidos en la plataforma Leis
                   </p>
                 </div>
               </div>
@@ -2396,19 +2396,19 @@ export default function CatalogoPublico() {
                 }`}>
                   <div className="flex-1 text-center md:text-left">
                     <span className="inline-block px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-2 animate-pulse">
-                      ¡Miau! Introducción
+                      Introducción
                     </span>
                     <h3 className="font-headline text-xl md:text-2xl font-black text-white leading-tight">
                       Bienvenido al <br/>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e2bd6c] to-[#f3d99d]">Catálogo Leis</span> ✨
                     </h3>
                     <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
-                      Hola, soy la gatita Yoshita. Te enseñaré en 3 sencillos pasos cómo explorar nuestra colección exclusiva de cosméticos y accesorios, y cómo enviar tu pedido directamente por WhatsApp. ¡Comencemos!
+                      Bienvenido al tutorial exclusivo del Catálogo Leis. Te guiaremos en 3 sencillos pasos para explorar nuestra colección exclusiva de cosméticos y accesorios, y enviar tu pedido directamente por WhatsApp. ¡Comencemos!
                     </p>
                   </div>
-                  <div className="w-28 h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-bounce duration-1000 shrink-0">
-                    <span className="text-6xl md:text-7xl">🐱</span>
-                    <span className="absolute bottom-2 right-2 text-2xl animate-pulse">🐾</span>
+                  <div className="w-28 h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse shrink-0">
+                    <span className="text-6xl md:text-7xl">👑</span>
+                    <span className="absolute bottom-2 right-2 text-2xl animate-spin duration-[6s]">✨</span>
                   </div>
                 </div>
 
@@ -2532,7 +2532,7 @@ export default function CatalogoPublico() {
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-300">Nuestros Productos</span> 💖
                     </h3>
                     <p className="text-xs text-gray-300 mt-3 leading-relaxed max-w-sm">
-                      ¡Excelente! Ya estás listo para comprar. Recuerda que si necesitas ayuda o deseas revivir esta explicación interactiva paso a paso, puedes usar la guía de Yoshita en cualquier momento. ¡Que tengas una experiencia fantástica!
+                      ¡Excelente! Ya estás listo para comprar. Recuerda que si necesitas ayuda o deseas revivir esta explicación interactiva paso a paso, puedes abrir este tutorial en cualquier momento. ¡Que tengas una experiencia fantástica!
                     </p>
                   </div>
                   <div className="w-20 h-20 md:w-28 md:h-28 flex items-center justify-center bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-full relative shrink-0">
@@ -2637,9 +2637,9 @@ export default function CatalogoPublico() {
             <div className={`flex items-center gap-4 p-4 rounded-2xl border relative z-10 ${
               isDark ? 'bg-white/5 border-white/5' : 'bg-surface-container-low border-outline-variant/10'
             }`}>
-              <span className="text-2xl shrink-0">🐾</span>
+              <span className="text-2xl shrink-0">✨</span>
               <p className={`text-[10px] md:text-xs leading-relaxed font-semibold ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
-                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Yoshita dice:</strong> "¡Miau! Aquí tienes el video explicativo interactivo del catálogo de Leis. He preparado este hermoso simulador paso a paso para enseñarte cómo explorar categorías, buscar productos, agregarlos al carrito y enviar tu pedido a nuestro WhatsApp de forma 100% clara y en español. ¡Disfrútalo!"
+                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Guía Leis:</strong> "Bienvenido al video explicativo interactivo del catálogo de Leis. Hemos preparado este simulador paso a paso para enseñarte cómo explorar categorías, buscar productos, agregarlos al carrito y enviar tu pedido a nuestro WhatsApp de forma 100% clara y profesional. ¡Disfrútalo!"
               </p>
             </div>
 
