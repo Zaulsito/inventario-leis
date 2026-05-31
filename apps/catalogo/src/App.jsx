@@ -102,6 +102,7 @@ export default function CatalogoPublico() {
   const [videoCurrentTime, setVideoCurrentTime] = useState(0)
   const [videoIsMuted, setVideoIsMuted] = useState(false)
   const videoDuration = 25 // 25 segundos (5s por diapositiva)
+  const audioRef = useRef(null)
 
   useEffect(() => {
     let interval = null;
@@ -119,6 +120,35 @@ export default function CatalogoPublico() {
     }
     return () => clearInterval(interval);
   }, [showVideoModal, videoIsPlaying]);
+
+  // Controlar la reproducción de la música de fondo MP3 real
+  useEffect(() => {
+    if (audioRef.current) {
+      if (showVideoModal && videoIsPlaying) {
+        audioRef.current.play().catch((err) => {
+          console.log("El navegador bloqueó la reproducción automática. Se activará tras interactuar.", err);
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [showVideoModal, videoIsPlaying]);
+
+  // Controlar el volumen y el silenciado de la música
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = videoIsMuted;
+      audioRef.current.volume = videoIsMuted ? 0 : 0.35; // Un volumen suave de fondo del 35%
+    }
+  }, [videoIsMuted]);
+
+  // Resetear audio al cerrar el modal
+  useEffect(() => {
+    if (!showVideoModal && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [showVideoModal]);
 
   const activeSlide = Math.min(4, Math.floor(videoCurrentTime / 5));
   const formatVideoTime = (seconds) => {
@@ -2304,6 +2334,9 @@ export default function CatalogoPublico() {
       {showVideoModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowVideoModal(false)} />
+          
+          {/* Elemento de audio real para reproducir la música de fondo */}
+          <audio ref={audioRef} src="/music.mp3" loop />
           
           <div className={`relative w-full max-w-3xl border rounded-[2.5rem] p-6 md:p-8 shadow-2xl overflow-hidden animate-in zoom-in duration-300 ${
             isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/90' : 'bg-white border-outline-variant/20 text-on-surface shadow-black/20'
