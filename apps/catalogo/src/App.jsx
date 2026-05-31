@@ -101,8 +101,61 @@ export default function CatalogoPublico() {
   const [videoIsPlaying, setVideoIsPlaying] = useState(false)
   const [videoCurrentTime, setVideoCurrentTime] = useState(0)
   const [videoIsMuted, setVideoIsMuted] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const videoDuration = 25 // 25 segundos (5s por diapositiva)
   const audioRef = useRef(null)
+  const simulatorRef = useRef(null)
+
+  const toggleFullscreen = () => {
+    if (!simulatorRef.current) return;
+    
+    if (!document.fullscreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.mozFullScreenElement && 
+        !document.msFullscreenElement) {
+      const req = simulatorRef.current.requestFullscreen || 
+                  simulatorRef.current.webkitRequestFullscreen || 
+                  simulatorRef.current.mozRequestFullScreen || 
+                  simulatorRef.current.msRequestFullscreen;
+      if (req) {
+        req.call(simulatorRef.current).catch(err => {
+          console.error("Error entering fullscreen:", err);
+        });
+      }
+    } else {
+      const exit = document.exitFullscreen || 
+                   document.webkitExitFullscreen || 
+                   document.mozCancelFullScreen || 
+                   document.msExitFullscreen;
+      if (exit) {
+        exit.call(document);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFull = !!(
+        document.fullscreenElement || 
+        document.webkitFullscreenElement || 
+        document.mozFullScreenElement || 
+        document.msFullscreenElement
+      );
+      setIsFullscreen(isCurrentlyFull);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   useEffect(() => {
     let interval = null;
@@ -2332,13 +2385,13 @@ export default function CatalogoPublico() {
 
       {/* ── MODAL VIDEO TUTORIAL ── */}
       {showVideoModal && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[150] flex flex-col items-center justify-start sm:justify-center overflow-y-auto p-2 xs:p-4 py-8">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowVideoModal(false)} />
           
           {/* Elemento de audio real para reproducir la música de fondo */}
           <audio ref={audioRef} src="/music.mp3" loop />
           
-          <div className={`relative w-full max-w-3xl border rounded-[2.5rem] p-6 md:p-8 shadow-2xl overflow-hidden animate-in zoom-in duration-300 ${
+          <div className={`relative w-full max-w-3xl border rounded-[2rem] sm:rounded-[2.5rem] p-4 xs:p-6 md:p-8 shadow-2xl overflow-hidden animate-in zoom-in duration-300 ${
             isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/90' : 'bg-white border-outline-variant/20 text-on-surface shadow-black/20'
           }`}>
             
@@ -2353,7 +2406,7 @@ export default function CatalogoPublico() {
                   <span className="material-symbols-outlined font-bold">smart_display</span>
                 </div>
                 <div>
-                  <h2 className="font-headline text-lg md:text-xl font-bold">Video Tutorial de Compra</h2>
+                  <h2 className="font-headline text-base xs:text-lg md:text-xl font-bold">Video Tutorial de Compra</h2>
                   <p className={`text-[10px] md:text-xs font-medium ${isDark ? 'text-gray-400' : 'text-outline'}`}>
                     Aprende en 1 minuto cómo realizar tus pedidos en la plataforma Leis
                   </p>
@@ -2372,7 +2425,14 @@ export default function CatalogoPublico() {
             </div>
 
             {/* Custom Interactive HTML5 Video Tutorial Simulator */}
-            <div className="relative h-[290px] xs:h-[310px] sm:h-auto sm:aspect-video rounded-3xl overflow-hidden border border-[#e2bd6c]/20 dark:border-white/5 shadow-2xl bg-[#0f0f12] mb-5 select-none group">
+            <div 
+              ref={simulatorRef}
+              className={`relative overflow-hidden border border-[#e2bd6c]/20 dark:border-white/5 bg-[#0f0f12] select-none group transition-all duration-300 ${
+                isFullscreen 
+                  ? 'w-full h-full rounded-none p-4 sm:p-8' 
+                  : 'h-[350px] xs:h-[370px] sm:h-auto sm:aspect-video rounded-3xl mb-5 shadow-2xl'
+              }`}
+            >
               
               {/* Contenido Dinámico de las Diapositivas */}
               <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4 sm:p-10 transition-all duration-700 overflow-hidden">
@@ -2391,7 +2451,7 @@ export default function CatalogoPublico() {
                 />
 
                 {/* Diapositiva 0: Bienvenida */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
                   activeSlide === 0 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[-100px] scale-95 pointer-events-none'
                 }`}>
                   <div className="flex-1 text-center sm:text-left">
@@ -2406,14 +2466,14 @@ export default function CatalogoPublico() {
                       Bienvenido al tutorial exclusivo del Catálogo Leis. Te guiaremos en 3 sencillos pasos para explorar nuestra colección exclusiva de cosméticos y accesorios, y enviar tu pedido directamente por WhatsApp. ¡Comencemos!
                     </p>
                   </div>
-                  <div className="w-16 h-16 sm:w-28 sm:h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse shrink-0">
-                    <span className="text-3xl sm:text-6xl md:text-7xl">👑</span>
-                    <span className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 text-base sm:text-2xl animate-spin duration-[6s]">✨</span>
+                  <div className="w-12 h-12 xs:w-16 xs:h-16 sm:w-28 sm:h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse shrink-0">
+                    <span className="text-2xl xs:text-3xl sm:text-6xl md:text-7xl">👑</span>
+                    <span className="absolute bottom-0 right-0 sm:bottom-2 sm:right-2 text-xs xs:text-base sm:text-2xl animate-spin duration-[6s]">✨</span>
                   </div>
                 </div>
 
                 {/* Diapositiva 1: Paso 1 - Filtrar */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
                   activeSlide === 1 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 1 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
                 }`}>
                   <div className="flex-1 text-center sm:text-left">
@@ -2455,7 +2515,7 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* Diapositiva 2: Paso 2 - Carrito */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
                   activeSlide === 2 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 2 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
                 }`}>
                   <div className="flex-1 text-center sm:text-left">
@@ -2489,7 +2549,7 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* Diapositiva 3: Paso 3 - WhatsApp */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
                   activeSlide === 3 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 3 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
                 }`}>
                   <div className="flex-1 text-center sm:text-left">
@@ -2520,7 +2580,7 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* Diapositiva 4: Cierre */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
                   activeSlide === 4 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[100px] scale-95 pointer-events-none'
                 }`}>
                   <div className="flex-1 text-center sm:text-left">
@@ -2535,8 +2595,8 @@ export default function CatalogoPublico() {
                       ¡Excelente! Ya estás listo para comprar. Recuerda que si necesitas ayuda o deseas revivir esta explicación interactiva paso a paso, puedes abrir este tutorial en cualquier momento. ¡Que tengas una experiencia fantástica!
                     </p>
                   </div>
-                  <div className="w-16 h-16 sm:w-28 sm:h-28 flex items-center justify-center bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-full relative shrink-0">
-                    <span className="text-3xl sm:text-5xl animate-pulse">👑</span>
+                  <div className="w-12 h-12 xs:w-16 xs:h-16 sm:w-28 sm:h-28 flex items-center justify-center bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-full relative shrink-0">
+                    <span className="text-2xl xs:text-3xl sm:text-5xl animate-pulse">👑</span>
                     <div className="absolute inset-0 rounded-full border border-dashed border-[#e2bd6c]/30 animate-spin duration-[8s]" />
                   </div>
                 </div>
@@ -2544,17 +2604,25 @@ export default function CatalogoPublico() {
               </div>
 
               {/* Watermark de Marca */}
-              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity">
+              <div className={`absolute z-20 flex items-center gap-2 pointer-events-none transition-opacity ${
+                isFullscreen 
+                  ? 'top-4 left-4 opacity-80' 
+                  : 'top-3 left-3 sm:top-4 sm:left-4 opacity-40 group-hover:opacity-80'
+              }`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e2bd6c]" />
                 <span className="text-[7px] sm:text-[8px] font-bold tracking-widest text-[#e2bd6c] uppercase font-headline">Leis Catalog Tutorial</span>
               </div>
 
               {/* Controles del Video Player Simulados */}
-              <div className="absolute bottom-0 left-0 right-0 z-30 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/50 to-transparent flex flex-col gap-1.5 sm:gap-2 translate-y-1 sm:translate-y-2 sm:group-hover:translate-y-0 transition-transform">
+              <div className={`absolute bottom-0 left-0 right-0 z-30 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/50 to-transparent flex flex-col gap-1.5 sm:gap-2 transition-transform ${
+                isFullscreen 
+                  ? 'translate-y-0' 
+                  : 'translate-y-0 sm:translate-y-2 sm:group-hover:translate-y-0'
+              }`}>
                 
                 {/* Línea de Tiempo / Progress Bar */}
                 <div 
-                  className="w-full h-1 bg-white/10 rounded-full overflow-hidden cursor-pointer relative group/timeline"
+                  className="w-full py-1.5 cursor-pointer relative group/timeline"
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const clickX = e.clientX - rect.left;
@@ -2563,14 +2631,16 @@ export default function CatalogoPublico() {
                     setVideoCurrentTime(Number((newPct * videoDuration).toFixed(1)));
                   }}
                 >
-                  <div 
-                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#e2bd6c] to-primary transition-all duration-75"
-                    style={{ width: `${(videoCurrentTime / videoDuration) * 100}%` }}
-                  />
-                  <div 
-                    className="absolute h-2.5 w-2.5 rounded-full bg-white border border-[#e2bd6c] -top-[3px] -ml-1 opacity-0 sm:group-hover/timeline:opacity-100 transition-opacity pointer-events-none"
-                    style={{ left: `${(videoCurrentTime / videoDuration) * 100}%` }}
-                  />
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
+                    <div 
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#e2bd6c] to-primary transition-all duration-75"
+                      style={{ width: `${(videoCurrentTime / videoDuration) * 100}%` }}
+                    />
+                    <div 
+                      className="absolute h-2.5 w-2.5 rounded-full bg-white border border-[#e2bd6c] -top-[3px] -ml-1 opacity-0 sm:group-hover/timeline:opacity-100 transition-opacity pointer-events-none"
+                      style={{ left: `${(videoCurrentTime / videoDuration) * 100}%` }}
+                    />
+                  </div>
                 </div>
 
                 {/* Fila de Botones del Reproductor */}
@@ -2625,6 +2695,16 @@ export default function CatalogoPublico() {
                     <span className="text-[8px] text-gray-400 font-semibold tracking-wider bg-white/5 px-2 py-0.5 rounded hidden sm:inline-block">
                       {videoIsMuted ? 'Silenciado' : 'Música'}
                     </span>
+
+                    <button 
+                      onClick={toggleFullscreen}
+                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
+                      title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}
+                    >
+                      <span className="material-symbols-outlined text-sm sm:text-base">
+                        {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+                      </span>
+                    </button>
                   </div>
 
                 </div>
