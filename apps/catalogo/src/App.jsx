@@ -22,6 +22,34 @@ function mergeCarts(localCart, dbCart) {
   return merged
 }
 
+const PulsingRing = ({ className, style }) => (
+  <div className={`absolute pointer-events-none z-40 flex items-center justify-center ${className || ''}`} style={style}>
+    <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-75 animate-ping" />
+    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-current shadow-lg border border-white" />
+  </div>
+);
+
+const GlowingHighlight = ({ className, style }) => (
+  <div className={`absolute pointer-events-none z-30 rounded-lg bg-current/10 border-2 border-current/40 animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.5)] ${className || ''}`} style={style} />
+);
+
+const FloatingArrow = ({ className, style, direction = 'down' }) => {
+  const iconMap = {
+    down: 'arrow_downward',
+    left: 'arrow_back',
+    right: 'arrow_forward',
+    up: 'arrow_upward',
+    diagonal: 'south_west'
+  };
+  return (
+    <div className={`absolute pointer-events-none z-50 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] animate-bounce ${className || ''}`} style={style}>
+      <span className="material-symbols-outlined text-2xl font-black text-[#e2bd6c]">
+        {iconMap[direction]}
+      </span>
+    </div>
+  );
+};
+
 const getCategoriaIcon = (catName) => {
   const name = catName.toUpperCase().trim();
   if (name === 'TODAS') return 'grid_view';
@@ -2435,7 +2463,7 @@ export default function CatalogoPublico() {
             >
               
               {/* Contenido Dinámico de las Diapositivas */}
-              <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4 sm:p-10 transition-all duration-700 overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4 sm:p-6 transition-all duration-700 overflow-hidden">
                 
                 {/* Fondo Degradado Dinámico según Diapositiva */}
                 <div className="absolute inset-0 opacity-10 blur-xl scale-110 pointer-events-none transition-all duration-1000"
@@ -2444,162 +2472,189 @@ export default function CatalogoPublico() {
                       activeSlide === 0 ? 'rgba(226,189,108,0.2) 0%, rgba(15,15,18,1) 80%' :
                       activeSlide === 1 ? 'rgba(59,130,246,0.2) 0%, rgba(15,15,18,1) 80%' :
                       activeSlide === 2 ? 'rgba(236,72,153,0.2) 0%, rgba(15,15,18,1) 80%' :
-                      activeSlide === 3 ? 'rgba(16,185,129,0.2) 0%, rgba(15,15,18,1) 80%' :
-                      'rgba(168,85,247,0.2) 0%, rgba(15,15,18,1) 80%'
+                      activeSlide === 3 ? 'rgba(245,158,11,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      'rgba(16,185,129,0.2) 0%, rgba(15,15,18,1) 80%'
                     })`
                   }}
                 />
 
-                {/* Diapositiva 0: Bienvenida */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
-                  activeSlide === 0 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[-100px] scale-95 pointer-events-none'
-                }`}>
-                  <div className="flex-1 text-center sm:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-1.5 sm:mb-2 animate-pulse">
-                      Introducción
-                    </span>
-                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
-                      Bienvenido al <br/>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e2bd6c] to-[#f3d99d]">Catálogo Leis</span> ✨
-                    </h3>
-                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
-                      Bienvenido al tutorial exclusivo del Catálogo Leis. Te guiaremos en 3 sencillos pasos para explorar nuestra colección exclusiva de cosméticos y accesorios, y enviar tu pedido directamente por WhatsApp. ¡Comencemos!
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 xs:w-16 xs:h-16 sm:w-28 sm:h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse shrink-0">
-                    <span className="text-2xl xs:text-3xl sm:text-6xl md:text-7xl">👑</span>
-                    <span className="absolute bottom-0 right-0 sm:bottom-2 sm:right-2 text-xs xs:text-base sm:text-2xl animate-spin duration-[6s]">✨</span>
-                  </div>
-                </div>
-
-                {/* Diapositiva 1: Paso 1 - Filtrar */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
-                  activeSlide === 1 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 1 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
-                }`}>
-                  <div className="flex-1 text-center sm:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-1.5 sm:mb-2">
-                      Paso 1 de 3
-                    </span>
-                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
-                      Explora y Filtra <br/>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Tus Favoritos</span> 🔍
-                    </h3>
-                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
-                      Usa el buscador para ubicar un producto al instante o despliega nuestro panel lateral interactivo con iconos de cristal para navegar entre categorías, marcas y precios.
-                    </p>
-                  </div>
-                  
-                  {/* Mockup Interactivo de Filtro */}
-                  <div className="hidden sm:flex w-40 h-28 md:h-32 bg-black/40 border border-white/10 rounded-2xl p-3 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
-                    <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-                      <span className="w-2 h-2 rounded-full bg-red-500/80" />
-                      <span className="w-2 h-2 rounded-full bg-yellow-500/80" />
-                      <span className="w-2 h-2 rounded-full bg-green-500/80" />
-                      <span className="text-[6px] text-gray-500 uppercase tracking-widest ml-auto font-mono">Filtros</span>
+                {/* Diapositiva 0: Bienvenida (Crown centered) */}
+                {activeSlide === 0 && (
+                  <div className="absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 opacity-100 translate-x-0 scale-100">
+                    {/* Blurred background image */}
+                    <div className="absolute inset-0 opacity-10 blur-[1px] pointer-events-none">
+                      <img src="/tutorial_step3.png" className="w-full h-full object-cover" alt="Fondo Leis" />
                     </div>
-                    <div className="flex flex-col gap-1.5 my-auto">
-                      <div className="h-4 bg-white/5 rounded flex items-center px-1.5 border border-white/5">
-                        <span className="material-symbols-outlined text-[8px] text-[#e2bd6c] mr-1">diamond</span>
-                        <span className="text-[7px] text-white font-semibold">Joyas & Collares</span>
+                    
+                    <div className="flex-1 text-center sm:text-left z-10">
+                      <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-1.5 sm:mb-2 animate-pulse">
+                        Introducción
+                      </span>
+                      <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
+                        Bienvenido al <br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e2bd6c] to-[#f3d99d]">Catálogo Leis</span> ✨
+                      </h3>
+                      <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
+                        Bienvenido al tutorial exclusivo del Catálogo Leis. Te guiaremos en 3 sencillos pasos para explorar nuestra colección exclusiva de cosméticos y accesorios, y enviar tu pedido directamente por WhatsApp. ¡Comencemos!
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 xs:w-16 xs:h-16 sm:w-28 sm:h-28 md:w-36 md:h-36 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse shrink-0 z-10">
+                      <span className="text-2xl xs:text-3xl sm:text-6xl md:text-7xl">👑</span>
+                      <span className="absolute bottom-0 right-0 sm:bottom-2 sm:right-2 text-xs xs:text-base sm:text-2xl animate-spin duration-[6s]">✨</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Diapositivas 1, 2, 3 y 4 (Shared text layout on the left, Browser mockup on the right!) */}
+                {activeSlide > 0 && (
+                  <div className="absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-4 sm:p-6 transition-all duration-500">
+                    
+                    {/* Texto explicativo dinámico según diapositiva */}
+                    <div className="flex-1 text-center sm:text-left flex flex-col justify-center">
+                      
+                      {activeSlide === 1 && (
+                        <div className="animate-in fade-in duration-300">
+                          <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-1 sm:mb-1.5">
+                            Paso 1 de 3
+                          </span>
+                          <h3 className="font-headline text-sm xs:text-base sm:text-lg md:text-xl font-black text-white leading-tight">
+                            Explora y Filtra <br/>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Tus Favoritos</span> 🔍
+                          </h3>
+                          <p className="text-[10px] sm:text-xs text-gray-300 mt-1 sm:mt-2 leading-relaxed max-w-xs mx-auto sm:mx-0">
+                            Usa el buscador para ubicar un producto al instante o despliega nuestro panel lateral interactivo con iconos de cristal para navegar entre categorías, marcas y precios.
+                          </p>
+                        </div>
+                      )}
+
+                      {activeSlide === 2 && (
+                        <div className="animate-in fade-in duration-300">
+                          <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-pink-500/10 text-pink-400 border border-pink-500/20 mb-1 sm:mb-1.5">
+                            Paso 2 de 3
+                          </span>
+                          <h3 className="font-headline text-sm xs:text-base sm:text-lg md:text-xl font-black text-white leading-tight">
+                            Añade a tu <br/>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-300">Bolsa de Compras</span> 🛒
+                          </h3>
+                          <p className="text-[10px] sm:text-xs text-gray-300 mt-1 sm:mt-2 leading-relaxed max-w-xs mx-auto sm:mx-0">
+                            Elige el producto que desees e incorpóralo con un simple clic. Verás de inmediato cómo se actualiza el contador de artículos y el total en tu bolsa flotante en la cabecera.
+                          </p>
+                        </div>
+                      )}
+
+                      {activeSlide === 3 && (
+                        <div className="animate-in fade-in duration-300">
+                          <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-1 sm:mb-1.5">
+                            Paso 3 de 3
+                          </span>
+                          <h3 className="font-headline text-sm xs:text-base sm:text-lg md:text-xl font-black text-white leading-tight">
+                            Revisa y Envía <br/>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">Tu Pedido</span> 📋
+                          </h3>
+                          <p className="text-[10px] sm:text-xs text-gray-300 mt-1 sm:mt-2 leading-relaxed max-w-xs mx-auto sm:mx-0">
+                            Abre tu bolsa en el header, revisa tu selección final y haz clic en "Hacer Pedido" para iniciar el envío. ¡El sistema preparará todo al instante!
+                          </p>
+                        </div>
+                      )}
+
+                      {activeSlide === 4 && (
+                        <div className="animate-in fade-in duration-300">
+                          <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-1 sm:mb-1.5">
+                            ¡Listo!
+                          </span>
+                          <h3 className="font-headline text-sm xs:text-base sm:text-lg md:text-xl font-black text-white leading-tight">
+                            Confirma por <br/>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300">WhatsApp Directo</span> 📲
+                          </h3>
+                          <p className="text-[10px] sm:text-xs text-gray-300 mt-1 sm:mt-2 leading-relaxed max-w-xs mx-auto sm:mx-0">
+                            Ingresa tu nombre y apellido en el modal de confirmación y haz clic en "Enviar a WhatsApp". Se enviará un mensaje automático con tu lista detallada y formateada para procesar tu entrega.
+                          </p>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Laptop/Browser Mockup on the right */}
+                    <div className="w-full max-w-[240px] xs:max-w-[280px] sm:max-w-[340px] md:max-w-[420px] aspect-[16/10] bg-black/40 border border-white/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl relative select-none animate-in zoom-in duration-300">
+                      {/* Browser Header Bar */}
+                      <div className="h-4.5 sm:h-6 bg-white/5 border-b border-white/5 flex items-center px-2 sm:px-3 gap-1 sm:gap-1.5 shrink-0">
+                        <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-red-500/80" />
+                        <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-yellow-500/80" />
+                        <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-green-500/80" />
+                        <div className="h-3 sm:h-3.5 bg-white/5 rounded px-2 flex items-center justify-center text-[5px] sm:text-[6px] text-gray-500 font-mono w-24 sm:w-40 mx-auto select-none">
+                          leis-catalogo.com/tienda
+                        </div>
                       </div>
-                      <div className="h-4 bg-white/10 rounded flex items-center px-1.5 border border-white/10 relative">
-                        <span className="material-symbols-outlined text-[8px] text-blue-400 mr-1 animate-pulse">spa</span>
-                        <span className="text-[7px] text-blue-300 font-bold">Cuidado Capilar</span>
-                        <span className="absolute right-1 w-1 h-1 rounded-full bg-blue-400 animate-ping" />
+                      
+                      {/* Browser Viewport Area */}
+                      <div className="relative w-full h-[calc(100%-1.125rem)] sm:h-[calc(100%-1.5rem)] bg-[#0f0f12]">
+                        
+                        {/* Slide 1 Screen: Explorar filtros */}
+                        {activeSlide === 1 && (
+                          <div className="absolute inset-0 animate-in fade-in duration-500">
+                            <img src="/tutorial_step2.png" className="w-full h-full object-cover" alt="Explorar filtros" />
+                            {/* Glow Highlights */}
+                            <GlowingHighlight className="text-[#e2bd6c]" style={{ left: '1.5%', top: '13%', width: '13%', height: '8%' }} />
+                            <FloatingArrow className="text-[#e2bd6c]" style={{ left: '5%', top: '23%' }} direction="up" />
+                            
+                            <GlowingHighlight className="text-[#e2bd6c]" style={{ left: '1.5%', top: '38%', width: '13%', height: '54%' }} />
+                            <FloatingArrow className="text-[#e2bd6c]" style={{ left: '16%', top: '55%' }} direction="left" />
+                          </div>
+                        )}
+                        
+                        {/* Slide 2 Screen: Agregar al carrito */}
+                        {activeSlide === 2 && (
+                          <div className="absolute inset-0 animate-in fade-in duration-500">
+                            <img src="/tutorial_step3.png" className="w-full h-full object-cover" alt="Agregar al carrito" />
+                            {/* Add to cart button highlight */}
+                            <PulsingRing className="text-pink-500" style={{ left: '23%', top: '61.5%', width: '12px', height: '12px' }} />
+                            <FloatingArrow className="text-pink-500" style={{ left: '20.5%', top: '48%' }} direction="down" />
+                            
+                            {/* Floating cart badge highlight in header */}
+                            <PulsingRing className="text-[#e2bd6c]" style={{ right: '2%', top: '6%', width: '10px', height: '10px' }} />
+                            <FloatingArrow className="text-[#e2bd6c]" style={{ right: '0.2%', top: '15%' }} direction="up" />
+                          </div>
+                        )}
+                        
+                        {/* Slide 3 Screen: Abrir carrito */}
+                        {activeSlide === 3 && (
+                          <div className="absolute inset-0 animate-in fade-in duration-500">
+                            <img src="/tutorial_step3.png" className="w-full h-full object-cover blur-[0.5px]" alt="Abrir pedido" />
+                            
+                            {/* Simulated Cart Drawer overlay on the right */}
+                            <div className="absolute top-0 right-0 bottom-0 w-[30%] bg-black border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-500">
+                              <img src="/tutorial_step4.png" className="w-full h-full object-cover" alt="Carrito de compras" />
+                              
+                              {/* Pulsing indicator on Hacer Pedido brown button */}
+                              <PulsingRing className="text-[#e2bd6c]" style={{ left: '48%', bottom: '8%', width: '10px', height: '10px' }} />
+                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '38%', bottom: '15%' }} direction="down" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Slide 4 Screen: Enviar WhatsApp */}
+                        {activeSlide === 4 && (
+                          <div className="absolute inset-0 animate-in fade-in duration-500">
+                            <img src="/tutorial_step3.png" className="w-full h-full object-cover blur-[1.5px]" alt="Enviar WhatsApp" />
+                            
+                            {/* Simulated modal popup container */}
+                            <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
+                              <div className="w-[45%] aspect-square bg-[#151515] border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 relative">
+                                <img src="/tutorial_step1.png" className="w-full h-full object-cover" alt="Confirmar pedido" />
+                                
+                                {/* Pulsing indicator on Enviar a WhatsApp green button */}
+                                <PulsingRing className="text-emerald-400" style={{ right: '28%', bottom: '13%', width: '10px', height: '10px' }} />
+                                <FloatingArrow className="text-emerald-400" style={{ right: '23%', bottom: '22%' }} direction="down" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                       </div>
                     </div>
-                    <div className="w-4 h-4 rounded-full bg-white/20 absolute bottom-3 right-6 flex items-center justify-center border border-white/30 animate-pulse pointer-events-none">
-                      <span className="material-symbols-outlined text-[10px] text-white">ads_click</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Diapositiva 2: Paso 2 - Carrito */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
-                  activeSlide === 2 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 2 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
-                }`}>
-                  <div className="flex-1 text-center sm:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-pink-500/10 text-pink-400 border border-pink-500/20 mb-1.5 sm:mb-2">
-                      Paso 2 de 3
-                    </span>
-                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
-                      Añade a tu <br/>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-300">Bolsa de Compras</span> 🛒
-                    </h3>
-                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
-                      Elige el producto que desees e incorpóralo con un simple clic. Verás de inmediato cómo se actualiza el contador de artículos y el total en tu bolsa flotante en la cabecera.
-                    </p>
                   </div>
-
-                  {/* Mockup Interactivo de Tarjeta de Producto */}
-                  <div className="hidden sm:flex w-32 h-32 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
-                    <div className="h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/5 relative overflow-hidden">
-                      <span className="text-2xl animate-pulse">🧴</span>
-                      <div className="absolute top-0.5 right-0.5 px-1 py-0.2 bg-[#e2bd6c]/20 text-[#e2bd6c] rounded text-[5px] border border-[#e2bd6c]/30 font-bold uppercase">Cosmético</div>
-                    </div>
-                    <div className="flex flex-col gap-0.5 mt-0.5">
-                      <span className="text-[7px] font-bold text-white truncate">Sérum Facial Leis</span>
-                      <span className="text-[6px] text-[#e2bd6c] font-black font-mono">$18,500</span>
-                    </div>
-                    <button className="w-full h-4.5 bg-gradient-to-r from-pink-500 to-rose-600 rounded text-[6px] font-black text-white flex items-center justify-center gap-0.5 shadow-md shadow-pink-500/20 relative animate-pulse">
-                      <span className="material-symbols-outlined text-[7px]">shopping_bag</span>
-                      AGREGAR
-                    </button>
-                  </div>
-                </div>
-
-                {/* Diapositiva 3: Paso 3 - WhatsApp */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
-                  activeSlide === 3 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 ' + (activeSlide < 3 ? 'translate-x-[100px]' : 'translate-x-[-100px]') + ' scale-95 pointer-events-none'
-                }`}>
-                  <div className="flex-1 text-center sm:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-1.5 sm:mb-2">
-                      Paso 3 de 3
-                    </span>
-                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
-                      Confirma por <br/>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300">WhatsApp Directo</span> 📲
-                    </h3>
-                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
-                      Abre tu carrito en el header, revisa tu selección final y haz clic en "Hacer Pedido por WhatsApp". Se enviará un mensaje automático con tu lista detallada y formateada para procesar tu entrega de inmediato.
-                    </p>
-                  </div>
-
-                  {/* Mockup Interactivo de Envío */}
-                  <div className="hidden sm:flex w-36 h-28 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col justify-between shrink-0 relative overflow-hidden shadow-inner">
-                    <div className="text-[6px] text-gray-400 leading-tight bg-white/5 border border-white/5 p-1 rounded font-mono">
-                      <div className="text-[5px] font-bold text-[#e2bd6c]">MENSAJE LEIS:</div>
-                      <div>• 1x Sérum Facial ($18,500)</div>
-                      <div>• 1x Colgante Oro ($24,000)</div>
-                    </div>
-                    <button className="w-full h-5.5 bg-emerald-500 hover:bg-emerald-600 rounded-lg text-[7px] font-black text-white flex items-center justify-center gap-1 shadow-lg shadow-emerald-500/20 animate-bounce relative">
-                      <span className="text-[8px]">💬</span>
-                      ENVIAR POR WHATSAPP
-                    </button>
-                  </div>
-                </div>
-
-                {/* Diapositiva 4: Cierre */}
-                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 xs:p-5 sm:p-10 transition-all duration-700 ${
-                  activeSlide === 4 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[100px] scale-95 pointer-events-none'
-                }`}>
-                  <div className="flex-1 text-center sm:text-left">
-                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20 mb-1.5 sm:mb-2">
-                      ¡Listo!
-                    </span>
-                    <h3 className="font-headline text-sm xs:text-base sm:text-xl md:text-2xl font-black text-white leading-tight">
-                      Tu Éxito está en <br/>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-300">Nuestros Productos</span> 💖
-                    </h3>
-                    <p className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 sm:mt-3 leading-relaxed max-w-sm">
-                      ¡Excelente! Ya estás listo para comprar. Recuerda que si necesitas ayuda o deseas revivir esta explicación interactiva paso a paso, puedes abrir este tutorial en cualquier momento. ¡Que tengas una experiencia fantástica!
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 xs:w-16 xs:h-16 sm:w-28 sm:h-28 flex items-center justify-center bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-full relative shrink-0">
-                    <span className="text-2xl xs:text-3xl sm:text-5xl animate-pulse">👑</span>
-                    <div className="absolute inset-0 rounded-full border border-dashed border-[#e2bd6c]/30 animate-spin duration-[8s]" />
-                  </div>
-                </div>
+                )}
 
               </div>
 
