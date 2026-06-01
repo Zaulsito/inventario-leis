@@ -2943,255 +2943,126 @@ export default function CatalogoPublico() {
             >
               
               {/* Contenido Dinámico de las Diapositivas */}
-              <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4 sm:p-6 transition-all duration-700 overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center p-4 xs:p-6 sm:p-8 transition-all duration-700 overflow-hidden bg-[#0c0c0e]">
                 
                 {/* Fondo Degradado Dinámico según Diapositiva */}
-                <div className="absolute inset-0 opacity-10 blur-xl scale-110 pointer-events-none transition-all duration-1000"
+                <div className="absolute inset-0 opacity-20 blur-3xl scale-125 pointer-events-none transition-all duration-1000"
                   style={{
                     backgroundImage: `radial-gradient(circle at 50% 50%, ${
-                      activeSlide === 0 ? 'rgba(226,189,108,0.2) 0%, rgba(15,15,18,1) 80%' :
-                      activeSlide === 1 ? 'rgba(59,130,246,0.2) 0%, rgba(15,15,18,1) 80%' :
-                      activeSlide === 2 ? 'rgba(236,72,153,0.2) 0%, rgba(15,15,18,1) 80%' :
-                      activeSlide === 3 ? 'rgba(245,158,11,0.2) 0%, rgba(15,15,18,1) 80%' :
-                      'rgba(16,185,129,0.2) 0%, rgba(15,15,18,1) 80%'
-                    })`
+                      activeSlide === 0 ? '#e2bd6c' :
+                      activeSlide === 1 ? '#3b82f6' :
+                      activeSlide === 2 ? '#ec4899' :
+                      activeSlide === 3 ? '#f59e0b' :
+                      '#10b981'
+                    } 0%, rgba(15,15,18,0) 70%)`
                   }}
                 />
 
-                {/* Unified Mockup Contenedor Centrado (Sin Cabecera de Mac) */}
-                <div className="w-full max-w-xl xs:max-w-2xl sm:max-w-[90%] md:max-w-[95%] aspect-[1024/556] max-h-[85%] bg-black/40 border border-white/10 rounded-2xl overflow-hidden shrink-0 shadow-2xl relative select-none animate-in zoom-in duration-300">
+                {/* Floating Luxury Gold Shines and Sparkles (Brillos y Estrellas flotantes en el fondo) */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10 opacity-30">
+                  <span className="absolute top-[8%] left-[6%] text-xs opacity-60 animate-pulse text-[#e2bd6c]">✨</span>
+                  <span className="absolute top-[12%] right-[8%] text-[10px] opacity-40 animate-ping duration-[4s] text-[#e2bd6c]">✨</span>
+                  <span className="absolute bottom-[12%] left-[10%] text-xs opacity-50 animate-bounce text-[#e2bd6c]">✨</span>
+                  <span className="absolute bottom-[10%] right-[6%] text-sm opacity-60 animate-pulse text-[#e2bd6c]">✨</span>
+                </div>
+
+                {/* Slide Card - Glassmorphism, ultra premium rounded borders, elegant shadows */}
+                <div className={`w-full max-w-xl p-6 sm:p-10 rounded-[2.5rem] border shadow-2xl relative select-none z-20 flex flex-col items-center justify-between min-h-[260px] sm:min-h-[300px] transition-all duration-500 transform hover:scale-[1.01] ${
+                  isDark 
+                    ? 'bg-[#18181b]/80 border-white/5 shadow-black/85 text-white' 
+                    : 'bg-[#fbf9f4]/95 border-[#e2bd6c]/20 shadow-black/10 text-[#2a1b0a]'
+                }`}>
                   
-                  {/* Browser Viewport Area (Ocupa el 100% de la maqueta) */}
-                  <div className="relative w-full h-full bg-[#0f0f12] overflow-hidden">
+                  {/* Floating particles inside the slide card */}
+                  <span className="absolute top-4 left-6 text-[10px] animate-pulse text-[#e2bd6c]">✨</span>
+                  <span className="absolute bottom-4 right-6 text-xs animate-ping text-[#e2bd6c]">✨</span>
 
-                    {/* Cinematic Pan-and-Zoom Camera Wrapper */}
-                    <div 
-                      className="w-full h-full relative"
-                      style={{
-                        transform: `scale(${camera.scale}) translate(${camera.xShift}%, ${camera.yShift}%)`,
-                        transformOrigin: '50% 50%',
-                        transition: 'transform 100ms linear'
-                      }}
-                    >
-                      {/* Global Golden Luxury Border Frame (Leis Elegant Design with Shines and Rounded Corners) */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#f8ecd2] via-[#e2bd6c] to-[#be9440] p-1.5 rounded-[2rem] border border-[#e2bd6c]/50 shadow-[0_20px_50px_rgba(226,189,108,0.3)] overflow-hidden flex items-center justify-center">
-                        
-                        {/* Glow Orbs & Sparkles (Brillos) inside the frame border */}
-                        <div className="absolute -top-16 -right-16 w-32 h-32 rounded-full bg-white/40 blur-2xl pointer-events-none animate-pulse" />
-                        <div className="absolute -bottom-16 -left-16 w-32 h-32 rounded-full bg-white/30 blur-2xl pointer-events-none animate-pulse" />
-                        
-                        <span className="absolute top-2 left-6 text-xs sm:text-sm animate-pulse text-white select-none pointer-events-none z-10">✨</span>
-                        <span className="absolute top-8 right-12 text-[10px] animate-ping duration-[3.5s] text-white select-none pointer-events-none z-10">✨</span>
-                        <span className="absolute bottom-6 left-12 text-xs animate-bounce text-white select-none pointer-events-none z-10">✨</span>
-                        <span className="absolute bottom-2 right-6 text-sm animate-pulse text-white select-none pointer-events-none z-10">✨</span>
-
-                        {/* Inner Viewport Container with Light Leis Brand Design and Floating Glow Particles */}
-                        <div className="w-full h-full relative rounded-[1.7rem] overflow-hidden bg-gradient-to-br from-[#fdfaf5] via-[#f7f0e3] to-[#ebdcb9] flex items-center justify-center p-2.5 sm:p-4 select-none">
-                          
-                          {/* Ambient soft glow spots on the light background */}
-                          <div className="absolute top-1/4 left-1/4 w-36 h-36 rounded-full bg-[#e2bd6c]/20 blur-3xl pointer-events-none" />
-                          <div className="absolute bottom-1/4 right-1/4 w-36 h-36 rounded-full bg-[#f8ecd2]/40 blur-3xl pointer-events-none" />
-                          
-                          {/* Floating Luxury Gold Shines and Sparkles (Brillos y Estrellas flotantes en el fondo claro) */}
-                          <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-                            <span className="absolute top-[8%] left-[6%] text-xs opacity-60 animate-pulse text-[#8e6d3c]">✨</span>
-                            <span className="absolute top-[12%] right-[8%] text-[10px] opacity-40 animate-ping duration-[4s] text-[#8e6d3c]">✨</span>
-                            <span className="absolute bottom-[12%] left-[10%] text-xs opacity-50 animate-bounce text-[#8e6d3c]">✨</span>
-                            <span className="absolute bottom-[10%] right-[6%] text-sm opacity-60 animate-pulse text-[#8e6d3c]">✨</span>
-                          </div>
-
-                          {/* Floating Glassmorphic App Window Card (Rounded corners, golden border glow, elegant drop shadow) */}
-                          <div className="w-[93%] h-[93%] relative rounded-2xl overflow-hidden bg-[#0f0f12] border border-[#e2bd6c]/40 shadow-[0_15px_40px_rgba(142,109,60,0.35),0_4px_10px_rgba(0,0,0,0.4)] flex items-center justify-center transition-all duration-300">
-                            
-                            {/* Premium Glow Shine Sweep Effect (Efecto brillo de luz que cruza la pantalla) */}
-                            <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
-                              <div className="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-25deg] animate-[shine_8s_infinite]" />
-                              <style>{`
-                                @keyframes shine {
-                                  0% { left: -100%; }
-                                  20% { left: 100%; }
-                                  100% { left: 100%; }
-                                }
-                              `}</style>
-                            </div>
-                          
-                          {/* Slide 0 Screen: Welcome overlay */}
-                          {activeSlide === 0 && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black/50 backdrop-blur-sm z-50 animate-in fade-in duration-500">
-                              {/* Blurred catalog background image */}
-                              <div className="absolute inset-0 opacity-20 blur-[1px] pointer-events-none -z-10">
-                                <img src="/tutorial_step3.png" className="w-full h-full object-fill" alt="Fondo Leis" />
-                              </div>
-                              
-                              <div className="w-10 h-10 sm:w-16 sm:h-16 flex items-center justify-center bg-white/5 border border-white/10 rounded-full shadow-inner relative animate-pulse mb-3">
-                                <span className="text-xl sm:text-4xl">👑</span>
-                                <span className="absolute bottom-0 right-0 text-[8px] sm:text-xs animate-spin duration-[6s]">✨</span>
-                              </div>
-                              
-                              <span className="inline-block px-2 py-0.5 rounded-full text-[6px] sm:text-[8px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-1 sm:mb-2 animate-pulse">
-                                Introducción
-                              </span>
-                              <h3 className="font-headline text-[10px] sm:text-base md:text-lg font-black text-white leading-tight">
-                                Bienvenido al <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e2bd6c] to-[#f3d99d]">Catálogo Leis</span> ✨
-                              </h3>
-                              <p className="text-[7px] sm:text-[9px] text-gray-300 mt-1 max-w-[80%] leading-relaxed font-semibold">
-                                Te guiaremos paso a paso para explorar productos, usar filtros, añadir al carrito y enviar tu pedido a nuestro WhatsApp de forma 100% clara y profesional. ¡Comencemos!
-                              </p>
-                            </div>
-                          )}
-                          
-                          {/* Slide 1 Screen: Explorar filtros */}
-                          {activeSlide === 1 && (
-                            <div className="absolute inset-0 animate-in fade-in duration-500">
-                              <img src="/tutorial_step2.png" className="w-full h-full object-fill" alt="Explorar filtros" />
-                              
-                              {/* Search bar highlights */}
-                              <GlowingHighlight className="text-[#e2bd6c]" style={{ left: '2.2%', top: '17.5%', width: '13.5%', height: '4.5%' }} />
-                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '8%', top: '25%' }} direction="up" />
-                              
-                              {/* Target Product Card highlights */}
-                              <GlowingHighlight className="text-[#e2bd6c]" style={{ left: '79.5%', top: '15.0%', width: '18.5%', height: '50.0%' }} />
-                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '75%', top: '35%' }} direction="right" />
-
-                              {/* Typing Search overlay */}
-                              <div className="absolute font-sans text-[4.5px] sm:text-[6.5px] font-bold text-white/95 select-none flex items-center" style={{ left: '3.0%', top: '18.0%', width: '11%', height: '3.5%', paddingLeft: '4px' }}>
-                                {simulatedSearchVal}
-                                {activeSlide === 1 && (videoCurrentTime - 5) >= 1.5 && (videoCurrentTime - 5) < 3.0 && Math.floor(videoCurrentTime * 3) % 2 === 0 && (
-                                  <span className="w-[1px] h-[65%] bg-[#e2bd6c] ml-0.5" />
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Slide 2 Screen: Agregar al carrito */}
-                          {activeSlide === 2 && (
-                            <div className="absolute inset-0 animate-in fade-in duration-500">
-                              <img src="/tutorial_step3.png" className="w-full h-full object-fill" alt="Agregar al carrito" />
-                              
-                              {/* Add to cart button highlight */}
-                              <PulsingRing className="text-[#e2bd6c]" style={{ left: '86.0%', top: '90.0%', width: '16px', height: '16px' }} />
-                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '86.0%', top: '78.0%' }} direction="down" />
-                              
-                              {/* Floating cart badge highlight in header */}
-                              <PulsingRing className="text-[#e2bd6c]" style={{ left: '96.5%', top: '6.0%', width: '12px', height: '12px' }} />
-                              <FloatingArrow className="text-[#e2bd6c]" style={{ left: '96.5%', top: '15.0%' }} direction="up" />
-                            </div>
-                          )}
-                          
-                          {/* Slide 3 Screen: Abrir carrito */}
-                          {activeSlide === 3 && (
-                            <div className="absolute inset-0 animate-in fade-in duration-500">
-                              {/* Before click: show detail modal. After click: show full screen cart drawer screenshot */}
-                              {(videoCurrentTime - 15) < 1.2 ? (
-                                <img src="/tutorial_step3.png" className="w-full h-full object-fill blur-[0.5px]" alt="Abrir pedido" />
-                              ) : (
-                                <img src="/tutorial_step4.png" className="w-full h-full object-fill animate-in fade-in duration-300" alt="Carrito de compras" />
-                              )}
-                              
-                              {/* Pulsing indicator on Hacer Pedido yellow button - absolute coordinate on full screenshot! */}
-                              {(videoCurrentTime - 15) >= 1.2 && (
-                                <>
-                                  <PulsingRing className="text-[#e2bd6c]" style={{ left: '85.5%', top: '94.5%', width: '16px', height: '16px' }} />
-                                  <FloatingArrow className="text-[#e2bd6c]" style={{ left: '85.5%', top: '83.0%' }} direction="down" />
-                                </>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Slide 4 Screen: Enviar WhatsApp */}
-                          {activeSlide === 4 && (
-                            <div className="absolute inset-0 animate-in fade-in duration-500">
-                              <img src="/tutorial_step3.png" className="w-full h-full object-fill blur-[1.5px]" alt="Enviar WhatsApp" />
-                              
-                              {/* Simulated modal popup container */}
-                              <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
-                                <div className="w-[45%] aspect-[577/533] bg-[#151515] border border-white/10 rounded-xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 relative">
-                                  <img src="/tutorial_step1.png" className="w-full h-full object-fill" alt="Confirmar pedido" />
-                                  
-                                  {/* Typing Name overlay */}
-                                  <div className="absolute font-sans text-[4.5px] sm:text-[6.5px] font-semibold text-white/80 select-none flex items-center" style={{ left: '19.5%', top: '64.5%', width: '61%', height: '7%', paddingLeft: '6px' }}>
-                                    {simulatedNameVal}
-                                    {activeSlide === 4 && (videoCurrentTime - 20) >= 1.2 && (videoCurrentTime - 20) < 3.5 && Math.floor(videoCurrentTime * 3) % 2 === 0 && (
-                                      <span className="w-[1px] h-[65%] bg-emerald-400 ml-0.5 animate-pulse" />
-                                    )}
-                                  </div>
-
-                                  {/* Pulsing indicator on Enviar a WhatsApp green button */}
-                                  <PulsingRing className="text-emerald-400" style={{ left: '64.5%', top: '85.5%', width: '16px', height: '16px' }} />
-                                  <FloatingArrow className="text-emerald-400" style={{ left: '64.5%', top: '75.0%' }} direction="down" />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Floating Header Cart Count Badge overlay (Slides 2 & 3) */}
-                          {simulatedCartCountVal > 0 && (activeSlide === 2 || activeSlide === 3) && (
-                            <div className="absolute z-40 bg-[#e2bd6c] text-[#0f0f12] rounded-full font-black text-[5px] sm:text-[6px] flex items-center justify-center scale-100 animate-in zoom-in duration-300"
-                                 style={{ left: '97.2%', top: '4.8%', width: '8px', height: '8px' }}>
-                              {simulatedCartCountVal}
-                            </div>
-                          )}
-
-                          {/* Flying Pink Dot (Slide 2) */}
-                          {showFlyingDot && (
-                            <div 
-                              className="absolute z-50 w-2 h-2 -ml-1 -mt-1 rounded-full bg-[#e2bd6c] shadow-[0_0_8px_#e2bd6c] pointer-events-none"
-                              style={{ left: `${dotX}%`, top: `${dotY}%` }}
-                            />
-                          )}
-
-                          {/* Emerald Success Screen overlay (Slide 4) */}
-                          {simulatedSuccessOpen && activeSlide === 4 && (
-                            <div className="absolute inset-0 bg-[#0f0f12]/95 backdrop-blur-sm z-[80] flex flex-col items-center justify-center text-center p-3 animate-in fade-in duration-500">
-                              <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-2 animate-bounce">
-                                <span className="material-symbols-outlined text-emerald-400 text-lg sm:text-2xl font-black">check_circle</span>
-                              </div>
-                              <h4 className="font-headline text-[8px] sm:text-xs font-bold text-white tracking-widest uppercase">¡Pedido Enviado! 📲</h4>
-                              <p className="text-[6px] sm:text-[9px] text-gray-400 mt-1 max-w-[80%] leading-relaxed">
-                                Abriendo chat de WhatsApp Leis con los detalles formateados de tu pedido. ¡Gracias por tu compra!
-                              </p>
-                              <span className="mt-2.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[5px] sm:text-[7px] font-bold text-emerald-400 tracking-wider uppercase font-mono">
-                                Estado: Listo
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Simulated Custom Cursor Pointer & Ripples */}
-                          {cursor.opacity > 0 && (
-                            <>
-                              {/* Click ripple circle */}
-                              {cursor.isClicking && (
-                                <div 
-                                  className="absolute z-[85] w-6 h-6 rounded-full bg-[#e2bd6c]/30 border border-[#e2bd6c]/50 animate-ping pointer-events-none animate-duration-300"
-                                  style={{ 
-                                    left: `${cursor.x}%`, 
-                                    top: `${cursor.y}%`,
-                                    transform: 'translate(-50%, -50%)'
-                                  }}
-                                />
-                              )}
-                              {/* Cursor arrow pointer */}
-                              <div 
-                                className="absolute pointer-events-none z-[90] transition-all duration-75 flex flex-col items-start"
-                                style={{ 
-                                  left: `${cursor.x}%`, 
-                                  top: `${cursor.y}%`,
-                                  transform: 'translate(-1px, -1px) rotate(300deg)',
-                                  opacity: cursor.opacity
-                                }}
-                              >
-                                <span className="material-symbols-outlined text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-[11px] sm:text-[14px] font-bold select-none">
-                                  navigation
-                                </span>
-                              </div>
-                            </>
-                          )}
-
-                          </div>
-                        </div>
+                  {/* Icono central de lujo con halo brillante */}
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    <div className="relative flex items-center justify-center">
+                      {/* Halo radial blur */}
+                      <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-60 animate-pulse bg-gradient-to-r ${
+                        activeSlide === 0 ? 'from-[#e2bd6c] to-[#be9440]' :
+                        activeSlide === 1 ? 'from-[#3b82f6] to-[#1d4ed8]' :
+                        activeSlide === 2 ? 'from-[#ec4899] to-[#be185d]' :
+                        activeSlide === 3 ? 'from-[#f59e0b] to-[#d97706]' :
+                        'from-[#10b981] to-[#047857]'
+                      }`} />
+                      
+                      {/* Icon Container circular */}
+                      <div className={`w-14 h-14 rounded-full flex items-center justify-center border relative z-10 transition-all duration-500 shadow-lg ${
+                        isDark 
+                          ? 'bg-black/40 border-white/10 text-[#e2bd6c]' 
+                          : 'bg-[#f4ede1] border-[#e2bd6c]/30 text-[#5d3a28]'
+                      }`}>
+                        <span className="material-symbols-outlined text-2xl font-black select-none">
+                          {activeSlide === 0 ? 'crown' :
+                           activeSlide === 1 ? 'search' :
+                           activeSlide === 2 ? 'shopping_bag' :
+                           activeSlide === 3 ? 'playlist_add_check' :
+                           'chat'}
+                        </span>
                       </div>
                     </div>
+
+                    {/* Contenido textual con animaciones suaves */}
+                    <div className="text-center space-y-1.5 sm:space-y-2 max-w-md">
+                      {/* Badge de Paso */}
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[7px] sm:text-[9px] font-black tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-1 animate-pulse">
+                        {activeSlide === 0 ? 'Introducción' : `Paso ${activeSlide} de 4`}
+                      </span>
+                      
+                      {/* Título de la diapositiva */}
+                      <h3 className={`font-headline text-base sm:text-xl font-black leading-tight tracking-wide ${
+                        isDark ? 'text-white' : 'text-[#5d3a28]'
+                      }`}>
+                        {activeSlide === 0 ? 'Bienvenido a Leis' :
+                         activeSlide === 1 ? '1. Explora el Catálogo' :
+                         activeSlide === 2 ? '2. Añade a tu Bolsa' :
+                         activeSlide === 3 ? '3. Revisa y Filtra' :
+                         '4. Confirma por WhatsApp'}
+                      </h3>
+                      
+                      {/* Subtítulo itálico de lujo */}
+                      <p className="text-[9px] sm:text-xs italic font-bold text-gray-400 select-none">
+                        {activeSlide === 0 ? 'Joyas & Accesorios de Alta Gama' :
+                         activeSlide === 1 ? 'Filtros y Búsqueda en Tiempo Real' :
+                         activeSlide === 2 ? 'Variantes de Talla y Opciones' :
+                         activeSlide === 3 ? 'Revisión de Bolsa Interactiva' :
+                         'Contacto y Stock Inmediato'}
+                      </p>
+                      
+                      {/* Descripción detallada */}
+                      <p className={`text-[8px] sm:text-[11px] leading-relaxed font-semibold transition-all duration-300 ${
+                        isDark ? 'text-gray-300' : 'text-[#2a1b0a]/80'
+                      }`}>
+                        {activeSlide === 0 ? 'Te damos la bienvenida a tu catálogo premium online. Aquí podrás explorar y seleccionar nuestras piezas más exclusivas diseñadas con dedicación y lujo.' :
+                         activeSlide === 1 ? 'Encuentra lo que deseas al instante. Usa la barra de búsqueda o navega a través de las categorías de nuestra colección en el panel lateral.' :
+                         activeSlide === 2 ? 'Elige la variante perfecta del producto (ej. talla, color) y haz clic en "Añadir al Carrito" para sumarlo a tu bolsa de compra.' :
+                         activeSlide === 3 ? 'Abre tu carrito para revisar cantidades. Filtra visualmente los artículos por categorías (anillos, aros, etc.) sin alterar el total del pedido.' :
+                         'Ingresa tu nombre en el pedido y envíalo directamente a nuestro WhatsApp. Tu asesora verificará la disponibilidad y coordinará tu entrega al instante.'}
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Indicador de progreso de bolitas / pills en el fondo de la tarjeta */}
+                  <div className="flex items-center gap-1.5 mt-5 animate-in fade-in duration-300">
+                    {[0, 1, 2, 3, 4].map((slideIdx) => {
+                      const isCurrent = activeSlide === slideIdx;
+                      return (
+                        <div 
+                          key={slideIdx}
+                          onClick={() => setVideoCurrentTime(slideIdx * 5)}
+                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                            isCurrent 
+                              ? 'w-6 bg-[#e2bd6c]' 
+                              : 'w-1.5 bg-gray-400/40 hover:bg-gray-400/70'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+
                 </div>
               </div>
 
