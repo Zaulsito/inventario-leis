@@ -107,6 +107,7 @@ export default function CatalogoPublico() {
   })
 
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [filtroCartCategory, setFiltroCartCategory] = useState('TODOS')
 
   // Estado del Tutorial de Compra interactivo
   const [showTutorial, setShowTutorial] = useState(() => {
@@ -1406,11 +1407,21 @@ export default function CatalogoPublico() {
     }
   }
 
-  // Obtener categorías únicas de los productos actualmente en el carrito
-  const categoriasEnCarrito = [...new Set(carrito.map(item => {
-    const pObj = productos.find(p => p.id === item.productoId);
-    return pObj?.coleccion ? pObj.coleccion.trim().toUpperCase() : 'VARIOS';
-  }))];
+  // Obtener categorías únicas de los productos actualmente en el carrito (incluyendo 'TODOS' siempre al inicio)
+  const categoriasEnCarrito = [
+    'TODOS',
+    ...new Set(carrito.map(item => {
+      const pObj = productos.find(p => p.id === item.productoId);
+      return pObj?.coleccion ? pObj.coleccion.trim().toUpperCase() : 'JOYAS';
+    }))
+  ];
+
+  // Resetear el filtro de categorías al cerrar el carrito
+  useEffect(() => {
+    if (!isCartOpen) {
+      setFiltroCartCategory('TODOS')
+    }
+  }, [isCartOpen])
 
   // --- RENDER ---
 
@@ -2110,18 +2121,27 @@ export default function CatalogoPublico() {
 
               {/* Categorías Dinámicas según productos agregados */}
               <div className="hidden sm:flex items-center gap-6 text-[10px] sm:text-xs font-black uppercase tracking-wider select-none">
-                {categoriasEnCarrito.length === 0 ? (
+                {carrito.length === 0 ? (
                   <div className="relative py-1 cursor-default text-[#5d3a28] dark:text-[#e2bd6c]">
                     Mi Bolsa
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5d3a28] dark:bg-[#e2bd6c]" />
                   </div>
                 ) : (
-                  categoriasEnCarrito.map((cat, idx) => (
-                    <div key={idx} className="relative py-1 cursor-default text-[#5d3a28] dark:text-[#e2bd6c] transition-all">
-                      {cat}
-                      {idx === 0 && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5d3a28] dark:bg-[#e2bd6c]" />}
-                    </div>
-                  ))
+                  categoriasEnCarrito.map((cat, idx) => {
+                    const isSelected = filtroCartCategory === cat;
+                    return (
+                      <button 
+                        key={idx} 
+                        onClick={() => setFiltroCartCategory(cat)}
+                        className={`relative py-1 cursor-pointer transition-all hover:opacity-80 font-black uppercase tracking-wider border-none bg-transparent ${
+                          isSelected ? 'text-[#5d3a28] dark:text-[#e2bd6c]' : 'text-gray-400 dark:text-gray-500'
+                        }`}
+                      >
+                        {cat}
+                        {isSelected && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5d3a28] dark:bg-[#e2bd6c]" />}
+                      </button>
+                    );
+                  })
                 )}
               </div>
 
@@ -2159,81 +2179,88 @@ export default function CatalogoPublico() {
                       <p className="text-xs font-bold text-gray-500">Tu carrito está vacío</p>
                     </div>
                   ) : (
-                    carrito.map(item => {
-                      // Buscar imagen real del producto
-                      const pObj = productos.find(p => p.id === item.productoId);
-                      const imgUrl = item.fotoUrl || pObj?.fotoUrl;
-                      
-                      return (
-                        <div key={item.idCart} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                          isDark ? 'bg-white/5 border-white/10' : 'bg-white border-[#e2bd6c]/15 shadow-[0_2px_8px_rgba(226,189,108,0.05)]'
-                        }`}>
-                          {/* Miniatura del producto */}
-                          <div className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border ${isDark ? 'border-white/5 bg-white/5' : 'border-[#e2bd6c]/20 bg-white/50'}`}>
-                            {imgUrl ? (
-                              <img src={imgUrl} alt={item.nombre} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <span className="material-symbols-outlined text-gray-400 text-lg">image</span>
+                    (() => {
+                      const itemsFiltrados = filtroCartCategory === 'TODOS'
+                        ? carrito
+                        : carrito.filter(item => {
+                            const pObj = productos.find(p => p.id === item.productoId);
+                            const cat = pObj?.coleccion ? pObj.coleccion.trim().toUpperCase() : 'JOYAS';
+                            return cat === filtroCartCategory;
+                          });
+
+                      if (itemsFiltrados.length === 0) {
+                        return (
+                          <div className="text-center py-10 opacity-50 flex flex-col items-center justify-center">
+                            <span className="material-symbols-outlined text-4xl text-gray-400 mb-2">filter_alt_off</span>
+                            <p className="text-xs font-bold text-gray-500">No hay productos en esta categoría</p>
+                          </div>
+                        );
+                      }
+
+                      return itemsFiltrados.map(item => {
+                        // Buscar imagen real del producto
+                        const pObj = productos.find(p => p.id === item.productoId);
+                        const imgUrl = item.fotoUrl || pObj?.fotoUrl;
+                        
+                        return (
+                          <div key={item.idCart} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
+                            isDark ? 'bg-white/5 border-white/10' : 'bg-white border-[#e2bd6c]/15 shadow-[0_2px_8px_rgba(226,189,108,0.05)]'
+                          }`}>
+                            {/* Miniatura del producto */}
+                            <div className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border ${isDark ? 'border-white/5 bg-white/5' : 'border-[#e2bd6c]/20 bg-white/50'}`}>
+                              {imgUrl ? (
+                                <img src={imgUrl} alt={item.nombre} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="material-symbols-outlined text-gray-400 text-lg">image</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Info del producto */}
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-bold text-xs sm:text-sm leading-tight truncate ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>{item.nombre}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5 truncate">{item.marca || 'Leis Collection'}</p>
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <span className={`text-[11px] font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-[#5d3a28]'}`}>${item.precio.toLocaleString('es-CL')}</span>
                               </div>
-                            )}
-                          </div>
+                            </div>
 
-                          {/* Info del producto */}
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-bold text-xs sm:text-sm leading-tight truncate ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>{item.nombre}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5 truncate">{item.marca || 'Leis Collection'}</p>
-                            <div className="flex items-center gap-1.5 mt-1.5">
-                              <span className="text-[9px] line-through text-gray-400">${(item.precio * 1.3).toLocaleString('es-CL')}</span>
-                              <span className={`text-[10px] font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-[#5d3a28]'}`}>${item.precio.toLocaleString('es-CL')}</span>
+                            {/* Selector de cantidad y subtotal */}
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className={`flex items-center gap-1.5 rounded-full p-1 border ${
+                                isDark ? 'bg-white/5 border-white/10' : 'bg-[#f4ede1] border-[#e2bd6c]/20'
+                              }`}>
+                                <button onClick={() => {
+                                  if(item.cantidad === 1) eliminarDelCarrito(item.idCart);
+                                  else actualizarCantidad(item.idCart, -1);
+                                }} className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors ${
+                                  isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white/80 text-[#5d3a28]'
+                                }`}>
+                                  <span className="material-symbols-outlined text-[12px] font-bold">remove</span>
+                                </button>
+                                <span className={`w-4 text-center text-[11px] font-black ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>{item.cantidad}</span>
+                                <button onClick={() => actualizarCantidad(item.idCart, 1)} className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors ${
+                                  isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white/80 text-[#5d3a28]'
+                                }`}>
+                                  <span className="material-symbols-outlined text-[12px] font-bold">add</span>
+                                </button>
+                              </div>
+                              
+                              <span className={`text-[11px] font-black w-14 text-right ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>
+                                ${(item.precio * item.cantidad).toLocaleString('es-CL')}
+                              </span>
                             </div>
                           </div>
-
-                          {/* Selector de cantidad y subtotal */}
-                          <div className="flex items-center gap-3 shrink-0">
-                            <div className={`flex items-center gap-1.5 rounded-full p-1 border ${
-                              isDark ? 'bg-white/5 border-white/10' : 'bg-[#f4ede1] border-[#e2bd6c]/20'
-                            }`}>
-                              <button onClick={() => {
-                                if(item.cantidad === 1) eliminarDelCarrito(item.idCart);
-                                else actualizarCantidad(item.idCart, -1);
-                              }} className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors ${
-                                isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white/80 text-[#5d3a28]'
-                              }`}>
-                                <span className="material-symbols-outlined text-[12px] font-bold">remove</span>
-                              </button>
-                              <span className={`w-4 text-center text-[11px] font-black ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>{item.cantidad}</span>
-                              <button onClick={() => actualizarCantidad(item.idCart, 1)} className={`w-5 h-5 flex items-center justify-center rounded-full transition-colors ${
-                                isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white/80 text-[#5d3a28]'
-                              }`}>
-                                <span className="material-symbols-outlined text-[12px] font-bold">add</span>
-                              </button>
-                            </div>
-                            
-                            <span className={`text-[11px] font-black w-14 text-right ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>
-                              ${(item.precio * item.cantidad).toLocaleString('es-CL')}
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })
+                        );
+                      });
+                    })()
                   )}
                 </div>
 
                 {/* Controles del fondo de la columna izquierda */}
                 {carrito.length > 0 && (
                   <div className="flex flex-col gap-3 mt-2 border-t pt-4">
-                    {/* Dropdown del método de envío */}
-                    <div className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer select-none transition-all ${
-                      isDark ? 'bg-[#151515] border-white/5 hover:border-[#e2bd6c]/30 text-white' : 'bg-white border-[#e2bd6c]/25 hover:border-[#5d3a28]/45 text-[#2a1b0a]'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm">local_shipping</span>
-                        <span className="text-[11px] font-bold">Envío Express a Domicilio</span>
-                      </div>
-                      <span className="material-symbols-outlined text-xs">expand_more</span>
-                    </div>
-
                     {/* Fila de acción compartir */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -2251,22 +2278,22 @@ export default function CatalogoPublico() {
                 )}
               </div>
 
-              {/* Columna Derecha: Cart Review (md:col-span-5) */}
+              {/* Columna Derecha: Revisión del Carrito (md:col-span-5) */}
               <div className="md:col-span-5">
                 <div className={`p-6 rounded-[2rem] border flex flex-col justify-between h-full min-h-[350px] gap-6 ${
                   isDark ? 'bg-[#151515] border-white/5' : 'bg-[#eedec9]/20 border-[#e2bd6c]/30'
                 }`}>
                   <div className="space-y-4">
-                    {/* Título de Cart Review */}
+                    {/* Título de Revisión del Carrito */}
                     <h3 className={`font-headline font-bold text-xl ${isDark ? 'text-[#e2bd6c]' : 'text-[#5d3a28]'}`}>
-                      Cart Review
+                      Revisión del Carrito
                     </h3>
 
-                    {/* Resumen explicativo (Summario) */}
+                    {/* Resumen explicativo (Resumen) */}
                     <div className={`rounded-2xl p-4 border text-[10px] sm:text-[11px] leading-relaxed font-semibold ${
                       isDark ? 'bg-white/5 border-white/5 text-gray-300' : 'bg-white border-[#e2bd6c]/20 text-[#2a1b0a]/80 shadow-[0_2px_10px_rgba(226,189,108,0.05)]'
                     }`}>
-                      <p className={`font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-[#e2bd6c]' : 'text-[#5d3a28]'}`}>Sumario</p>
+                      <p className={`font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-[#e2bd6c]' : 'text-[#5d3a28]'}`}>Resumen</p>
                       Revisa tu producto en el carrito. Nos aseguramos de empacar cada artículo con el máximo cuidado y amor. La confirmación generará un resumen para que nuestro asesor verifique tu stock al instante.
                     </div>
 
@@ -2278,33 +2305,15 @@ export default function CatalogoPublico() {
                           ${totalCarrito.toLocaleString('es-CL')}
                         </span>
                       </div>
-                      
-                      {totalCarrito > 0 && (
-                        <>
-                          <div className="flex justify-between items-center text-xs text-emerald-500">
-                            <span className="font-bold">Descuento Especial (10%):</span>
-                            <span className="font-mono font-bold">
-                              -${Math.floor(totalCarrito * 0.1).toLocaleString('es-CL')}
-                            </span>
-                          </div>
-                          
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-400 font-bold">Envío:</span>
-                            <span className="text-emerald-500 font-bold uppercase text-[9px] tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                              Gratis
-                            </span>
-                          </div>
-                        </>
-                      )}
                     </div>
                   </div>
 
                   {/* Fila del Total a Pagar y Botón de Confirmación */}
                   <div className="space-y-4 pt-4 border-t">
                     <div className="flex justify-between items-end">
-                      <span className="text-xs uppercase tracking-widest font-black text-gray-400">Total Neto:</span>
+                      <span className="text-xs uppercase tracking-widest font-black text-gray-400">Total del Pedido:</span>
                       <span className={`font-headline text-2xl font-bold leading-none ${isDark ? 'text-[#e2bd6c]' : 'text-[#5d3a28]'}`}>
-                        ${totalCarrito > 0 ? Math.floor(totalCarrito * 0.9).toLocaleString('es-CL') : '0'}
+                        ${totalCarrito.toLocaleString('es-CL')}
                       </span>
                     </div>
 
