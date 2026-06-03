@@ -1324,7 +1324,7 @@ REGLAS DE FORMATO ESTRICTAS:
             <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead>
                 <tr className="bg-surface-container dark:bg-[#2a2a2a]">
-                  {['', 'Producto', 'Proveedor', 'Categoría', 'Stock', 'P. Costo', 'P. Venta', 'Ganancia / Margen', 'Estado', 'Fecha Ingreso'].map((h, i) => (
+                  {['', 'Producto', 'Proveedor', 'Categoría', 'P. Costo', 'Precio Unit.', 'Ganancia', 'Estado', 'Fecha Ingreso'].map((h, i) => (
                     <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 whitespace-nowrap ${i === 0 ? 'pl-8 w-20' : 'px-7'}`}>{h}</th>
                   ))}
                 </tr>
@@ -1373,6 +1373,7 @@ REGLAS DE FORMATO ESTRICTAS:
                             </p>
                             {p.marca && <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest mt-0.5">Marca: {p.marca}</p>}
                             <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest">Cód. Barra: {p.sku}</p>
+                            <p className="text-[10px] font-extrabold text-primary dark:text-[#e2bd6c] uppercase tracking-widest mt-0.5">Stock: {p.stock.toLocaleString()} unidades</p>
                             {p.variantes && p.variantes.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {p.variantes.map((v, i) => (
@@ -1398,17 +1399,6 @@ REGLAS DE FORMATO ESTRICTAS:
                         <span className="px-3 py-1 bg-surface-variant dark:bg-white/5 text-on-surface-variant dark:text-white/60 text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center border border-outline-variant/10 dark:border-white/5">
                           {(p.coleccion || '').toUpperCase()}
                         </span>
-                      </td>
-                      <td className="px-7 py-5">
-                        <p className={`text-sm font-bold mb-1 ${p.estado !== 'disponible' ? 'text-error' : 'dark:text-[#e2bd6c]'}`}>
-                          {p.stock.toLocaleString()} <span className="text-[10px] opacity-60">u.</span>
-                        </p>
-                        <div className="w-16 bg-outline-variant/20 dark:bg-white/10 h-1 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${p.estado === 'disponible' ? 'bg-primary dark:bg-[#e2bd6c]' : 'bg-error'}`}
-                            style={{ width: `${porcBarra(p.stock)}%` }}
-                          />
-                        </div>
                       </td>
                       <td className="px-7 py-5">
                         <p className="text-sm font-bold text-outline dark:text-gray-400">${(p.precioCosto || 0).toLocaleString('es-CL')}</p>
@@ -1447,7 +1437,7 @@ REGLAS DE FORMATO ESTRICTAS:
                 })}
                 {filtrados.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-7 py-12 text-center text-on-surface-variant text-sm">
+                    <td colSpan={9} className="px-7 py-12 text-center text-on-surface-variant text-sm">
                       No se encontraron productos. Crea uno nuevo usando el botón de arriba.
                     </td>
                   </tr>
