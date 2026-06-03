@@ -1321,7 +1321,7 @@ REGLAS DE FORMATO ESTRICTAS:
           </div>
 
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[640px]">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead>
                 <tr className="bg-surface-container dark:bg-[#2a2a2a]">
                   {['', 'Producto', 'Proveedor', 'Categoría', 'Stock', 'P. Costo', 'P. Venta', 'Ganancia / Margen', 'Estado', 'Fecha Ingreso'].map((h, i) => (
@@ -1334,8 +1334,8 @@ REGLAS DE FORMATO ESTRICTAS:
                   const est = estadoConfig[p.estado] || estadoConfig.disponible
                   return (
                     <tr key={p.id} className="hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group">
-                      <td className="pl-8 py-5">
-                        <div className="flex flex-col gap-2 transition-all duration-300">
+                      <td className="pl-8 py-5 w-20">
+                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           <button onClick={() => openEdit(p)} className="text-outline/60 dark:text-gray-500 hover:text-primary dark:hover:text-[#e2bd6c] transition-colors" title="Editar">
                             <span className="material-symbols-outlined text-[20px]">edit</span>
                           </button>
@@ -1426,7 +1426,7 @@ REGLAS DE FORMATO ESTRICTAS:
                               <p className={`text-sm font-bold ${esPositiva ? 'text-[#22c55e] dark:text-[#10b981]' : 'text-error'}`}>
                                 {esPositiva ? '+' : ''}${ganancia.toLocaleString('es-CL')}
                               </p>
-                              <p className={`text-[10px] font-bold ${esPositiva ? 'text-[#22c55e]/80 dark:text-[#10b981]/80' : 'text-error/80'}`}>
+                              <p className={`text-[10px] font-bold ${esPositiva ? 'text-[#22c55e] dark:text-[#4ade80]' : 'text-error dark:text-red-400'}`}>
                                 ({esPositiva ? '+' : ''}{margen.toFixed(1)}%)
                               </p>
                             </div>
@@ -1819,7 +1819,7 @@ REGLAS DE FORMATO ESTRICTAS:
                   </div>
 
                   {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
-                  <div className="bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
+                  <div className="bg-surface-container/30 dark:bg-[#252525] rounded-2xl p-4 border border-outline-variant/10 dark:border-white/10">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">diversity_2</span>
@@ -1845,7 +1845,7 @@ REGLAS DE FORMATO ESTRICTAS:
                               newV[index].nombre = e.target.value
                               setForm({...form, variantes: newV})
                             }}
-                            className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                            className="flex-1 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
                             placeholder="Ej. Verde"
                           />
                           <input 
@@ -1856,7 +1856,7 @@ REGLAS DE FORMATO ESTRICTAS:
                               newV[index].stock = e.target.value
                               setForm({...form, variantes: newV})
                             }}
-                            className="w-20 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                            className="w-20 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
                             placeholder="0"
                           />
                           <button 
@@ -1869,7 +1869,7 @@ REGLAS DE FORMATO ESTRICTAS:
                         </div>
                       ))}
                       {(!form.variantes || form.variantes.length === 0) && (
-                        <p className="text-[10px] text-outline/80 dark:text-gray-300 text-center py-2 italic font-semibold">
+                        <p className="text-[10px] text-outline/80 dark:text-neutral-300 text-center py-2 italic font-bold">
                           Ideal para productos con diferentes colores o tallas.
                         </p>
                       )}
@@ -1888,7 +1888,7 @@ REGLAS DE FORMATO ESTRICTAS:
                         className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                       />
                     </div>
-                    <div className="col-span-2 bg-surface-container/30 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5">
+                    <div className="col-span-2 bg-surface-container/30 dark:bg-[#252525] rounded-2xl p-4 border border-outline-variant/10 dark:border-white/10">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">imagesmode</span>
@@ -1933,10 +1933,10 @@ REGLAS DE FORMATO ESTRICTAS:
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                       >
-                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-surface-container-low dark:bg-white/5 p-3 rounded-xl border border-outline-variant/30">
+                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-surface-container-low dark:bg-[#1e1e1e] p-3 rounded-xl border border-outline-variant/30 dark:border-white/10">
                           <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-outline/80 dark:text-gray-300">cloud_upload</span>
-                            <span className="text-xs font-bold text-outline/90 dark:text-gray-300 uppercase tracking-wider">Arrastra imágenes aquí</span>
+                            <span className="text-xs font-bold text-outline/90 dark:text-neutral-300 uppercase tracking-wider">Arrastra imágenes aquí</span>
                           </div>
                           <div className="flex gap-4 items-center">
                             <label className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline cursor-pointer hover:text-primary/80 transition-colors">
@@ -2009,7 +2009,7 @@ REGLAS DE FORMATO ESTRICTAS:
                                 newFotos[index] = e.target.value
                                 setForm({...form, fotos: newFotos})
                               }}
-                              className="flex-1 bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              className="flex-1 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
                               placeholder="https://url-de-la-imagen.jpg"
                             />
                             <button 
@@ -2023,7 +2023,7 @@ REGLAS DE FORMATO ESTRICTAS:
                         ))}
                         {(!form.fotos || form.fotos.length === 0) && (
                           <div className="text-center py-6">
-                            <p className="text-[10px] text-outline italic font-medium opacity-60">
+                            <p className="text-[10px] text-outline italic font-bold dark:text-neutral-300 opacity-80">
                               Puedes subir o arrastrar hasta 5 imágenes.
                             </p>
                           </div>
