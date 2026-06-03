@@ -1596,20 +1596,41 @@ REGLAS DE FORMATO ESTRICTAS:
 
               {activeTabModal === 'editar' ? (
                 <div className="p-6 space-y-5">
-                  {/* Fila 1: Nombre */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Nombre del Producto</label>
-                    <input 
-                      type="text" 
-                      value={form.nombre} 
-                      onChange={e => setForm({...form, nombre: e.target.value})}
-                      className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
-                      placeholder="Ej. Crema Collagen"
-                    />
+                  {/* Fila 1: Nombre y SKU */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Nombre del Producto</label>
+                      <input 
+                        type="text" 
+                        value={form.nombre} 
+                        onChange={e => setForm({...form, nombre: e.target.value})}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                        placeholder="Ej. Crema Collagen"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Código de Barra / SKU</label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          value={form.sku} 
+                          onChange={e => setForm({...form, sku: e.target.value})}
+                          className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                          placeholder="Escribe o escanea..."
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setIsScanning(true)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Fila 2: Marca y SKU */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Fila 2: Marca, Proveedor y Categoría */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="relative">
                       <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Marca</label>
                       <input 
@@ -1649,29 +1670,7 @@ REGLAS DE FORMATO ESTRICTAS:
                         </>
                       )}
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Código de Barra / SKU</label>
-                      <div className="relative">
-                        <input 
-                          type="text" 
-                          value={form.sku} 
-                          onChange={e => setForm({...form, sku: e.target.value})}
-                          className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
-                          placeholder="Escribe o escanea..."
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setIsScanning(true)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
-                        >
-                          <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Fila 3: Proveedor y Categoría */}
-                  <div className="grid grid-cols-2 gap-4">
                     <div className="relative">
                       <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Proveedor</label>
                       <input 
@@ -1753,8 +1752,8 @@ REGLAS DE FORMATO ESTRICTAS:
                     </div>
                   </div>
 
-                  {/* Fila 4: Precios y Stock */}
-                  <div className="grid grid-cols-3 gap-4">
+                  {/* Fila 3: Precio Costo, Precio Venta y Fecha Ingreso */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Costo ($)</label>
                       <input 
@@ -1776,10 +1775,23 @@ REGLAS DE FORMATO ESTRICTAS:
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
-                        {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Sumar / Restar Stock')}
-                      </label>
-                      {!editingId || form.variantes?.length > 0 ? (
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Fecha Ingreso</label>
+                      <input 
+                        type="date" 
+                        value={form.fechaIngreso} 
+                        onChange={e => setForm({...form, fechaIngreso: e.target.value})}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fila 4: Control de Stock */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                      {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Control de Stock')}
+                    </label>
+                    {!editingId || form.variantes?.length > 0 ? (
+                      <div className="w-full md:w-1/3">
                         <input 
                           type="number" 
                           value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
@@ -1788,24 +1800,25 @@ REGLAS DE FORMATO ESTRICTAS:
                           className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-white/5'}`}
                           placeholder="0"
                         />
-                      ) : (
-                        <div className="flex gap-2 h-[46px]">
-                          <div className="flex-[2] relative h-full">
-                            <input 
-                              type="number" 
-                              value={form.ajusteStock} 
-                              onChange={e => setForm({...form, ajusteStock: e.target.value})}
-                              className="w-full h-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                              placeholder="Ej: 3 o -2"
-                            />
-                          </div>
-                          <div className="flex-1 h-full bg-surface-variant/30 dark:bg-white/5 rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center leading-tight py-1">
-                            <span className="text-[8px] font-bold uppercase text-outline">Stock Actual</span>
-                            <span className="text-[13px] font-black text-on-surface dark:text-white">{form.stock}</span>
-                          </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">Ajustar Cantidad (Sumar / Restar)</span>
+                          <input 
+                            type="number" 
+                            value={form.ajusteStock} 
+                            onChange={e => setForm({...form, ajusteStock: e.target.value})}
+                            className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                            placeholder="Ej. 3 o -2"
+                          />
                         </div>
-                      )}
-                    </div>
+                        <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
+                          <span className="text-xl font-black text-on-surface dark:text-white">{form.stock}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
@@ -1866,85 +1879,63 @@ REGLAS DE FORMATO ESTRICTAS:
                     </div>
                   </div>
 
-
-                  {/* Fila 5: Otros */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Fecha Ingreso</label>
-                      <input 
-                        type="date" 
-                        value={form.fechaIngreso} 
-                        onChange={e => setForm({...form, fechaIngreso: e.target.value})}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                      />
-                    </div>
-                    <div className="col-span-2 bg-surface-container/30 dark:bg-[#252525] rounded-2xl p-4 border border-outline-variant/10 dark:border-white/10">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">imagesmode</span>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 5)</p>
+                  {/* Sección de Imágenes */}
+                  <div className="bg-surface-container/30 dark:bg-[#252525] rounded-2xl p-4 border border-outline-variant/10 dark:border-white/10">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">imagesmode</span>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 5)</p>
+                      </div>
+                      {(!form.fotos || form.fotos.length < 5) && (
+                        <div className="flex gap-2">
+                          <label className="bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-primary/20 dark:border-[#e2bd6c]/20 hover:bg-primary/20 transition-all cursor-pointer flex items-center gap-1">
+                            {isUploadingImage ? (
+                              <span className="animate-pulse">Subiendo...</span>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-[12px]">upload</span>
+                                Subir Imágenes
+                              </>
+                            )}
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              multiple
+                              className="hidden" 
+                              onChange={onFileInputChange}
+                              disabled={isUploadingImage}
+                            />
+                          </label>
+                          <button 
+                            type="button"
+                            onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
+                            className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">link</span>
+                            URL
+                          </button>
                         </div>
-                        {(!form.fotos || form.fotos.length < 5) && (
-                          <div className="flex gap-2">
-                            <label className="bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-primary/20 dark:border-[#e2bd6c]/20 hover:bg-primary/20 transition-all cursor-pointer flex items-center gap-1">
-                              {isUploadingImage ? (
-                                <span className="animate-pulse">Subiendo...</span>
-                              ) : (
-                                <>
-                                  <span className="material-symbols-outlined text-[12px]">upload</span>
-                                  Subir PC
-                                </>
-                              )}
-                              <input 
-                                type="file" 
-                                accept="image/*" 
-                                className="hidden" 
-                                onChange={handleImageUpload}
-                                disabled={isUploadingImage}
-                              />
-                            </label>
-                            <button 
-                              type="button"
-                              onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
-                              className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[12px]">link</span>
-                              URL
-                            </button>
-                          </div>
-                        )}
+                      )}
+                    </div>
+
+                    <div 
+                      className={`space-y-3 border-2 border-dashed rounded-xl p-3 transition-colors ${
+                        isDragOver ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-transparent'
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <div className="flex items-center justify-center bg-surface-container-low dark:bg-[#1e1e1e] p-4 rounded-xl border border-outline-variant/30 dark:border-white/10">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-outline/80 dark:text-gray-300">cloud_upload</span>
+                          <span className="text-xs font-bold text-outline/90 dark:text-neutral-300 uppercase tracking-wider">Arrastra imágenes aquí</span>
+                        </div>
                       </div>
 
-                      <div 
-                        className={`space-y-3 border-2 border-dashed rounded-xl p-3 transition-colors ${
-                          isDragOver ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-transparent'
-                        }`}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                      >
-                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-surface-container-low dark:bg-[#1e1e1e] p-3 rounded-xl border border-outline-variant/30 dark:border-white/10">
-                          <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-outline/80 dark:text-gray-300">cloud_upload</span>
-                            <span className="text-xs font-bold text-outline/90 dark:text-neutral-300 uppercase tracking-wider">Arrastra imágenes aquí</span>
-                          </div>
-                          <div className="flex gap-4 items-center">
-                            <label className="text-[10px] font-bold text-primary dark:text-[#e2bd6c] underline cursor-pointer hover:text-primary/80 transition-colors">
-                              {isUploadingImage ? uploadProgress : 'Seleccionar Múltiples'}
-                              <input type="file" accept="image/*" multiple className="hidden" onChange={onFileInputChange} disabled={isUploadingImage} />
-                            </label>
-                            <button 
-                              type="button"
-                              onClick={() => setForm({...form, fotos: [...(form.fotos || []), '']})}
-                              className="text-[10px] font-bold text-secondary dark:text-gray-400 underline hover:text-secondary/80 transition-colors"
-                            >
-                              Añadir URL Vacía
-                            </button>
-                          </div>
-                        </div>
-
-                        {(form.fotos || []).map((url, index) => (
-                          <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                      {(form.fotos || []).map((url, index) => (
+                        <div key={index} className="space-y-1">
+                          <div className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
                             <div className="w-8 h-8 rounded-lg bg-surface-container dark:bg-white/10 flex flex-col items-center justify-center shrink-0 border border-outline-variant/20 overflow-hidden">
                               <button 
                                 type="button"
@@ -2010,15 +2001,21 @@ REGLAS DE FORMATO ESTRICTAS:
                               <span className="material-symbols-outlined text-xl">delete</span>
                             </button>
                           </div>
-                        ))}
-                        {(!form.fotos || form.fotos.length === 0) && (
-                          <div className="text-center py-6">
-                            <p className="text-[10px] text-outline italic font-bold dark:text-neutral-300 opacity-80">
-                              Puedes subir o arrastrar hasta 5 imágenes.
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                          {index === 0 && (
+                            <div className="text-[10px] text-primary dark:text-[#e2bd6c] font-semibold flex items-center gap-1 pl-12 pt-0.5 pb-1">
+                              <span className="material-symbols-outlined text-[12px]">info</span>
+                              Esta será la imagen de portada que se mostrará en el catálogo
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {(!form.fotos || form.fotos.length === 0) && (
+                        <div className="text-center py-6">
+                          <p className="text-[10px] text-outline italic font-bold dark:text-neutral-300 opacity-80">
+                            Puedes subir o arrastrar hasta 5 imágenes.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
