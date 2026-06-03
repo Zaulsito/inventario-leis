@@ -42,6 +42,7 @@ export default function Dashboard() {
   const stockActual = productos.reduce((acc, p) => acc + p.stock, 0)
   const productCount = productos.length
   const valorTotal = productos.reduce((acc, p) => acc + (p.stock * p.precio), 0)
+  const valorTotalCosto = productos.reduce((acc, p) => acc + (p.stock * (p.precioCosto || 0)), 0)
 
   const bajosDeStock = productos.filter(p => (p.estado === 'bajo' || p.estado === 'critico'))
   const criticos = bajosDeStock.filter(p => p.estado === 'critico').length
@@ -54,7 +55,7 @@ export default function Dashboard() {
   }, [criticos])
 
   const metricas = [
-    { icon: 'trending_up',  label: 'Valor inventario', valor: `$${valorTotal.toLocaleString()}`, sub: 'Actual' },
+    { icon: 'trending_up',  label: 'Valor inventario', valor: `$${valorTotal.toLocaleString('es-CL')}`, sub: `COSTO: $${valorTotalCosto.toLocaleString('es-CL')} | GANANCIA: +$${(valorTotal - valorTotalCosto).toLocaleString('es-CL')}` },
     { icon: 'inventory',    label: 'Stock actual',     valor: stockActual.toLocaleString(), sub: 'unidades' },
     { icon: 'deployed_code',label: 'Productos (SKUs)', valor: productCount.toLocaleString(), sub: 'Registrados' },
     { icon: 'priority_high',label: 'Stock Bajo',       valor: bajosDeStock.length, sub: 'Elementos críticos', isAlert: true },

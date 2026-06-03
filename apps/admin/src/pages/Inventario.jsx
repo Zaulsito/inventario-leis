@@ -26,6 +26,7 @@ const formInicial = {
   proveedor: '', 
   marca: '',
   precio: '', 
+  precioCosto: '', 
   stock: '', 
   ajusteStock: '',
   fechaIngreso: getLocalDateString(), 
@@ -516,6 +517,7 @@ REGLAS DE FORMATO ESTRICTAS:
       proveedor: (p.proveedor || '').trim().toUpperCase(),
       marca: (p.marca || '').trim().toUpperCase(),
       precio: p.precio, 
+      precioCosto: p.precioCosto || '',
       stock: p.stock, 
       ajusteStock: '',
       fechaIngreso: p.fechaIngreso || getLocalDateString(), 
@@ -600,6 +602,7 @@ REGLAS DE FORMATO ESTRICTAS:
       proveedor: (form.proveedor || '').trim().toUpperCase(),
       marca: (form.marca || '').trim().toUpperCase(),
       precio: Math.floor(Number(form.precio)) || 0,
+      precioCosto: Math.floor(Number(form.precioCosto)) || 0,
       stock: stockCalculado,
       variantes: (form.variantes || []).map(v => ({ ...v, stock: Number(v.stock) })),
       estado: estadoFinal,
@@ -803,6 +806,7 @@ REGLAS DE FORMATO ESTRICTAS:
   const totalSKUs    = filtrados.length
   const bajosDeStock = filtrados.filter(p => p.estado === 'bajo' || p.estado === 'critico').length
   const valorTotal   = filtrados.reduce((acc, p) => acc + (p.stock * (p.precio || 0)), 0)
+  const valorTotalCosto = filtrados.reduce((acc, p) => acc + (p.stock * (p.precioCosto || 0)), 0)
   const stockTotal   = filtrados.reduce((acc, p) => acc + p.stock, 0)
 
   function porcBarra(stock) {
@@ -812,10 +816,12 @@ REGLAS DE FORMATO ESTRICTAS:
   }
 
   function exportarCSV() {
-    const encabezados = ['Producto', 'Marca', 'Cód. Barra', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso']
+    const encabezados = ['Producto', 'Marca', 'Cód. Barra', 'Categoría', 'Stock', 'Precio Costo', 'Precio Venta', 'Ganancia', 'Margen %', 'Estado', 'Fecha Ingreso']
     const filas = []
     
     filtrados.forEach(p => {
+      const ganancia = (p.precio || 0) - (p.precioCosto || 0)
+      const margen = p.precioCosto > 0 ? ((ganancia / p.precioCosto) * 100).toFixed(1) : '0.0'
       if (p.variantes && p.variantes.length > 0) {
         p.variantes.forEach(v => {
           filas.push([
@@ -824,7 +830,10 @@ REGLAS DE FORMATO ESTRICTAS:
             `"${(p.sku || '').replace(/"/g, '""')}"`,
             `"${(p.coleccion || '').toUpperCase().replace(/"/g, '""')}"`,
             v.stock,
+            p.precioCosto || 0,
             p.precio,
+            ganancia,
+            margen,
             `"${calcularEstado(v.stock).toUpperCase()}"`,
             `"${p.fechaIngreso || ''}"`
           ])
@@ -836,7 +845,10 @@ REGLAS DE FORMATO ESTRICTAS:
           `"${(p.sku || '').replace(/"/g, '""')}"`,
           `"${(p.coleccion || '').toUpperCase().replace(/"/g, '""')}"`,
           p.stock,
+          p.precioCosto || 0,
           p.precio,
+          ganancia,
+          margen,
           `"${(p.estado || '').toUpperCase()}"`,
           `"${p.fechaIngreso || ''}"`
         ])
@@ -859,9 +871,8 @@ REGLAS DE FORMATO ESTRICTAS:
   function exportarPDF() {
     try {
       const doc = new jsPDF()
-      // Título estilizado
       doc.setFontSize(20)
-      doc.setTextColor(139, 115, 85) // Color secundario
+      doc.setTextColor(139, 115, 85)
       doc.setFont("helvetica", "bold")
       doc.text("Reporte de Inventario - Leis", 14, 20)
       
@@ -872,6 +883,8 @@ REGLAS DE FORMATO ESTRICTAS:
       
       const tableData = []
       filtrados.forEach(p => {
+        const ganancia = (p.precio || 0) - (p.precioCosto || 0)
+        const margen = p.precioCosto > 0 ? ((ganancia / p.precioCosto) * 100).toFixed(1) + '%' : '0.0%'
         if (p.variantes && p.variantes.length > 0) {
           p.variantes.forEach(v => {
             tableData.push([
@@ -880,7 +893,9 @@ REGLAS DE FORMATO ESTRICTAS:
               p.sku,
               p.coleccion,
               v.stock.toString(),
+              `$${(p.precioCosto || 0).toLocaleString('es-CL')}`,
               `$${(p.precio || 0).toLocaleString('es-CL')}`,
+              `$${ganancia.toLocaleString('es-CL')} (${margen})`,
               calcularEstado(v.stock).toUpperCase(),
               p.fechaIngreso || '-'
             ])
@@ -892,7 +907,9 @@ REGLAS DE FORMATO ESTRICTAS:
             p.sku,
             p.coleccion,
             p.stock.toString(),
+            `$${(p.precioCosto || 0).toLocaleString('es-CL')}`,
             `$${(p.precio || 0).toLocaleString('es-CL')}`,
+            `$${ganancia.toLocaleString('es-CL')} (${margen})`,
             p.estado.toUpperCase(),
             p.fechaIngreso || '-'
           ])
@@ -901,37 +918,38 @@ REGLAS DE FORMATO ESTRICTAS:
 
       autoTable(doc, {
         startY: 35,
-        head: [['Producto', 'Marca', 'Cód. Barra', 'Categoría', 'Stock', 'Precio', 'Estado', 'Fecha Ing.']],
+        head: [['Producto', 'Marca', 'Cód. Barra', 'Categoría', 'Stock', 'P. Costo', 'P. Venta', 'Ganancia', 'Estado', 'Fecha Ing.']],
         body: tableData,
         theme: 'grid',
         styles: {
-          fontSize: 8,
-          cellPadding: 4,
-          lineColor: [255, 255, 255], // Líneas blancas para separar "cuadros"
-          lineWidth: 1.5,
+          fontSize: 7,
+          cellPadding: 3,
+          lineColor: [255, 255, 255],
+          lineWidth: 1,
         },
         headStyles: {
-          fillColor: [139, 115, 85], // Color secundario
+          fillColor: [139, 115, 85],
           textColor: 255,
           fontStyle: 'bold',
           halign: 'center',
           lineWidth: 0,
         },
         bodyStyles: {
-          fillColor: [248, 245, 238], // Color crema muy suave (tipo tarjeta)
+          fillColor: [248, 245, 238],
           textColor: [60, 60, 60],
           valign: 'middle',
         },
         columnStyles: {
-          3: { halign: 'center' }, // Stock
-          4: { halign: 'right', fontStyle: 'bold' }, // Precio
-          5: { halign: 'center' }, // Estado
+          4: { halign: 'center' },
+          5: { halign: 'right' },
+          6: { halign: 'right', fontStyle: 'bold' },
+          7: { halign: 'right' },
+          8: { halign: 'center' },
         },
-        // Estilo alternado muy sutil para dar profundidad
         alternateRowStyles: {
           fillColor: [242, 238, 228],
         },
-        margin: { left: 14, right: 14 },
+        margin: { left: 10, right: 10 },
       })
       doc.save("inventario_leis.pdf")
     } catch (e) {
@@ -962,12 +980,25 @@ REGLAS DE FORMATO ESTRICTAS:
             <p className="text-3xl font-headline italic font-bold dark:text-white">{totalSKUs.toLocaleString()}</p>
           </div>
 
-          <div className="bg-surface-container-highest dark:bg-white/5 p-6 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl">payments</span>
+          <div className="bg-surface-container-highest dark:bg-white/5 p-4 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">payments</span>
               <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Valor Inventario</p>
             </div>
-            <p className="font-headline italic font-bold text-xl md:text-2xl dark:text-white">${valorTotal.toLocaleString('es-CL')} CLP</p>
+            <div className="flex flex-col gap-0.5 text-xs text-on-surface-variant dark:text-white/70">
+              <div className="flex justify-between font-bold">
+                <span>Venta:</span>
+                <span className="dark:text-white">${valorTotal.toLocaleString('es-CL')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Costo:</span>
+                <span className="dark:text-white">${valorTotalCosto.toLocaleString('es-CL')}</span>
+              </div>
+              <div className="flex justify-between text-[#22c55e] dark:text-[#10b981] font-bold border-t border-outline-variant/10 dark:border-white/10 pt-0.5 mt-0.5 animate-pulse">
+                <span>Ganancia:</span>
+                <span>+${(valorTotal - valorTotalCosto).toLocaleString('es-CL')} ({valorTotalCosto > 0 ? (((valorTotal - valorTotalCosto) / valorTotalCosto) * 100).toFixed(1) : '0.0'}%)</span>
+              </div>
+            </div>
           </div>
 
           <div className="bg-secondary-container/20 dark:bg-white/5 p-6 rounded-xl flex flex-col justify-between h-36 border border-secondary-container/30 dark:border-white/5">
@@ -1214,6 +1245,31 @@ REGLAS DE FORMATO ESTRICTAS:
                               <p className="text-[11px] font-bold text-on-surface dark:text-white/80">{p.fechaIngreso || '-'}</p>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-primary/60 dark:text-[#e2bd6c]/60">payments</span>
+                            <div>
+                              <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Precio Costo / Venta</p>
+                              <p className="text-[11px] font-bold text-on-surface dark:text-white/80">
+                                ${(p.precioCosto || 0).toLocaleString('es-CL')} / ${(p.precio || 0).toLocaleString('es-CL')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-primary/60 dark:text-[#e2bd6c]/60">trending_up</span>
+                            <div>
+                              <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Ganancia (Margen)</p>
+                              {(() => {
+                                const ganancia = (p.precio || 0) - (p.precioCosto || 0);
+                                const margen = p.precioCosto > 0 ? (ganancia / p.precioCosto) * 100 : 0;
+                                const esPositiva = ganancia >= 0;
+                                return (
+                                  <p className={`text-[11px] font-bold ${esPositiva ? 'text-[#22c55e] dark:text-[#10b981]' : 'text-error'}`}>
+                                    {esPositiva ? '+' : ''}${ganancia.toLocaleString('es-CL')} ({esPositiva ? '+' : ''}{margen.toFixed(1)}%)
+                                  </p>
+                                );
+                              })()}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1268,7 +1324,7 @@ REGLAS DE FORMATO ESTRICTAS:
             <table className="w-full text-left border-collapse min-w-[640px]">
               <thead>
                 <tr className="bg-surface-container dark:bg-[#2a2a2a]">
-                  {['', 'Producto', 'Proveedor', 'Categoría', 'Stock', 'Precio unit.', 'Estado', 'Fecha Ingreso'].map((h, i) => (
+                  {['', 'Producto', 'Proveedor', 'Categoría', 'Stock', 'P. Costo', 'P. Venta', 'Ganancia / Margen', 'Estado', 'Fecha Ingreso'].map((h, i) => (
                     <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 whitespace-nowrap ${i === 0 ? 'pl-8 w-20' : 'px-7'}`}>{h}</th>
                   ))}
                 </tr>
@@ -1355,7 +1411,27 @@ REGLAS DE FORMATO ESTRICTAS:
                         </div>
                       </td>
                       <td className="px-7 py-5">
+                        <p className="text-sm font-bold text-outline dark:text-gray-400">${(p.precioCosto || 0).toLocaleString('es-CL')}</p>
+                      </td>
+                      <td className="px-7 py-5">
                         <p className="text-sm font-bold text-secondary dark:text-[#e2bd6c]">${(p.precio || 0).toLocaleString('es-CL')}</p>
+                      </td>
+                      <td className="px-7 py-5">
+                        {(() => {
+                          const ganancia = (p.precio || 0) - (p.precioCosto || 0);
+                          const margen = p.precioCosto > 0 ? (ganancia / p.precioCosto) * 100 : 0;
+                          const esPositiva = ganancia >= 0;
+                          return (
+                            <div className="flex flex-col">
+                              <p className={`text-sm font-bold ${esPositiva ? 'text-[#22c55e] dark:text-[#10b981]' : 'text-error'}`}>
+                                {esPositiva ? '+' : ''}${ganancia.toLocaleString('es-CL')}
+                              </p>
+                              <p className={`text-[10px] font-bold ${esPositiva ? 'text-[#22c55e]/80 dark:text-[#10b981]/80' : 'text-error/80'}`}>
+                                ({esPositiva ? '+' : ''}{margen.toFixed(1)}%)
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-7 py-5">
                         <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-lg ${est.cls}`}>
@@ -1371,7 +1447,7 @@ REGLAS DE FORMATO ESTRICTAS:
                 })}
                 {filtrados.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-7 py-12 text-center text-on-surface-variant text-sm">
+                    <td colSpan={10} className="px-7 py-12 text-center text-on-surface-variant text-sm">
                       No se encontraron productos. Crea uno nuevo usando el botón de arriba.
                     </td>
                   </tr>
@@ -1687,10 +1763,20 @@ REGLAS DE FORMATO ESTRICTAS:
                     </div>
                   </div>
 
-                  {/* Fila 4: Precio y Stock */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Fila 4: Precios y Stock */}
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Unit. ($)</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Costo ($)</label>
+                      <input 
+                        type="number" 
+                        value={form.precioCosto} 
+                        onChange={e => setForm({...form, precioCosto: e.target.value})}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Venta ($)</label>
                       <input 
                         type="number" 
                         value={form.precio} 
