@@ -649,7 +649,7 @@ export default function CatalogoPublico() {
 
     const steps = [
       {
-        duration: 16000,
+        duration: 11000,
         caption: "¡Hola! Bienvenido al catálogo oficial de Leis 👑. Aquí verás todas nuestras colecciones exclusivas. Lo primero que te mostramos es que puedes alternar entre modo claro y oscuro haciendo clic en el icono de sol/luna arriba.",
         action: () => {
           // Toggle dark/light theme to demonstrate it
@@ -660,14 +660,14 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 12000,
+        duration: 7000,
         caption: "A la izquierda de la pantalla, contamos con un buscador y panel de filtros. Al escribir aquí, puedes buscar por nombre, código SKU o marca de inmediato para encontrar cualquier pieza.",
         action: () => {
           setIsSidebarCollapsed(false); // Ensure sidebar is open
         }
       },
       {
-        duration: 13000,
+        duration: 8000,
         caption: "Busquemos un ejemplo en el buscador escribiendo lentamente 'Aceite Collagen'. Observa cómo la lista de productos se actualiza al instante.",
         action: () => {
           const text = "Aceite Collagen";
@@ -685,7 +685,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 15000,
+        duration: 10000,
         caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', hacemos clic en él para ver sus detalles. Aquí podemos ver la descripción completa y verificar la disponibilidad de stock.",
         action: () => {
           const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
@@ -714,7 +714,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 12000,
+        duration: 7000,
         caption: "Desde la vista de detalles del producto, podemos verificar el stock en bodega y agregarlo a nuestra bolsa de compras haciendo clic en 'Añadir al Pedido'.",
         action: () => {
           const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
@@ -729,7 +729,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 13000,
+        duration: 8000,
         caption: "Para mostrarte cómo gestionar varios productos a la vez, limpiaremos la búsqueda anterior y añadiremos otra pieza aleatoria al carrito.",
         action: () => {
           setSearchTerm('');
@@ -745,14 +745,14 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 12000,
+        duration: 7000,
         caption: "¡Excelente! Ahora procederemos a abrir nuestra bolsa de compras haciendo clic en el icono del Carrito que se encuentra en la cabecera.",
         action: () => {
           setIsCartOpen(true);
         }
       },
       {
-        duration: 18000,
+        duration: 13000,
         caption: "Dentro de la bolsa de compras puedes ajustar cantidades, filtrar visualmente por categorías para aislar productos sin alterar el total del pedido, y ver el total en tiempo real.",
         action: () => {
           // Increase quantity of first item
@@ -785,7 +785,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 12000,
+        duration: 7000,
         caption: "Una vez que revisamos nuestro pedido y confirmamos que todo está correcto, hacemos clic en el botón 'Hacer Pedido' al final de la bolsa.",
         action: () => {
           setIsCartOpen(false);
@@ -795,7 +795,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 14000,
+        duration: 9000,
         caption: "En este modal, solo debes ingresar tu nombre para identificarte ante tu asesora. Escribiremos 'Yamir Leis' y luego pulsaremos enviar a WhatsApp para procesarlo.",
         action: () => {
           const text = "Yamir Leis";
@@ -813,7 +813,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 17000,
+        duration: 12000,
         caption: "¡Un detalle espectacular! Si estás realizando tu pedido como invitado, tienes la opción de crear tu cuenta de inmediato para guardar tus datos y agilizar tus próximas compras.",
         action: () => {
           setShowCheckout(false);
@@ -876,13 +876,13 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 15000,
+        duration: 10000,
         caption: "¡Y listo! De esta forma realizas tus pedidos de manera rápida, elegante y segura en el catálogo Leis. ¡Gracias por tu tiempo! 💖",
         action: () => {
           setShowAuthModal(false);
           setTimeout(() => {
             setShowDemoOutro(true);
-          }, 3500);
+          }, 2500);
         }
       }
     ];
