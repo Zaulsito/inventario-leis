@@ -145,6 +145,8 @@ export default function CatalogoPublico() {
   const [showDemoOutro, setShowDemoOutro] = useState(false)
   const [outroText, setOutroText] = useState('')
   const [showOutroLeis, setShowOutroLeis] = useState(false)
+  const [pointerStyle, setPointerStyle] = useState({ display: 'none' })
+  const [pointerType, setPointerType] = useState('right') // 'left' or 'right'
 
 
   const toggleFullscreen = () => {
@@ -638,6 +640,75 @@ export default function CatalogoPublico() {
       clearTimeout(outroLeisTimer);
     };
   }, [showDemoOutro]);
+
+  // Sync the pointing arrow with the currently highlighted demo-highlight element
+  useEffect(() => {
+    if (!isAutoDemo || autoDemoStep <= 0) {
+      setPointerStyle({ display: 'none' });
+      return;
+    }
+
+    let active = true;
+
+    const updatePosition = () => {
+      if (!active) return;
+
+      const activeEl = document.querySelector('.demo-highlight');
+      if (activeEl) {
+        const rect = activeEl.getBoundingClientRect();
+        
+        // Hide if element is not visible or too large (e.g. modals)
+        if (rect.width === 0 || rect.height === 0 || rect.width > 500 || rect.height > 500) {
+          setPointerStyle({ display: 'none' });
+        } else {
+          const arrowWidth = 45;
+          const arrowHeight = 24;
+          const gap = 12;
+          
+          // Determine side based on screen half
+          const isLeftHalf = (rect.left + rect.width / 2) < (window.innerWidth / 2);
+          
+          if (isLeftHalf) {
+            // Place arrow to the right of the element, pointing left
+            setPointerType('left');
+            setPointerStyle({
+              display: 'block',
+              position: 'fixed',
+              top: `${rect.top + rect.height / 2 - arrowHeight / 2}px`,
+              left: `${rect.right + gap}px`,
+              zIndex: 9999,
+              pointerEvents: 'none'
+            });
+          } else {
+            // Place arrow to the left of the element, pointing right
+            setPointerType('right');
+            setPointerStyle({
+              display: 'block',
+              position: 'fixed',
+              top: `${rect.top + rect.height / 2 - arrowHeight / 2}px`,
+              left: `${rect.left - gap - arrowWidth}px`,
+              zIndex: 9999,
+              pointerEvents: 'none'
+            });
+          }
+        }
+      } else {
+        setPointerStyle({ display: 'none' });
+      }
+
+      requestAnimationFrame(updatePosition);
+    };
+
+    // Delay start slightly to let layout settle
+    const delayTimer = setTimeout(() => {
+      requestAnimationFrame(updatePosition);
+    }, 100);
+
+    return () => {
+      active = false;
+      clearTimeout(delayTimer);
+    };
+  }, [isAutoDemo, autoDemoStep, productoParaVer, isCartOpen, showCheckout, showAuthModal]);
 
   useEffect(() => {
     if (!isAutoDemo || autoDemoStep <= 0) return;
@@ -4187,6 +4258,21 @@ export default function CatalogoPublico() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── DYNAMIC DEMO POINTER ARROW ── */}
+      {isAutoDemo && pointerStyle.display !== 'none' && (
+        <div style={pointerStyle}>
+          {pointerType === 'left' ? (
+            <svg width="45" height="24" viewBox="0 0 45 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-left drop-shadow-[0_2px_8px_rgba(239,68,68,0.5)]">
+              <path d="M45 12H5M5 12L15 4M5 12L15 20" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          ) : (
+            <svg width="45" height="24" viewBox="0 0 45 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-right drop-shadow-[0_2px_8px_rgba(239,68,68,0.5)]">
+              <path d="M0 12H40M40 12L30 4M40 12L30 20" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
         </div>
       )}
 

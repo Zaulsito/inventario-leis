@@ -322,5 +322,32 @@ body {
   }
 }
 
+/* Animaciones de apuntado para la flecha indicadora del Modo Demo */
+@keyframes point-left {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-6px);
+  }
+}
+
+@keyframes point-right {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+}
+
+.animate-point-left {
+  animation: point-left 0.8s infinite ease-in-out;
+}
+
+.animate-point-right {
+  animation: point-right 0.8s infinite ease-in-out;
+}
+
 
 
