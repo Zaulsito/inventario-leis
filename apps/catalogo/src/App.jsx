@@ -142,6 +142,9 @@ export default function CatalogoPublico() {
   const [autoDemoCaption, setAutoDemoCaption] = useState('')
   const [autoDemoProgress, setAutoDemoProgress] = useState(0)
   const [showDemoIntro, setShowDemoIntro] = useState(false)
+  const [showDemoOutro, setShowDemoOutro] = useState(false)
+  const [outroText, setOutroText] = useState('')
+  const [showOutroLeis, setShowOutroLeis] = useState(false)
 
 
   const toggleFullscreen = () => {
@@ -554,6 +557,9 @@ export default function CatalogoPublico() {
     setIsAutoDemo(true);
     setAutoDemoStep(0); // Step 0 is the Intro Logo animation
     setShowDemoIntro(true);
+    setShowDemoOutro(false);
+    setOutroText('');
+    setShowOutroLeis(false);
 
     // Let the intro logo run for 3.5 seconds before starting step 1
     setTimeout(() => {
@@ -568,6 +574,14 @@ export default function CatalogoPublico() {
     setAutoDemoCaption('');
     setAutoDemoProgress(0);
     setShowDemoIntro(false);
+    setShowDemoOutro(false);
+    setOutroText('');
+    setShowOutroLeis(false);
+    setProductoParaVer(null);
+    if (demoIntervalRef.current) {
+      clearInterval(demoIntervalRef.current);
+      demoIntervalRef.current = null;
+    }
     
     // Final clean up
     setSearchTerm('');
@@ -594,8 +608,44 @@ export default function CatalogoPublico() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isAutoDemo]);
 
+  // Outro screen typewriter effect
+  useEffect(() => {
+    if (!showDemoOutro) {
+      setOutroText('');
+      setShowOutroLeis(false);
+      return;
+    }
+    
+    const fullText = "Tu éxito está en nuestros productos";
+    let current = "";
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < fullText.length) {
+        current += fullText[i];
+        setOutroText(current);
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 70);
+
+    const outroLeisTimer = setTimeout(() => {
+      setShowOutroLeis(true);
+    }, 2800);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(outroLeisTimer);
+    };
+  }, [showDemoOutro]);
+
   useEffect(() => {
     if (!isAutoDemo || autoDemoStep <= 0) return;
+
+    if (demoIntervalRef.current) {
+      clearInterval(demoIntervalRef.current);
+      demoIntervalRef.current = null;
+    }
 
     const steps = [
       {
@@ -638,9 +688,28 @@ export default function CatalogoPublico() {
         duration: 15000,
         caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', hacemos clic en él para ver sus detalles. Aquí podemos ver la descripción completa y verificar la disponibilidad de stock.",
         action: () => {
-          const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
+          const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
+            || productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"))
+            || productos.find(p => p.fotoUrl);
           if (prod) {
             setProductoParaVer(prod);
+            setIndexImagenActual(0);
+            demoIntervalRef.current = setInterval(() => {
+              setProductoParaVer(currentProd => {
+                if (currentProd && currentProd.id === prod.id) {
+                  const pics = currentProd.fotos || (currentProd.fotoUrl ? [currentProd.fotoUrl] : []);
+                  if (pics.length > 1) {
+                    setIndexImagenActual(prev => (prev + 1) % pics.length);
+                  }
+                } else {
+                  if (demoIntervalRef.current) {
+                    clearInterval(demoIntervalRef.current);
+                    demoIntervalRef.current = null;
+                  }
+                }
+                return currentProd;
+              });
+            }, 3000);
           }
         }
       },
@@ -648,7 +717,9 @@ export default function CatalogoPublico() {
         duration: 12000,
         caption: "Desde la vista de detalles del producto, podemos verificar el stock en bodega y agregarlo a nuestra bolsa de compras haciendo clic en 'Añadir al Pedido'.",
         action: () => {
-          const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
+          const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
+            || productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"))
+            || productos.find(p => p.fotoUrl);
           if (prod) {
             añadirAlCarrito(prod, null);
             setTimeout(() => {
@@ -663,8 +734,10 @@ export default function CatalogoPublico() {
         action: () => {
           setSearchTerm('');
           setTimeout(() => {
-            const prod1 = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
-            const prod2 = productos.find(p => p.id !== prod1?.id && (p.stock > 0 || (p.variantes && p.variantes.some(v => v.stock > 0))));
+            const prod1 = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
+              || productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"))
+              || productos.find(p => p.fotoUrl);
+            const prod2 = productos.find(p => p.id !== prod1?.id && p.fotoUrl && (p.stock > 0 || (p.variantes && p.variantes.some(v => v.stock > 0))));
             if (prod2) {
               añadirAlCarrito(prod2, null);
             }
@@ -803,13 +876,13 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 11000,
+        duration: 15000,
         caption: "¡Y listo! De esta forma realizas tus pedidos de manera rápida, elegante y segura en el catálogo Leis. ¡Gracias por tu tiempo! 💖",
         action: () => {
           setShowAuthModal(false);
           setTimeout(() => {
-            stopAutoDemo();
-          }, 6000);
+            setShowDemoOutro(true);
+          }, 3500);
         }
       }
     ];
@@ -888,6 +961,7 @@ export default function CatalogoPublico() {
   const lastLoadedUid = useRef(null)
   const isRegistering = useRef(false)
   const mainScrollRef = useRef(null)
+  const demoIntervalRef = useRef(null)
 
   const [animacion, setAnimacion] = useState('') // '', 'salir-izquierda', 'salir-derecha', etc.
   const [indexImagenActual, setIndexImagenActual] = useState(0)
@@ -3110,7 +3184,7 @@ export default function CatalogoPublico() {
                         abrirModalAñadir(productoParaVer);
                         setProductoParaVer(null);
                       }}
-                      className={`group relative flex-1 w-full py-5 md:py-7 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'} ${isAutoDemo && autoDemoStep === 5 ? 'demo-highlight' : ''}`}
+                      className={`group relative flex-1 w-full py-5 md:py-7 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'} ${isAutoDemo && (autoDemoStep === 4 || autoDemoStep === 5) ? 'demo-highlight' : ''}`}
                     >
                       <div className={`absolute inset-0 w-1/2 h-full skew-x-[-25deg] -translate-x-full group-hover:translate-x-[250%] transition-transform duration-1000 ease-in-out ${isDark ? 'bg-black/20' : 'bg-white/20'}`} />
                       <div className="relative flex justify-center items-center gap-4">
@@ -4073,18 +4147,92 @@ export default function CatalogoPublico() {
         </div>
       )}
 
+      {/* ── DEMO OUTRO SCREEN OVERLAY (FINAL DE LUJO) ── */}
+      {showDemoOutro && (
+        <div className="fixed inset-0 z-[250] bg-[#0c0c0e] flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-700">
+          {/* Subtle sparkling background */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.06)_0%,transparent_70%)] pointer-events-none" />
+          
+          {/* Stars background moving/expanding */}
+          <div className="stars-container opacity-100">
+            <div className="stars-layer" />
+            <div className="stars-layer" />
+            <div className="stars-layer" />
+          </div>
+
+          <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-all duration-[3s] scale-100 animate-in zoom-in-95 duration-500">
+            {/* Logo Container with star-sweep effect */}
+            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border-2 border-[#e2bd6c]/40 shadow-[0_0_50px_rgba(226,189,108,0.3)] relative bg-black/50 flex items-center justify-center star-sweep-effect animate-bounce animate-duration-[4s]">
+              <img 
+                src="/logo-dark.png" 
+                alt="Logo Leis" 
+                className="w-full h-full object-cover rounded-full"
+              />
+            </div>
+            
+            {/* Glowing Aura under the logo */}
+            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-primary opacity-30 blur-[60px] -z-10 animate-pulse" />
+
+            {/* Slogan with Shiny, Typewriter and Glowing Effect */}
+            <div className="mt-10 space-y-4">
+              <p className="min-h-[24px] text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-gray-300 drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)] transition-all duration-300">
+                {outroText}
+                <span className="animate-ping duration-300 text-[#e2bd6c]">|</span>
+              </p>
+              
+              {showOutroLeis && (
+                <h1 className="font-headline text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#ffd700] via-[#e2bd6c] to-[#fff] tracking-[0.3em] uppercase animate-in zoom-in-75 slide-in-from-bottom-6 duration-1000 select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.6)] text-glow-shine">
+                  Leis
+                </h1>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── AUTOMATED DEMO FLOATING SUBTITLES BANNER ── */}
       {isAutoDemo && !showDemoIntro && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-full max-w-xl px-4 animate-in slide-in-from-top-5 duration-300 pointer-events-none">
+          {/* Mascot Leis (Gatita Yoshita) floating to the left, outside the card (desktop only) */}
+          <div className="absolute -left-24 top-1/2 -translate-y-1/2 pointer-events-auto select-none hidden sm:block">
+            <div className="relative group">
+              <div className="absolute inset-0 rounded-full blur-md opacity-40 bg-[#e2bd6c]/30 scale-75 group-hover:scale-100 transition-transform duration-500 animate-pulse animate-duration-1000" />
+              <img 
+                src="/gatita.png" 
+                alt="Mascota Leis" 
+                className="w-20 h-20 object-contain relative z-10 drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] animate-bounce"
+                style={{ animationDuration: '3s' }}
+                title="Leis 🐾"
+              />
+            </div>
+          </div>
+
           <div className={`p-4 rounded-[24px] border shadow-2xl backdrop-blur-md flex flex-col gap-3 relative overflow-hidden pointer-events-auto ${
             isDark 
               ? 'bg-[#151515]/95 border-[#e2bd6c]/30 text-white shadow-black/85' 
               : 'bg-white/95 border-primary/20 text-on-surface shadow-black/20'
           }`}>
-            {/* Subtitle Caption */}
-            <p className="text-[11px] sm:text-xs leading-relaxed font-bold italic text-center px-2">
-              "{autoDemoCaption}"
-            </p>
+            {/* Mascot and Subtitle Caption */}
+            <div className="flex items-center gap-3">
+              {/* Mascot Leis (Gatita Yoshita) inside ONLY for mobile */}
+              <div className="relative shrink-0 select-none sm:hidden">
+                <div className={`absolute inset-0 rounded-full blur-sm opacity-50 bg-[#e2bd6c]/20`} />
+                <img 
+                  src="/gatita.png" 
+                  alt="Mascota Leis" 
+                  className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] animate-bounce"
+                  title="Leis 🐾"
+                />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-black tracking-widest uppercase mb-0.5 opacity-60 text-[#e2bd6c]">
+                  Leis 🐾
+                </p>
+                <p className="text-[11px] sm:text-xs leading-relaxed font-bold italic">
+                  "{autoDemoCaption}"
+                </p>
+              </div>
+            </div>
 
             {/* Progress Bar (Hidden Detener button, stop with key P) */}
             <div className="flex items-center justify-between gap-4 mt-1">
