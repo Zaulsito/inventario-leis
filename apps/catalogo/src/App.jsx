@@ -136,6 +136,14 @@ export default function CatalogoPublico() {
   const audioRef = useRef(null)
   const simulatorRef = useRef(null)
 
+  // Auto-Play Demo Recording states
+  const [isAutoDemo, setIsAutoDemo] = useState(false)
+  const [autoDemoStep, setAutoDemoStep] = useState(0)
+  const [autoDemoCaption, setAutoDemoCaption] = useState('')
+  const [autoDemoProgress, setAutoDemoProgress] = useState(0)
+  const [showDemoIntro, setShowDemoIntro] = useState(false)
+
+
   const toggleFullscreen = () => {
     if (!simulatorRef.current) return;
     
@@ -520,6 +528,234 @@ export default function CatalogoPublico() {
       setTourStep(5)
     }
   }, [isCartOpen, tourStep])
+
+  // --- MODO DEMO AUTOMÁTICO DE GRABACIÓN ---
+  const startAutoDemo = () => {
+    // Reset all previous state first to start fresh
+    setTourStep(0);
+    setSearchTerm('');
+    setPrecioMin('');
+    setPrecioMax('');
+    setSoloDisponibles(false);
+    setSoloConImagenes(false);
+    setCarrito([]);
+    setIsCartOpen(false);
+    setShowCheckout(false);
+    setShowAuthModal(false);
+    setClienteNombre('');
+    setClienteWhatsapp('');
+    setFiltroCartCategory('TODOS');
+    
+    setIsAutoDemo(true);
+    setAutoDemoStep(0); // Step 0 is the Intro Logo animation
+    setShowDemoIntro(true);
+
+    // Let the intro logo run for 3.5 seconds before starting step 1
+    setTimeout(() => {
+      setShowDemoIntro(false);
+      setAutoDemoStep(1);
+    }, 3500);
+  };
+
+  const stopAutoDemo = () => {
+    setIsAutoDemo(false);
+    setAutoDemoStep(0);
+    setAutoDemoCaption('');
+    setAutoDemoProgress(0);
+    setShowDemoIntro(false);
+    
+    // Final clean up
+    setSearchTerm('');
+    setCarrito([]);
+    setIsCartOpen(false);
+    setShowCheckout(false);
+    setShowAuthModal(false);
+    setClienteNombre('');
+    setClienteWhatsapp('');
+    setFiltroCartCategory('TODOS');
+  };
+
+  useEffect(() => {
+    if (!isAutoDemo || autoDemoStep <= 0) return;
+
+    const steps = [
+      {
+        duration: 9000,
+        caption: "¡Hola! Bienvenido al catálogo oficial de Leis 👑. Aquí verás todas nuestras colecciones exclusivas. Lo primero que te mostramos es que puedes alternar entre modo claro y oscuro haciendo clic en el icono de sol/luna arriba.",
+        action: () => {
+          // Toggle dark/light theme to demonstrate it
+          setIsDark(prev => !prev);
+          setTimeout(() => {
+            setIsDark(prev => !prev);
+          }, 4500);
+        }
+      },
+      {
+        duration: 8000,
+        caption: "A la izquierda de la pantalla, contamos con un buscador y panel de filtros. Al escribir aquí, puedes buscar por nombre, código SKU o marca de inmediato para encontrar cualquier pieza.",
+        action: () => {
+          setIsSidebarCollapsed(false); // Ensure sidebar is open
+        }
+      },
+      {
+        duration: 10000,
+        caption: "Busquemos un ejemplo en el buscador escribiendo lentamente 'Aceite de collagen'. Observa cómo la lista de productos se actualiza al instante.",
+        action: () => {
+          const text = "Aceite de collagen";
+          let currentText = "";
+          let i = 0;
+          const typeInterval = setInterval(() => {
+            if (i < text.length) {
+              currentText += text[i];
+              setSearchTerm(currentText);
+              i++;
+            } else {
+              clearInterval(typeInterval);
+            }
+          }, 120);
+        }
+      },
+      {
+        duration: 8000,
+        caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', podemos agregarlo al carrito de compras simplemente haciendo clic en su botón respectivo.",
+        action: () => {
+          const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
+          if (prod) {
+            añadirAlCarrito(prod, null);
+          } else if (productosFiltrados.length > 0) {
+            añadirAlCarrito(productosFiltrados[0], null);
+          }
+        }
+      },
+      {
+        duration: 9000,
+        caption: "Para mostrarte cómo gestionar varios productos a la vez, limpiaremos la búsqueda anterior y añadiremos otra pieza aleatoria al carrito.",
+        action: () => {
+          setSearchTerm('');
+          setTimeout(() => {
+            const prod1 = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
+            const prod2 = productos.find(p => p.id !== prod1?.id && (p.stock > 0 || (p.variantes && p.variantes.some(v => v.stock > 0))));
+            if (prod2) {
+              añadirAlCarrito(prod2, null);
+            }
+          }, 2000);
+        }
+      },
+      {
+        duration: 8000,
+        caption: "¡Excelente! Ahora procederemos a abrir nuestra bolsa de compras haciendo clic en el icono del Carrito que se encuentra en la cabecera.",
+        action: () => {
+          setIsCartOpen(true);
+        }
+      },
+      {
+        duration: 12000,
+        caption: "Dentro de la bolsa de compras puedes ajustar cantidades, filtrar visualmente por categorías para aislar productos sin alterar el total del pedido, y ver el total en tiempo real.",
+        action: () => {
+          // Increase quantity of first item
+          setTimeout(() => {
+            setCarrito(prev => {
+              if (prev.length > 0) {
+                return prev.map((item, idx) => idx === 0 ? { ...item, cantidad: item.cantidad + 1 } : item);
+              }
+              return prev;
+            });
+          }, 2500);
+          
+          // Switch cart category
+          setTimeout(() => {
+            setCarrito(prev => {
+              if (prev.length > 0) {
+                const firstProd = productos.find(p => p.id === prev[0].productoId);
+                if (firstProd && firstProd.coleccion) {
+                  setFiltroCartCategory(firstProd.coleccion.trim().toUpperCase());
+                }
+              }
+              return prev;
+            });
+          }, 5000);
+
+          // Return cart category to TODOS
+          setTimeout(() => {
+            setFiltroCartCategory('TODOS');
+          }, 8500);
+        }
+      },
+      {
+        duration: 8000,
+        caption: "Una vez que revisamos nuestro pedido y confirmamos que todo está correcto, hacemos clic en el botón 'Hacer Pedido' al final de la bolsa.",
+        action: () => {
+          setIsCartOpen(false);
+          setTimeout(() => {
+            setShowCheckout(true);
+          }, 800);
+        }
+      },
+      {
+        duration: 10000,
+        caption: "En este modal, solo debes ingresar tu nombre para identificarte ante tu asesora. Escribiremos 'Yamir Leis' y luego pulsaremos enviar a WhatsApp para procesarlo.",
+        action: () => {
+          const text = "Yamir Leis";
+          let currentText = "";
+          let i = 0;
+          const typeInterval = setInterval(() => {
+            if (i < text.length) {
+              currentText += text[i];
+              setClienteNombre(currentText);
+              i++;
+            } else {
+              clearInterval(typeInterval);
+            }
+          }, 120);
+        }
+      },
+      {
+        duration: 12000,
+        caption: "¡Un detalle espectacular! Si estás realizando tu pedido como invitado, tienes la opción de crear tu cuenta de inmediato para guardar tus datos y agilizar tus próximas compras.",
+        action: () => {
+          setShowCheckout(false);
+          setTimeout(() => {
+            setShowAuthModal(true);
+            setAuthTab('register');
+          }, 800);
+        }
+      },
+      {
+        duration: 8000,
+        caption: "¡Y listo! De esta forma realizas tus pedidos de manera rápida, elegante y segura en el catálogo Leis. ¡Gracias por tu tiempo! 💖",
+        action: () => {
+          setShowAuthModal(false);
+          setTimeout(() => {
+            stopAutoDemo();
+          }, 6000);
+        }
+      }
+    ];
+
+    if (autoDemoStep > steps.length) {
+      stopAutoDemo();
+      return;
+    }
+
+    const currentStep = steps[autoDemoStep - 1];
+    setAutoDemoCaption(currentStep.caption);
+    currentStep.action();
+
+    let timeLeft = currentStep.duration;
+    const totalTime = currentStep.duration;
+
+    const progressInterval = setInterval(() => {
+      timeLeft -= 100;
+      setAutoDemoProgress(Math.max(0, (timeLeft / totalTime) * 100));
+      if (timeLeft <= 0) {
+        clearInterval(progressInterval);
+        setAutoDemoStep(prev => prev + 1);
+      }
+    }, 100);
+
+    return () => clearInterval(progressInterval);
+  }, [isAutoDemo, autoDemoStep]);
+
 
   // Modal de selección de variantes
   const [productParaAñadir, setProductParaAñadir] = useState(null)
@@ -1930,6 +2166,18 @@ export default function CatalogoPublico() {
                   >
                     <span className="material-symbols-outlined text-sm animate-pulse">play_circle</span>
                     Iniciar viaje de prueba 🐾
+                  </button>
+
+                  <button
+                    onClick={startAutoDemo}
+                    className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 border cursor-pointer ${
+                      isDark 
+                        ? 'border-[#e2bd6c]/30 text-[#e2bd6c] hover:bg-[#e2bd6c]/10 bg-[#e2bd6c]/10 shadow-md shadow-[#e2bd6c]/10' 
+                        : 'border-primary/30 text-primary hover:bg-primary/5 bg-primary/10 shadow-sm'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm animate-pulse">videocam</span>
+                    Grabar Video Demo 🎬
                   </button>
 
                   <button
@@ -3695,6 +3943,88 @@ export default function CatalogoPublico() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DEMO INTRO SCREEN OVERLAY (ESTRELLA FUGAZ) ── */}
+      {showDemoIntro && (
+        <div className="fixed inset-0 z-[250] bg-[#0c0c0e] flex flex-col items-center justify-center overflow-hidden animate-out fade-out zoom-out-95 duration-700 delay-[2800ms]">
+          {/* Subtle sparkling background */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.05)_0%,transparent_70%)] pointer-events-none" />
+          <div className="absolute inset-0 opacity-20 pointer-events-none">
+            <span className="absolute top-[20%] left-[30%] text-sm text-[#e2bd6c] animate-pulse">✨</span>
+            <span className="absolute top-[40%] right-[25%] text-xs text-[#e2bd6c] animate-ping duration-[3s]">✨</span>
+            <span className="absolute bottom-[30%] left-[20%] text-sm text-[#e2bd6c] animate-bounce">✨</span>
+            <span className="absolute bottom-[20%] right-[35%] text-xs text-[#e2bd6c] animate-pulse">✨</span>
+          </div>
+
+          <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-transform duration-[3s] scale-95 animate-in zoom-in-95 duration-500">
+            {/* Logo Container with star-sweep effect */}
+            <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border border-[#e2bd6c]/30 shadow-2xl relative bg-black/40 flex items-center justify-center star-sweep-effect">
+              <img 
+                src="/logo-dark.png" 
+                alt="Logo Leis" 
+                className="w-full h-full object-cover p-4"
+              />
+            </div>
+            
+            {/* Glowing Aura under the logo */}
+            <div className="absolute w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-gradient-to-r from-[#e2bd6c] to-primary opacity-20 blur-3xl -z-10 animate-pulse" />
+
+            {/* Premium Slogan */}
+            <div className="mt-8 space-y-2 animate-in slide-in-from-bottom-5 duration-700 delay-300">
+              <h1 className="font-headline text-2xl sm:text-3xl font-black text-[#e2bd6c] tracking-widest uppercase">
+                Leis
+              </h1>
+              <p className="text-[9px] sm:text-[11px] font-bold tracking-[0.25em] text-gray-400 uppercase">
+                Tu éxito está en nuestros productos
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── AUTOMATED DEMO FLOATING SUBTITLES BANNER ── */}
+      {isAutoDemo && !showDemoIntro && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-full max-w-xl px-4 animate-in slide-in-from-top-5 duration-300 pointer-events-none">
+          <div className={`p-4 rounded-[24px] border shadow-2xl backdrop-blur-md flex flex-col gap-3 relative overflow-hidden pointer-events-auto ${
+            isDark 
+              ? 'bg-[#151515]/95 border-[#e2bd6c]/30 text-white shadow-black/85' 
+              : 'bg-white/95 border-primary/20 text-on-surface shadow-black/20'
+          }`}>
+            {/* Flashing Recording Indicator */}
+            <div className="flex items-center justify-between text-[9px] font-black tracking-widest uppercase pb-1.5 border-b border-outline-variant/10">
+              <div className="flex items-center gap-1.5 text-error">
+                <span className="w-2 h-2 rounded-full bg-error animate-pulse shrink-0" />
+                <span>🔴 MODO DEMOSTRACIÓN AUTOMÁTICA</span>
+              </div>
+              <span className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>
+                PASO {autoDemoStep} DE 11
+              </span>
+            </div>
+
+            {/* Subtitle Caption */}
+            <p className="text-[11px] sm:text-xs leading-relaxed font-bold italic text-center px-2">
+              "{autoDemoCaption}"
+            </p>
+
+            {/* Progress and Actions */}
+            <div className="flex items-center justify-between gap-4 mt-1">
+              <div className="flex-1 h-1 bg-outline-variant/20 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-100 ease-linear ${isDark ? 'bg-[#e2bd6c]' : 'bg-primary'}`}
+                  style={{ width: `${autoDemoProgress}%` }}
+                />
+              </div>
+              <button
+                onClick={stopAutoDemo}
+                className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-error/10 hover:bg-error/20 text-error border border-error/20 transition-all cursor-pointer shadow-sm flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[10px]">cancel</span>
+                Detener Demo
+              </button>
             </div>
           </div>
         </div>

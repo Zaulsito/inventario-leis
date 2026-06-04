@@ -201,3 +201,35 @@ body {
   box-shadow: 0 4px 15px rgba(226, 189, 108, 0.4);
 }
 
+/* Animación de barrido brillante para el logo (Estrella Fugaz) */
+@keyframes star-sweep {
+  0% { transform: translateX(-150%) rotate(30deg); }
+  60% { transform: translateX(200%) rotate(30deg); }
+  100% { transform: translateX(200%) rotate(30deg); }
+}
+
+.star-sweep-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.star-sweep-effect::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 80%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(255, 255, 255, 0.2) 80%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg);
+  animation: star-sweep 2.2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+
