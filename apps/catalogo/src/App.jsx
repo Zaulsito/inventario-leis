@@ -549,6 +549,7 @@ export default function CatalogoPublico() {
     setClienteNombre('');
     setClienteWhatsapp('');
     setFiltroCartCategory('TODOS');
+    setAuthForm({ nombre: '', email: '', password: '', whatsapp: '' });
     
     setIsAutoDemo(true);
     setAutoDemoStep(0); // Step 0 is the Intro Logo animation
@@ -577,14 +578,28 @@ export default function CatalogoPublico() {
     setClienteNombre('');
     setClienteWhatsapp('');
     setFiltroCartCategory('TODOS');
+    setAuthForm({ nombre: '', email: '', password: '', whatsapp: '' });
   };
+
+  // Event listener to stop auto-demo when "P" key is pressed
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'p' || e.key === 'P') {
+        if (isAutoDemo) {
+          stopAutoDemo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isAutoDemo]);
 
   useEffect(() => {
     if (!isAutoDemo || autoDemoStep <= 0) return;
 
     const steps = [
       {
-        duration: 19000,
+        duration: 16000,
         caption: "¡Hola! Bienvenido al catálogo oficial de Leis 👑. Aquí verás todas nuestras colecciones exclusivas. Lo primero que te mostramos es que puedes alternar entre modo claro y oscuro haciendo clic en el icono de sol/luna arriba.",
         action: () => {
           // Toggle dark/light theme to demonstrate it
@@ -595,14 +610,14 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 18000,
+        duration: 12000,
         caption: "A la izquierda de la pantalla, contamos con un buscador y panel de filtros. Al escribir aquí, puedes buscar por nombre, código SKU o marca de inmediato para encontrar cualquier pieza.",
         action: () => {
           setIsSidebarCollapsed(false); // Ensure sidebar is open
         }
       },
       {
-        duration: 20000,
+        duration: 13000,
         caption: "Busquemos un ejemplo en el buscador escribiendo lentamente 'Aceite Collagen'. Observa cómo la lista de productos se actualiza al instante.",
         action: () => {
           const text = "Aceite Collagen";
@@ -620,7 +635,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 18000,
+        duration: 12000,
         caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', podemos agregarlo al carrito de compras simplemente haciendo clic en su botón respectivo.",
         action: () => {
           const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
@@ -632,7 +647,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 19000,
+        duration: 13000,
         caption: "Para mostrarte cómo gestionar varios productos a la vez, limpiaremos la búsqueda anterior y añadiremos otra pieza aleatoria al carrito.",
         action: () => {
           setSearchTerm('');
@@ -646,14 +661,14 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 18000,
+        duration: 12000,
         caption: "¡Excelente! Ahora procederemos a abrir nuestra bolsa de compras haciendo clic en el icono del Carrito que se encuentra en la cabecera.",
         action: () => {
           setIsCartOpen(true);
         }
       },
       {
-        duration: 22000,
+        duration: 18000,
         caption: "Dentro de la bolsa de compras puedes ajustar cantidades, filtrar visualmente por categorías para aislar productos sin alterar el total del pedido, y ver el total en tiempo real.",
         action: () => {
           // Increase quantity of first item
@@ -686,7 +701,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 18000,
+        duration: 12000,
         caption: "Una vez que revisamos nuestro pedido y confirmamos que todo está correcto, hacemos clic en el botón 'Hacer Pedido' al final de la bolsa.",
         action: () => {
           setIsCartOpen(false);
@@ -696,7 +711,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 20000,
+        duration: 14000,
         caption: "En este modal, solo debes ingresar tu nombre para identificarte ante tu asesora. Escribiremos 'Yamir Leis' y luego pulsaremos enviar a WhatsApp para procesarlo.",
         action: () => {
           const text = "Yamir Leis";
@@ -714,18 +729,70 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 22000,
+        duration: 17000,
         caption: "¡Un detalle espectacular! Si estás realizando tu pedido como invitado, tienes la opción de crear tu cuenta de inmediato para guardar tus datos y agilizar tus próximas compras.",
         action: () => {
           setShowCheckout(false);
           setTimeout(() => {
             setShowAuthModal(true);
             setAuthTab('register');
+            setAuthForm({ nombre: '', email: '', password: '', whatsapp: '' });
+
+            // Simulate typing for register form fields
+            setTimeout(() => {
+              // 1. Type Name
+              const nameVal = "Prueba Leis";
+              let i = 0;
+              const nameTimer = setInterval(() => {
+                if (i <= nameVal.length) {
+                  setAuthForm(prev => ({ ...prev, nombre: nameVal.substring(0, i) }));
+                  i++;
+                } else {
+                  clearInterval(nameTimer);
+                  
+                  // 2. Type Email
+                  const emailVal = "pruebaleis@gmail.com";
+                  let j = 0;
+                  const emailTimer = setInterval(() => {
+                    if (j <= emailVal.length) {
+                      setAuthForm(prev => ({ ...prev, email: emailVal.substring(0, j) }));
+                      j++;
+                    } else {
+                      clearInterval(emailTimer);
+                      
+                      // 3. Type WhatsApp
+                      const phoneVal = "+56 9 1234 5678";
+                      let k = 0;
+                      const phoneTimer = setInterval(() => {
+                        if (k <= phoneVal.length) {
+                          setAuthForm(prev => ({ ...prev, whatsapp: phoneVal.substring(0, k) }));
+                          k++;
+                        } else {
+                          clearInterval(phoneTimer);
+                          
+                          // 4. Type Password
+                          const passVal = "123456";
+                          let l = 0;
+                          const passTimer = setInterval(() => {
+                            if (l <= passVal.length) {
+                              setAuthForm(prev => ({ ...prev, password: passVal.substring(0, l) }));
+                              l++;
+                            } else {
+                              clearInterval(passTimer);
+                            }
+                          }, 80);
+                        }
+                      }, 80);
+                    }
+                  }, 80);
+                }
+              }, 80);
+            }, 1000);
           }, 800);
         }
       },
       {
-        duration: 18000,
+        duration: 11000,
         caption: "¡Y listo! De esta forma realizas tus pedidos de manera rápida, elegante y segura en el catálogo Leis. ¡Gracias por tu tiempo! 💖",
         action: () => {
           setShowAuthModal(false);
@@ -3961,25 +4028,26 @@ export default function CatalogoPublico() {
         <div className="fixed inset-0 z-[250] bg-[#0c0c0e] flex flex-col items-center justify-center overflow-hidden animate-out fade-out zoom-out-95 duration-700 delay-[2800ms]">
           {/* Subtle sparkling background */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.05)_0%,transparent_70%)] pointer-events-none" />
-          <div className="absolute inset-0 opacity-20 pointer-events-none">
-            <span className="absolute top-[20%] left-[30%] text-sm text-[#e2bd6c] animate-pulse">✨</span>
-            <span className="absolute top-[40%] right-[25%] text-xs text-[#e2bd6c] animate-ping duration-[3s]">✨</span>
-            <span className="absolute bottom-[30%] left-[20%] text-sm text-[#e2bd6c] animate-bounce">✨</span>
-            <span className="absolute bottom-[20%] right-[35%] text-xs text-[#e2bd6c] animate-pulse">✨</span>
+          
+          {/* Stars background moving/expanding like the administrator screen */}
+          <div className="stars-container opacity-60 dark:opacity-100">
+            <div className="stars-layer" />
+            <div className="stars-layer" />
+            <div className="stars-layer" />
           </div>
 
           <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-transform duration-[3s] scale-95 animate-in zoom-in-95 duration-500">
-            {/* Logo Container with star-sweep effect */}
-            <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border border-[#e2bd6c]/30 shadow-2xl relative bg-black/40 flex items-center justify-center star-sweep-effect">
+            {/* Logo Container with star-sweep effect - perfectly circular and larger */}
+            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/30 shadow-2xl relative bg-black/40 flex items-center justify-center star-sweep-effect">
               <img 
                 src="/logo-dark.png" 
                 alt="Logo Leis" 
-                className="w-full h-full object-cover p-4"
+                className="w-full h-full object-cover rounded-full"
               />
             </div>
             
             {/* Glowing Aura under the logo */}
-            <div className="absolute w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-gradient-to-r from-[#e2bd6c] to-primary opacity-20 blur-3xl -z-10 animate-pulse" />
+            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-primary opacity-20 blur-3xl -z-10 animate-pulse" />
 
             {/* Premium Slogan */}
             <div className="mt-8 space-y-2 animate-in slide-in-from-bottom-5 duration-700 delay-300">
@@ -4018,7 +4086,7 @@ export default function CatalogoPublico() {
               "{autoDemoCaption}"
             </p>
 
-            {/* Progress and Actions */}
+            {/* Progress Bar (Hidden Detener button, stop with key P) */}
             <div className="flex items-center justify-between gap-4 mt-1">
               <div className="flex-1 h-1 bg-outline-variant/20 rounded-full overflow-hidden">
                 <div 
@@ -4026,13 +4094,6 @@ export default function CatalogoPublico() {
                   style={{ width: `${autoDemoProgress}%` }}
                 />
               </div>
-              <button
-                onClick={stopAutoDemo}
-                className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-error/10 hover:bg-error/20 text-error border border-error/20 transition-all cursor-pointer shadow-sm flex items-center gap-1"
-              >
-                <span className="material-symbols-outlined text-[10px]">cancel</span>
-                Detener Demo
-              </button>
             </div>
           </div>
         </div>
