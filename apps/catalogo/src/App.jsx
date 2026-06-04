@@ -635,14 +635,25 @@ export default function CatalogoPublico() {
         }
       },
       {
+        duration: 15000,
+        caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', hacemos clic en él para ver sus detalles. Aquí podemos ver la descripción completa y verificar la disponibilidad de stock.",
+        action: () => {
+          const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
+          if (prod) {
+            setProductoParaVer(prod);
+          }
+        }
+      },
+      {
         duration: 12000,
-        caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', podemos agregarlo al carrito de compras simplemente haciendo clic en su botón respectivo.",
+        caption: "Desde la vista de detalles del producto, podemos verificar el stock en bodega y agregarlo a nuestra bolsa de compras haciendo clic en 'Añadir al Pedido'.",
         action: () => {
           const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
           if (prod) {
             añadirAlCarrito(prod, null);
-          } else if (productosFiltrados.length > 0) {
-            añadirAlCarrito(productosFiltrados[0], null);
+            setTimeout(() => {
+              setProductoParaVer(null);
+            }, 2000);
           }
         }
       },
@@ -1812,7 +1823,7 @@ export default function CatalogoPublico() {
                     placeholder="Nombre, SKU..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 5) ? 'demo-highlight' : ''}`}
+                    className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
                   />
                   {searchTerm && (
                     <button 
@@ -2126,7 +2137,7 @@ export default function CatalogoPublico() {
             <button 
               id="header-cart-btn"
               onClick={() => setIsCartOpen(true)}
-              className={`relative p-3 rounded-2xl transition-all shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} ${tourStep === 4 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-110') : ''} ${isAutoDemo && autoDemoStep === 6 ? 'demo-highlight' : ''}`}
+              className={`relative p-3 rounded-2xl transition-all shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} ${tourStep === 4 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-110') : ''} ${isAutoDemo && autoDemoStep === 7 ? 'demo-highlight' : ''}`}
             >
               <span className="material-symbols-outlined">shopping_cart</span>
               {totalItems > 0 && (
@@ -2285,7 +2296,7 @@ export default function CatalogoPublico() {
               const isGrayscaleTour = tourStep === 3 && pIndex !== 0;
               const isDemoHighlightedProduct = isAutoDemo && (
                 (autoDemoStep === 4 && (p.nombre || '').toLowerCase().includes("collagen")) ||
-                (autoDemoStep === 5 && !(p.nombre || '').toLowerCase().includes("collagen") && pIndex === 0)
+                (autoDemoStep === 6 && !(p.nombre || '').toLowerCase().includes("collagen") && pIndex === 0)
               );
 
               return (
@@ -2478,7 +2489,7 @@ export default function CatalogoPublico() {
                         onClick={() => setFiltroCartCategory(cat)}
                         className={`relative py-1 cursor-pointer transition-all hover:opacity-80 font-black uppercase tracking-wider border-none bg-transparent ${
                           isSelected ? 'text-[#5d3a28] dark:text-[#e2bd6c]' : 'text-gray-400 dark:text-gray-500'
-                        } ${isAutoDemo && autoDemoStep === 7 ? 'demo-highlight' : ''}`}
+                        } ${isAutoDemo && autoDemoStep === 8 ? 'demo-highlight' : ''}`}
                       >
                         {cat}
                         {isSelected && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5d3a28] dark:bg-[#e2bd6c]" />}
@@ -2667,7 +2678,7 @@ export default function CatalogoPublico() {
                           onClick={prepararCheckout}
                           className={`w-full py-4 rounded-2xl font-headline text-sm tracking-widest font-black uppercase shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2 cursor-pointer ${
                             isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/10 hover:bg-[#ebd59f]' : 'bg-[#5d3a28] text-white shadow-[#5d3a28]/10 hover:bg-[#4a2e20]'
-                          } ${tourStep === 5 ? 'ring-4 ring-primary animate-pulse' : ''} ${isAutoDemo && autoDemoStep === 8 ? 'demo-highlight' : ''}`}
+                          } ${tourStep === 5 ? 'ring-4 ring-primary animate-pulse' : ''} ${isAutoDemo && autoDemoStep === 9 ? 'demo-highlight' : ''}`}
                         >
                           Confirmar Pedido
                         </button>
@@ -3099,7 +3110,7 @@ export default function CatalogoPublico() {
                         abrirModalAñadir(productoParaVer);
                         setProductoParaVer(null);
                       }}
-                      className={`group relative flex-1 w-full py-5 md:py-7 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'}`}
+                      className={`group relative flex-1 w-full py-5 md:py-7 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'} ${isAutoDemo && autoDemoStep === 5 ? 'demo-highlight' : ''}`}
                     >
                       <div className={`absolute inset-0 w-1/2 h-full skew-x-[-25deg] -translate-x-full group-hover:translate-x-[250%] transition-transform duration-1000 ease-in-out ${isDark ? 'bg-black/20' : 'bg-white/20'}`} />
                       <div className="relative flex justify-center items-center gap-4">
@@ -3135,7 +3146,7 @@ export default function CatalogoPublico() {
                 <p className={`text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>Ingresa tu nombre para enviar el detalle de tu pedido directamente por WhatsApp.</p>
                 <button 
                   onClick={() => {setShowCheckout(false); setShowAuthModal(true);}} 
-                  className={`text-xs font-bold hover:underline ${isDark ? 'text-[#e2bd6c]' : 'text-primary'} ${isAutoDemo && autoDemoStep === 10 ? 'demo-highlight' : ''}`}
+                  className={`text-xs font-bold hover:underline ${isDark ? 'text-[#e2bd6c]' : 'text-primary'} ${isAutoDemo && autoDemoStep === 11 ? 'demo-highlight' : ''}`}
                 >
                   ¿Tienes cuenta? Inicia sesión aquí
                 </button>
@@ -3148,7 +3159,7 @@ export default function CatalogoPublico() {
               value={clienteNombre}
               onChange={(e) => setClienteNombre(e.target.value)}
               placeholder="Tu nombre y apellido..."
-              className={`w-full border-2 px-5 py-4 rounded-2xl text-center font-bold outline-none transition-all mb-6 ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-[#e2bd6c]' : 'bg-surface-container-low border-primary/20 focus:border-primary text-primary'} ${isAutoDemo && autoDemoStep === 9 ? 'demo-highlight' : ''}`}
+              className={`w-full border-2 px-5 py-4 rounded-2xl text-center font-bold outline-none transition-all mb-6 ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-[#e2bd6c]' : 'bg-surface-container-low border-primary/20 focus:border-primary text-primary'} ${isAutoDemo && autoDemoStep === 10 ? 'demo-highlight' : ''}`}
             />
 
             <div className="flex gap-3">
@@ -3536,7 +3547,7 @@ export default function CatalogoPublico() {
       {/* MODAL DE AUTENTICACIÓN */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'} ${isAutoDemo && autoDemoStep === 10 ? 'demo-highlight' : ''}`}>
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'} ${isAutoDemo && autoDemoStep === 11 ? 'demo-highlight' : ''}`}>
             {/* Header del Modal */}
             <div className={`p-6 text-center relative border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
               <h3 className={`font-headline text-2xl font-black italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
@@ -4070,17 +4081,6 @@ export default function CatalogoPublico() {
               ? 'bg-[#151515]/95 border-[#e2bd6c]/30 text-white shadow-black/85' 
               : 'bg-white/95 border-primary/20 text-on-surface shadow-black/20'
           }`}>
-            {/* Flashing Recording Indicator */}
-            <div className="flex items-center justify-between text-[9px] font-black tracking-widest uppercase pb-1.5 border-b border-outline-variant/10">
-              <div className="flex items-center gap-1.5 text-error">
-                <span className="w-2 h-2 rounded-full bg-error animate-pulse shrink-0" />
-                <span>🔴 MODO DEMOSTRACIÓN AUTOMÁTICA</span>
-              </div>
-              <span className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>
-                PASO {autoDemoStep} DE 11
-              </span>
-            </div>
-
             {/* Subtitle Caption */}
             <p className="text-[11px] sm:text-xs leading-relaxed font-bold italic text-center px-2">
               "{autoDemoCaption}"
