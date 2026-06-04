@@ -94,6 +94,7 @@ export default function CatalogoPublico() {
   const [precioMin, setPrecioMin] = useState('')
   const [precioMax, setPrecioMax] = useState('')
   const [soloDisponibles, setSoloDisponibles] = useState(false)
+  const [soloConImagenes, setSoloConImagenes] = useState(false)
   const categoryContainerRef = useRef(null)
 
   // Carrito: array de { idCart, producto, variante, cantidad, precio, maxStock }
@@ -784,6 +785,11 @@ export default function CatalogoPublico() {
         ? p.variantes.some(v => Number(v.stock) > 0)
         : Number(p.stock) > 0;
       if (!tieneStock) return false;
+    }
+
+    if (soloConImagenes) {
+      const tieneImagen = p.fotoUrl || (p.fotos && p.fotos.length > 0 && p.fotos[0]);
+      if (!tieneImagen) return false;
     }
 
     return true;
@@ -1571,7 +1577,7 @@ export default function CatalogoPublico() {
               </button>
               
               {isDisponibilidadExpanded && (
-                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
                   <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-variant/50'}`}>
                     <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-on-surface'}`}>Solo disponible</span>
                     <div className="relative flex items-center">
@@ -1580,6 +1586,19 @@ export default function CatalogoPublico() {
                         className="sr-only peer"
                         checked={soloDisponibles}
                         onChange={e => setSoloDisponibles(e.target.checked)}
+                      />
+                      <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-variant/50'}`}>
+                    <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-on-surface'}`}>Solo con imágenes</span>
+                    <div className="relative flex items-center">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={soloConImagenes}
+                        onChange={e => setSoloConImagenes(e.target.checked)}
                       />
                       <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
                     </div>
@@ -1656,6 +1675,7 @@ export default function CatalogoPublico() {
                 setPrecioMin('')
                 setPrecioMax('')
                 setSoloDisponibles(false)
+                setSoloConImagenes(false)
               }}
               className={`w-full py-3 rounded-xl border font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer ${isDark ? 'border-white/10 text-white hover:bg-white/5' : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant'}`}
             >
