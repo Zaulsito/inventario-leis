@@ -537,7 +537,11 @@ export default function CatalogoPublico() {
     setPrecioMin('');
     setPrecioMax('');
     setSoloDisponibles(false);
-    setSoloConImagenes(false);
+    
+    // Automatically close the guide box and enable Solo con imágenes filter
+    setShowTutorial(false);
+    setSoloConImagenes(true);
+    
     setCarrito([]);
     setIsCartOpen(false);
     setShowCheckout(false);
@@ -580,28 +584,28 @@ export default function CatalogoPublico() {
 
     const steps = [
       {
-        duration: 9000,
+        duration: 19000,
         caption: "¡Hola! Bienvenido al catálogo oficial de Leis 👑. Aquí verás todas nuestras colecciones exclusivas. Lo primero que te mostramos es que puedes alternar entre modo claro y oscuro haciendo clic en el icono de sol/luna arriba.",
         action: () => {
           // Toggle dark/light theme to demonstrate it
-          setIsDark(prev => !prev);
+          setIsDark(false);
           setTimeout(() => {
-            setIsDark(prev => !prev);
+            setIsDark(true); // Remain in dark mode (modo negro)
           }, 4500);
         }
       },
       {
-        duration: 8000,
+        duration: 18000,
         caption: "A la izquierda de la pantalla, contamos con un buscador y panel de filtros. Al escribir aquí, puedes buscar por nombre, código SKU o marca de inmediato para encontrar cualquier pieza.",
         action: () => {
           setIsSidebarCollapsed(false); // Ensure sidebar is open
         }
       },
       {
-        duration: 10000,
-        caption: "Busquemos un ejemplo en el buscador escribiendo lentamente 'Aceite de collagen'. Observa cómo la lista de productos se actualiza al instante.",
+        duration: 20000,
+        caption: "Busquemos un ejemplo en el buscador escribiendo lentamente 'Aceite Collagen'. Observa cómo la lista de productos se actualiza al instante.",
         action: () => {
-          const text = "Aceite de collagen";
+          const text = "Aceite Collagen";
           let currentText = "";
           let i = 0;
           const typeInterval = setInterval(() => {
@@ -616,7 +620,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 8000,
+        duration: 18000,
         caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', podemos agregarlo al carrito de compras simplemente haciendo clic en su botón respectivo.",
         action: () => {
           const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"));
@@ -628,7 +632,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 9000,
+        duration: 19000,
         caption: "Para mostrarte cómo gestionar varios productos a la vez, limpiaremos la búsqueda anterior y añadiremos otra pieza aleatoria al carrito.",
         action: () => {
           setSearchTerm('');
@@ -642,14 +646,14 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 8000,
+        duration: 18000,
         caption: "¡Excelente! Ahora procederemos a abrir nuestra bolsa de compras haciendo clic en el icono del Carrito que se encuentra en la cabecera.",
         action: () => {
           setIsCartOpen(true);
         }
       },
       {
-        duration: 12000,
+        duration: 22000,
         caption: "Dentro de la bolsa de compras puedes ajustar cantidades, filtrar visualmente por categorías para aislar productos sin alterar el total del pedido, y ver el total en tiempo real.",
         action: () => {
           // Increase quantity of first item
@@ -682,7 +686,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 8000,
+        duration: 18000,
         caption: "Una vez que revisamos nuestro pedido y confirmamos que todo está correcto, hacemos clic en el botón 'Hacer Pedido' al final de la bolsa.",
         action: () => {
           setIsCartOpen(false);
@@ -692,7 +696,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 10000,
+        duration: 20000,
         caption: "En este modal, solo debes ingresar tu nombre para identificarte ante tu asesora. Escribiremos 'Yamir Leis' y luego pulsaremos enviar a WhatsApp para procesarlo.",
         action: () => {
           const text = "Yamir Leis";
@@ -710,7 +714,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 12000,
+        duration: 22000,
         caption: "¡Un detalle espectacular! Si estás realizando tu pedido como invitado, tienes la opción de crear tu cuenta de inmediato para guardar tus datos y agilizar tus próximas compras.",
         action: () => {
           setShowCheckout(false);
@@ -721,7 +725,7 @@ export default function CatalogoPublico() {
         }
       },
       {
-        duration: 8000,
+        duration: 18000,
         caption: "¡Y listo! De esta forma realizas tus pedidos de manera rápida, elegante y segura en el catálogo Leis. ¡Gracias por tu tiempo! 💖",
         action: () => {
           setShowAuthModal(false);
@@ -1741,7 +1745,7 @@ export default function CatalogoPublico() {
                     placeholder="Nombre, SKU..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''}`}
+                    className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 5) ? 'demo-highlight' : ''}`}
                   />
                   {searchTerm && (
                     <button 
@@ -1961,7 +1965,7 @@ export default function CatalogoPublico() {
             {/* Botón de Apariencia (Modo Oscuro/Claro) */}
             <button 
               onClick={() => setIsDark(!isDark)}
-              className={`p-3 rounded-2xl transition-colors shrink-0 ${isDark ? 'bg-white/5 text-[#e2bd6c] hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant'}`}
+              className={`p-3 rounded-2xl transition-all shrink-0 ${isDark ? 'bg-white/5 text-[#e2bd6c] hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant'} ${isAutoDemo && autoDemoStep === 1 ? 'demo-highlight' : ''}`}
               title={isDark ? "Modo Claro" : "Modo Oscuro"}
             >
               <span className="material-symbols-outlined">
@@ -2055,7 +2059,7 @@ export default function CatalogoPublico() {
             <button 
               id="header-cart-btn"
               onClick={() => setIsCartOpen(true)}
-              className={`relative p-3 rounded-2xl transition-all shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} ${tourStep === 4 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-110') : ''}`}
+              className={`relative p-3 rounded-2xl transition-all shrink-0 ml-1 ${isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c] hover:bg-[#e2bd6c]/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} ${tourStep === 4 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_25px_rgba(226,189,108,0.9)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_25px_rgba(67,56,202,0.9)] scale-110') : ''} ${isAutoDemo && autoDemoStep === 6 ? 'demo-highlight' : ''}`}
             >
               <span className="material-symbols-outlined">shopping_cart</span>
               {totalItems > 0 && (
@@ -2212,9 +2216,13 @@ export default function CatalogoPublico() {
 
               const isStep3Highlight = tourStep === 3 && pIndex === 0;
               const isGrayscaleTour = tourStep === 3 && pIndex !== 0;
+              const isDemoHighlightedProduct = isAutoDemo && (
+                (autoDemoStep === 4 && (p.nombre || '').toLowerCase().includes("collagen")) ||
+                (autoDemoStep === 5 && !(p.nombre || '').toLowerCase().includes("collagen") && pIndex === 0)
+              );
 
               return (
-                <div key={p.id} className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''} ${isGrayscaleTour ? 'grayscale opacity-30 hover:grayscale-0 hover:opacity-90 duration-500 shadow-none border-dashed' : ''}`}>
+                <div key={p.id} className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''} ${isGrayscaleTour ? 'grayscale opacity-30 hover:grayscale-0 hover:opacity-90 duration-500 shadow-none border-dashed' : ''} ${isDemoHighlightedProduct ? 'demo-highlight' : ''}`}>
                   {/* Imagen */}
                   <div 
                     className={`aspect-square relative overflow-hidden flex items-center justify-center cursor-pointer ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
@@ -2403,7 +2411,7 @@ export default function CatalogoPublico() {
                         onClick={() => setFiltroCartCategory(cat)}
                         className={`relative py-1 cursor-pointer transition-all hover:opacity-80 font-black uppercase tracking-wider border-none bg-transparent ${
                           isSelected ? 'text-[#5d3a28] dark:text-[#e2bd6c]' : 'text-gray-400 dark:text-gray-500'
-                        }`}
+                        } ${isAutoDemo && autoDemoStep === 7 ? 'demo-highlight' : ''}`}
                       >
                         {cat}
                         {isSelected && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5d3a28] dark:bg-[#e2bd6c]" />}
@@ -2592,7 +2600,7 @@ export default function CatalogoPublico() {
                           onClick={prepararCheckout}
                           className={`w-full py-4 rounded-2xl font-headline text-sm tracking-widest font-black uppercase shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex justify-center items-center gap-2 cursor-pointer ${
                             isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/10 hover:bg-[#ebd59f]' : 'bg-[#5d3a28] text-white shadow-[#5d3a28]/10 hover:bg-[#4a2e20]'
-                          } ${tourStep === 5 ? 'ring-4 ring-primary animate-pulse' : ''}`}
+                          } ${tourStep === 5 ? 'ring-4 ring-primary animate-pulse' : ''} ${isAutoDemo && autoDemoStep === 8 ? 'demo-highlight' : ''}`}
                         >
                           Confirmar Pedido
                         </button>
@@ -3060,7 +3068,7 @@ export default function CatalogoPublico() {
                 <p className={`text-sm mb-2 ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>Ingresa tu nombre para enviar el detalle de tu pedido directamente por WhatsApp.</p>
                 <button 
                   onClick={() => {setShowCheckout(false); setShowAuthModal(true);}} 
-                  className={`text-xs font-bold hover:underline ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}
+                  className={`text-xs font-bold hover:underline ${isDark ? 'text-[#e2bd6c]' : 'text-primary'} ${isAutoDemo && autoDemoStep === 10 ? 'demo-highlight' : ''}`}
                 >
                   ¿Tienes cuenta? Inicia sesión aquí
                 </button>
@@ -3073,7 +3081,7 @@ export default function CatalogoPublico() {
               value={clienteNombre}
               onChange={(e) => setClienteNombre(e.target.value)}
               placeholder="Tu nombre y apellido..."
-              className={`w-full border-2 px-5 py-4 rounded-2xl text-center font-bold outline-none transition-all mb-6 ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-[#e2bd6c]' : 'bg-surface-container-low border-primary/20 focus:border-primary text-primary'}`}
+              className={`w-full border-2 px-5 py-4 rounded-2xl text-center font-bold outline-none transition-all mb-6 ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-[#e2bd6c]' : 'bg-surface-container-low border-primary/20 focus:border-primary text-primary'} ${isAutoDemo && autoDemoStep === 9 ? 'demo-highlight' : ''}`}
             />
 
             <div className="flex gap-3">
@@ -3461,7 +3469,7 @@ export default function CatalogoPublico() {
       {/* MODAL DE AUTENTICACIÓN */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'}`}>
+          <div className={`w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200 border ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-white border-outline-variant/20'} ${isAutoDemo && autoDemoStep === 10 ? 'demo-highlight' : ''}`}>
             {/* Header del Modal */}
             <div className={`p-6 text-center relative border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
               <h3 className={`font-headline text-2xl font-black italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
