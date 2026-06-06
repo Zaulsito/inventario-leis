@@ -1033,7 +1033,7 @@ export default function CatalogoPublico() {
         if (rect.width === 0 || rect.height === 0 || rect.width > 500 || rect.height > 500) {
           setPointerStyle({ display: 'none' });
         } else {
-          const arrowWidth = 45;
+          const arrowWidth = 55;
           const arrowHeight = 24;
           const gap = 12;
           
@@ -4267,12 +4267,30 @@ export default function CatalogoPublico() {
       {isAutoDemo && pointerStyle.display !== 'none' && (
         <div style={pointerStyle}>
           {pointerType === 'left' ? (
-            <svg width="45" height="24" viewBox="0 0 45 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-left drop-shadow-[0_2px_8px_rgba(239,68,68,0.5)]">
-              <path d="M45 12H5M5 12L15 4M5 12L15 20" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="55" height="24" viewBox="0 0 55 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-left drop-shadow-[0_0_12px_rgba(226,189,108,0.7)]">
+              <defs>
+                <linearGradient id="gold-grad-left" x1="100%" y1="50%" x2="0%" y2="50%">
+                  <stop offset="0%" stopColor="#9a7629" />
+                  <stop offset="50%" stopColor="#e2bd6c" />
+                  <stop offset="100%" stopColor="#fff2cc" />
+                </linearGradient>
+              </defs>
+              <circle cx="50" cy="12" r="3" fill="url(#gold-grad-left)" />
+              <path d="M47 12H5" stroke="url(#gold-grad-left)" strokeWidth="3.5" strokeLinecap="round" />
+              <path d="M13 4L4.5 12.5L13 21" stroke="url(#gold-grad-left)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : (
-            <svg width="45" height="24" viewBox="0 0 45 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-right drop-shadow-[0_2px_8px_rgba(239,68,68,0.5)]">
-              <path d="M0 12H40M40 12L30 4M40 12L30 20" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="55" height="24" viewBox="0 0 55 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-right drop-shadow-[0_0_12px_rgba(226,189,108,0.7)]">
+              <defs>
+                <linearGradient id="gold-grad-right" x1="0%" y1="50%" x2="100%" y2="50%">
+                  <stop offset="0%" stopColor="#9a7629" />
+                  <stop offset="50%" stopColor="#e2bd6c" />
+                  <stop offset="100%" stopColor="#fff2cc" />
+                </linearGradient>
+              </defs>
+              <circle cx="5" cy="12" r="3" fill="url(#gold-grad-right)" />
+              <path d="M8 12H50" stroke="url(#gold-grad-right)" strokeWidth="3.5" strokeLinecap="round" />
+              <path d="M42 4L50.5 12.5L42 21" stroke="url(#gold-grad-right)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
         </div>
