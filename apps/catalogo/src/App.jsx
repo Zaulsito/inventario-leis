@@ -610,105 +610,7 @@ export default function CatalogoPublico() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isAutoDemo]);
 
-  // Outro screen typewriter effect
-  useEffect(() => {
-    if (!showDemoOutro) {
-      setOutroText('');
-      setShowOutroLeis(false);
-      return;
-    }
-    
-    const fullText = "Tu éxito está en nuestros productos";
-    let current = "";
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < fullText.length) {
-        current += fullText[i];
-        setOutroText(current);
-        i++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 70);
 
-    const outroLeisTimer = setTimeout(() => {
-      setShowOutroLeis(true);
-    }, 2800);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(outroLeisTimer);
-    };
-  }, [showDemoOutro]);
-
-  // Sync the pointing arrow with the currently highlighted demo-highlight element
-  useEffect(() => {
-    if (!isAutoDemo || autoDemoStep <= 0) {
-      setPointerStyle({ display: 'none' });
-      return;
-    }
-
-    let active = true;
-
-    const updatePosition = () => {
-      if (!active) return;
-
-      const activeEl = document.querySelector('.demo-highlight');
-      if (activeEl) {
-        const rect = activeEl.getBoundingClientRect();
-        
-        // Hide if element is not visible or too large (e.g. modals)
-        if (rect.width === 0 || rect.height === 0 || rect.width > 500 || rect.height > 500) {
-          setPointerStyle({ display: 'none' });
-        } else {
-          const arrowWidth = 45;
-          const arrowHeight = 24;
-          const gap = 12;
-          
-          // Determine side based on screen half
-          const isLeftHalf = (rect.left + rect.width / 2) < (window.innerWidth / 2);
-          
-          if (isLeftHalf) {
-            // Place arrow to the right of the element, pointing left
-            setPointerType('left');
-            setPointerStyle({
-              display: 'block',
-              position: 'fixed',
-              top: `${rect.top + rect.height / 2 - arrowHeight / 2}px`,
-              left: `${rect.right + gap}px`,
-              zIndex: 9999,
-              pointerEvents: 'none'
-            });
-          } else {
-            // Place arrow to the left of the element, pointing right
-            setPointerType('right');
-            setPointerStyle({
-              display: 'block',
-              position: 'fixed',
-              top: `${rect.top + rect.height / 2 - arrowHeight / 2}px`,
-              left: `${rect.left - gap - arrowWidth}px`,
-              zIndex: 9999,
-              pointerEvents: 'none'
-            });
-          }
-        }
-      } else {
-        setPointerStyle({ display: 'none' });
-      }
-
-      requestAnimationFrame(updatePosition);
-    };
-
-    // Delay start slightly to let layout settle
-    const delayTimer = setTimeout(() => {
-      requestAnimationFrame(updatePosition);
-    }, 100);
-
-    return () => {
-      active = false;
-      clearTimeout(delayTimer);
-    };
-  }, [isAutoDemo, autoDemoStep, productoParaVer, isCartOpen, showCheckout, showAuthModal]);
 
   useEffect(() => {
     if (!isAutoDemo || autoDemoStep <= 0) return;
@@ -1079,6 +981,106 @@ export default function CatalogoPublico() {
     showResetPasswordModal,
     expandedImage
   ]);
+
+  // Outro screen typewriter effect
+  useEffect(() => {
+    if (!showDemoOutro) {
+      setOutroText('');
+      setShowOutroLeis(false);
+      return;
+    }
+    
+    const fullText = "Tu éxito está en nuestros productos";
+    let current = "";
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < fullText.length) {
+        current += fullText[i];
+        setOutroText(current);
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 70);
+
+    const outroLeisTimer = setTimeout(() => {
+      setShowOutroLeis(true);
+    }, 2800);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(outroLeisTimer);
+    };
+  }, [showDemoOutro]);
+
+  // Sync the pointing arrow with the currently highlighted demo-highlight element
+  useEffect(() => {
+    if (!isAutoDemo || autoDemoStep <= 0) {
+      setPointerStyle({ display: 'none' });
+      return;
+    }
+
+    let active = true;
+
+    const updatePosition = () => {
+      if (!active) return;
+
+      const activeEl = document.querySelector('.demo-highlight');
+      if (activeEl) {
+        const rect = activeEl.getBoundingClientRect();
+        
+        // Hide if element is not visible or too large (e.g. modals)
+        if (rect.width === 0 || rect.height === 0 || rect.width > 500 || rect.height > 500) {
+          setPointerStyle({ display: 'none' });
+        } else {
+          const arrowWidth = 45;
+          const arrowHeight = 24;
+          const gap = 12;
+          
+          // Determine side based on screen half
+          const isLeftHalf = (rect.left + rect.width / 2) < (window.innerWidth / 2);
+          
+          if (isLeftHalf) {
+            // Place arrow to the right of the element, pointing left
+            setPointerType('left');
+            setPointerStyle({
+              display: 'block',
+              position: 'fixed',
+              top: `${rect.top + rect.height / 2 - arrowHeight / 2}px`,
+              left: `${rect.right + gap}px`,
+              zIndex: 9999,
+              pointerEvents: 'none'
+            });
+          } else {
+            // Place arrow to the left of the element, pointing right
+            setPointerType('right');
+            setPointerStyle({
+              display: 'block',
+              position: 'fixed',
+              top: `${rect.top + rect.height / 2 - arrowHeight / 2}px`,
+              left: `${rect.left - gap - arrowWidth}px`,
+              zIndex: 9999,
+              pointerEvents: 'none'
+            });
+          }
+        }
+      } else {
+        setPointerStyle({ display: 'none' });
+      }
+
+      requestAnimationFrame(updatePosition);
+    };
+
+    // Delay start slightly to let layout settle
+    const delayTimer = setTimeout(() => {
+      requestAnimationFrame(updatePosition);
+    }, 100);
+
+    return () => {
+      active = false;
+      clearTimeout(delayTimer);
+    };
+  }, [isAutoDemo, autoDemoStep, productoParaVer, isCartOpen, showCheckout, showAuthModal]);
 
   const wasModalOpenRef = useRef(false);
 
