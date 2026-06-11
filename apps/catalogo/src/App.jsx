@@ -479,11 +479,11 @@ export default function CatalogoPublico() {
     simulatedSearchVal = "Aro";
     const st = videoCurrentTime - 20;
     if (st >= 1.2 && st < 3.5) {
-      const text = "Yamir Leis";
-      const chars = Math.min(text.length, Math.floor((st - 1.2) / 0.23));
+      const text = "Leis";
+      const chars = Math.min(text.length, Math.floor((st - 1.2) / 0.45));
       simulatedNameVal = text.substring(0, chars);
     } else if (st >= 3.5) {
-      simulatedNameVal = "Yamir Leis";
+      simulatedNameVal = "Leis";
     }
     if (st >= 4.5) {
       simulatedSuccessOpen = true;
@@ -746,7 +746,7 @@ export default function CatalogoPublico() {
         duration: 9000,
         caption: "Ingresa tu nombre y pulsa 'Enviar a WhatsApp' para finalizar y procesar tu pedido.",
         action: () => {
-          const text = "Yamir Leis";
+          const text = "Leis";
           let currentText = "";
           let i = 0;
           const typeInterval = setInterval(() => {
@@ -3282,29 +3282,35 @@ export default function CatalogoPublico() {
               </div>
             )}
             
-            <input 
-              type="text"
-              autoFocus
-              value={clienteNombre}
-              onChange={(e) => setClienteNombre(e.target.value)}
-              placeholder="Tu nombre y apellido..."
-              className={`w-full border-2 px-5 py-4 rounded-2xl text-center font-bold outline-none transition-all mb-6 ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-[#e2bd6c]' : 'bg-surface-container-low border-primary/20 focus:border-primary text-primary'} ${isAutoDemo && autoDemoStep === 10 ? 'demo-highlight' : ''}`}
-            />
+            <form onSubmit={(e) => { e.preventDefault(); enviarPedidoWhatsApp(); }} autoComplete="off" className="w-full">
+              {/* Dummy input to decoy Chrome's autocompletion away from the main input */}
+              <input type="text" name="chrome-name-decoy" style={{ display: 'none' }} autoComplete="off" />
+              <input 
+                type="text"
+                autoFocus
+                autoComplete="new-name"
+                value={clienteNombre}
+                onChange={(e) => setClienteNombre(e.target.value)}
+                placeholder="Tu nombre y apellido..."
+                className={`w-full border-2 px-5 py-4 rounded-2xl text-center font-bold outline-none transition-all mb-6 ${isDark ? 'bg-white/5 border-white/10 focus:border-[#e2bd6c] text-[#e2bd6c]' : 'bg-surface-container-low border-primary/20 focus:border-primary text-primary'} ${isAutoDemo && autoDemoStep === 10 ? 'demo-highlight' : ''}`}
+              />
 
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowCheckout(false)} 
-                className={`flex-1 py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider transition-colors ${isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'}`}
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={enviarPedidoWhatsApp}
-                className={`flex-[2] bg-[#25D366] text-white py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all flex justify-center items-center gap-2 ${tourStep === 6 ? 'ring-4 ring-[#25D366] animate-pulse shadow-[0_0_25px_rgba(37,211,102,0.9)] scale-105' : ''}`}
-              >
-                Enviar a WhatsApp
-              </button>
-            </div>
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowCheckout(false)} 
+                  className={`flex-1 py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider transition-colors ${isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'}`}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className={`flex-[2] bg-[#25D366] text-white py-3 rounded-2xl font-bold text-[11px] uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all flex justify-center items-center gap-2 ${tourStep === 6 ? 'ring-4 ring-[#25D366] animate-pulse shadow-[0_0_25px_rgba(37,211,102,0.9)] scale-105' : ''}`}
+                >
+                  Enviar a WhatsApp
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -3625,12 +3631,17 @@ export default function CatalogoPublico() {
                 </div>
 
                 {/* Formulario de Login/Registro */}
-                <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleAuthSubmit} className="p-6 space-y-4" autoComplete="off">
+                  {/* Dummy fields to divert Chrome autofill away from real inputs */}
+                  <input type="text" name="chrome-username-dummy" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', opacity: 0 }} autoComplete="username" />
+                  <input type="password" name="chrome-password-dummy" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', opacity: 0 }} autoComplete="new-password" />
+
                   {authTab === 'register' && (
                     <div>
                       <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Nombre Completo</label>
                       <input 
                         type="text" 
+                        autoComplete="new-name"
                         value={authForm.nombre}
                         onChange={e => setAuthForm({...authForm, nombre: e.target.value})}
                         required
@@ -3644,6 +3655,7 @@ export default function CatalogoPublico() {
                     <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Correo Electrónico</label>
                     <input 
                       type="email" 
+                      autoComplete="new-email"
                       value={authForm.email}
                       onChange={e => setAuthForm({...authForm, email: e.target.value})}
                       required
@@ -3657,6 +3669,7 @@ export default function CatalogoPublico() {
                       <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Número de WhatsApp</label>
                       <input 
                         type="tel" 
+                        autoComplete="new-whatsapp"
                         value={authForm.whatsapp}
                         onChange={e => setAuthForm({...authForm, whatsapp: e.target.value})}
                         required
@@ -3669,8 +3682,12 @@ export default function CatalogoPublico() {
 
                   <div>
                     <label className={`block text-[10px] font-bold uppercase tracking-widest mb-1.5 ml-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Contraseña</label>
+                    {/* Decoy credentials for Chrome's password manager - visually hidden but accessible to Chrome's scanner */}
+                    <input type="text" name="chrome_username_decoy" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', opacity: 0 }} autoComplete="username" />
+                    <input type="password" name="chrome_password_decoy" style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', opacity: 0 }} autoComplete="current-password" />
                     <input 
                       type="password" 
+                      autoComplete="new-password"
                       value={authForm.password}
                       onChange={e => setAuthForm({...authForm, password: e.target.value})}
                       required
