@@ -3932,7 +3932,7 @@ export default function CatalogoPublico() {
               </button>
             </div>
 
-            <form onSubmit={handleDeleteAccount} className="p-6 space-y-4">
+            <form onSubmit={handleDeleteAccount} className="p-6 space-y-4" autoComplete="off">
               <div className="p-4 bg-error/5 border border-error/20 rounded-2xl flex gap-3 items-start">
                 <span className="material-symbols-outlined text-error shrink-0 mt-0.5">warning</span>
                 <div className="space-y-1">
@@ -3969,6 +3969,7 @@ export default function CatalogoPublico() {
                   <input 
                     type="password"
                     required
+                    autoComplete="new-password"
                     placeholder="Introduce tu contraseña para confirmar"
                     value={deletePassword}
                     onChange={(e) => setDeletePassword(e.target.value)}
@@ -4084,7 +4085,7 @@ export default function CatalogoPublico() {
           
           <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-transform duration-[3s] scale-95 animate-in zoom-in-95 duration-500">
             {/* Logo Container with star-sweep effect - perfectly circular and larger */}
-            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/50 shadow-[0_10px_40px_rgba(226,189,108,0.2)] relative bg-white/95 flex items-center justify-center star-sweep-effect">
+            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/50 shadow-[0_10px_40px_rgba(226,189,108,0.2)] relative bg-white/95 flex items-center justify-center star-sweep-effect animate-slow-breath">
               <img 
                 src="/logo.jpeg" 
                 alt="Logo Leis" 
@@ -4097,8 +4098,16 @@ export default function CatalogoPublico() {
 
             {/* Premium Slogan */}
             <div className="mt-8 space-y-2 animate-in slide-in-from-bottom-5 duration-700 delay-300">
-              <h1 className="font-headline text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#be9440] via-[#e2bd6c] to-[#be9440] tracking-widest uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                Leis
+              <h1 className="font-headline text-2xl sm:text-3xl font-black tracking-[0.3em] uppercase select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.3)] flex items-center justify-center pl-[0.3em] min-h-[36px] sm:min-h-[44px]">
+                {"LEIS".split("").map((letter, idx) => (
+                  <span 
+                    key={idx}
+                    className="text-transparent bg-clip-text bg-gradient-to-r from-[#be9440] via-[#e2bd6c] to-[#be9440] inline-block animate-intro-letter text-glow-shine"
+                    style={{ animationDelay: `${idx * 0.08}s` }}
+                  >
+                    {letter}
+                  </span>
+                ))}
               </h1>
               <p className="text-[9px] sm:text-[11px] font-bold tracking-[0.25em] text-[#5d3a28]/70 uppercase">
                 Tu éxito está en nuestros productos
@@ -4108,45 +4117,38 @@ export default function CatalogoPublico() {
         </div>
       )}
 
-      {/* ── DEMO OUTRO SCREEN OVERLAY (FINAL DE LUJO) ── */}
+      {/* ── DEMO OUTRO SCREEN OVERLAY (FINAL DE LUJO - MODO CLARO) ── */}
       {showDemoOutro && (
-        <div className="fixed inset-0 z-[250] bg-[#0c0c0e] flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-700">
+        <div className="fixed inset-0 z-[250] bg-gradient-to-br from-[#fdfaf5] via-[#fdfbfa] to-[#ebdcb9] flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-700">
           {/* Subtle sparkling background */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.06)_0%,transparent_70%)] pointer-events-none" />
-          
-          {/* Stars background moving/expanding */}
-          <div className="stars-container opacity-100">
-            <div className="stars-layer" />
-            <div className="stars-layer" />
-            <div className="stars-layer" />
-          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.12)_0%,transparent_70%)] pointer-events-none" />
 
           <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-all duration-[3s] scale-100 animate-in zoom-in-95 duration-500">
             {/* Logo Container with star-sweep effect */}
-            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border-2 border-[#e2bd6c]/40 shadow-[0_0_50px_rgba(226,189,108,0.3)] relative bg-black/50 flex items-center justify-center star-sweep-effect animate-bounce animate-duration-[4s]">
+            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/50 shadow-[0_10px_40px_rgba(226,189,108,0.2)] relative bg-white/95 flex items-center justify-center star-sweep-effect animate-slow-breath">
               <img 
-                src="/logo-dark.png" 
+                src="/logo.jpeg" 
                 alt="Logo Leis" 
                 className="w-full h-full object-cover rounded-full"
               />
             </div>
             
             {/* Glowing Aura under the logo */}
-            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-primary opacity-30 blur-[60px] -z-10 animate-pulse" />
+            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-[#ebdcb9] opacity-40 blur-3xl -z-10 animate-pulse" />
 
             {/* Slogan with Shiny, Typewriter and Glowing Effect */}
             <div className="mt-10 space-y-4">
-              <p className="min-h-[24px] text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-gray-300 drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)] transition-all duration-300">
+              <p className="min-h-[24px] text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-[#5d3a28]/70 drop-shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-300">
                 {outroText}
                 <span className="animate-ping duration-300 text-[#e2bd6c]">|</span>
               </p>
               
               {showOutroLeis && (
-                <h1 className="font-headline text-3xl sm:text-5xl font-black tracking-[0.3em] uppercase select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.6)] flex items-center justify-center pl-[0.3em]">
+                <h1 className="font-headline text-3xl sm:text-5xl font-black tracking-[0.3em] uppercase select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.4)] flex items-center justify-center pl-[0.3em]">
                   {"LEIS".split("").map((letter, idx) => (
                     <span 
                       key={idx}
-                      className="text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#e2bd6c] to-[#fff] inline-block animate-outro-letter text-glow-shine"
+                      className="text-transparent bg-clip-text bg-gradient-to-r from-[#be9440] via-[#e2bd6c] to-[#be9440] inline-block animate-outro-letter text-glow-shine"
                       style={{ animationDelay: `${idx * 0.18}s` }}
                     >
                       {letter}
@@ -4202,8 +4204,7 @@ export default function CatalogoPublico() {
               <img 
                 src="/gatita.png" 
                 alt="Mascota Leis" 
-                className="w-20 h-20 object-contain relative z-10 drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] animate-bounce"
-                style={{ animationDuration: '3s' }}
+                className="w-20 h-20 object-contain relative z-10 drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] animate-smooth-float"
                 title="Leis 🐾"
               />
             </div>
@@ -4222,7 +4223,7 @@ export default function CatalogoPublico() {
                 <img 
                   src="/gatita.png" 
                   alt="Mascota Leis" 
-                  className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] animate-bounce"
+                  className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] animate-smooth-float"
                   title="Leis 🐾"
                 />
               </div>
@@ -4256,7 +4257,7 @@ export default function CatalogoPublico() {
           {isDialogMinimized ? (
             <button 
               onClick={() => setIsDialogMinimized(false)}
-              className={`pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-full border shadow-lg text-[10px] font-black uppercase tracking-wider animate-bounce transition-all hover:scale-105 active:scale-95 ${
+              className={`pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-full border shadow-lg text-[10px] font-black uppercase tracking-wider animate-pulse transition-all hover:scale-105 active:scale-95 ${
                 isDark 
                   ? 'bg-[#e2bd6c] text-black border-[#e2bd6c] shadow-[#e2bd6c]/20' 
                   : 'bg-primary text-white border-primary shadow-primary/20'

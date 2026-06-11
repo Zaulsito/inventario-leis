@@ -1,0 +1,27 @@
+"            {/* Custom Interactive HTML5 Video Tutorial Simulator */}
+            <div className="relative h-[290px] xs:h-[310px] sm:h-auto sm:aspect-video rounded-3xl overflow-hidden border border-[#e2bd6c]/20 dark:border-white/5 shadow-2xl bg-[#0f0f12] mb-5 select-none group">
+              
+              {/* Contenido Dinámico de las Diapositivas */}
+              <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4 sm:p-10 transition-all duration-700 overflow-hidden">
+                
+                {/* Fondo Degradado Dinámico según Diapositiva */}
+                <div className="absolute inset-0 opacity-10 blur-xl scale-110 pointer-events-none transition-all duration-1000"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 50% 50%, ${
+                      activeSlide === 0 ? 'rgba(226,189,108,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      activeSlide === 1 ? 'rgba(59,130,246,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      activeSlide === 2 ? 'rgba(236,72,153,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      activeSlide === 3 ? 'rgba(16,185,129,0.2) 0%, rgba(15,15,18,1) 80%' :
+                      'rgba(168,85,247,0.2) 0%, rgba(15,15,18,1) 80%'
+                    })`
+                  }}
+                />
+
+                {/* Diapositiva 0: Bienvenida */}
+                <div className={`absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-4 sm:p-10 transition-all duration-700 ${
+                  activeSlide === 0 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-[-100px] scale-95 pointer-events-none'
+                }`}>
+                  <div className="flex-1 text-center sm:text-left">
+                    <span className="inline-block px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-bold tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-1.5 sm:mb-2 animate-pulse">
+                      Int
+<truncated 17918 bytes>

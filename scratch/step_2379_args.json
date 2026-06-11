@@ -1,0 +1,10 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Restore background gradient closing styles and insert mockup container and viewport container opening divs to keep HTML tags perfectly balanced and remove Mac-style browser frame.\"",
+  "EndLine": "2748",
+  "StartLine": "2736",
+  "TargetContent": "\"                {/* Fondo Degradado Dinámico según Diapositiva */}\\n                <div className=\\\"absolute inset-0 opacity-10 blur-xl scale-110 pointer-events-none transition-all duration-1000\\\"\\n                  style={{\\n                    backgroundImage: `radial-gradient(circle at 50% 50%, ${\\n                      activeSlide === 0 ? 'rgba(226,189,108,0.2) 0%, rgba(15,15,18,1) 80%' :\\n                      activeSlide === 1 ? 'rgba(59,130,246,0.2) 0%, rgba(15,15,18,1) 80%' :\\n                      activeSlide === 2 ? 'rgba(236,72,153,0.2) 0%, rgba(15,15,18,1) 80%' :\\n                      activeSlide === 3 ? 'rgba(245,158,11,0.2) 0%, rgba(15,15,18,1) 80%' :\\n                      'rgba(16,185,129,0.2) 0%, rgba(15,15,18,1) 80%'\\n\\n                    <div \\n                      className=\\\"w-full h-full relative\\\"\"",
+  "TargetFile": "\"c:\\\\Users\\\\Yamir\\\\proyectos\\\\inventory-app\\\\apps\\\\catalogo\\\\src\\\\App.jsx\"",
+  "toolAction": "\"Fixing background gradient and mockup containers structural tags in App.jsx\"",
+  "toolSummary": "\"Restore structural mockup tags\""
+}

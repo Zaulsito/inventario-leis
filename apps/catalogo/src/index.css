@@ -368,5 +368,55 @@ body {
   opacity: 0;
 }
 
+/* Animación rápida letra por letra para el Intro (LEIS) */
+@keyframes intro-letter-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.8);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-intro-letter {
+  animation: intro-letter-fade-in 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  opacity: 0;
+}
+
+/* Efecto de respiración suave (Slow Breath) para logos */
+@keyframes slow-breath {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 40px rgba(226, 189, 108, 0.2);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 15px 50px rgba(226, 189, 108, 0.35);
+  }
+}
+
+.animate-slow-breath {
+  animation: slow-breath 5s ease-in-out infinite;
+}
+
+/* Efecto de flotación suave y premium para la mascota */
+@keyframes smooth-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-smooth-float {
+  animation: smooth-float 4s ease-in-out infinite;
+}
+
+
 
 

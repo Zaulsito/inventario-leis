@@ -1,0 +1,29 @@
+"  // Estado para el modal del video tutorial e interfaz interactiva simulada
+  const [showVideoModal, setShowVideoModal] = useState(false)
+  const [videoIsPlaying, setVideoIsPlaying] = useState(false)
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0)
+  const [videoIsMuted, setVideoIsMuted] = useState(false)
+  const videoDuration = 25 // 25 segundos (5s por diapositiva)
+
+  useEffect(() => {
+    let interval = null;
+    if (showVideoModal && videoIsPlaying) {
+      interval = setInterval(() => {
+        setVideoCurrentTime((prevTime) => {
+          if (prevTime >= videoDuration) {
+            return 0; // Bucle continuo
+          }
+          return Number((prevTime + 0.1).toFixed(1));
+        });
+      }, 100);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [showVideoModal, videoIsPlaying]);
+
+  const activeSlide = Math.min(4, Math.floor(videoCurrentTime / 5));
+  const formatVideoTime = (seconds) => {
+    const secs = Math.floor(seconds);
+    return `0:${secs < 10 ? '0' : ''}${secs}`;
+  };"
