@@ -201,11 +201,23 @@ export default function CatalogoPublico() {
     };
   }, []);
 
-  // Resetear video al cerrar el modal
+  // Controlar la reproducción del video al abrir/cerrar el modal
   useEffect(() => {
-    if (!showVideoModal && videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
+    if (showVideoModal) {
+      // Intentar reproducir automáticamente con delay mínimo para asegurar que el ref está montado
+      const playTimer = setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.play().catch((err) => {
+            console.log("El navegador bloqueó el autoplay", err);
+          });
+        }
+      }, 150);
+      return () => clearTimeout(playTimer);
+    } else {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      }
     }
   }, [showVideoModal]);
 
