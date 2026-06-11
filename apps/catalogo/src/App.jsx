@@ -4076,38 +4076,31 @@ export default function CatalogoPublico() {
         </div>
       )}
 
-      {/* ── DEMO INTRO SCREEN OVERLAY (ESTRELLA FUGAZ) ── */}
+      {/* ── DEMO INTRO SCREEN OVERLAY (ESTRELLA FUGAZ - MODO CLARO) ── */}
       {showDemoIntro && (
-        <div className="fixed inset-0 z-[250] bg-[#0c0c0e] flex flex-col items-center justify-center overflow-hidden animate-out fade-out zoom-out-95 duration-700 delay-[2800ms]">
+        <div className="fixed inset-0 z-[250] bg-gradient-to-br from-[#fdfaf5] via-[#fdfbfa] to-[#ebdcb9] flex flex-col items-center justify-center overflow-hidden animate-out fade-out zoom-out-95 duration-700 delay-[2800ms]">
           {/* Subtle sparkling background */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.05)_0%,transparent_70%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.12)_0%,transparent_70%)] pointer-events-none" />
           
-          {/* Stars background moving/expanding like the administrator screen */}
-          <div className="stars-container opacity-60 dark:opacity-100">
-            <div className="stars-layer" />
-            <div className="stars-layer" />
-            <div className="stars-layer" />
-          </div>
-
           <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-transform duration-[3s] scale-95 animate-in zoom-in-95 duration-500">
             {/* Logo Container with star-sweep effect - perfectly circular and larger */}
-            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/30 shadow-2xl relative bg-black/40 flex items-center justify-center star-sweep-effect">
+            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/50 shadow-[0_10px_40px_rgba(226,189,108,0.2)] relative bg-white/95 flex items-center justify-center star-sweep-effect">
               <img 
-                src="/logo-dark.png" 
+                src="/logo.jpeg" 
                 alt="Logo Leis" 
                 className="w-full h-full object-cover rounded-full"
               />
             </div>
             
             {/* Glowing Aura under the logo */}
-            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-primary opacity-20 blur-3xl -z-10 animate-pulse" />
+            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-[#ebdcb9] opacity-40 blur-3xl -z-10 animate-pulse" />
 
             {/* Premium Slogan */}
             <div className="mt-8 space-y-2 animate-in slide-in-from-bottom-5 duration-700 delay-300">
-              <h1 className="font-headline text-2xl sm:text-3xl font-black text-[#e2bd6c] tracking-widest uppercase">
+              <h1 className="font-headline text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#be9440] via-[#e2bd6c] to-[#be9440] tracking-widest uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                 Leis
               </h1>
-              <p className="text-[9px] sm:text-[11px] font-bold tracking-[0.25em] text-gray-400 uppercase">
+              <p className="text-[9px] sm:text-[11px] font-bold tracking-[0.25em] text-[#5d3a28]/70 uppercase">
                 Tu éxito está en nuestros productos
               </p>
             </div>
