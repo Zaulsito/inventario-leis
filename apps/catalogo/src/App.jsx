@@ -132,8 +132,9 @@ export default function CatalogoPublico() {
   const [videoCurrentTime, setVideoCurrentTime] = useState(0)
   const [videoIsMuted, setVideoIsMuted] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const videoDuration = 25 // 25 segundos (5s por diapositiva)
+  const [videoDuration, setVideoDuration] = useState(25) // Duración dinámica cargada desde el video real
   const audioRef = useRef(null)
+  const videoRef = useRef(null)
   const simulatorRef = useRef(null)
 
   // Auto-Play Demo Recording states
@@ -200,49 +201,11 @@ export default function CatalogoPublico() {
     };
   }, []);
 
+  // Resetear video al cerrar el modal
   useEffect(() => {
-    let interval = null;
-    if (showVideoModal && videoIsPlaying) {
-      interval = setInterval(() => {
-        setVideoCurrentTime((prevTime) => {
-          if (prevTime >= videoDuration) {
-            return 0; // Bucle continuo
-          }
-          return Number((prevTime + 0.1).toFixed(1));
-        });
-      }, 100);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [showVideoModal, videoIsPlaying]);
-
-  // Controlar la reproducción de la música de fondo MP3 real
-  useEffect(() => {
-    if (audioRef.current) {
-      if (showVideoModal && videoIsPlaying) {
-        audioRef.current.play().catch((err) => {
-          console.log("El navegador bloqueó la reproducción automática. Se activará tras interactuar.", err);
-        });
-      } else {
-        audioRef.current.pause();
-      }
-    }
-  }, [showVideoModal, videoIsPlaying]);
-
-  // Controlar el volumen y el silenciado de la música
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = videoIsMuted;
-      audioRef.current.volume = videoIsMuted ? 0 : 0.35; // Un volumen suave de fondo del 35%
-    }
-  }, [videoIsMuted]);
-
-  // Resetear audio al cerrar el modal
-  useEffect(() => {
-    if (!showVideoModal && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    if (!showVideoModal && videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
     }
   }, [showVideoModal]);
 
@@ -3404,9 +3367,6 @@ export default function CatalogoPublico() {
         <div className="fixed inset-0 z-[150] flex flex-col items-center justify-start sm:justify-center overflow-y-auto p-2 xs:p-4 py-8">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowVideoModal(false)} />
           
-          {/* Elemento de audio real para reproducir la música de fondo */}
-          <audio ref={audioRef} src="/music.mp3" loop />
-          
           <div className={`relative w-full max-w-3xl border rounded-[2rem] sm:rounded-[2.5rem] p-4 xs:p-6 md:p-8 shadow-2xl overflow-hidden animate-in zoom-in duration-300 ${
             isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/90' : 'bg-white border-outline-variant/20 text-on-surface shadow-black/20'
           }`}>
@@ -3424,7 +3384,7 @@ export default function CatalogoPublico() {
                 <div>
                   <h2 className="font-headline text-base xs:text-lg md:text-xl font-bold">Video Tutorial de Compra</h2>
                   <p className={`text-[10px] md:text-xs font-medium ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                    Aprende en 1 minuto cómo realizar tus pedidos en la plataforma Leis
+                    Aprende cómo realizar tus pedidos en la plataforma Leis
                   </p>
                 </div>
               </div>
@@ -3440,7 +3400,7 @@ export default function CatalogoPublico() {
               </button>
             </div>
 
-            {/* Custom Interactive HTML5 Video Tutorial Simulator */}
+            {/* Custom Premium HTML5 Video Tutorial Player */}
             <div 
               ref={simulatorRef}
               className={`relative overflow-hidden border border-[#e2bd6c]/20 dark:border-white/5 bg-[#0f0f12] select-none group transition-all duration-300 ${
@@ -3450,129 +3410,25 @@ export default function CatalogoPublico() {
               }`}
             >
               
-              {/* Contenido Dinámico de las Diapositivas */}
-              <div className="absolute inset-0 flex items-center justify-center p-4 xs:p-6 sm:p-8 transition-all duration-700 overflow-hidden bg-[#0c0c0e]">
-                
-                {/* Fondo Degradado Dinámico según Diapositiva */}
-                <div className="absolute inset-0 opacity-20 blur-3xl scale-125 pointer-events-none transition-all duration-1000"
-                  style={{
-                    backgroundImage: `radial-gradient(circle at 50% 50%, ${
-                      activeSlide === 0 ? '#e2bd6c' :
-                      activeSlide === 1 ? '#3b82f6' :
-                      activeSlide === 2 ? '#ec4899' :
-                      activeSlide === 3 ? '#f59e0b' :
-                      '#10b981'
-                    } 0%, rgba(15,15,18,0) 70%)`
-                  }}
-                />
-
-                {/* Floating Luxury Gold Shines and Sparkles (Brillos y Estrellas flotantes en el fondo) */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-10 opacity-30">
-                  <span className="absolute top-[8%] left-[6%] text-xs opacity-60 animate-pulse text-[#e2bd6c]">✨</span>
-                  <span className="absolute top-[12%] right-[8%] text-[10px] opacity-40 animate-ping duration-[4s] text-[#e2bd6c]">✨</span>
-                  <span className="absolute bottom-[12%] left-[10%] text-xs opacity-50 animate-bounce text-[#e2bd6c]">✨</span>
-                  <span className="absolute bottom-[10%] right-[6%] text-sm opacity-60 animate-pulse text-[#e2bd6c]">✨</span>
-                </div>
-
-                {/* Slide Card - Glassmorphism, ultra premium rounded borders, elegant shadows */}
-                <div className={`w-full max-w-xl p-6 sm:p-10 rounded-[2.5rem] border shadow-2xl relative select-none z-20 flex flex-col items-center justify-between min-h-[260px] sm:min-h-[300px] transition-all duration-500 transform hover:scale-[1.01] ${
-                  isDark 
-                    ? 'bg-[#18181b]/80 border-white/5 shadow-black/85 text-white' 
-                    : 'bg-[#fbf9f4]/95 border-[#e2bd6c]/20 shadow-black/10 text-[#2a1b0a]'
-                }`}>
-                  
-                  {/* Floating particles inside the slide card */}
-                  <span className="absolute top-4 left-6 text-[10px] animate-pulse text-[#e2bd6c]">✨</span>
-                  <span className="absolute bottom-4 right-6 text-xs animate-ping text-[#e2bd6c]">✨</span>
-
-                  {/* Icono central de lujo con halo brillante */}
-                  <div className="flex flex-col items-center gap-4 w-full">
-                    <div className="relative flex items-center justify-center">
-                      {/* Halo radial blur */}
-                      <div className={`absolute w-16 h-16 rounded-full blur-xl opacity-60 animate-pulse bg-gradient-to-r ${
-                        activeSlide === 0 ? 'from-[#e2bd6c] to-[#be9440]' :
-                        activeSlide === 1 ? 'from-[#3b82f6] to-[#1d4ed8]' :
-                        activeSlide === 2 ? 'from-[#ec4899] to-[#be185d]' :
-                        activeSlide === 3 ? 'from-[#f59e0b] to-[#d97706]' :
-                        'from-[#10b981] to-[#047857]'
-                      }`} />
-                      
-                      {/* Icon Container circular */}
-                      <div className={`w-14 h-14 rounded-full flex items-center justify-center border relative z-10 transition-all duration-500 shadow-lg ${
-                        isDark 
-                          ? 'bg-black/40 border-white/10 text-[#e2bd6c]' 
-                          : 'bg-[#f4ede1] border-[#e2bd6c]/30 text-[#5d3a28]'
-                      }`}>
-                        <span className="material-symbols-outlined text-2xl font-black select-none">
-                          {activeSlide === 0 ? 'crown' :
-                           activeSlide === 1 ? 'search' :
-                           activeSlide === 2 ? 'shopping_bag' :
-                           activeSlide === 3 ? 'playlist_add_check' :
-                           'chat'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Contenido textual con animaciones suaves */}
-                    <div className="text-center space-y-1.5 sm:space-y-2 max-w-md">
-                      {/* Badge de Paso */}
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[7px] sm:text-[9px] font-black tracking-widest uppercase bg-[#e2bd6c]/10 text-[#e2bd6c] border border-[#e2bd6c]/20 mb-1 animate-pulse">
-                        {activeSlide === 0 ? 'Introducción' : `Paso ${activeSlide} de 4`}
-                      </span>
-                      
-                      {/* Título de la diapositiva */}
-                      <h3 className={`font-headline text-base sm:text-xl font-black leading-tight tracking-wide ${
-                        isDark ? 'text-white' : 'text-[#5d3a28]'
-                      }`}>
-                        {activeSlide === 0 ? 'Bienvenido a Leis' :
-                         activeSlide === 1 ? '1. Explora el Catálogo' :
-                         activeSlide === 2 ? '2. Añade a tu Bolsa' :
-                         activeSlide === 3 ? '3. Revisa y Filtra' :
-                         '4. Confirma por WhatsApp'}
-                      </h3>
-                      
-                      {/* Subtítulo itálico de lujo */}
-                      <p className="text-[9px] sm:text-xs italic font-bold text-gray-400 select-none">
-                        {activeSlide === 0 ? 'Joyas & Accesorios de Alta Gama' :
-                         activeSlide === 1 ? 'Filtros y Búsqueda en Tiempo Real' :
-                         activeSlide === 2 ? 'Variantes de Talla y Opciones' :
-                         activeSlide === 3 ? 'Revisión de Bolsa Interactiva' :
-                         'Contacto y Stock Inmediato'}
-                      </p>
-                      
-                      {/* Descripción detallada */}
-                      <p className={`text-[8px] sm:text-[11px] leading-relaxed font-semibold transition-all duration-300 ${
-                        isDark ? 'text-gray-300' : 'text-[#2a1b0a]/80'
-                      }`}>
-                        {activeSlide === 0 ? 'Te damos la bienvenida a tu catálogo premium online. Aquí podrás explorar y seleccionar nuestras piezas más exclusivas diseñadas con dedicación y lujo.' :
-                         activeSlide === 1 ? 'Encuentra lo que deseas al instante. Usa la barra de búsqueda o navega a través de las categorías de nuestra colección en el panel lateral.' :
-                         activeSlide === 2 ? 'Elige la variante perfecta del producto (ej. talla, color) y haz clic en "Añadir al Carrito" para sumarlo a tu bolsa de compra.' :
-                         activeSlide === 3 ? 'Abre tu carrito para revisar cantidades. Filtra visualmente los artículos por categorías (anillos, aros, etc.) sin alterar el total del pedido.' :
-                         'Ingresa tu nombre en el pedido y envíalo directamente a nuestro WhatsApp. Tu asesora verificará la disponibilidad y coordinará tu entrega al instante.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Indicador de progreso de bolitas / pills en el fondo de la tarjeta */}
-                  <div className="flex items-center gap-1.5 mt-5 animate-in fade-in duration-300">
-                    {[0, 1, 2, 3, 4].map((slideIdx) => {
-                      const isCurrent = activeSlide === slideIdx;
-                      return (
-                        <div 
-                          key={slideIdx}
-                          onClick={() => setVideoCurrentTime(slideIdx * 5)}
-                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                            isCurrent 
-                              ? 'w-6 bg-[#e2bd6c]' 
-                              : 'w-1.5 bg-gray-400/40 hover:bg-gray-400/70'
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-
-                </div>
-              </div>
+              {/* Real Video Element */}
+              <video
+                ref={videoRef}
+                src="/tutorial.mp4"
+                className="w-full h-full object-contain absolute inset-0 z-10"
+                onPlay={() => setVideoIsPlaying(true)}
+                onPause={() => setVideoIsPlaying(false)}
+                onTimeUpdate={(e) => setVideoCurrentTime(e.currentTarget.currentTime)}
+                onLoadedMetadata={(e) => setVideoDuration(e.currentTarget.duration || 25)}
+                onClick={() => {
+                  if (videoRef.current) {
+                    if (videoIsPlaying) {
+                      videoRef.current.pause();
+                    } else {
+                      videoRef.current.play().catch(err => console.log(err));
+                    }
+                  }
+                }}
+              />
 
               {/* Watermark de Marca */}
               <div className={`absolute z-20 flex items-center gap-2 pointer-events-none transition-opacity ${
@@ -3584,7 +3440,7 @@ export default function CatalogoPublico() {
                 <span className="text-[7px] sm:text-[8px] font-bold tracking-widest text-[#e2bd6c] uppercase font-headline">Leis Catalog Tutorial</span>
               </div>
 
-              {/* Controles del Video Player Simulados */}
+              {/* Controles del Video Player Premium */}
               <div className={`absolute bottom-0 left-0 right-0 z-30 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/50 to-transparent flex flex-col gap-1.5 sm:gap-2 transition-transform ${
                 isFullscreen 
                   ? 'translate-y-0' 
@@ -3599,7 +3455,11 @@ export default function CatalogoPublico() {
                     const clickX = e.clientX - rect.left;
                     const width = rect.width;
                     const newPct = clickX / width;
-                    setVideoCurrentTime(Number((newPct * videoDuration).toFixed(1)));
+                    const newTime = newPct * videoDuration;
+                    if (videoRef.current) {
+                      videoRef.current.currentTime = newTime;
+                    }
+                    setVideoCurrentTime(newTime);
                   }}
                 >
                   <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
@@ -3620,7 +3480,15 @@ export default function CatalogoPublico() {
                   {/* Controles de la izquierda (Play, Pause, Tiempo) */}
                   <div className="flex items-center gap-2 sm:gap-4">
                     <button 
-                      onClick={() => setVideoIsPlaying(!videoIsPlaying)}
+                      onClick={() => {
+                        if (videoRef.current) {
+                          if (videoIsPlaying) {
+                            videoRef.current.pause();
+                          } else {
+                            videoRef.current.play().catch(err => console.log(err));
+                          }
+                        }
+                      }}
                       className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors cursor-pointer text-white border-0"
                       title={videoIsPlaying ? 'Pausar' : 'Reproducir'}
                     >
@@ -3631,8 +3499,10 @@ export default function CatalogoPublico() {
 
                     <button 
                       onClick={() => {
-                        setVideoCurrentTime(0);
-                        setVideoIsPlaying(true);
+                        if (videoRef.current) {
+                          videoRef.current.currentTime = 0;
+                          videoRef.current.play().catch(err => console.log(err));
+                        }
                       }}
                       className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
                       title="Reiniciar"
@@ -3646,15 +3516,21 @@ export default function CatalogoPublico() {
                     </span>
                   </div>
 
-                  {/* Leyenda de la Diapositiva Activa */}
+                  {/* Leyenda del Video */}
                   <span className="text-[8px] sm:text-[9px] uppercase tracking-widest font-black text-[#e2bd6c] hidden xs:inline-block bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 px-2 py-0.5 rounded">
-                    {activeSlide === 0 ? 'Intro' : activeSlide === 1 ? 'Paso 1: Explorar' : activeSlide === 2 ? 'Paso 2: Comprar' : activeSlide === 3 ? 'Paso 3: Enviar' : 'Listo'}
+                    Reproduciendo Tutorial
                   </span>
 
                   {/* Controles de la derecha (Silenciar, Pantalla Completa) */}
                   <div className="flex items-center gap-2 sm:gap-3">
                     <button 
-                      onClick={() => setVideoIsMuted(!videoIsMuted)}
+                      onClick={() => {
+                        const newMuted = !videoIsMuted;
+                        setVideoIsMuted(newMuted);
+                        if (videoRef.current) {
+                          videoRef.current.muted = newMuted;
+                        }
+                      }}
                       className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer text-white border-0"
                       title={videoIsMuted ? 'Activar Sonido' : 'Silenciar'}
                     >
@@ -3664,7 +3540,7 @@ export default function CatalogoPublico() {
                     </button>
                     
                     <span className="text-[8px] text-gray-400 font-semibold tracking-wider bg-white/5 px-2 py-0.5 rounded hidden sm:inline-block">
-                      {videoIsMuted ? 'Silenciado' : 'Música'}
+                      {videoIsMuted ? 'Silenciado' : 'Sonido'}
                     </span>
 
                     <button 
@@ -3688,9 +3564,9 @@ export default function CatalogoPublico() {
             <div className={`flex items-center gap-4 p-4 rounded-2xl border relative z-10 ${
               isDark ? 'bg-white/5 border-white/5' : 'bg-surface-container-low border-outline-variant/10'
             }`}>
-              <span className="text-2xl shrink-0">✨</span>
+              <span className="text-2xl shrink-0">🎬</span>
               <p className={`text-[10px] md:text-xs leading-relaxed font-semibold ${isDark ? 'text-gray-300' : 'text-on-surface-variant'}`}>
-                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Guía Leis:</strong> "Bienvenido al video explicativo interactivo del catálogo de Leis. Hemos preparado este simulador paso a paso para enseñarte cómo explorar categorías, buscar productos, agregarlos al carrito y enviar tu pedido a nuestro WhatsApp de forma 100% clara y profesional. ¡Disfrútalo!"
+                <strong className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>Video Tutorial:</strong> En este video te mostramos el paso a paso detallado para realizar tus compras de forma fácil y rápida: buscar productos, agregarlos a tu bolsa de compras y enviar tu pedido directamente a nuestra asesora por WhatsApp. ¡Esperamos que te sea de ayuda!
               </p>
             </div>
 
