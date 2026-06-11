@@ -2269,7 +2269,8 @@ export default function CatalogoPublico() {
               </button>
             )}
 
-            <button 
+            {/* Ocultado por el momento signo de tutorial */}
+            {/* <button 
               onClick={() => {
                 setShowTutorial(prev => {
                   const newVal = !prev;
@@ -2285,7 +2286,7 @@ export default function CatalogoPublico() {
               title="Guía de Compra / Ayuda"
             >
               <span className="material-symbols-outlined">help</span>
-            </button>
+            </button> */}
 
             <button 
               id="header-cart-btn"
