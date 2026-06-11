@@ -1896,6 +1896,12 @@ export default function CatalogoPublico() {
 
   // --- RENDER ---
 
+  // Pre-calculate demo products to highlight in the catalog grid
+  const demoProd1 = isAutoDemo ? (productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
+    || productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"))
+    || productos.find(p => p.fotoUrl)) : null;
+  const demoProd2 = isAutoDemo && demoProd1 ? productos.find(p => p.id !== demoProd1.id && p.fotoUrl && (p.stock > 0 || (p.variantes && p.variantes.some(v => v.stock > 0)))) : null;
+
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-surface text-on-surface">Cargando catálogo...</div>
   }
@@ -2442,8 +2448,8 @@ export default function CatalogoPublico() {
               const isStep3Highlight = tourStep === 3 && pIndex === 0;
               const isGrayscaleTour = tourStep === 3 && pIndex !== 0;
               const isDemoHighlightedProduct = isAutoDemo && (
-                (autoDemoStep === 4 && (p.nombre || '').toLowerCase().includes("collagen")) ||
-                (autoDemoStep === 6 && !(p.nombre || '').toLowerCase().includes("collagen") && pIndex === 0)
+                ((autoDemoStep === 3 || autoDemoStep === 4) && p.id === demoProd1?.id) ||
+                (autoDemoStep === 6 && (p.id === demoProd1?.id || p.id === demoProd2?.id))
               );
 
               return (
