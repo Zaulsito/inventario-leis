@@ -4149,8 +4149,16 @@ export default function CatalogoPublico() {
               </p>
               
               {showOutroLeis && (
-                <h1 className="font-headline text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#ffd700] via-[#e2bd6c] to-[#fff] tracking-[0.3em] uppercase animate-in zoom-in-75 slide-in-from-bottom-6 duration-1000 select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.6)] text-glow-shine">
-                  Leis
+                <h1 className="font-headline text-3xl sm:text-5xl font-black tracking-[0.3em] uppercase select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.6)] flex items-center justify-center pl-[0.3em]">
+                  {"LEIS".split("").map((letter, idx) => (
+                    <span 
+                      key={idx}
+                      className="text-transparent bg-clip-text bg-gradient-to-b from-[#ffd700] via-[#e2bd6c] to-[#fff] inline-block animate-outro-letter text-glow-shine"
+                      style={{ animationDelay: `${idx * 0.18}s` }}
+                    >
+                      {letter}
+                    </span>
+                  ))}
                 </h1>
               )}
             </div>

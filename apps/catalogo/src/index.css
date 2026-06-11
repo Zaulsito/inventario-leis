@@ -349,5 +349,24 @@ body {
   animation: point-right 0.8s infinite ease-in-out;
 }
 
+/* Animación letra por letra premium para el Outro (LEIS) */
+@keyframes outro-letter-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.65);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-outro-letter {
+  animation: outro-letter-fade-in 1.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  opacity: 0;
+}
+
 
 
