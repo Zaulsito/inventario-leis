@@ -598,25 +598,25 @@ export default function CatalogoPublico() {
     const steps = [
       {
         duration: 11000,
-        caption: "¡Hola! Bienvenido al catálogo oficial de Leis 👑. Aquí verás todas nuestras colecciones exclusivas. Lo primero que te mostramos es que puedes alternar entre modo claro y oscuro haciendo clic en el icono de sol/luna arriba.",
+        caption: "¡Bienvenido al catálogo Leis! 👑 Puedes alternar fácilmente entre el modo claro y oscuro desde el botón superior.",
         action: () => {
-          // Toggle dark/light theme to demonstrate it
-          setIsDark(false);
+          // Demostrar cambio de modo (empezar en oscuro y cambiar a claro)
+          setIsDark(true);
           setTimeout(() => {
-            setIsDark(true); // Remain in dark mode (modo negro)
+            setIsDark(false); // Permanecer en modo claro para el resto del tutorial
           }, 4500);
         }
       },
       {
         duration: 7000,
-        caption: "A la izquierda de la pantalla, contamos con un buscador y panel de filtros. Al escribir aquí, puedes buscar por nombre, código SKU o marca de inmediato para encontrar cualquier pieza.",
+        caption: "Usa el buscador y panel de filtros lateral para encontrar tus joyas favoritas por nombre, SKU o marca.",
         action: () => {
           setIsSidebarCollapsed(false); // Ensure sidebar is open
         }
       },
       {
         duration: 8000,
-        caption: "Busquemos un ejemplo en el buscador escribiendo lentamente 'Aceite Collagen'. Observa cómo la lista de productos se actualiza al instante.",
+        caption: "Escribe el producto que deseas (ej. 'Aceite Collagen') y la lista se filtrará al instante.",
         action: () => {
           const text = "Aceite Collagen";
           let currentText = "";
@@ -634,7 +634,7 @@ export default function CatalogoPublico() {
       },
       {
         duration: 10000,
-        caption: "Una vez que encontramos nuestro producto 'Aceite Collagen', hacemos clic en él para ver sus detalles. Aquí podemos ver la descripción completa y verificar la disponibilidad de stock.",
+        caption: "Haz clic en el producto para ver su descripción, stock y galería de imágenes en detalle.",
         action: () => {
           const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
             || productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"))
@@ -663,7 +663,7 @@ export default function CatalogoPublico() {
       },
       {
         duration: 7000,
-        caption: "Desde la vista de detalles del producto, podemos verificar el stock en bodega y agregarlo a nuestra bolsa de compras haciendo clic en 'Añadir al Pedido'.",
+        caption: "Elige tus variantes y haz clic en 'Añadir al Pedido' para sumarlo a tu bolsa de compras.",
         action: () => {
           const prod = productos.find(p => (p.nombre || '').toLowerCase().includes("collagen") && p.fotoUrl)
             || productos.find(p => (p.nombre || '').toLowerCase().includes("collagen"))
@@ -678,7 +678,7 @@ export default function CatalogoPublico() {
       },
       {
         duration: 8000,
-        caption: "Para mostrarte cómo gestionar varios productos a la vez, limpiaremos la búsqueda anterior y añadiremos otra pieza aleatoria al carrito.",
+        caption: "Puedes limpiar la búsqueda y añadir más productos para gestionar un pedido múltiple.",
         action: () => {
           setSearchTerm('');
           setTimeout(() => {
@@ -694,14 +694,14 @@ export default function CatalogoPublico() {
       },
       {
         duration: 7000,
-        caption: "¡Excelente! Ahora procederemos a abrir nuestra bolsa de compras haciendo clic en el icono del Carrito que se encuentra en la cabecera.",
+        caption: "Abre tu bolsa de compras haciendo clic en el icono del carrito en la cabecera.",
         action: () => {
           setIsCartOpen(true);
         }
       },
       {
         duration: 13000,
-        caption: "Dentro de la bolsa de compras puedes ajustar cantidades, filtrar visualmente por categorías para aislar productos sin alterar el total del pedido, y ver el total en tiempo real.",
+        caption: "Ajusta unidades o filtra por categorías en tu bolsa de compras sin alterar el total del pedido.",
         action: () => {
           // Increase quantity of first item
           setTimeout(() => {
@@ -734,7 +734,7 @@ export default function CatalogoPublico() {
       },
       {
         duration: 7000,
-        caption: "Una vez que revisamos nuestro pedido y confirmamos que todo está correcto, hacemos clic en el botón 'Hacer Pedido' al final de la bolsa.",
+        caption: "Revisa el resumen y haz clic en 'Hacer Pedido' para iniciar el checkout.",
         action: () => {
           setIsCartOpen(false);
           setTimeout(() => {
@@ -744,7 +744,7 @@ export default function CatalogoPublico() {
       },
       {
         duration: 9000,
-        caption: "En este modal, solo debes ingresar tu nombre para identificarte ante tu asesora. Escribiremos 'Yamir Leis' y luego pulsaremos enviar a WhatsApp para procesarlo.",
+        caption: "Ingresa tu nombre y pulsa 'Enviar a WhatsApp' para finalizar y procesar tu pedido.",
         action: () => {
           const text = "Yamir Leis";
           let currentText = "";
@@ -762,7 +762,7 @@ export default function CatalogoPublico() {
       },
       {
         duration: 12000,
-        caption: "¡Un detalle espectacular! Si estás realizando tu pedido como invitado, tienes la opción de crear tu cuenta de inmediato para guardar tus datos y agilizar tus próximas compras.",
+        caption: "Si eres invitado, puedes registrar tu cuenta al instante para agilizar tus próximas compras.",
         action: () => {
           setShowCheckout(false);
           setTimeout(() => {
@@ -825,7 +825,7 @@ export default function CatalogoPublico() {
       },
       {
         duration: 10000,
-        caption: "¡Y listo! De esta forma realizas tus pedidos de manera rápida, elegante y segura en el catálogo Leis. ¡Gracias por tu tiempo! 💖",
+        caption: "¡Y listo! Compras rápidas y seguras en Leis. ¡Gracias por tu preferencia! 💖",
         action: () => {
           setShowAuthModal(false);
           setTimeout(() => {
