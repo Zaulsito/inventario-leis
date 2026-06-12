@@ -2179,6 +2179,25 @@ export default function CatalogoPublico() {
               </span>
             </button>
 
+            {/* Botón de Guía de Compra / Ayuda (Signo de pregunta) */}
+            <button 
+              onClick={() => {
+                setShowTutorial(prev => {
+                  const newVal = !prev;
+                  if (!newVal) {
+                    localStorage.setItem('hide_catalogo_tutorial', 'true');
+                  } else {
+                    localStorage.removeItem('hide_catalogo_tutorial');
+                  }
+                  return newVal;
+                });
+              }}
+              className={`p-3 rounded-2xl transition-colors shrink-0 ml-1 ${showTutorial ? (isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/20 text-primary') : (isDark ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant')}`}
+              title="Guía de Compra / Ayuda"
+            >
+              <span className="material-symbols-outlined">help</span>
+            </button>
+
             {currentUser ? (
               <div className="relative">
                 <button 
@@ -2244,24 +2263,7 @@ export default function CatalogoPublico() {
               </button>
             )}
 
-            {/* Ocultado por el momento signo de tutorial */}
-            {/* <button 
-              onClick={() => {
-                setShowTutorial(prev => {
-                  const newVal = !prev;
-                  if (!newVal) {
-                    localStorage.setItem('hide_catalogo_tutorial', 'true');
-                  } else {
-                    localStorage.removeItem('hide_catalogo_tutorial');
-                  }
-                  return newVal;
-                });
-              }}
-              className={`p-3 rounded-2xl transition-colors shrink-0 ml-1 ${showTutorial ? (isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/20 text-primary') : (isDark ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant')}`}
-              title="Guía de Compra / Ayuda"
-            >
-              <span className="material-symbols-outlined">help</span>
-            </button> */}
+
 
             <button 
               id="header-cart-btn"
@@ -2372,35 +2374,23 @@ export default function CatalogoPublico() {
                 {/* Botones de acción del tutorial */}
                 <div className="mt-6 flex flex-col sm:flex-row justify-center items-center gap-3">
                   <button
-                    onClick={() => setTourStep(1)}
+                    onClick={() => setShowVideoModal(true)}
                     className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 shadow-lg cursor-pointer ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/20' : 'bg-primary text-on-primary shadow-primary/20'}`}
                   >
-                    <span className="material-symbols-outlined text-sm animate-pulse">play_circle</span>
-                    Iniciar viaje de prueba 🐾
+                    <span className="material-symbols-outlined text-sm">smart_display</span>
+                    Ver Video Tutorial 🎬
                   </button>
 
                   <button
-                    onClick={startAutoDemo}
+                    onClick={() => setTourStep(1)}
                     className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 border cursor-pointer ${
                       isDark 
                         ? 'border-[#e2bd6c]/30 text-[#e2bd6c] hover:bg-[#e2bd6c]/10 bg-[#e2bd6c]/10 shadow-md shadow-[#e2bd6c]/10' 
                         : 'border-primary/30 text-primary hover:bg-primary/5 bg-primary/10 shadow-sm'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-sm animate-pulse">videocam</span>
-                    Grabar Video Demo 🎬
-                  </button>
-
-                  <button
-                    onClick={() => setShowVideoModal(true)}
-                    className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 border cursor-pointer ${
-                      isDark 
-                        ? 'border-white/10 text-white hover:bg-white/5 bg-white/5 shadow-md shadow-black/20' 
-                        : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant bg-surface-container-low shadow-sm'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-sm">smart_display</span>
-                    Ver Video Tutorial 🎬
+                    <span className="material-symbols-outlined text-sm animate-pulse">play_circle</span>
+                    Iniciar viaje de prueba 🐾
                   </button>
                 </div>
 
