@@ -153,39 +153,7 @@ export default function CatalogoPublico() {
   const [hoveredZoomProduct, setHoveredZoomProduct] = useState(null)
   const hoverZoomTimeoutRef = useRef(null)
 
-  // Limpiar el temporizador al desmontar
-  useEffect(() => {
-    return () => {
-      if (hoverZoomTimeoutRef.current) {
-        clearTimeout(hoverZoomTimeoutRef.current);
-      }
-    };
-  }, []);
 
-  // Cancelar la vista ampliada si se abre el modal de detalles
-  useEffect(() => {
-    if (productoParaVer) {
-      if (hoverZoomTimeoutRef.current) {
-        clearTimeout(hoverZoomTimeoutRef.current);
-      }
-      setHoveredZoomProduct(null);
-    }
-  }, [productoParaVer]);
-
-  // Cancelar la vista ampliada en caso de scroll en la ventana
-  useEffect(() => {
-    const handleScroll = () => {
-      if (hoverZoomTimeoutRef.current) {
-        clearTimeout(hoverZoomTimeoutRef.current);
-      }
-      setHoveredZoomProduct(null);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
 
   const toggleFullscreen = () => {
     if (!simulatorRef.current) return;
@@ -953,6 +921,40 @@ export default function CatalogoPublico() {
   const [mostrarIndicador, setMostrarIndicador] = useState(false)
   const [mostrarControlesZoom, setMostrarControlesZoom] = useState(true)
   const [expandedImage, setExpandedImage] = useState(null)
+
+  // Limpiar el temporizador de hover zoom al desmontar
+  useEffect(() => {
+    return () => {
+      if (hoverZoomTimeoutRef.current) {
+        clearTimeout(hoverZoomTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Cancelar la vista ampliada si se abre el modal de detalles
+  useEffect(() => {
+    if (productoParaVer) {
+      if (hoverZoomTimeoutRef.current) {
+        clearTimeout(hoverZoomTimeoutRef.current);
+      }
+      setHoveredZoomProduct(null);
+    }
+  }, [productoParaVer]);
+
+  // Cancelar la vista ampliada en caso de scroll en la ventana
+  useEffect(() => {
+    const handleScroll = () => {
+      if (hoverZoomTimeoutRef.current) {
+        clearTimeout(hoverZoomTimeoutRef.current);
+      }
+      setHoveredZoomProduct(null);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // --- Back button closing for mobile/browser history ---
   useEffect(() => {
