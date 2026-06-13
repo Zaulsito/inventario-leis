@@ -149,6 +149,43 @@ export default function CatalogoPublico() {
   const [pointerStyle, setPointerStyle] = useState({ display: 'none' })
   const [pointerType, setPointerType] = useState('right') // 'left' or 'right'
 
+  // Estado para la vista ampliada (hover zoom)
+  const [hoveredZoomProduct, setHoveredZoomProduct] = useState(null)
+  const hoverZoomTimeoutRef = useRef(null)
+
+  // Limpiar el temporizador al desmontar
+  useEffect(() => {
+    return () => {
+      if (hoverZoomTimeoutRef.current) {
+        clearTimeout(hoverZoomTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Cancelar la vista ampliada si se abre el modal de detalles
+  useEffect(() => {
+    if (productoParaVer) {
+      if (hoverZoomTimeoutRef.current) {
+        clearTimeout(hoverZoomTimeoutRef.current);
+      }
+      setHoveredZoomProduct(null);
+    }
+  }, [productoParaVer]);
+
+  // Cancelar la vista ampliada en caso de scroll en la ventana
+  useEffect(() => {
+    const handleScroll = () => {
+      if (hoverZoomTimeoutRef.current) {
+        clearTimeout(hoverZoomTimeoutRef.current);
+      }
+      setHoveredZoomProduct(null);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   const toggleFullscreen = () => {
     if (!simulatorRef.current) return;
@@ -2419,7 +2456,31 @@ export default function CatalogoPublico() {
               );
 
               return (
-                <div key={p.id} className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''} ${isGrayscaleTour ? 'grayscale opacity-30 hover:grayscale-0 hover:opacity-90 duration-500 shadow-none border-dashed' : ''} ${isDemoHighlightedProduct ? 'demo-highlight' : ''}`}>
+                <div 
+                  key={p.id} 
+                  className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''} ${isGrayscaleTour ? 'grayscale opacity-30 hover:grayscale-0 hover:opacity-90 duration-500 shadow-none border-dashed' : ''} ${isDemoHighlightedProduct ? 'demo-highlight' : ''}`}
+                  onMouseEnter={() => {
+                    if (!p.fotoUrl) return;
+                    if (hoverZoomTimeoutRef.current) {
+                      clearTimeout(hoverZoomTimeoutRef.current);
+                    }
+                    hoverZoomTimeoutRef.current = setTimeout(() => {
+                      setHoveredZoomProduct(p);
+                    }, 3500);
+                  }}
+                  onMouseLeave={() => {
+                    if (hoverZoomTimeoutRef.current) {
+                      clearTimeout(hoverZoomTimeoutRef.current);
+                    }
+                    setHoveredZoomProduct(null);
+                  }}
+                  onClick={() => {
+                    if (hoverZoomTimeoutRef.current) {
+                      clearTimeout(hoverZoomTimeoutRef.current);
+                    }
+                    setHoveredZoomProduct(null);
+                  }}
+                >
                   {/* Imagen */}
                   <div 
                     className={`aspect-square relative overflow-hidden flex items-center justify-center cursor-pointer ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
@@ -4367,6 +4428,59 @@ export default function CatalogoPublico() {
             />
           </div>
 
+        </div>
+      )}
+
+      {/* ── HOVER ZOOM FLOATING PREVIEW ── */}
+      {hoveredZoomProduct && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center pointer-events-none p-4">
+          {/* Backdrop blur/dim layer - pointer-events-none so it doesn't block interactions */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[3px] transition-opacity duration-300 animate-in fade-in" />
+          
+          {/* Preview Card */}
+          <div className={`relative max-w-sm sm:max-w-md w-full rounded-[32px] overflow-hidden border shadow-2xl p-4 transition-all duration-300 scale-95 animate-in zoom-in-95 fade-in ${
+            isDark 
+              ? 'bg-[#151515]/95 border-[#e2bd6c]/30 text-white shadow-black/95' 
+              : 'bg-white/95 border-outline-variant/30 text-on-surface shadow-black/25'
+          }`}>
+            {/* Elegant luxury top accent */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-[#e2bd6c] to-transparent opacity-60" />
+            
+            {/* Enlarged Image container */}
+            <div className="aspect-square w-full rounded-[24px] overflow-hidden relative bg-black/5 flex items-center justify-center">
+              <img 
+                src={hoveredZoomProduct.fotoUrl} 
+                alt={hoveredZoomProduct.nombre} 
+                className="w-full h-full object-contain p-2" 
+              />
+              {/* Gold border accent inside the image */}
+              <div className="absolute inset-0 border border-[#e2bd6c]/15 rounded-[24px] pointer-events-none" />
+            </div>
+            
+            {/* Product description and price details */}
+            <div className="mt-4 text-center">
+              <div className="flex justify-center items-center gap-1.5 mb-1">
+                <span className="material-symbols-outlined text-[14px] text-[#e2bd6c] animate-pulse">zoom_in</span>
+                <span className={`text-[10px] uppercase tracking-[0.2em] font-black ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                  Vista Detallada 🐾
+                </span>
+              </div>
+              <h4 className="font-headline font-black text-lg md:text-xl line-clamp-2 leading-tight">
+                {hoveredZoomProduct.nombre}
+              </h4>
+              <p className={`text-[10px] md:text-xs uppercase tracking-widest mt-1 opacity-60`}>
+                {hoveredZoomProduct.coleccion || hoveredZoomProduct.categoria || ''}
+              </p>
+              <div className="mt-3 inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-gradient-to-r from-[#e2bd6c]/10 via-[#e2bd6c]/20 to-[#e2bd6c]/10 border border-[#e2bd6c]/30">
+                <span className={`font-headline font-black text-base md:text-lg ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                  ${(hoveredZoomProduct.precio || 0).toLocaleString('es-CL')}
+                </span>
+              </div>
+              <p className="text-[9px] opacity-40 mt-3 font-semibold">
+                Mueve el cursor o haz scroll para cerrar esta vista
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
