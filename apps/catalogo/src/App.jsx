@@ -2468,7 +2468,7 @@ export default function CatalogoPublico() {
                     }
                     hoverZoomTimeoutRef.current = setTimeout(() => {
                       setHoveredZoomProduct(p);
-                    }, 3500);
+                    }, 1500);
                   }}
                   onMouseLeave={() => {
                     if (hoverZoomTimeoutRef.current) {
