@@ -4440,7 +4440,7 @@ export default function CatalogoPublico() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[3px] transition-opacity duration-300 animate-in fade-in" />
           
           {/* Preview Card */}
-          <div className={`relative max-w-sm sm:max-w-md w-full rounded-[32px] overflow-hidden border shadow-2xl p-4 transition-all duration-300 scale-95 animate-in zoom-in-95 fade-in ${
+          <div className={`relative max-w-md md:max-w-xl lg:max-w-2xl w-full rounded-[32px] overflow-hidden border shadow-2xl p-4 transition-all duration-300 scale-95 animate-in zoom-in-95 fade-in ${
             isDark 
               ? 'bg-[#151515]/95 border-[#e2bd6c]/30 text-white shadow-black/95' 
               : 'bg-white/95 border-outline-variant/30 text-on-surface shadow-black/25'
@@ -4449,7 +4449,7 @@ export default function CatalogoPublico() {
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-[#e2bd6c] to-transparent opacity-60" />
             
             {/* Enlarged Image container */}
-            <div className="aspect-square w-full rounded-[24px] overflow-hidden relative bg-black/5 flex items-center justify-center">
+            <div className="w-full h-[50vh] sm:h-[60vh] rounded-[24px] overflow-hidden relative bg-black/5 flex items-center justify-center">
               <img 
                 src={hoveredZoomProduct.fotoUrl} 
                 alt={hoveredZoomProduct.nombre} 
