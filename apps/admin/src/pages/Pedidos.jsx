@@ -782,6 +782,20 @@ END:VCALENDAR`
   const listAbonados = pedidos.filter(p => p.pagoEstado === 'parcial');
   const listFinalizados = pedidos.filter(p => p.pagoEstado === 'pagado');
 
+  // Calcular montos acumulados para Pedidos Pendientes
+  const totalMontoPendientes = listPendientes.reduce((acc, p) => {
+    const totalOrder = p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0);
+    return acc + totalOrder;
+  }, 0);
+
+  // Calcular montos acumulados para Pedidos Abonados
+  const totalMontoAbonadoAbonados = listAbonados.reduce((acc, p) => acc + (Number(p.abono) || 0), 0);
+  const totalMontoTotalAbonados = listAbonados.reduce((acc, p) => {
+    const totalOrder = p.total || p.productos.reduce((sum, pr) => sum + (pr.cantidad * (pr.precio || 0)), 0);
+    return acc + totalOrder;
+  }, 0);
+  const totalMontoSaldoAbonados = totalMontoTotalAbonados - totalMontoAbonadoAbonados;
+
   const groupedPendientes = groupOrdersByCustomer(listPendientes);
   const groupedAbonados = groupOrdersByCustomer(listAbonados);
   const groupedFinalizados = groupOrdersByCustomer(listFinalizados);
@@ -856,7 +870,9 @@ END:VCALENDAR`
                     {listPendientes.length}
                   </span>
                 </div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">Sin ningún abono realizado</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">
+                  Sin ningún abono realizado &bull; Total Pendiente: <span className="text-error font-extrabold">${totalMontoPendientes.toLocaleString('es-CL')}</span>
+                </p>
               </div>
             </div>
             <div className="w-10 h-10 rounded-full bg-secondary/5 dark:bg-white/5 flex items-center justify-center border border-outline-variant/10 dark:border-white/10 transition-transform duration-300">
@@ -1207,7 +1223,9 @@ END:VCALENDAR`
                     {listAbonados.length}
                   </span>
                 </div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">En proceso de pago parcial</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-outline dark:text-gray-500">
+                  En proceso de pago parcial &bull; Abonado: <span className="text-amber-600 dark:text-amber-500 font-extrabold">${totalMontoAbonadoAbonados.toLocaleString('es-CL')}</span> &bull; Pendiente: <span className="text-primary dark:text-[#e2bd6c] font-extrabold">${totalMontoSaldoAbonados.toLocaleString('es-CL')}</span>
+                </p>
               </div>
             </div>
             <div className="w-10 h-10 rounded-full bg-secondary/5 dark:bg-white/5 flex items-center justify-center border border-outline-variant/10 dark:border-white/10 transition-transform duration-300">
