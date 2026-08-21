@@ -636,7 +636,7 @@ export default function Reportes() {
         {/* Decoración de fondo */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
         
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6 relative z-10">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6 relative z-20">
           <div className="flex-1">
             <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
             <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-[0.2em] mt-1 font-extrabold">Evolución de Ganancias vs Pérdidas</p>
