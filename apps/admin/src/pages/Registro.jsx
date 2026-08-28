@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { getLocalDateString } from '../utils/date'
+import { getLocalDateString, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
 
 function Campo({ label, children }) {
@@ -274,7 +274,7 @@ export default function Registro() {
                   <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-2xl">inventory_2</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-secondary uppercase tracking-[0.12em] mb-0.5">{item.fecha}</p>
+                  <p className="text-[10px] font-bold text-secondary uppercase tracking-[0.12em] mb-0.5">{formatDateDMA(item.fecha)}</p>
                   <h3 className="text-base font-headline leading-tight text-on-surface truncate">{item.producto}</h3>
                   <p className="text-xs text-on-surface-variant">{item.proveedor}</p>
                 </div>

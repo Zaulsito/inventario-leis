@@ -38,17 +38,29 @@ function getStartOfMonth() {
   return d
 }
 
-function getLocalStr(p) {
+function getLocalDateISO(p) {
   if (!p) return ''
-  const f = p.fechaEntrega || p.fechaCreacion
+  const f = p.fechaEntrega || p.fechaCreacion || p.fecha
   if (!f) return ''
   try {
+    if (typeof f === 'string') {
+      const clean = f.trim()
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean
+      if (/^\d{4}-\d{2}-\d{2}T/.test(clean)) return clean.split('T')[0]
+    }
     const d = new Date(f)
     if (isNaN(d.getTime())) return ''
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
   } catch (e) {
     return ''
   }
+}
+
+function getLocalStr(p) {
+  const iso = getLocalDateISO(p)
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}-${m}-${y}`
 }
 
 function formatMoney(value) {
@@ -298,7 +310,8 @@ export default function Reportes() {
     }
 
     registrosFiltrados.forEach(p => {
-      const dateStr = getLocalStr(p)
+      const dateStr = getLocalDateISO(p)
+      if (!dateStr) return;
       let sum = 0
       if (p.productos && Array.isArray(p.productos)) {
         p.productos.forEach(item => {
@@ -327,9 +340,10 @@ export default function Reportes() {
     return Object.keys(map).sort().map(dateStr => {
       const d = new Date(dateStr + 'T12:00:00')
       const nombreDia = d.toLocaleDateString('es-ES', { weekday: 'short' })
+      const [y, m, day] = dateStr.split('-')
       return {
         fechaReal: dateStr,
-        label: periodo === 0 ? nombreDia.toUpperCase() : dateStr.split('-').slice(1).reverse().join('/'),
+        label: periodo === 0 ? nombreDia.toUpperCase() : `${day}-${m}-${y}`,
         Ganancia: map[dateStr].Ganancia,
         Pérdida: -map[dateStr].Pérdida,
         Gasto: map[dateStr].Gasto,

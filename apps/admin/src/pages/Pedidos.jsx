@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment, useRef } from 'react'
 import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { calcularEstado } from '../utils/date'
+import { calcularEstado, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
 
 const formInicial = { 
@@ -67,7 +67,7 @@ const groupOrdersByCustomer = (ordersList) => {
   const orderedKeys = [];
   
   ordersList.forEach(p => {
-    const name = (p.cliente || 'Desconocido').trim();
+    const name = (p.cliente || 'Desconocido').trim().toUpperCase();
     const key = name.toLowerCase();
     if (!groups[key]) {
       groups[key] = {
@@ -899,8 +899,8 @@ END:VCALENDAR`
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
                       {paginatedPendientes.map(group => {
-                        const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
-                        const uniqueFechas = Array.from(new Set(fechas)).sort();
+                        const fechas = group.pedidos.map(p => formatDateDMA(p.fechaEntrega)).filter(Boolean);
+                        const uniqueFechas = Array.from(new Set(fechas));
                         let fechaDisplay = "";
                         if (uniqueFechas.length === 1) {
                           fechaDisplay = uniqueFechas[0];
@@ -925,7 +925,7 @@ END:VCALENDAR`
                                   </span>
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{group.cliente}</p>
+                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] uppercase">{group.cliente}</p>
                                       <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-error/10 text-error dark:bg-red-400/10 dark:text-red-400">
                                         {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
                                       </span>
@@ -963,7 +963,7 @@ END:VCALENDAR`
                                               </span>
                                               <div>
                                                 <div className="flex items-center gap-2">
-                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {formatDateDMA(p.fechaEntrega)}</p>
                                                   <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                                     Vía {p.medioPago}
                                                   </span>
@@ -1253,8 +1253,8 @@ END:VCALENDAR`
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
                       {paginatedAbonados.map(group => {
-                        const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
-                        const uniqueFechas = Array.from(new Set(fechas)).sort();
+                        const fechas = group.pedidos.map(p => formatDateDMA(p.fechaEntrega)).filter(Boolean);
+                        const uniqueFechas = Array.from(new Set(fechas));
                         let fechaDisplay = "";
                         if (uniqueFechas.length === 1) {
                           fechaDisplay = uniqueFechas[0];
@@ -1282,7 +1282,7 @@ END:VCALENDAR`
                                   </span>
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c]">{group.cliente}</p>
+                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#e2bd6c] uppercase">{group.cliente}</p>
                                       <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c]">
                                         {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
                                       </span>
@@ -1332,7 +1332,7 @@ END:VCALENDAR`
                                               </span>
                                               <div>
                                                 <div className="flex items-center gap-2">
-                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {formatDateDMA(p.fechaEntrega)}</p>
                                                   <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                                     Vía {p.medioPago}
                                                   </span>
@@ -1648,8 +1648,8 @@ END:VCALENDAR`
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10">
                       {paginatedFinalizados.map(group => {
-                        const fechas = group.pedidos.map(p => p.fechaEntrega).filter(Boolean);
-                        const uniqueFechas = Array.from(new Set(fechas)).sort();
+                        const fechas = group.pedidos.map(p => formatDateDMA(p.fechaEntrega)).filter(Boolean);
+                        const uniqueFechas = Array.from(new Set(fechas));
                         let fechaDisplay = "";
                         if (uniqueFechas.length === 1) {
                           fechaDisplay = uniqueFechas[0];
@@ -1673,7 +1673,7 @@ END:VCALENDAR`
                                   </span>
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692]">{group.cliente}</p>
+                                      <p className="font-headline font-bold text-base text-on-surface dark:text-[#f3d692] uppercase">{group.cliente}</p>
                                       <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-secondary/10 text-secondary dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c]">
                                         {group.pedidos.length} {group.pedidos.length === 1 ? 'pedido' : 'pedidos'}
                                       </span>
@@ -1708,7 +1708,7 @@ END:VCALENDAR`
                                               </span>
                                               <div>
                                                 <div className="flex items-center gap-2">
-                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {formatDateDMA(p.fechaEntrega)}</p>
                                                   <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                                     Vía {p.medioPago}
                                                   </span>
@@ -2158,7 +2158,7 @@ END:VCALENDAR`
                       placeholder="Ej. Juan Pérez"
                       value={form.cliente}
                       onChange={e => {
-                        setForm({...form, cliente: e.target.value})
+                        setForm({...form, cliente: e.target.value.toUpperCase()})
                         setShowClienteDropdown(true)
                       }}
                       onFocus={() => setShowClienteDropdown(true)}

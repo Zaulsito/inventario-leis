@@ -4,6 +4,7 @@ import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { Link, useOutletContext } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
 
 function BadgeStock({ nivel }) {
@@ -280,7 +281,7 @@ export default function Dashboard() {
                   return (
                     <div key={p.id} className="bg-surface-container dark:bg-white/5 p-3 rounded-xl border border-outline-variant/20 dark:border-white/10 flex justify-between items-center">
                       <div>
-                        <p className="font-bold text-sm text-on-surface dark:text-white/90 truncate pr-2 max-w-[150px]">{p.cliente}</p>
+                        <p className="font-bold text-sm text-on-surface dark:text-white/90 truncate pr-2 max-w-[150px] uppercase">{p.cliente}</p>
                         <p className="text-[10px] text-on-surface-variant dark:text-gray-500 font-bold uppercase tracking-widest mt-0.5">{p.productos.length} items</p>
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end">
@@ -289,7 +290,7 @@ export default function Dashboard() {
                         </span>
                         <p className="text-[10px] font-bold text-on-surface-variant dark:text-gray-400 flex items-center gap-1">
                           <span className="material-symbols-outlined text-[12px]">calendar_month</span>
-                          {p.fechaEntrega.split('-').slice(1).join('/')}
+                          {formatDateDMA(p.fechaEntrega)}
                         </p>
                       </div>
                     </div>

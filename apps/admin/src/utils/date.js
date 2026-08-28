@@ -26,3 +26,32 @@ export function calcularEstado(stock) {
   if (s <= 10) return 'bajo'
   return 'disponible'
 }
+
+/**
+ * Convierte una fecha en formato YYYY-MM-DD o ISO a DD-MM-YYYY (Día-Mes-Año)
+ */
+export function formatDateDMA(dateStr) {
+  if (!dateStr) return ''
+  try {
+    if (typeof dateStr === 'string') {
+      const clean = dateStr.trim()
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+        const [y, m, d] = clean.split('-')
+        return `${d}-${m}-${y}`
+      }
+      if (/^\d{4}-\d{2}-\d{2}T/.test(clean)) {
+        const part = clean.split('T')[0]
+        const [y, m, d] = part.split('-')
+        return `${d}-${m}-${y}`
+      }
+    }
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return String(dateStr)
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = d.getFullYear()
+    return `${day}-${month}-${year}`
+  } catch (e) {
+    return String(dateStr)
+  }
+}
