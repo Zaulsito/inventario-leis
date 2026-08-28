@@ -736,22 +736,20 @@ export default function Reportes() {
       <section className="mb-10 w-full min-h-[600px] md:min-h-[650px] bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2.5rem] p-6 md:p-10 border border-outline-variant/10 dark:border-white/5 flex flex-col relative z-10 tour-reportes-grafico shadow-xl overflow-hidden">
         {/* Decoración de fondo */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
-        
-        {/* Indicador de Mes Actual centrado */}
-        {periodo === 1 && (
-          <div className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-            <div className="px-5 py-2 rounded-full bg-surface-container-highest/90 dark:bg-white/10 backdrop-blur-md border border-[#e2bd6c]/30 shadow-lg flex items-center gap-2 animate-in fade-in zoom-in-95 duration-300">
-              <span className="material-symbols-outlined text-sm text-[#e2bd6c] animate-pulse">calendar_month</span>
-              <span className="font-headline font-black text-xs sm:text-sm tracking-[0.25em] uppercase text-secondary dark:text-[#e2bd6c]">
-                {getNombreMesActual()}
-              </span>
-            </div>
-          </div>
-        )}
 
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6 relative z-20">
           <div className="flex-1">
-            <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
+              {periodo === 1 && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 border border-secondary/20 dark:border-[#e2bd6c]/30 text-secondary dark:text-[#e2bd6c] shadow-sm animate-in fade-in zoom-in-95 duration-300">
+                  <span className="material-symbols-outlined text-xs">calendar_month</span>
+                  <span className="font-headline font-black text-xs tracking-[0.2em] uppercase">
+                    {getNombreMesActual()}
+                  </span>
+                </div>
+              )}
+            </div>
             <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-[0.2em] mt-1 font-extrabold">Evolución de Ganancias vs Pérdidas</p>
           </div>
           
