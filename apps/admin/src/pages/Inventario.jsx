@@ -452,14 +452,24 @@ REGLAS DE FORMATO ESTRICTAS:
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
 
+  const [gastos, setGastos] = useState([])
+
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'productos'), (snapshot) => {
+    const unsubProd = onSnapshot(collection(db, 'productos'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setProductos(data)
       setLoading(false)
     })
-    return unsub
+    const unsubGastos = onSnapshot(collection(db, 'gastos'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setGastos(data)
+    })
+    return () => { unsubProd(); unsubGastos(); }
   }, [])
+
+  const totalGastosOperativos = useMemo(() => {
+    return gastos.reduce((acc, g) => acc + (Number(g.monto) || 0), 0)
+  }, [gastos])
 
   useEffect(() => {
     if (showModal) {
@@ -971,8 +981,8 @@ REGLAS DE FORMATO ESTRICTAS:
 
       <div className="space-y-8">
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 tour-inv-metricas">
-          <div className="bg-surface-container-low dark:bg-white/5 p-6 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 tour-inv-metricas">
+          <div className="bg-surface-container-low dark:bg-white/5 p-5 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-2xl">deployed_code</span>
               <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Total Productos</p>
@@ -1001,7 +1011,18 @@ REGLAS DE FORMATO ESTRICTAS:
             </div>
           </div>
 
-          <div className="bg-secondary-container/20 dark:bg-white/5 p-6 rounded-xl flex flex-col justify-between h-36 border border-secondary-container/30 dark:border-white/5">
+          <div className="bg-amber-500/10 dark:bg-amber-500/10 p-5 rounded-xl flex flex-col justify-between h-36 border border-amber-500/20 dark:border-amber-500/30">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-amber-500 text-2xl">account_balance_wallet</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-amber-600 dark:text-amber-400 leading-none">Gastos Operativos</p>
+            </div>
+            <div>
+              <p className="text-2xl font-headline italic font-bold text-amber-600 dark:text-amber-400">-${totalGastosOperativos.toLocaleString('es-CL')}</p>
+              <p className="text-[9px] text-outline dark:text-gray-400 mt-1 uppercase font-bold tracking-wider">Descontado del Total</p>
+            </div>
+          </div>
+
+          <div className="bg-secondary-container/20 dark:bg-white/5 p-5 rounded-xl flex flex-col justify-between h-36 border border-secondary-container/30 dark:border-white/5">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl">inventory_2</span>
               <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades totales</p>
@@ -1009,7 +1030,7 @@ REGLAS DE FORMATO ESTRICTAS:
             <p className="text-3xl font-headline italic font-bold text-secondary dark:text-white">{stockTotal.toLocaleString()}</p>
           </div>
 
-          <div className={`p-6 rounded-xl flex flex-col justify-between h-36 border transition-all ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 dark:bg-error/20 dark:border-error/40 backdrop-blur-md shadow-lg shadow-error/5' : 'bg-primary-container dark:bg-white/5 border-primary/10 dark:border-white/5'}`}>
+          <div className={`p-5 rounded-xl flex flex-col justify-between h-36 border transition-all ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 dark:bg-error/20 dark:border-error/40 backdrop-blur-md shadow-lg shadow-error/5' : 'bg-primary-container dark:bg-white/5 border-primary/10 dark:border-white/5'}`}>
             <div className="flex items-center gap-3">
               <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-error animate-pulse' : 'text-on-primary-container dark:text-white/60'}`}>priority_high</span>
               <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white/60'}`}>Stock Bajo</p>

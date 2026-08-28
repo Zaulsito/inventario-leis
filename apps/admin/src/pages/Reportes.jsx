@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, onSnapshot, doc, writeBatch } from 'firebase/firestore'
+import { collection, onSnapshot, doc, writeBatch, addDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts'
 import { jsPDF } from 'jspdf'
@@ -9,6 +9,19 @@ import { calcularEstado } from '../utils/date'
 import Footer from '../components/Footer'
 
 const PERIODOS = ['Semana Actual', 'Mes Actual', 'Personalizado']
+
+function getNombreMesActual() {
+  const d = new Date()
+  const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
+  return `${meses[d.getMonth()]} ${d.getFullYear()}`
+}
+
+const CATEGORIAS_GASTOS = [
+  { id: 'transporte', label: 'Pasajes / Transporte', icon: 'directions_bus', color: 'text-blue-500' },
+  { id: 'comida', label: 'Comida / Alimentación', icon: 'restaurant', color: 'text-amber-500' },
+  { id: 'insumos', label: 'Insumos / Embalaje', icon: 'package_2', color: 'text-purple-500' },
+  { id: 'otros', label: 'Otros / Gastos Varios', icon: 'payments', color: 'text-emerald-500' }
+]
 
 function getStartOfWeek() {
   const d = new Date()
@@ -107,7 +120,18 @@ export default function Reportes() {
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [mermas, setMermas] = useState([])
+  const [gastos, setGastos] = useState([])
   
+  // Para el módulo de Gastos Operativos
+  const [showGastoModal, setShowGastoModal] = useState(false)
+  const [gastoForm, setGastoForm] = useState({
+    categoria: 'transporte',
+    monto: '',
+    descripcion: '',
+    fecha: getLocalDateString()
+  })
+  const [gastoProcesando, setGastoProcesando] = useState(false)
+
   // Para la tabla manual "Conteo Semanal de Ventas"
   const [conteo, setConteo] = useState([])
   const [guardado, setGuardado] = useState(false)
@@ -176,18 +200,66 @@ export default function Reportes() {
       setMermas(data)
     })
 
-    return () => { unsubProd(); unsubPed(); unsubMerma(); }
+    const unsubGasto = onSnapshot(collection(db, 'gastos'), snap => {
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setGastos(data)
+    })
+
+    return () => { unsubProd(); unsubPed(); unsubMerma(); unsubGasto(); }
   }, [])
 
-  // Filtrado de pedidos y mermas combinados
+  // Guardar nuevo gasto operativo
+  async function handleGuardarGasto(e) {
+    if (e) e.preventDefault();
+    const montoNum = Math.floor(Number(gastoForm.monto)) || 0;
+    if (montoNum <= 0) {
+      alert("Por favor ingresa un monto válido mayor a 0.");
+      return;
+    }
+    setGastoProcesando(true);
+    try {
+      await addDoc(collection(db, 'gastos'), {
+        categoria: gastoForm.categoria,
+        monto: montoNum,
+        descripcion: gastoForm.descripcion.trim() || 'Gasto operativo',
+        fecha: gastoForm.fecha || getLocalDateString(),
+        createdAt: new Date().toISOString()
+      });
+      setGastoForm({
+        categoria: 'transporte',
+        monto: '',
+        descripcion: '',
+        fecha: getLocalDateString()
+      });
+      setShowGastoModal(false);
+    } catch (err) {
+      console.error("Error guardando gasto:", err);
+      alert("Hubo un error al guardar el gasto.");
+    } finally {
+      setGastoProcesando(false);
+    }
+  }
+
+  async function handleEliminarGasto(gastoId) {
+    if (!window.confirm("¿Estás seguro de eliminar este registro de gasto?")) return;
+    try {
+      await deleteDoc(doc(db, 'gastos', gastoId));
+    } catch (err) {
+      console.error("Error eliminando gasto:", err);
+      alert("No se pudo eliminar el gasto.");
+    }
+  }
+
+  // Filtrado de pedidos, mermas y gastos combinados
   const registrosFiltrados = useMemo(() => {
     const combinados = [
       ...pedidos.map(p => ({ ...p, _tipo: 'venta' })),
-      ...mermas.map(m => ({ ...m, _tipo: 'merma' }))
+      ...mermas.map(m => ({ ...m, _tipo: 'merma' })),
+      ...gastos.map(g => ({ ...g, _tipo: 'gasto' }))
     ]
 
     return combinados.filter(p => {
-      const fString = p.fechaCreacion || p.fechaEntrega
+      const fString = p.fechaCreacion || p.fechaEntrega || p.fecha
       if (!fString) return false
       
       const pxDate = new Date(fString)
@@ -205,11 +277,11 @@ export default function Reportes() {
         return pxDate >= start && pxDate <= end
       }
     }).sort((a,b) => {
-      const fA = new Date(a.fechaCreacion || a.fechaEntrega)
-      const fB = new Date(b.fechaCreacion || b.fechaEntrega)
+      const fA = new Date(a.fechaCreacion || a.fechaEntrega || a.fecha)
+      const fB = new Date(b.fechaCreacion || b.fechaEntrega || b.fecha)
       return fB - fA // Más recientes primero
     })
-  }, [pedidos, mermas, periodo, fechaInicio, fechaFin])
+  }, [pedidos, mermas, gastos, periodo, fechaInicio, fechaFin])
 
   // Cálculo del gráfico
   const chartData = useMemo(() => {
@@ -221,30 +293,34 @@ export default function Reportes() {
       for(let i=0; i<7; i++) {
         const temp = new Date(start)
         temp.setDate(temp.getDate() + i)
-        map[temp.getFullYear() + '-' + String(temp.getMonth() + 1).padStart(2, '0') + '-' + String(temp.getDate()).padStart(2, '0')] = { Ganancia: 0, Pérdida: 0 }
+        map[temp.getFullYear() + '-' + String(temp.getMonth() + 1).padStart(2, '0') + '-' + String(temp.getDate()).padStart(2, '0')] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
       }
     }
 
     registrosFiltrados.forEach(p => {
       const dateStr = getLocalStr(p)
       let sum = 0
-      p.productos.forEach(item => {
-        const prod = productos.find(x => x.id === item.productoId)
-        if (prod) {
-          const precio = Number(prod.precio) || 0;
-          const cant = Number(item.cantidad) || 1;
-          sum += precio * cant;
-        }
-      })
-      if (map[dateStr] === undefined) map[dateStr] = { Ganancia: 0, Pérdida: 0 }
+      if (p.productos && Array.isArray(p.productos)) {
+        p.productos.forEach(item => {
+          const prod = productos.find(x => x.id === item.productoId)
+          if (prod) {
+            const precio = Number(prod.precio) || 0;
+            const cant = Number(item.cantidad) || 1;
+            sum += precio * cant;
+          }
+        })
+      }
+      if (map[dateStr] === undefined) map[dateStr] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
       
       if (p._tipo === 'venta') {
-        // Usamos el total de la venta para calcular las ganancias brutas,
-        // independientemente de si el estado es 'sin pagar', 'parcial' o 'pagado'
         let gananciaReal = p.total || sum;
         map[dateStr].Ganancia += gananciaReal;
+      } else if (p._tipo === 'gasto') {
+        let montoGasto = Number(p.monto) || 0;
+        map[dateStr].Gasto += montoGasto;
+        map[dateStr].Pérdida += montoGasto;
       } else {
-        map[dateStr].Pérdida += sum
+        map[dateStr].Pérdida += sum;
       }
     })
 
@@ -255,7 +331,8 @@ export default function Reportes() {
         fechaReal: dateStr,
         label: periodo === 0 ? nombreDia.toUpperCase() : dateStr.split('-').slice(1).reverse().join('/'),
         Ganancia: map[dateStr].Ganancia,
-        Pérdida: -map[dateStr].Pérdida, // Mostramos en el gráfico como negativo para visualizarlas hacia abajo o separadas
+        Pérdida: -map[dateStr].Pérdida,
+        Gasto: map[dateStr].Gasto,
         Total: map[dateStr].Ganancia - map[dateStr].Pérdida
       }
     })
@@ -263,6 +340,11 @@ export default function Reportes() {
 
   const totalMonetario = chartData.reduce((acc, curr) => acc + curr.Ganancia, 0)
   const totalPerdidaMonetario = chartData.reduce((acc, curr) => acc + Math.abs(curr.Pérdida), 0)
+  const totalGastosMonetario = useMemo(() => {
+    return registrosFiltrados
+      .filter(x => x._tipo === 'gasto')
+      .reduce((acc, g) => acc + (Number(g.monto) || 0), 0)
+  }, [registrosFiltrados])
 
   // Metricas extraídas
   const totalVendidosUnidades = useMemo(() => {
@@ -564,23 +646,30 @@ export default function Reportes() {
     docPdf.text("Reporte de Desempeño Leis", 14, 15)
     docPdf.setFontSize(10)
     docPdf.text(`Periodo: ${PERIODOS[periodo]} (${fechaInicio} - ${fechaFin})`, 14, 22)
-    docPdf.text(`Ganancia Generada: $${totalMonetario.toLocaleString('es-CL')} | Pérdidas: -$${totalPerdidaMonetario.toLocaleString('es-CL')}`, 14, 28)
+    docPdf.text(`Ventas: $${totalMonetario.toLocaleString('es-CL')} | Mermas: -$${totalPerdidaMonetario.toLocaleString('es-CL')} | Gastos Op: -$${totalGastosMonetario.toLocaleString('es-CL')}`, 14, 28)
     
     const tableData = registrosFiltrados.map(p => {
       const fecha = getLocalStr(p)
-      const desc = p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(', ')
+      if (p._tipo === 'gasto') {
+        const catObj = CATEGORIAS_GASTOS.find(c => c.id === p.categoria)
+        const catLabel = catObj ? catObj.label : 'Gasto Operativo'
+        return [fecha, `[GASTO] ${catLabel}`, p.descripcion, `-$${Number(p.monto).toLocaleString('es-CL')}`]
+      }
+      const desc = p.productos ? p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(', ') : ''
       let gananciaVenta = 0
-      p.productos.forEach(item => {
-        const pr = productos.find(xd => xd.id === item.productoId)
-        if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
-      })
+      if (p.productos && Array.isArray(p.productos)) {
+        p.productos.forEach(item => {
+          const pr = productos.find(xd => xd.id === item.productoId)
+          if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+        })
+      }
       const isMerma = p._tipo === 'merma'
-      return [fecha, isMerma ? p.motivo : p.cliente, desc, isMerma ? `-$${gananciaVenta.toLocaleString('es-CL')}` : `$${gananciaVenta.toLocaleString('es-CL')}`]
+      return [fecha, isMerma ? `[MERMA] ${p.motivo}` : p.cliente, desc, isMerma ? `-$${gananciaVenta.toLocaleString('es-CL')}` : `$${gananciaVenta.toLocaleString('es-CL')}`]
     })
 
     autoTable(docPdf, {
       startY: 35,
-      head: [['Fecha', 'Tipo/Cliente', 'Productos', 'Flujo ($)']],
+      head: [['Fecha', 'Tipo/Cliente', 'Detalle', 'Flujo ($)']],
       body: tableData,
     })
 
@@ -588,19 +677,31 @@ export default function Reportes() {
   }
 
   function exportarCSV() {
-    const encabezados = ['Fecha', 'Cliente/Tipo', 'Detalle Productos', 'Flujo de Dinero ($)']
+    const encabezados = ['Fecha', 'Cliente/Tipo', 'Detalle Productos/Notas', 'Flujo de Dinero ($)']
     const filas = registrosFiltrados.map(p => {
       const fecha = getLocalStr(p)
-      const desc = p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(' | ')
+      if (p._tipo === 'gasto') {
+        const catObj = CATEGORIAS_GASTOS.find(c => c.id === p.categoria)
+        const catLabel = catObj ? catObj.label : 'Gasto Operativo'
+        return [
+          `"${fecha}"`, 
+          `"[GASTO] ${catLabel}"`, 
+          `"${p.descripcion}"`, 
+          -Number(p.monto) || 0
+        ]
+      }
+      const desc = p.productos ? p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(' | ') : ''
       let gananciaVenta = 0
-      p.productos.forEach(item => {
-        const pr = productos.find(xd => xd.id === item.productoId)
-        if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
-      })
+      if (p.productos && Array.isArray(p.productos)) {
+        p.productos.forEach(item => {
+          const pr = productos.find(xd => xd.id === item.productoId)
+          if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+        })
+      }
       const isMerma = p._tipo === 'merma'
       return [
         `"${fecha}"`, 
-        `"${isMerma ? p.motivo : p.cliente}"`, 
+        `"${isMerma ? `[MERMA] ${p.motivo}` : p.cliente}"`, 
         `"${desc}"`, 
         isMerma ? -gananciaVenta : gananciaVenta
       ]
@@ -636,6 +737,18 @@ export default function Reportes() {
         {/* Decoración de fondo */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
         
+        {/* Indicador de Mes Actual centrado */}
+        {periodo === 1 && (
+          <div className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+            <div className="px-5 py-2 rounded-full bg-surface-container-highest/90 dark:bg-white/10 backdrop-blur-md border border-[#e2bd6c]/30 shadow-lg flex items-center gap-2 animate-in fade-in zoom-in-95 duration-300">
+              <span className="material-symbols-outlined text-sm text-[#e2bd6c] animate-pulse">calendar_month</span>
+              <span className="font-headline font-black text-xs sm:text-sm tracking-[0.25em] uppercase text-secondary dark:text-[#e2bd6c]">
+                {getNombreMesActual()}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6 relative z-20">
           <div className="flex-1">
             <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
@@ -643,6 +756,16 @@ export default function Reportes() {
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              {/* Botón para Registrar Gasto Operativo */}
+              <button
+                onClick={() => setShowGastoModal(true)}
+                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-[#e2bd6c] border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs font-headline italic tracking-wide transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+                title="Registrar gastos de transporte, comida, insumos, otros"
+              >
+                <span className="material-symbols-outlined text-sm">payments</span>
+                <span>+ Registrar Gasto</span>
+              </button>
+
               {/* Custom Mode Dropdown */}
               <div className="relative">
                 <button 
@@ -761,7 +884,7 @@ export default function Reportes() {
                 )}
               </div>
             </div>
-          <div className="flex flex-row md:gap-4 gap-2 w-full xl:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
             {chartMode === 'ventas' && (
               <div className="bg-surface-container dark:bg-[#e2bd6c]/10 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 dark:border-[#e2bd6c]/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
                 <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline dark:text-[#e2bd6c]/60 mb-1">Ganancias Brutas</span>
@@ -775,12 +898,20 @@ export default function Reportes() {
               </div>
             )}
             {chartMode === 'ambas' && (
-              <div className="bg-surface-container dark:bg-white/5 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 dark:border-white/10 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
-                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">Total Neto</span>
-                <span className={`font-headline font-bold text-lg md:text-2xl ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary dark:text-[#e2bd6c]'}`}>
-                  {totalMonetario - totalPerdidaMonetario < 0 ? '-' : '+'}${Math.abs(totalMonetario - totalPerdidaMonetario).toLocaleString('es-CL')}
-                </span>
-              </div>
+              <>
+                {totalGastosMonetario > 0 && (
+                  <div className="bg-amber-500/10 px-3 md:px-4 py-2.5 rounded-2xl flex flex-col items-start xl:items-end border border-amber-500/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
+                    <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">Gastos Operativos</span>
+                    <span className="font-headline font-bold text-lg md:text-2xl text-amber-600 dark:text-amber-400">-${totalGastosMonetario.toLocaleString('es-CL')}</span>
+                  </div>
+                )}
+                <div className="bg-surface-container dark:bg-white/5 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 dark:border-white/10 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
+                  <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">Total Neto Real</span>
+                  <span className={`font-headline font-bold text-lg md:text-2xl ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary dark:text-[#e2bd6c]'}`}>
+                    {totalMonetario - totalPerdidaMonetario < 0 ? '-' : '+'}${Math.abs(totalMonetario - totalPerdidaMonetario).toLocaleString('es-CL')}
+                  </span>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1109,75 +1240,100 @@ export default function Reportes() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max">
           {registrosFiltrados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v) => {
+            const isGasto = v._tipo === 'gasto'
             const isMerma = v._tipo === 'merma'
-            const esVentaDirecta = v.cliente === "Venta Directa" && !isMerma
-            
+            const esVentaDirecta = v.cliente === "Venta Directa" && !isMerma && !isGasto
+
+            const catInfo = isGasto ? (CATEGORIAS_GASTOS.find(c => c.id === v.categoria) || CATEGORIAS_GASTOS[3]) : null;
+
             let flujoMonetario = 0
-            v.productos.forEach(item => {
-              const prod = productos.find(xd => xd.id === item.productoId)
-              if(prod) {
-                const precio = Number(prod.precio) || 0;
-                const cant = Number(item.cantidad) || 1;
-                flujoMonetario += precio * cant;
-              }
-            })
+            if (isGasto) {
+              flujoMonetario = Number(v.monto) || 0;
+            } else if (v.productos && Array.isArray(v.productos)) {
+              v.productos.forEach(item => {
+                const prod = productos.find(xd => xd.id === item.productoId)
+                if(prod) {
+                  const precio = Number(prod.precio) || 0;
+                  const cant = Number(item.cantidad) || 1;
+                  flujoMonetario += precio * cant;
+                }
+              })
+            }
 
             return (
               <div 
                 key={v.id} 
-                className={`p-5 rounded-2xl shadow-sm border flex flex-col gap-3 transition-colors hover:shadow-md ${isMerma ? 'bg-error/5 dark:bg-error/10 border-error/20 dark:border-error/30' : 'bg-surface dark:bg-[#121212] border-outline-variant/10 dark:border-white/5'}`}
+                className={`p-5 rounded-2xl shadow-sm border flex flex-col gap-3 transition-colors hover:shadow-md ${isGasto ? 'bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/20 dark:border-amber-500/30' : (isMerma ? 'bg-error/5 dark:bg-error/10 border-error/20 dark:border-error/30' : 'bg-surface dark:bg-[#121212] border-outline-variant/10 dark:border-white/5')}`}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
-                     <span className={`material-symbols-outlined text-[16px] ${isMerma ? 'text-error dark:text-red-400' : (esVentaDirecta ? 'text-primary dark:text-[#e2bd6c]' : 'text-secondary dark:text-[#e2bd6c]')}`}>
-                       {isMerma ? 'remove_shopping_cart' : (esVentaDirecta ? 'storefront' : 'local_shipping')}
+                     <span className={`material-symbols-outlined text-[16px] ${isGasto ? 'text-amber-500' : (isMerma ? 'text-error dark:text-red-400' : (esVentaDirecta ? 'text-primary dark:text-[#e2bd6c]' : 'text-secondary dark:text-[#e2bd6c]'))}`}>
+                       {isGasto ? catInfo.icon : (isMerma ? 'remove_shopping_cart' : (esVentaDirecta ? 'storefront' : 'local_shipping'))}
                      </span>
-                     <span className={`font-bold text-[11px] uppercase tracking-widest ${isMerma ? 'text-error dark:text-red-400' : 'text-on-surface-variant dark:text-white/80'}`}>
-                       {isMerma ? v.motivo : (esVentaDirecta ? 'Venta Directa' : v.cliente)}
+                     <span className={`font-bold text-[11px] uppercase tracking-widest ${isGasto ? 'text-amber-600 dark:text-amber-400' : (isMerma ? 'text-error dark:text-red-400' : 'text-on-surface-variant dark:text-white/80')}`}>
+                       {isGasto ? catInfo.label : (isMerma ? v.motivo : (esVentaDirecta ? 'Venta Directa' : v.cliente))}
                      </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] font-extrabold uppercase text-outline/80">
                        {getLocalStr(v)}
                     </span>
-                    <button 
-                      onClick={() => deshacerRegistro(v)}
-                      disabled={procesando}
-                      className={`transition-colors focus:outline-none ${procesando ? 'opacity-50 cursor-not-allowed' : 'text-outline/40 hover:text-error'}`}
-                      title="Deshacer registro y devolver al inventario"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">undo</span>
-                    </button>
+                    {isGasto ? (
+                      <button 
+                        onClick={() => handleEliminarGasto(v.id)}
+                        className="text-outline/40 hover:text-error transition-colors focus:outline-none"
+                        title="Eliminar gasto operativo"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => deshacerRegistro(v)}
+                        disabled={procesando}
+                        className={`transition-colors focus:outline-none ${procesando ? 'opacity-50 cursor-not-allowed' : 'text-outline/40 hover:text-error'}`}
+                        title="Deshacer registro y devolver al inventario"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">undo</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <ul className="text-xs space-y-1 pl-6 mt-1 mb-2">
-                  {v.productos.map((prodItem, idx) => {
-                    const baseProd = productos.find(xd => xd.id === prodItem.productoId)
-                    const unitPrice = baseProd ? (Number(baseProd.precio) || 0) : 0
-                    return (
-                      <li key={idx} className={`${isMerma ? 'text-[#82322e] dark:text-red-300/80' : 'text-on-surface/80 dark:text-white/70'}`}>
-                        <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre} 
-                        {prodItem.variante && (
-                          <div className="inline-flex items-center gap-1 ml-1.5 bg-primary/5 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10">
-                            <div 
-                              className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm"
-                              style={{ backgroundColor: getHexColor(prodItem.variante) || '#ccc' }}
-                            />
-                            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-primary/70 dark:text-[#e2bd6c]/70">
-                              {prodItem.variante}
-                            </span>
-                          </div>
-                        )}
-                        <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
-                      </li>
-                    )
-                  })}
-                </ul>
+                {isGasto ? (
+                  <div className="my-2 px-3 py-2 rounded-xl bg-surface-container/50 dark:bg-white/5 border border-outline-variant/10">
+                    <p className="text-xs font-semibold text-on-surface dark:text-white/90 italic">
+                      "{v.descripcion}"
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="text-xs space-y-1 pl-6 mt-1 mb-2">
+                    {v.productos && v.productos.map((prodItem, idx) => {
+                      const baseProd = productos.find(xd => xd.id === prodItem.productoId)
+                      const unitPrice = baseProd ? (Number(baseProd.precio) || 0) : 0
+                      return (
+                        <li key={idx} className={`${isMerma ? 'text-[#82322e] dark:text-red-300/80' : 'text-on-surface/80 dark:text-white/70'}`}>
+                          <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre} 
+                          {prodItem.variante && (
+                            <div className="inline-flex items-center gap-1 ml-1.5 bg-primary/5 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10">
+                              <div 
+                                className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm"
+                                style={{ backgroundColor: getHexColor(prodItem.variante) || '#ccc' }}
+                              />
+                              <span className="text-[9px] font-black uppercase tracking-[0.1em] text-primary/70 dark:text-[#e2bd6c]/70">
+                                {prodItem.variante}
+                              </span>
+                            </div>
+                          )}
+                          <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
 
                 <div className="mt-auto flex justify-end">
-                   <span className={`font-headline font-bold text-lg ${isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}`}>
-                     {isMerma ? `-$${flujoMonetario.toLocaleString('es-CL')}` : `+$${flujoMonetario.toLocaleString('es-CL')}`}
+                   <span className={`font-headline font-bold text-lg ${isGasto ? 'text-amber-600 dark:text-amber-400' : (isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]')}`}>
+                     {isGasto || isMerma ? `-$${flujoMonetario.toLocaleString('es-CL')}` : `+$${flujoMonetario.toLocaleString('es-CL')}`}
                    </span>
                 </div>
               </div>
@@ -1263,6 +1419,120 @@ export default function Reportes() {
                 {procesando ? 'Procesando...' : 'Sí, deshacer'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Registro de Gasto Operativo */}
+      {showGastoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-[2rem] max-w-lg w-full p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-outline-variant/10 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-[#e2bd6c]">
+                  <span className="material-symbols-outlined text-xl">payments</span>
+                </div>
+                <div>
+                  <h3 className="font-headline font-bold text-xl text-on-surface dark:text-white">Registrar Gasto Operativo</h3>
+                  <p className="text-[10px] uppercase tracking-widest text-outline dark:text-gray-400 font-bold">Pasajes, Comida, Embalaje, Varios</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowGastoModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/10 text-outline dark:text-gray-400 transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarGasto} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
+                  Categoría del Gasto
+                </label>
+                <select
+                  value={gastoForm.categoria}
+                  onChange={e => setGastoForm(prev => ({ ...prev, categoria: e.target.value }))}
+                  className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                >
+                  {CATEGORIAS_GASTOS.map(cat => (
+                    <option key={cat.id} value={cat.id} className="bg-surface dark:bg-[#1e1e1e] text-on-surface dark:text-white">
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
+                    Monto ($ CLP)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="ej: 3500"
+                    value={gastoForm.monto}
+                    onChange={e => setGastoForm(prev => ({ ...prev, monto: e.target.value }))}
+                    className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
+                    Fecha del Gasto
+                  </label>
+                  <input
+                    type="date"
+                    value={gastoForm.fecha}
+                    onChange={e => setGastoForm(prev => ({ ...prev, fecha: e.target.value }))}
+                    className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
+                  Descripción / Detalle
+                </label>
+                <input
+                  type="text"
+                  placeholder="ej: Pasaje bus para despacho de pedido a Santiago"
+                  value={gastoForm.descripcion}
+                  onChange={e => setGastoForm(prev => ({ ...prev, descripcion: e.target.value }))}
+                  className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  required
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGastoModal(false)}
+                  className="px-5 py-2.5 rounded-xl border border-outline-variant/20 dark:border-white/10 text-xs font-extrabold uppercase tracking-wider text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={gastoProcesando}
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white dark:text-black font-extrabold text-xs uppercase tracking-widest shadow-md transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {gastoProcesando ? (
+                    <>
+                      <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">check</span>
+                      Guardar Gasto
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
