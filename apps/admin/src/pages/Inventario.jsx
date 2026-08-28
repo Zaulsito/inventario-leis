@@ -1,13 +1,11 @@
-// src/pages/Inventario.jsx
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import BarcodeScanner from '../components/BarcodeScanner'
-import { getLocalDateString } from '../utils/date'
-import { calcularEstado } from '../utils/date'
+import { getLocalDateString, calcularEstado, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
 
 const estadoConfig = {
@@ -1263,7 +1261,7 @@ REGLAS DE FORMATO ESTRICTAS:
                             <span className="material-symbols-outlined text-sm text-primary/60 dark:text-[#e2bd6c]/60">calendar_today</span>
                             <div>
                               <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Ingreso</p>
-                              <p className="text-[11px] font-bold text-on-surface dark:text-white/80">{p.fechaIngreso || '-'}</p>
+                              <p className="text-[11px] font-bold text-on-surface dark:text-white/80">{formatDateDMA(p.fechaIngreso) || '-'}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1450,7 +1448,7 @@ REGLAS DE FORMATO ESTRICTAS:
                         </span>
                       </td>
                       <td className="px-7 py-5">
-                        <span className="text-[10px] font-bold text-outline uppercase tracking-widest whitespace-nowrap">{p.fechaIngreso || '-'}</span>
+                        <span className="text-[10px] font-bold text-outline uppercase tracking-widest whitespace-nowrap">{formatDateDMA(p.fechaIngreso) || '-'}</span>
                       </td>
                     </tr>
 
