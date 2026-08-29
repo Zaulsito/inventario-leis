@@ -82,6 +82,24 @@ const groupOrdersByCustomer = (ordersList) => {
   
   return orderedKeys.map(k => groups[k]);
 };
+const getCompleteHistorialAbonos = (pedido) => {
+  if (!pedido) return []
+  const rawHistorial = Array.isArray(pedido.historialAbonos) ? [...pedido.historialAbonos] : []
+  const sumRegistrado = rawHistorial.reduce((acc, h) => acc + (Number(h.monto) || 0), 0)
+  const totalAbonado = Number(pedido.abono) || 0
+  const dif = totalAbonado - sumRegistrado
+
+  if (dif > 0) {
+    rawHistorial.push({
+      id: 'auto-reconstructed-' + (pedido.id || 'virtual'),
+      fecha: pedido.fechaEntrega || pedido.fechaCreacion || getLocalDateString(),
+      monto: dif,
+      medioPago: pedido.medioPago || 'transferencia',
+      nota: 'Liquidación / Pago de Saldo'
+    })
+  }
+  return rawHistorial
+}
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([])
@@ -588,10 +606,18 @@ export default function Pedidos() {
         try {
           const ref = doc(db, 'pedidos', pedido.id)
           const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
-          const montoFaltante = totalCalc - (pedido.abono || 0)
-          const historial = pedido.historialAbonos || []
+          const abonoActual = Number(pedido.abono) || 0
+          const montoFaltante = Math.max(0, totalCalc - abonoActual)
+          const historial = Array.isArray(pedido.historialAbonos) ? [...pedido.historialAbonos] : []
+          
           if (montoFaltante > 0) {
-            historial.push({ fecha: new Date().toISOString(), monto: montoFaltante, nota: 'Liquidación Total' })
+            historial.push({
+              id: Date.now().toString(),
+              fecha: getLocalDateString(),
+              monto: montoFaltante,
+              medioPago: pedido.medioPago || 'transferencia',
+              nota: 'Liquidación Total / Pago Final'
+            })
           }
 
           await updateDoc(ref, {
@@ -1435,30 +1461,32 @@ END:VCALENDAR`
                                                   ))}
                                                 </div>
                                               </div>
-
-                                              {p.historialAbonos && p.historialAbonos.length > 0 && (
-                                                <div className="pt-4 border-t border-outline-variant/10 dark:border-white/5">
-                                                  <h4 className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-600 dark:text-[#e2bd6c]/80 mb-3">Historial de Pagos</h4>
-                                                  <div className="space-y-2">
-                                                    {p.historialAbonos.map((abono, idx) => (
-                                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/20 dark:bg-white/5 px-4 py-3 rounded-xl border border-outline-variant/5 dark:border-white/5 hover:bg-surface-variant/20 transition-colors">
-                                                        <div className="flex flex-col">
-                                                          <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                                           {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                          </span>
-                                                          <span className="text-[8px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
+                                              {(() => {
+                                                const fullHist = getCompleteHistorialAbonos(p)
+                                                return fullHist.length > 0 && (
+                                                  <div className="pt-4 border-t border-outline-variant/10">
+                                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                      {fullHist.map((abono, idx) => (
+                                                        <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
+                                                          <div className="flex flex-col">
+                                                            <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                              {formatDateDMA(abono.fecha)}
+                                                            </span>
+                                                            <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                                          </div>
+                                                          <div className="flex items-center gap-3">
+                                                            <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                              <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                            </button>
+                                                          </div>
                                                         </div>
-                                                        <div className="flex items-center gap-4">
-                                                          <span className="font-bold text-amber-700 dark:text-[#f3d692] text-sm">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                                          <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                                            <span className="material-symbols-outlined text-[14px]">undo</span>
-                                                          </button>
-                                                        </div>
-                                                      </div>
-                                                    ))}
+                                                      ))}
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              )}
+                                                )
+                                              })()}
                                             </div>
                                           )}
                                         </div>
@@ -2711,8 +2739,23 @@ END:VCALENDAR`
                     min="1"
                     max={Math.max(0, (abonoTargetPedido.total || (abonoTargetPedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)) - (Number(abonoTargetPedido.abono) || 0))}
                     required
-                    value={abonoForm.monto}
-                    onChange={e => setAbonoForm({ ...abonoForm, monto: e.target.value })}
+                    onChange={e => {
+                      const inputVal = e.target.value
+                      if (inputVal === '') {
+                        setAbonoForm({ ...abonoForm, monto: '' })
+                        return
+                      }
+                      const valNum = Number(inputVal)
+                      const totalCalc = abonoTargetPedido.total || (abonoTargetPedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+                      const acumulado = Number(abonoTargetPedido.abono) || 0
+                      const maxPermitido = Math.max(0, totalCalc - acumulado)
+
+                      if (valNum > maxPermitido) {
+                        setAbonoForm({ ...abonoForm, monto: maxPermitido.toString() })
+                      } else {
+                        setAbonoForm({ ...abonoForm, monto: inputVal })
+                      }
+                    }}
                     placeholder="Ej: 5000"
                     className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none pl-9 pr-4 py-3.5 text-on-surface dark:text-white font-black text-base rounded-2xl transition-all"
                   />
