@@ -226,6 +226,17 @@ export default function Pedidos() {
     placeholder: ''
   })
 
+  // Estado para modal dedicado de registro de abono con fecha
+  const [showAbonoModal, setShowAbonoModal] = useState(false)
+  const [abonoTargetPedido, setAbonoTargetPedido] = useState(null)
+  const [abonoForm, setAbonoForm] = useState({
+    monto: '',
+    fecha: getLocalDateString(),
+    medioPago: 'transferencia',
+    nota: ''
+  })
+  const [abonoProcesando, setAbonoProcesando] = useState(false)
+
   function closeDialog() {
     setDialog({ ...dialog, show: false })
   }
@@ -599,48 +610,72 @@ export default function Pedidos() {
     })
   }
 
-  async function handleActualizarAbono(pedido) {
-    if (!pedido || !pedido.id) return
+  function handleAbrirAbonoModal(pedido) {
+    if (!pedido) return
     const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+    const acumulado = Number(pedido.abono) || 0
+    const saldo = Math.max(0, totalCalc - acumulado)
     
-    setDialog({
-      show: true,
-      isPrompt: true,
-      title: 'Actualizar Abono',
-      message: `Ingresa el NUEVO MONTO TOTAL que el cliente ha entregado hasta ahora.\n(Total del pedido: $${totalCalc.toLocaleString('es-CL')})`,
-      promptValue: pedido.abono.toString(),
-      placeholder: 'Ej: 5000',
-      confirmLabel: 'Guardar Abono',
-      onConfirm: async (valor) => {
-        const montoNum = Number(valor)
-        if (isNaN(montoNum) || montoNum < 0) return alert('Ingresa un monto válido.')
-        if (montoNum > totalCalc) return alert('El abono no puede ser mayor al total.')
-
-        try {
-          const ref = doc(db, 'pedidos', pedido.id)
-          const isFull = montoNum === totalCalc
-          const incremento = montoNum - (pedido.abono || 0)
-          const historial = pedido.historialAbonos || []
-          
-          if (incremento > 0) {
-            historial.push({ fecha: new Date().toISOString(), monto: incremento, nota: 'Abono Parcial' })
-          } else if (incremento < 0) {
-            historial.push({ fecha: new Date().toISOString(), monto: incremento, nota: 'Corrección / Devolución' })
-          }
-
-          await updateDoc(ref, {
-            abono: montoNum,
-            saldoPendiente: totalCalc - montoNum,
-            pagoEstado: isFull ? 'pagado' : 'parcial',
-            total: totalCalc,
-            historialAbonos: historial
-          })
-          closeDialog()
-        } catch (e) {
-          console.error(e)
-        }
-      }
+    setAbonoTargetPedido(pedido)
+    setAbonoForm({
+      monto: saldo > 0 ? '' : '0',
+      fecha: getLocalDateString(),
+      medioPago: pedido.medioPago || 'transferencia',
+      nota: ''
     })
+    setShowAbonoModal(true)
+  }
+
+  async function handleGuardarNuevoAbono(e) {
+    if (e) e.preventDefault()
+    if (!abonoTargetPedido || !abonoTargetPedido.id) return
+    
+    const montoNum = Number(abonoForm.monto)
+    if (isNaN(montoNum) || montoNum <= 0) {
+      return alert('Ingresa un monto de abono válido mayor a $0.')
+    }
+    
+    const totalCalc = abonoTargetPedido.total || (abonoTargetPedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+    const abonoActual = Number(abonoTargetPedido.abono) || 0
+    const saldoPendiente = Math.max(0, totalCalc - abonoActual)
+    
+    if (montoNum > saldoPendiente) {
+      return alert(`El monto a abonar ($${montoNum.toLocaleString('es-CL')}) supera el saldo pendiente de este pedido ($${saldoPendiente.toLocaleString('es-CL')}).`)
+    }
+    
+    setAbonoProcesando(true)
+    try {
+      const nuevoAbonoTotal = abonoActual + montoNum
+      const nuevoSaldo = Math.max(0, totalCalc - nuevoAbonoTotal)
+      const isFull = nuevoSaldo === 0
+      
+      const nuevoRegistroAbono = {
+        id: Date.now().toString(),
+        fecha: abonoForm.fecha ? abonoForm.fecha : getLocalDateString(),
+        monto: montoNum,
+        medioPago: abonoForm.medioPago,
+        nota: abonoForm.nota.trim() || `Abono vía ${abonoForm.medioPago}`
+      }
+      
+      const historial = [...(abonoTargetPedido.historialAbonos || []), nuevoRegistroAbono]
+      
+      const pedidoRef = doc(db, 'pedidos', abonoTargetPedido.id)
+      await updateDoc(pedidoRef, {
+        abono: nuevoAbonoTotal,
+        saldoPendiente: nuevoSaldo,
+        pagoEstado: isFull ? 'pagado' : 'parcial',
+        total: totalCalc,
+        historialAbonos: historial
+      })
+      
+      setShowAbonoModal(false)
+      setAbonoTargetPedido(null)
+    } catch (err) {
+      console.error('Error al guardar abono:', err)
+      alert('Hubo un error al registrar el abono: ' + err.message)
+    } finally {
+      setAbonoProcesando(false)
+    }
   }
 
   async function handleDelete(pedido) {
@@ -990,6 +1025,9 @@ END:VCALENDAR`
                                               <div className="flex items-center gap-1">
                                                 <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
                                                   <span className="material-symbols-outlined text-xl">edit</span>
+                                                </button>
+                                                <button onClick={() => handleAbrirAbonoModal(p)} className="text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-500/20 p-2 rounded-full transition-colors" title="+ Registrar Abono">
+                                                  <span className="material-symbols-outlined text-xl">payments</span>
                                                 </button>
                                                 <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Marcar como Pagado">
                                                   <span className="material-symbols-outlined text-xl">check_circle</span>
@@ -1355,8 +1393,8 @@ END:VCALENDAR`
                                                 <button onClick={() => handleEdit(p)} className="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Editar Pedido">
                                                   <span className="material-symbols-outlined text-xl">edit</span>
                                                 </button>
-                                                <button onClick={() => handleActualizarAbono(p)} className="text-amber-600 hover:bg-amber-100 p-2 rounded-full transition-colors" title="Actualizar Abono">
-                                                  <span className="material-symbols-outlined text-xl">edit_calendar</span>
+                                                <button onClick={() => handleAbrirAbonoModal(p)} className="text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-500/20 p-2 rounded-full transition-colors" title="+ Registrar Abono">
+                                                  <span className="material-symbols-outlined text-xl">payments</span>
                                                 </button>
                                                 <button onClick={() => handleCompletarPago(p)} className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors" title="Liquidar Saldo (Pagado)">
                                                   <span className="material-symbols-outlined text-xl">price_check</span>
@@ -1567,7 +1605,7 @@ END:VCALENDAR`
                                   <button onClick={() => handleEdit(p)} className="flex-1 bg-primary/10 text-primary py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
                                     Editar
                                   </button>
-                                  <button onClick={() => handleActualizarAbono(p)} className="flex-1 bg-amber-100 text-amber-800 py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
+                                  <button onClick={() => handleAbrirAbonoModal(p)} className="flex-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-[#e2bd6c] py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
                                     Abonar
                                   </button>
                                   <button onClick={() => handleCompletarPago(p)} className="flex-1 bg-secondary text-white py-2.5 rounded-xl font-bold text-[9px] uppercase tracking-widest">
@@ -2609,6 +2647,158 @@ END:VCALENDAR`
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Dedicado para Registrar Nuevo Abono */}
+      {showAbonoModal && abonoTargetPedido && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowAbonoModal(false)} />
+          <div className="bg-surface dark:bg-[#1a1a1a] w-full max-w-md rounded-[32px] shadow-2xl border border-outline-variant/20 dark:border-white/10 overflow-hidden animate-in zoom-in-95 fade-in duration-300 relative z-10 p-6 space-y-5">
+            
+            {/* Header Modal */}
+            <div className="flex justify-between items-start border-b border-outline-variant/10 dark:border-white/5 pb-4">
+              <div>
+                <div className="flex items-center gap-2 text-amber-600 dark:text-[#e2bd6c]">
+                  <span className="material-symbols-outlined text-2xl">payments</span>
+                  <h3 className="font-headline font-bold text-lg text-on-surface dark:text-white">Registrar Abono</h3>
+                </div>
+                <p className="text-xs text-outline dark:text-gray-400 font-bold uppercase tracking-wider mt-1">
+                  Cliente: <span className="text-primary dark:text-[#e2bd6c]">{abonoTargetPedido.cliente}</span>
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowAbonoModal(false)}
+                className="text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white p-1 rounded-full"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            {/* Banner resumen del estado del pedido */}
+            {(() => {
+              const totalCalc = abonoTargetPedido.total || (abonoTargetPedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+              const acumulado = Number(abonoTargetPedido.abono) || 0
+              const saldo = Math.max(0, totalCalc - acumulado)
+              return (
+                <div className="grid grid-cols-3 gap-2 bg-surface-container-low dark:bg-white/5 p-3 rounded-2xl border border-outline-variant/10 text-center">
+                  <div>
+                    <p className="text-[9px] uppercase font-bold text-outline dark:text-gray-400">Total Pedido</p>
+                    <p className="text-sm font-extrabold text-on-surface dark:text-white">${totalCalc.toLocaleString('es-CL')}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase font-bold text-outline dark:text-gray-400">Abonado</p>
+                    <p className="text-sm font-extrabold text-amber-600 dark:text-[#e2bd6c]">${acumulado.toLocaleString('es-CL')}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase font-bold text-outline dark:text-gray-400">Pendiente</p>
+                    <p className="text-sm font-extrabold text-error">${saldo.toLocaleString('es-CL')}</p>
+                  </div>
+                </div>
+              )
+            })()}
+
+            <form onSubmit={handleGuardarNuevoAbono} className="space-y-4">
+              {/* Input Monto */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Monto del Nuevo Abono ($) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-outline dark:text-gray-400">$</span>
+                  <input 
+                    type="number"
+                    min="1"
+                    max={Math.max(0, (abonoTargetPedido.total || (abonoTargetPedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)) - (Number(abonoTargetPedido.abono) || 0))}
+                    required
+                    value={abonoForm.monto}
+                    onChange={e => setAbonoForm({ ...abonoForm, monto: e.target.value })}
+                    placeholder="Ej: 5000"
+                    className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none pl-9 pr-4 py-3.5 text-on-surface dark:text-white font-black text-base rounded-2xl transition-all"
+                  />
+                </div>
+                {(() => {
+                  const totalCalc = abonoTargetPedido.total || (abonoTargetPedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+                  const acumulado = Number(abonoTargetPedido.abono) || 0
+                  const saldo = Math.max(0, totalCalc - acumulado)
+                  return saldo > 0 ? (
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setAbonoForm({ ...abonoForm, monto: saldo.toString() })}
+                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-[#e2bd6c] rounded-xl text-[10px] font-bold uppercase tracking-wider border border-amber-500/20 transition-all flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-xs">done_all</span>
+                        Pagar Saldo Restante (${saldo.toLocaleString('es-CL')})
+                      </button>
+                    </div>
+                  ) : null
+                })()}
+              </div>
+
+              {/* Input Fecha */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Fecha del Abono *
+                </label>
+                <input 
+                  type="date"
+                  required
+                  value={abonoForm.fecha}
+                  onChange={e => setAbonoForm({ ...abonoForm, fecha: e.target.value })}
+                  className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none px-4 py-3.5 text-on-surface dark:text-white font-bold text-sm rounded-2xl transition-all"
+                />
+              </div>
+
+              {/* Select Medio Pago */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Medio de Pago
+                </label>
+                <select
+                  value={abonoForm.medioPago}
+                  onChange={e => setAbonoForm({ ...abonoForm, medioPago: e.target.value })}
+                  className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none px-4 py-3.5 text-on-surface dark:text-white font-bold text-sm rounded-2xl transition-all"
+                >
+                  <option value="transferencia">Transferencia Bancaria</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="tarjeta">Tarjeta (Débito/Crédito)</option>
+                  <option value="cuota">Cuotas</option>
+                </select>
+              </div>
+
+              {/* Input Nota */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Nota u Observación (Opcional)
+                </label>
+                <input 
+                  type="text"
+                  value={abonoForm.nota}
+                  onChange={e => setAbonoForm({ ...abonoForm, nota: e.target.value })}
+                  placeholder="Ej: Abono 1 de 2, Transferencia Banco Estado"
+                  className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none px-4 py-3 text-on-surface dark:text-white font-bold text-xs rounded-2xl transition-all"
+                />
+              </div>
+
+              {/* Botones modal */}
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAbonoModal(false)}
+                  className="flex-1 px-4 py-3.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 font-bold text-xs uppercase tracking-wider text-outline dark:text-gray-300 hover:bg-surface-container-high dark:hover:bg-white/5 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={abonoProcesando}
+                  className="flex-1 px-4 py-3.5 rounded-2xl bg-amber-600 dark:bg-[#e2bd6c] text-white dark:text-black font-extrabold text-xs uppercase tracking-wider hover:opacity-90 shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  {abonoProcesando ? 'Guardando...' : 'Guardar Abono'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
