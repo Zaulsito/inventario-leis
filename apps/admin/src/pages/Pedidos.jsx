@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment, useRef } from 'react'
 import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { calcularEstado, formatDateDMA } from '../utils/date'
+import { calcularEstado, formatDateDMA, getLocalDateString } from '../utils/date'
 import Footer from '../components/Footer'
 
 const formInicial = { 
