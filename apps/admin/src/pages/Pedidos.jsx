@@ -1013,7 +1013,9 @@ END:VCALENDAR`
                                     {group.pedidos.map(p => {
                                       const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
                                       const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1;
-                                      const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3;
+                                      const isAtrasado = diasFaltantes < 0;
+                                      const isHoy = diasFaltantes === 0;
+                                      const isCritico = diasFaltantes > 0 && diasFaltantes <= 3;
 
                                       return (
                                         <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4">
@@ -1034,9 +1036,20 @@ END:VCALENDAR`
                                                       {p.canalVenta}
                                                     </span>
                                                   )}
+                                                  {isAtrasado && (
+                                                    <span className="bg-error text-white font-extrabold px-2.5 py-0.5 rounded-full text-[8px] uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-md shadow-error/20">
+                                                      <span className="material-symbols-outlined text-[10px]">warning</span>
+                                                      Atrasado ({Math.abs(diasFaltantes)}d)
+                                                    </span>
+                                                  )}
+                                                  {isHoy && (
+                                                    <span className="bg-amber-500 text-black font-extrabold px-2.5 py-0.5 rounded-full text-[8px] uppercase tracking-wider">
+                                                      ¡Entrega Hoy!
+                                                    </span>
+                                                  )}
                                                   {isCritico && (
-                                                    <span className="bg-error/10 text-error px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider">
-                                                      Entrega Próxima
+                                                    <span className="bg-amber-500/10 text-amber-700 dark:text-[#e2bd6c] px-2.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider">
+                                                      Faltan {diasFaltantes}d
                                                     </span>
                                                   )}
                                                 </div>

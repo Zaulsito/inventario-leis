@@ -259,53 +259,85 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Próximas entregas */}
+          {/* Próximas entregas y atrasadas */}
           <div className="p-7 rounded-3xl bg-surface-container-low dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/5 flex flex-col min-h-[180px]">
             <div className="flex justify-between items-center mb-4">
-              <h4 className="font-label font-bold text-[10px] uppercase tracking-[0.15em] text-on-surface-variant dark:text-[#e2bd6c]/80">Próximas Entregas</h4>
+              <h4 className="font-label font-bold text-[10px] uppercase tracking-[0.15em] text-on-surface-variant dark:text-[#e2bd6c]/80 flex items-center gap-1.5">
+                Próximas Entregas y Atrasadas
+              </h4>
               <Link to="/pedidos" className="text-secondary dark:text-[#e2bd6c] hover:text-primary transition-colors tooltip flex items-center justify-center" title="Ver todos">
                 <span className="material-symbols-outlined text-sm">open_in_new</span>
               </Link>
             </div>
             
-            <div className="overflow-y-auto flex-1 pr-2 space-y-3">
-              {pedidos
-                .filter(p => {
-                  // +1 to count today effectively as within exactly the difference of days plus the margin
-                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-                  return diasFaltantes >= 0 && diasFaltantes <= 3 // Entregas en los próximos 3 días
-                })
-                .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
-                .map(p => {
-                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+            <div className="overflow-y-auto flex-1 pr-2 space-y-3 max-h-[260px]">
+              {(() => {
+                const pendientes = pedidos
+                  .filter(p => p.pagoEstado !== 'pagado')
+                  .filter(p => {
+                    const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+                    return diasFaltantes <= 3
+                  })
+                  .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
+
+                if (pendientes.length === 0) {
                   return (
-                    <div key={p.id} className="bg-surface-container dark:bg-white/5 p-3 rounded-xl border border-outline-variant/20 dark:border-white/10 flex justify-between items-center">
+                    <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center py-6">
+                      <span className="material-symbols-outlined text-3xl mb-2 text-outline dark:text-gray-600">done_all</span>
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant dark:text-gray-400">Libre de entregas pendientes</p>
+                    </div>
+                  )
+                }
+
+                return pendientes.map(p => {
+                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
+                  const isAtrasado = diasFaltantes < 0
+                  const isHoy = diasFaltantes === 0
+
+                  return (
+                    <Link 
+                      key={p.id} 
+                      to="/pedidos" 
+                      className={`p-3 rounded-xl border flex justify-between items-center transition-all hover:scale-[1.01] block ${
+                        isAtrasado 
+                          ? 'bg-error/10 border-error/30 dark:bg-red-500/10 dark:border-red-500/30' 
+                          : 'bg-surface-container dark:bg-white/5 border-outline-variant/20 dark:border-white/10'
+                      }`}
+                    >
                       <div>
-                        <p className="font-bold text-sm text-on-surface dark:text-white/90 truncate pr-2 max-w-[150px] uppercase">{p.cliente}</p>
-                        <p className="text-[10px] text-on-surface-variant dark:text-gray-500 font-bold uppercase tracking-widest mt-0.5">{p.productos.length} items</p>
+                        <div className="flex items-center gap-1.5">
+                          {isAtrasado && (
+                            <span className="material-symbols-outlined text-error text-sm">warning</span>
+                          )}
+                          <p className="font-bold text-sm text-on-surface dark:text-white/90 truncate max-w-[140px] uppercase">{p.cliente}</p>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant dark:text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                          {(p.productos || []).length} items • ${ (p.total || 0).toLocaleString('es-CL') }
+                        </p>
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end">
-                        <span className="px-2 py-0.5 bg-error/10 text-error text-[9px] font-extrabold uppercase rounded-full tracking-widest animate-pulse inline-block mb-1">
-                          ¡Faltan {diasFaltantes} d!
-                        </span>
+                        {isAtrasado ? (
+                          <span className="px-2 py-0.5 bg-error text-white text-[9px] font-extrabold uppercase rounded-full tracking-widest animate-pulse inline-block mb-1">
+                            Atrasado ({Math.abs(diasFaltantes)}d)
+                          </span>
+                        ) : isHoy ? (
+                          <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-extrabold uppercase rounded-full tracking-widest inline-block mb-1">
+                            ¡Hoy!
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-700 dark:text-[#e2bd6c] text-[9px] font-extrabold uppercase rounded-full tracking-widest inline-block mb-1">
+                            ¡Faltan {diasFaltantes} d!
+                          </span>
+                        )}
                         <p className="text-[10px] font-bold text-on-surface-variant dark:text-gray-400 flex items-center gap-1">
                           <span className="material-symbols-outlined text-[12px]">calendar_month</span>
                           {formatDateDMA(p.fechaEntrega)}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   )
-                })}
-
-              {pedidos.filter(p => {
-                const df = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-                return df >= 0 && df <= 3
-              }).length === 0 && (
-                <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center mt-6">
-                  <span className="material-symbols-outlined text-3xl mb-2 text-outline dark:text-gray-600">done_all</span>
-                  <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant dark:text-gray-400">Libre de entregas</p>
-                </div>
-              )}
+                })
+              })()}
             </div>
           </div>
         </div>
