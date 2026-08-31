@@ -255,6 +255,17 @@ export default function Pedidos() {
   })
   const [abonoProcesando, setAbonoProcesando] = useState(false)
 
+  // Estado para modal de EDICIÓN de registro de abono individual
+  const [showEditAbonoModal, setShowEditAbonoModal] = useState(false)
+  const [editAbonoTarget, setEditAbonoTarget] = useState(null)
+  const [editAbonoForm, setEditAbonoForm] = useState({
+    monto: '',
+    fecha: '',
+    medioPago: 'transferencia',
+    nota: ''
+  })
+  const [editAbonoProcesando, setEditAbonoProcesando] = useState(false)
+
   function closeDialog() {
     setDialog({ ...dialog, show: false })
   }
@@ -701,6 +712,75 @@ export default function Pedidos() {
       alert('Hubo un error al registrar el abono: ' + err.message)
     } finally {
       setAbonoProcesando(false)
+    }
+  }
+
+  function handleAbrirEditAbonoModal(pedido, abonoIndex, abonoItem) {
+    if (!pedido || abonoIndex == null || !abonoItem) return
+    let fechaFormateada = abonoItem.fecha || getLocalDateString()
+    if (fechaFormateada.includes('T')) {
+      fechaFormateada = fechaFormateada.split('T')[0]
+    }
+    
+    setEditAbonoTarget({ pedido, index: abonoIndex })
+    setEditAbonoForm({
+      monto: abonoItem.monto ? abonoItem.monto.toString() : '0',
+      fecha: fechaFormateada,
+      medioPago: abonoItem.medioPago || 'transferencia',
+      nota: abonoItem.nota || ''
+    })
+    setShowEditAbonoModal(true)
+  }
+
+  async function handleGuardarEditAbono(e) {
+    if (e) e.preventDefault()
+    if (!editAbonoTarget || !editAbonoTarget.pedido) return
+    
+    const { pedido, index } = editAbonoTarget
+    const montoNum = Number(editAbonoForm.monto)
+    if (isNaN(montoNum) || montoNum <= 0) {
+      return alert('Ingresa un monto de abono válido mayor a $0.')
+    }
+    
+    setEditAbonoProcesando(true)
+    try {
+      const historial = [...(pedido.historialAbonos || [])]
+      
+      const nuevoItem = {
+        id: (historial[index] && historial[index].id) || Date.now().toString(),
+        fecha: editAbonoForm.fecha || getLocalDateString(),
+        monto: montoNum,
+        medioPago: editAbonoForm.medioPago,
+        nota: editAbonoForm.nota.trim() || 'Abono Registrado'
+      }
+
+      if (index >= 0 && index < historial.length) {
+        historial[index] = nuevoItem
+      } else {
+        historial.push(nuevoItem)
+      }
+
+      const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+      const nuevoAbonoTotal = historial.reduce((acc, h) => acc + (Number(h.monto) || 0), 0)
+      const nuevoSaldo = Math.max(0, totalCalc - nuevoAbonoTotal)
+      const isFull = nuevoSaldo === 0
+
+      const pedidoRef = doc(db, 'pedidos', pedido.id)
+      await updateDoc(pedidoRef, {
+        abono: nuevoAbonoTotal,
+        saldoPendiente: nuevoSaldo,
+        pagoEstado: isFull ? 'pagado' : (nuevoAbonoTotal > 0 ? 'parcial' : 'sin pagar'),
+        total: totalCalc,
+        historialAbonos: historial
+      })
+
+      setShowEditAbonoModal(false)
+      setEditAbonoTarget(null)
+    } catch (err) {
+      console.error('Error al editar abono:', err)
+      alert('Hubo un error al actualizar el abono: ' + err.message)
+    } finally {
+      setEditAbonoProcesando(false)
     }
   }
 
@@ -1475,31 +1555,34 @@ END:VCALENDAR`
                                                 </div>
                                               </div>
                                               {(() => {
-                                                const fullHist = getCompleteHistorialAbonos(p)
-                                                return fullHist.length > 0 && (
-                                                  <div className="mb-2 space-y-2 pt-4 border-t border-outline-variant/10">
-                                                    <p className="text-[8px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 px-1 mt-2">Pagos Registrados</p>
-                                                    <div className="space-y-1.5">
-                                                      {fullHist.map((abono, idx) => (
-                                                        <div key={abono.id || idx} className="flex justify-between items-center text-[10px] bg-secondary/5 dark:bg-white/5 px-3 py-2 rounded-xl border border-secondary/10 dark:border-white/5">
-                                                          <div className="flex flex-col">
-                                                            <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                                              {formatDateDMA(abono.fecha)}
-                                                            </span>
-                                                            <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
-                                                          </div>
-                                                          <div className="flex items-center gap-2">
-                                                            <span className="font-bold text-secondary dark:text-[#f3d692] text-xs">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                                              <span className="material-symbols-outlined text-[14px]">undo</span>
-                                                            </button>
-                                                          </div>
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                )
-                                              })()}
+                                                 const fullHist = getCompleteHistorialAbonos(p)
+                                                 return fullHist.length > 0 && (
+                                                   <div className="pt-4 border-t border-outline-variant/10">
+                                                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                       {fullHist.map((abono, idx) => (
+                                                         <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
+                                                           <div className="flex flex-col">
+                                                             <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                               {formatDateDMA(abono.fecha)}
+                                                             </span>
+                                                             <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                                           </div>
+                                                           <div className="flex items-center gap-3">
+                                                             <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                             <button onClick={(e) => { e.stopPropagation(); handleAbrirEditAbonoModal(p, idx, abono); }} className="w-6 h-6 rounded-full hover:bg-primary/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] opacity-60 hover:opacity-100 transition-all" title="Editar Registro de Abono">
+                                                               <span className="material-symbols-outlined text-[14px]">edit</span>
+                                                             </button>
+                                                             <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                               <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                             </button>
+                                                           </div>
+                                                         </div>
+                                                       ))}
+                                                     </div>
+                                                   </div>
+                                                 )
+                                               })()}
                                             </div>
                                           )}
                                         </div>
@@ -2852,6 +2935,117 @@ END:VCALENDAR`
                   className="flex-1 px-4 py-3.5 rounded-2xl bg-amber-600 dark:bg-[#e2bd6c] text-white dark:text-black font-extrabold text-xs uppercase tracking-wider hover:opacity-90 shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
                 >
                   {abonoProcesando ? 'Guardando...' : 'Guardar Abono'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Dedicado para EDITAR Registro de Abono Individual */}
+      {showEditAbonoModal && editAbonoTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowEditAbonoModal(false)} />
+          <div className="bg-surface dark:bg-[#1a1a1a] w-full max-w-md rounded-[32px] shadow-2xl border border-outline-variant/20 dark:border-white/10 overflow-hidden animate-in zoom-in-95 fade-in duration-300 relative z-10 p-6 space-y-5">
+            
+            {/* Header Modal */}
+            <div className="flex justify-between items-start border-b border-outline-variant/10 dark:border-white/5 pb-4">
+              <div>
+                <div className="flex items-center gap-2 text-primary dark:text-[#e2bd6c]">
+                  <span className="material-symbols-outlined text-2xl">edit_note</span>
+                  <h3 className="font-headline font-bold text-lg text-on-surface dark:text-white">Editar Registro de Abono</h3>
+                </div>
+                <p className="text-xs text-outline dark:text-gray-400 font-bold uppercase tracking-wider mt-1">
+                  Cliente: <span className="text-primary dark:text-[#e2bd6c]">{editAbonoTarget.pedido.cliente}</span>
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowEditAbonoModal(false)}
+                className="text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white p-1 rounded-full"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarEditAbono} className="space-y-4">
+              {/* Input Fecha */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Fecha del Abono *
+                </label>
+                <input 
+                  type="date"
+                  required
+                  value={editAbonoForm.fecha}
+                  onChange={e => setEditAbonoForm({ ...editAbonoForm, fecha: e.target.value })}
+                  className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none px-4 py-3.5 text-on-surface dark:text-white font-bold text-sm rounded-2xl transition-all"
+                />
+              </div>
+
+              {/* Input Monto */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Monto ($) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-outline dark:text-gray-400">$</span>
+                  <input 
+                    type="number"
+                    min="1"
+                    required
+                    value={editAbonoForm.monto}
+                    onChange={e => setEditAbonoForm({ ...editAbonoForm, monto: e.target.value })}
+                    placeholder="Ej: 43000"
+                    className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none pl-9 pr-4 py-3.5 text-on-surface dark:text-white font-black text-base rounded-2xl transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Select Medio Pago */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Medio de Pago
+                </label>
+                <select
+                  value={editAbonoForm.medioPago}
+                  onChange={e => setEditAbonoForm({ ...editAbonoForm, medioPago: e.target.value })}
+                  className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none px-4 py-3.5 text-on-surface dark:text-white font-bold text-sm rounded-2xl transition-all"
+                >
+                  <option value="transferencia">Transferencia Bancaria</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="tarjeta">Tarjeta (Débito/Crédito)</option>
+                  <option value="cuota">Cuotas</option>
+                </select>
+              </div>
+
+              {/* Input Nota */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
+                  Nota / Descripción
+                </label>
+                <input 
+                  type="text"
+                  value={editAbonoForm.nota}
+                  onChange={e => setEditAbonoForm({ ...editAbonoForm, nota: e.target.value })}
+                  placeholder="Ej: Liquidación Total / Pago Final"
+                  className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none px-4 py-3 text-on-surface dark:text-white font-bold text-xs rounded-2xl transition-all"
+                />
+              </div>
+
+              {/* Botones modal */}
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditAbonoModal(false)}
+                  className="flex-1 px-4 py-3.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 font-bold text-xs uppercase tracking-wider text-outline dark:text-gray-300 hover:bg-surface-container-high dark:hover:bg-white/5 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={editAbonoProcesando}
+                  className="flex-1 px-4 py-3.5 rounded-2xl bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black font-extrabold text-xs uppercase tracking-wider hover:opacity-90 shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  {editAbonoProcesando ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>
