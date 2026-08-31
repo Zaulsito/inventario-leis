@@ -1477,19 +1477,19 @@ END:VCALENDAR`
                                               {(() => {
                                                 const fullHist = getCompleteHistorialAbonos(p)
                                                 return fullHist.length > 0 && (
-                                                  <div className="pt-4 border-t border-outline-variant/10">
-                                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                  <div className="mb-2 space-y-2 pt-4 border-t border-outline-variant/10">
+                                                    <p className="text-[8px] font-extrabold uppercase tracking-[0.2em] text-secondary dark:text-[#e2bd6c]/80 px-1 mt-2">Pagos Registrados</p>
+                                                    <div className="space-y-1.5">
                                                       {fullHist.map((abono, idx) => (
-                                                        <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
+                                                        <div key={abono.id || idx} className="flex justify-between items-center text-[10px] bg-secondary/5 dark:bg-white/5 px-3 py-2 rounded-xl border border-secondary/10 dark:border-white/5">
                                                           <div className="flex flex-col">
                                                             <span className="text-on-surface-variant dark:text-white/90 font-medium">
                                                               {formatDateDMA(abono.fecha)}
                                                             </span>
-                                                            <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                                            <span className="text-[7px] text-outline dark:text-gray-500 uppercase font-bold tracking-wider">{abono.nota || 'Abono'}</span>
                                                           </div>
-                                                          <div className="flex items-center gap-3">
-                                                            <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                          <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-secondary dark:text-[#f3d692] text-xs">+ ${abono.monto.toLocaleString('es-CL')}</span>
                                                             <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
                                                               <span className="material-symbols-outlined text-[14px]">undo</span>
                                                             </button>
