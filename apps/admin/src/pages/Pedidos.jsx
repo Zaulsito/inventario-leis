@@ -1554,13 +1554,11 @@ END:VCALENDAR`
                                                   ))}
                                                 </div>
                                               </div>
-                                              {(() => {
-                                                 const fullHist = getCompleteHistorialAbonos(p)
-                                                 return fullHist.length > 0 && (
-                                                   <div className="pt-4 border-t border-outline-variant/10">
-                                                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
-                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                       {fullHist.map((abono, idx) => (
+                                              {getCompleteHistorialAbonos(p) && getCompleteHistorialAbonos(p).length > 0 && (
+                                                 <div className="pt-4 border-t border-outline-variant/10">
+                                                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                     {getCompleteHistorialAbonos(p).map((abono, idx) => (
                                                          <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
                                                            <div className="flex flex-col">
                                                              <span className="text-on-surface-variant dark:text-white/90 font-medium">
@@ -1581,8 +1579,7 @@ END:VCALENDAR`
                                                        ))}
                                                      </div>
                                                    </div>
-                                                 )
-                                               })()}
+                                               )}
                                             </div>
                                           )}
                                         </div>
@@ -1929,29 +1926,35 @@ END:VCALENDAR`
                                                 </div>
                                               </div>
 
-                                              {p.historialAbonos && p.historialAbonos.length > 0 && (
-                                                <div className="pt-4 border-t border-outline-variant/10">
-                                                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    {p.historialAbonos.map((abono, idx) => (
-                                                      <div key={idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
-                                                        <div className="flex flex-col">
-                                                          <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                                            {new Date(abono.fecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                          </span>
-                                                          <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                          <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                                          <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                                            <span className="material-symbols-outlined text-[14px]">undo</span>
-                                                          </button>
-                                                        </div>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                </div>
-                                              )}
+                                               {(() => {
+                                                 const fullHist = getCompleteHistorialAbonos(p)
+                                                 return fullHist.length > 0 && (
+                                                   <div className="pt-4 border-t border-outline-variant/10">
+                                                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                       {fullHist.map((abono, idx) => (
+                                                         <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
+                                                           <div className="flex flex-col">
+                                                             <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                               {formatDateDMA(abono.fecha)}
+                                                             </span>
+                                                             <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                                           </div>
+                                                           <div className="flex items-center gap-3">
+                                                             <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                             <button onClick={(e) => { e.stopPropagation(); handleAbrirEditAbonoModal(p, idx, abono); }} className="w-6 h-6 rounded-full hover:bg-primary/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] opacity-60 hover:opacity-100 transition-all" title="Editar Registro de Abono">
+                                                               <span className="material-symbols-outlined text-[14px]">edit</span>
+                                                             </button>
+                                                             <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                               <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                             </button>
+                                                           </div>
+                                                         </div>
+                                                       ))}
+                                                     </div>
+                                                   </div>
+                                                 )
+                                               })()}
                                             </div>
                                           )}
                                         </div>
