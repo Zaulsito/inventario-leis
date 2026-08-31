@@ -431,41 +431,49 @@ export default function Layout() {
 
       {/* ── Sidebar desktop ── */}
       <aside className={`hidden md:flex flex-col bg-surface-container-low dark:bg-[#181818] border-r border-outline-variant/30 dark:border-white/5 fixed left-0 top-0 h-full overflow-y-auto shrink-0 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] z-[110] [.modal-open_&]:hidden
-        ${isCollapsed ? 'w-0 -translate-x-full' : 'w-72 translate-x-0'}`}>
+        ${isCollapsed ? 'w-20' : 'w-72'}`}>
         
-        {/* Contenido de la sidebar (encapsulado para que no se rompa el layout al colapsar) */}
-        <div className={`p-8 h-full flex flex-col min-w-[18rem] transition-opacity duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        {/* Contenido de la sidebar */}
+        <div className={`h-full flex flex-col transition-all duration-500 ${isCollapsed ? 'p-4 items-center' : 'p-8'}`}>
           {/* Logo / Brand + Theme Toggle */}
-          <div className="flex justify-between items-start mb-12">
-            <Link to="/dashboard" className="flex items-center space-x-4 hover:opacity-80 transition-opacity cursor-pointer group">
-              <div className="w-16 h-16 bg-surface-container-highest/50 dark:bg-white/5 rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect border border-outline-variant/10 dark:border-white/10">
+          <div className={`flex items-center mb-12 transition-all ${isCollapsed ? 'justify-center w-full' : 'justify-between'}`}>
+            <Link to="/dashboard" className="flex items-center space-x-4 hover:opacity-80 transition-opacity cursor-pointer group" title="Ir al Inicio">
+              <div className={`bg-surface-container-highest/50 dark:bg-white/5 rounded-2xl shadow-sm flex items-center justify-center p-1.5 shrink-0 crystal-effect border border-outline-variant/10 dark:border-white/10 transition-all ${isCollapsed ? 'w-12 h-12' : 'w-16 h-16'}`}>
                 <img src={isDark ? "/logo-dark.png" : "/logo.jpeg"} alt="Logo Leis" className="w-full h-full object-contain rounded-xl" />
               </div>
-              <div>
-                <p className="italic text-3xl text-primary dark:text-[#e2bd6c] leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
-                <p className="text-[9px] text-on-surface-variant dark:text-gray-500 font-label uppercase tracking-widest mt-1 leading-tight group-hover:text-primary transition-colors">Software</p>
-              </div>
+              {!isCollapsed && (
+                <div>
+                  <p className="italic text-3xl text-primary dark:text-[#e2bd6c] leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
+                  <p className="text-[9px] text-on-surface-variant dark:text-gray-500 font-label uppercase tracking-widest mt-1 leading-tight group-hover:text-primary transition-colors">Software</p>
+                </div>
+              )}
             </Link>
 
-            <button 
-              onClick={toggleTheme}
-              className="w-10 h-10 rounded-xl bg-surface-container-high/50 dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] hover:bg-primary/10 transition-all active:scale-95"
-            >
-              <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-xl" />
-            </button>
+            {!isCollapsed && (
+              <button 
+                onClick={toggleTheme}
+                className="w-10 h-10 rounded-xl bg-surface-container-high/50 dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] hover:bg-primary/10 transition-all active:scale-95"
+                title="Cambiar modo claro / oscuro"
+              >
+                <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-xl" />
+              </button>
+            )}
           </div>
 
           {/* Nav links */}
-          <nav className="space-y-2">
+          <nav className="space-y-2.5 w-full">
             {navItems.map((item) => (
               item.type === 'action' ? (
                 <button
                   key={item.label}
                   onClick={() => setShowUserMenu(true)}
-                  className="w-full flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 tour-perfil group"
+                  title={item.label}
+                  className={`w-full flex items-center rounded-2xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 tour-perfil group ${
+                    isCollapsed ? 'justify-center h-12 px-0' : 'space-x-4 px-5 py-3'
+                  }`}
                 >
                   <Icon name={item.icon} className="group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary origin-center" />
-                  <span>{item.label}</span>
+                  {!isCollapsed && <span>{item.label}</span>}
                 </button>
               ) : item.type === 'link' ? (
                 <a
@@ -473,27 +481,33 @@ export default function Layout() {
                   href={item.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center space-x-4 px-5 py-3 rounded-xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 dark:hover:bg-white/5 group"
+                  title={item.label}
+                  className={`w-full flex items-center rounded-2xl transition-all font-label text-sm font-bold uppercase tracking-widest text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 dark:hover:bg-white/5 group ${
+                    isCollapsed ? 'justify-center h-12 px-0' : 'space-x-4 px-5 py-3'
+                  }`}
                 >
                   <Icon name={item.icon} className="group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary dark:group-hover:text-[#e2bd6c] origin-center" />
-                  <span>{item.label}</span>
+                  {!isCollapsed && <span>{item.label}</span>}
                 </a>
               ) : (
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  title={item.label}
                   className={({ isActive }) =>
-                    `flex items-center space-x-4 px-5 py-3 rounded-xl transition-all duration-300 font-label text-sm font-bold uppercase tracking-widest group
-                    ${isActive
-                      ? 'bg-primary/10 text-primary dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c] shadow-sm scale-[1.02]'
-                      : 'text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 dark:hover:bg-white/5'
+                    `flex items-center rounded-2xl transition-all duration-300 font-label text-sm font-bold uppercase tracking-widest group ${
+                      isCollapsed ? 'justify-center h-12 px-0 w-12 mx-auto' : 'w-full space-x-4 px-5 py-3'
+                    } ${
+                      isActive
+                        ? 'bg-primary/10 text-primary dark:bg-[#e2bd6c]/10 dark:text-[#e2bd6c] shadow-sm scale-[1.02]'
+                        : 'text-on-surface-variant dark:text-gray-400 hover:bg-surface-variant/50 dark:hover:bg-white/5'
                     }`
                   }
                 >
                   {({ isActive }) => (
                     <>
                       <Icon name={item.icon} filled={isActive} className={`${isActive ? 'scale-110 text-primary dark:text-[#e2bd6c]' : ''} group-hover:scale-[1.2] group-hover:-rotate-12 group-hover:text-primary dark:group-hover:text-[#e2bd6c] origin-center`} />
-                      <span>{item.label}</span>
+                      {!isCollapsed && <span>{item.label}</span>}
                     </>
                   )}
                 </NavLink>
@@ -502,19 +516,31 @@ export default function Layout() {
           </nav>
 
           {/* Branding / Badge at bottom of sidebar */}
-          <div className="mt-auto pt-8 opacity-40 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Leis Administration V1.2</p>
-            <p className="text-[10px] italic mt-1 font-headline text-secondary dark:text-[#e2bd6c]/80">Tu exito esta en nuestros productos</p>
-          </div>
+          {isCollapsed ? (
+            <div className="mt-auto pt-4 flex flex-col items-center gap-3">
+              <button 
+                onClick={toggleTheme}
+                className="w-10 h-10 rounded-xl bg-surface-container-high/50 dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] hover:bg-primary/10 transition-all active:scale-95"
+                title={isDark ? 'Modo Claro' : 'Modo Oscuro'}
+              >
+                <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-xl" />
+              </button>
+            </div>
+          ) : (
+            <div className="mt-auto pt-8 opacity-40 text-center">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Leis Administration V1.2</p>
+              <p className="text-[10px] italic mt-1 font-headline text-secondary dark:text-[#e2bd6c]/80">Tu exito esta en nuestros productos</p>
+            </div>
+          )}
         </div>
       </aside>
 
       {/* ── Botón Toggle Flotante (Círculo en el Borde) ── */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        title={isCollapsed ? 'Mostrar panel' : 'Ocultar panel'}
+        title={isCollapsed ? 'Expandir panel' : 'Ocultar panel (Solo Iconos)'}
         className={`hidden md:flex fixed top-1/2 z-[120] w-8 h-8 items-center justify-center bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black rounded-full shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:scale-110 active:scale-95 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group -translate-y-1/2 -translate-x-1/2 [.modal-open_&]:hidden
-        ${isCollapsed ? 'left-0' : 'left-72'}`}
+        ${isCollapsed ? 'left-20' : 'left-72'}`}
       >
         <span className={`material-symbols-outlined text-lg transition-transform duration-700 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
           chevron_right
@@ -522,9 +548,9 @@ export default function Layout() {
       </button>
 
       {/* ── Main content ── */}
-      <main className={`flex-1 overflow-x-hidden pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
+      <main className={`flex-1 overflow-x-hidden pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCollapsed ? 'md:pl-20' : 'md:pl-72'}`}>
         <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-all duration-700
-          ${isCollapsed ? 'md:pl-0' : 'md:pl-72'}`}>
+          ${isCollapsed ? 'md:pl-20' : 'md:pl-72'}`}>
           
           {/* Estrellitas de fondo */}
           <div className="stars-container opacity-40 dark:opacity-100">

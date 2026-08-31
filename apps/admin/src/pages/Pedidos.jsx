@@ -86,8 +86,13 @@ const getCompleteHistorialAbonos = (pedido) => {
   if (!pedido) return []
   const rawHistorial = Array.isArray(pedido.historialAbonos) ? [...pedido.historialAbonos] : []
   const sumRegistrado = rawHistorial.reduce((acc, h) => acc + (Number(h.monto) || 0), 0)
-  const totalAbonado = Number(pedido.abono) || 0
-  const dif = totalAbonado - sumRegistrado
+  const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+  
+  const totalEfectivo = (pedido.pagoEstado === 'pagado' || Number(pedido.saldoPendiente) === 0)
+    ? totalCalc
+    : Math.max(Number(pedido.abono) || 0, sumRegistrado)
+
+  const dif = totalEfectivo - sumRegistrado
 
   if (dif > 0) {
     rawHistorial.push({
@@ -95,7 +100,7 @@ const getCompleteHistorialAbonos = (pedido) => {
       fecha: pedido.fechaEntrega || pedido.fechaCreacion || getLocalDateString(),
       monto: dif,
       medioPago: pedido.medioPago || 'transferencia',
-      nota: 'Liquidación / Pago de Saldo'
+      nota: rawHistorial.length > 0 ? 'Liquidación / Pago de Saldo' : 'Pago Completo de Pedido'
     })
   }
   return rawHistorial
@@ -266,6 +271,12 @@ export default function Pedidos() {
   })
   const [editAbonoProcesando, setEditAbonoProcesando] = useState(false)
   const [editAbonoMaxPermitido, setEditAbonoMaxPermitido] = useState(0)
+
+  // Estados para sub-pestañas, buscador por cliente con autocompletado y ordenamiento dinámico
+  const [subTab, setSubTab] = useState('todos') // 'todos' | 'pendientes' | 'abonados' | 'finalizados'
+  const [busquedaCliente, setBusquedaCliente] = useState('')
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const [ordenCriterio, setOrdenCriterio] = useState('fecha_desc') // 'fecha_desc' | 'fecha_asc' | 'nombre_asc' | 'nombre_desc' | 'monto_desc' | 'monto_asc'
 
   function closeDialog() {
     setDialog({ ...dialog, show: false })
@@ -739,6 +750,45 @@ export default function Pedidos() {
     setShowEditAbonoModal(true)
   }
 
+  async function ejecutarGuardarEditAbono(pedido, index, montoNum, otrosAbonos, totalCalc, nuevoAbonoTotal, nuevoSaldo, nuevoPagoEstado) {
+    setEditAbonoProcesando(true)
+    try {
+      const rawHist = getCompleteHistorialAbonos(pedido)
+      const historial = [...rawHist]
+      
+      const nuevoItem = {
+        id: (historial[index] && historial[index].id) || Date.now().toString(),
+        fecha: editAbonoForm.fecha || getLocalDateString(),
+        monto: montoNum,
+        medioPago: editAbonoForm.medioPago,
+        nota: editAbonoForm.nota.trim() || 'Abono Registrado'
+      }
+
+      if (index >= 0 && index < historial.length) {
+        historial[index] = nuevoItem
+      } else {
+        historial.push(nuevoItem)
+      }
+
+      const pedidoRef = doc(db, 'pedidos', pedido.id)
+      await updateDoc(pedidoRef, {
+        abono: nuevoAbonoTotal,
+        saldoPendiente: nuevoSaldo,
+        pagoEstado: nuevoPagoEstado,
+        total: totalCalc,
+        historialAbonos: historial
+      })
+
+      setShowEditAbonoModal(false)
+      setEditAbonoTarget(null)
+    } catch (err) {
+      console.error('Error al editar abono:', err)
+      alert('Hubo un error al actualizar el abono: ' + err.message)
+    } finally {
+      setEditAbonoProcesando(false)
+    }
+  }
+
   async function handleGuardarEditAbono(e) {
     if (e) e.preventDefault()
     if (!editAbonoTarget || !editAbonoTarget.pedido) return
@@ -758,54 +808,27 @@ export default function Pedidos() {
       montoNum = maxPermitido
     }
 
-      const nuevoAbonoTotal = otrosAbonos + montoNum
-      const nuevoSaldo = Math.max(0, totalCalc - nuevoAbonoTotal)
-      const isFull = nuevoSaldo === 0
-      const nuevoPagoEstado = isFull ? 'pagado' : (nuevoAbonoTotal > 0 ? 'parcial' : 'sin pagar')
+    const nuevoAbonoTotal = otrosAbonos + montoNum
+    const nuevoSaldo = Math.max(0, totalCalc - nuevoAbonoTotal)
+    const isFull = nuevoSaldo === 0
+    const nuevoPagoEstado = isFull ? 'pagado' : (nuevoAbonoTotal > 0 ? 'parcial' : 'sin pagar')
 
-      // Alerta de confirmación al usuario si el pedido estaba finalizado y ahora quedará pendiente
-      if ((pedido.pagoEstado === 'pagado' || Number(pedido.saldoPendiente) === 0) && nuevoSaldo > 0) {
-        const confirmacion = window.confirm(
-          `⚠️ ATENCIÓN AL CLIENTE: ${pedido.cliente}\n\nAl modificar el abono a $${montoNum.toLocaleString('es-CL')}, este pedido quedará con un saldo pendiente de $${nuevoSaldo.toLocaleString('es-CL')}.\n\nEl pedido SALDRÁ de "Finalizados" y volverá automáticamente a la sección de "${nuevoPagoEstado === 'parcial' ? 'Pedidos Abonados' : 'Pedidos Pendientes'}".\n\n¿Deseas confirmar este cambio?`
-        )
-        if (!confirmacion) return
-      }
-
-      setEditAbonoProcesando(true)
-      try {
-        const historial = [...rawHist]
-        
-        const nuevoItem = {
-          id: (historial[index] && historial[index].id) || Date.now().toString(),
-          fecha: editAbonoForm.fecha || getLocalDateString(),
-          monto: montoNum,
-          medioPago: editAbonoForm.medioPago,
-          nota: editAbonoForm.nota.trim() || 'Abono Registrado'
+    // Alerta modal personalizada dentro de la app si el pedido estaba finalizado y ahora quedará pendiente
+    if ((pedido.pagoEstado === 'pagado' || Number(pedido.saldoPendiente) === 0) && nuevoSaldo > 0) {
+      setDialog({
+        show: true,
+        title: '⚠️ Reubicar Pedido a Pendiente',
+        message: `Al modificar el abono de ${pedido.cliente} a $${montoNum.toLocaleString('es-CL')}, este pedido quedará con un saldo pendiente de $${nuevoSaldo.toLocaleString('es-CL')}.\n\nEl pedido saldrá de "Finalizados" y volverá automáticamente a "${nuevoPagoEstado === 'parcial' ? 'Pedidos Abonados' : 'Pedidos Pendientes'}".`,
+        confirmLabel: 'Sí, Cambiar y Mover',
+        onConfirm: () => {
+          closeDialog()
+          ejecutarGuardarEditAbono(pedido, index, montoNum, otrosAbonos, totalCalc, nuevoAbonoTotal, nuevoSaldo, nuevoPagoEstado)
         }
-
-        if (index >= 0 && index < historial.length) {
-          historial[index] = nuevoItem
-        } else {
-          historial.push(nuevoItem)
-        }
-
-        const pedidoRef = doc(db, 'pedidos', pedido.id)
-        await updateDoc(pedidoRef, {
-          abono: nuevoAbonoTotal,
-          saldoPendiente: nuevoSaldo,
-          pagoEstado: nuevoPagoEstado,
-          total: totalCalc,
-          historialAbonos: historial
-        })
-
-      setShowEditAbonoModal(false)
-      setEditAbonoTarget(null)
-    } catch (err) {
-      console.error('Error al editar abono:', err)
-      alert('Hubo un error al actualizar el abono: ' + err.message)
-    } finally {
-      setEditAbonoProcesando(false)
+      })
+      return
     }
+
+    ejecutarGuardarEditAbono(pedido, index, montoNum, otrosAbonos, totalCalc, nuevoAbonoTotal, nuevoSaldo, nuevoPagoEstado)
   }
 
   async function handleDelete(pedido) {
@@ -942,10 +965,61 @@ END:VCALENDAR`
     URL.revokeObjectURL(url)
   }
 
+  // Sugerencias de Autocompletado para el Buscador por Nombre de Cliente
+  const sugerenciasClientes = Array.from(new Set(pedidos.map(p => (p.cliente || '').trim()).filter(Boolean))).sort();
+
+  const sugerenciasFiltradas = busquedaCliente.trim()
+    ? sugerenciasClientes.filter(c => c.toLowerCase().includes(busquedaCliente.toLowerCase().trim()))
+    : sugerenciasClientes;
+
+  // Filtrado general por texto en buscador
+  const pedidosFiltrados = pedidos.filter(p => {
+    if (!busquedaCliente.trim()) return true;
+    const q = busquedaCliente.toLowerCase().trim();
+    return (
+      (p.cliente || '').toLowerCase().includes(q) ||
+      (p.canalVenta || '').toLowerCase().includes(q) ||
+      (p.medioPago || '').toLowerCase().includes(q)
+    );
+  });
+
   // Filtrar y ordenar los pedidos para evitar desajustes en la paginación
-  const listPendientes = pedidos.filter(p => p.pagoEstado === 'sin pagar' || !p.pagoEstado);
-  const listAbonados = pedidos.filter(p => p.pagoEstado === 'parcial');
-  const listFinalizados = pedidos.filter(p => p.pagoEstado === 'pagado');
+  const listPendientes = pedidosFiltrados.filter(p => p.pagoEstado === 'sin pagar' || !p.pagoEstado);
+  const listAbonados = pedidosFiltrados.filter(p => p.pagoEstado === 'parcial');
+  const listFinalizados = pedidosFiltrados.filter(p => p.pagoEstado === 'pagado');
+
+  // Función auxiliar de ordenamiento de grupos de pedidos
+  const sortGroupsBy = (groups, criterio) => {
+    const list = [...groups];
+    list.sort((a, b) => {
+      if (criterio === 'nombre_asc') {
+        return (a.cliente || '').localeCompare(b.cliente || '', 'es');
+      }
+      if (criterio === 'nombre_desc') {
+        return (b.cliente || '').localeCompare(a.cliente || '', 'es');
+      }
+      if (criterio === 'monto_desc') {
+        const sumA = a.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((s, pr) => s + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+        const sumB = b.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((s, pr) => s + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+        return sumB - sumA;
+      }
+      if (criterio === 'monto_asc') {
+        const sumA = a.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((s, pr) => s + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+        const sumB = b.pedidos.reduce((acc, p) => acc + (p.total || p.productos.reduce((s, pr) => s + (pr.cantidad * (pr.precio || 0)), 0)), 0);
+        return sumA - sumB;
+      }
+      if (criterio === 'fecha_asc') {
+        const minA = a.pedidos.map(p => p.fechaEntrega || '').sort()[0] || '';
+        const minB = b.pedidos.map(p => p.fechaEntrega || '').sort()[0] || '';
+        return minA.localeCompare(minB);
+      }
+      // default: 'fecha_desc'
+      const maxA = a.pedidos.map(p => p.fechaEntrega || '').sort().reverse()[0] || '';
+      const maxB = b.pedidos.map(p => p.fechaEntrega || '').sort().reverse()[0] || '';
+      return maxB.localeCompare(maxA);
+    });
+    return list;
+  };
 
   // Calcular montos acumulados para Pedidos Pendientes
   const totalMontoPendientes = listPendientes.reduce((acc, p) => {
@@ -961,9 +1035,13 @@ END:VCALENDAR`
   }, 0);
   const totalMontoSaldoAbonados = totalMontoTotalAbonados - totalMontoAbonadoAbonados;
 
-  const groupedPendientes = groupOrdersByCustomer(listPendientes);
-  const groupedAbonados = groupOrdersByCustomer(listAbonados);
-  const groupedFinalizados = groupOrdersByCustomer(listFinalizados);
+  const rawGroupedPendientes = groupOrdersByCustomer(listPendientes);
+  const rawGroupedAbonados = groupOrdersByCustomer(listAbonados);
+  const rawGroupedFinalizados = groupOrdersByCustomer(listFinalizados);
+
+  const groupedPendientes = sortGroupsBy(rawGroupedPendientes, ordenCriterio);
+  const groupedAbonados = sortGroupsBy(rawGroupedAbonados, ordenCriterio);
+  const groupedFinalizados = sortGroupsBy(rawGroupedFinalizados, ordenCriterio);
 
   const safePagePendientes = Math.max(1, Math.min(pagePendientes, Math.ceil(groupedPendientes.length / 20) || 1));
   const safePageAbonados = Math.max(1, Math.min(pageAbonados, Math.ceil(groupedAbonados.length / 20) || 1));
@@ -1018,7 +1096,162 @@ END:VCALENDAR`
       <div className="space-y-20 flex-1 overflow-y-auto pt-8 md:pt-10">
         {activeTab === 'pedidos' ? (
           <>
+            {/* BARRA DE HERRAMIENTAS: SUB-TABS + BUSCADOR AUTOCOMPLETADO + ORDENAMIENTO */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[28px] p-4 md:p-5 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-4 mb-8">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                
+                {/* Selector de Sub-Pestañas (Pills) */}
+                <div className="flex items-center gap-1.5 bg-surface-container-high dark:bg-white/5 p-1 rounded-2xl border border-outline-variant/10 dark:border-white/5 overflow-x-auto no-scrollbar">
+                  <button
+                    onClick={() => setSubTab('todos')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all whitespace-nowrap ${
+                      subTab === 'todos'
+                        ? 'bg-secondary dark:bg-[#e2bd6c] text-white dark:text-black shadow-md'
+                        : 'text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <span>Todos</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      subTab === 'todos' ? 'bg-black/15 dark:bg-black/20 text-current' : 'bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c]'
+                    }`}>
+                      {pedidosFiltrados.length}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSubTab('pendientes')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all whitespace-nowrap ${
+                      subTab === 'pendientes'
+                        ? 'bg-error text-white shadow-md'
+                        : 'text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <span>Pendientes</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      subTab === 'pendientes' ? 'bg-black/20 text-white' : 'bg-error/15 text-error dark:text-red-400'
+                    }`}>
+                      {listPendientes.length}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSubTab('abonados')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all whitespace-nowrap ${
+                      subTab === 'abonados'
+                        ? 'bg-amber-600 dark:bg-[#e2bd6c] text-white dark:text-black shadow-md'
+                        : 'text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <span>Abonados</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      subTab === 'abonados' ? 'bg-black/15 dark:bg-black/20 text-current' : 'bg-amber-500/15 dark:bg-[#e2bd6c]/15 text-amber-600 dark:text-[#e2bd6c]'
+                    }`}>
+                      {listAbonados.length}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSubTab('finalizados')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all whitespace-nowrap ${
+                      subTab === 'finalizados'
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <span>Finalizados</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      subTab === 'finalizados' ? 'bg-black/20 text-white' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    }`}>
+                      {listFinalizados.length}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Buscador de Clientes con Autocompletado */}
+                <div className="flex-1 min-w-[240px] max-w-md relative">
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline dark:text-gray-400 text-lg">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Buscar por cliente o canal..."
+                      value={busquedaCliente}
+                      onFocus={() => setShowSearchDropdown(true)}
+                      onChange={(e) => {
+                        setBusquedaCliente(e.target.value)
+                        setShowSearchDropdown(true)
+                      }}
+                      className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl pl-10 pr-9 py-2.5 text-xs text-on-surface dark:text-white font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all"
+                    />
+                    {busquedaCliente && (
+                      <button
+                        onClick={() => {
+                          setBusquedaCliente('')
+                          setShowSearchDropdown(false)
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white"
+                      >
+                        <span className="material-symbols-outlined text-sm">close</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Desplegable Autocompletado */}
+                  {showSearchDropdown && sugerenciasFiltradas.length > 0 && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setShowSearchDropdown(false)} />
+                      <div className="absolute left-0 right-0 top-full mt-2 z-30 bg-surface dark:bg-[#1f1f1f] rounded-2xl shadow-2xl border border-outline-variant/20 dark:border-white/10 max-h-56 overflow-y-auto py-2">
+                        <p className="px-4 py-1 text-[9px] font-black uppercase tracking-widest text-outline dark:text-gray-500">
+                          Sugerencias ({sugerenciasFiltradas.length})
+                        </p>
+                        {sugerenciasFiltradas.map((clienteNombre) => (
+                          <div
+                            key={clienteNombre}
+                            onClick={() => {
+                              setBusquedaCliente(clienteNombre)
+                              setShowSearchDropdown(false)
+                            }}
+                            className="px-4 py-2.5 hover:bg-surface-container-high dark:hover:bg-white/5 cursor-pointer flex items-center justify-between transition-colors text-xs font-bold text-on-surface dark:text-white"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">person</span>
+                              <span>{clienteNombre}</span>
+                            </div>
+                            <span className="text-[9px] bg-primary/10 dark:bg-white/10 text-primary dark:text-[#e2bd6c] px-2 py-0.5 rounded-full font-bold">
+                              {pedidos.filter(p => p.cliente === clienteNombre).length} pedidos
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Selector de Ordenamiento */}
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-outline dark:text-gray-400 text-lg hidden sm:block">
+                    sort
+                  </span>
+                  <select
+                    value={ordenCriterio}
+                    onChange={(e) => setOrdenCriterio(e.target.value)}
+                    className="bg-surface-container dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-extrabold text-on-surface dark:text-white focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all cursor-pointer"
+                  >
+                    <option value="fecha_desc">📅 Fecha: Más Recientes</option>
+                    <option value="fecha_asc">📅 Fecha: Más Antiguos</option>
+                    <option value="nombre_asc">🔤 Cliente: A ➔ Z</option>
+                    <option value="nombre_desc">🔤 Cliente: Z ➔ A</option>
+                    <option value="monto_desc">💲 Monto: Mayor a Menor</option>
+                    <option value="monto_asc">💲 Monto: Menor a Mayor</option>
+                  </select>
+                </div>
+
+              </div>
+            </div>
+
         {/* 1. Pedidos Pendientes (Sin Pagar) */}
+        {(subTab === 'todos' || subTab === 'pendientes') && (
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div 
             onClick={() => setSectionsOpen(prev => ({ ...prev, pendientes: !prev.pendientes }))}
@@ -1386,8 +1619,10 @@ END:VCALENDAR`
             </div>
           )}
         </section>
+        )}
 
         {/* 2. Pedidos Abonados (En Proceso) */}
+        {(subTab === 'todos' || subTab === 'abonados') && (
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-75">
           <div 
             onClick={() => setSectionsOpen(prev => ({ ...prev, abonados: !prev.abonados }))}
@@ -1580,7 +1815,13 @@ END:VCALENDAR`
                                               </div>
                                               {getCompleteHistorialAbonos(p) && getCompleteHistorialAbonos(p).length > 0 && (
                                                  <div className="pt-4 border-t border-outline-variant/10">
-                                                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
+                                                   <div className="flex justify-between items-center mb-3">
+                                                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary">Historial de Pagos</h4>
+                                                      <button onClick={(e) => { e.stopPropagation(); handleAbrirAbonoModal(p); }} className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-primary dark:text-[#e2bd6c] hover:underline" title="Añadir nuevo registro de pago">
+                                                        <span className="material-symbols-outlined text-[12px]">add_circle</span>
+                                                        <span>Añadir Registro</span>
+                                                      </button>
+                                                    </div>
                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                      {getCompleteHistorialAbonos(p).map((abono, idx) => (
                                                          <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
@@ -1786,8 +2027,10 @@ END:VCALENDAR`
             </div>
           )}
         </section>
+        )}
 
         {/* 3. Historial de Finalizados */}
+        {(subTab === 'todos' || subTab === 'finalizados') && (
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
           <div 
             onClick={() => setSectionsOpen(prev => ({ ...prev, finalizados: !prev.finalizados }))}
@@ -1947,38 +2190,43 @@ END:VCALENDAR`
                                                       <span className="font-black text-secondary dark:text-[#e2bd6c] text-base">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                                                     </div>
                                                   ))}
+                                                  {(() => {
+                                                    const fullHist = getCompleteHistorialAbonos(p)
+                                                    return fullHist.length > 0 && (
+                                                      <div className="pt-4 border-t border-outline-variant/10">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary">Historial de Pagos</h4>
+                                                          <button onClick={(e) => { e.stopPropagation(); handleAbrirAbonoModal(p); }} className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-primary dark:text-[#e2bd6c] hover:underline" title="Añadir nuevo registro de pago">
+                                                            <span className="material-symbols-outlined text-[12px]">add_circle</span>
+                                                            <span>Añadir Registro</span>
+                                                          </button>
+                                                        </div>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                          {fullHist.map((abono, idx) => (
+                                                            <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
+                                                              <div className="flex flex-col">
+                                                                <span className="text-on-surface-variant dark:text-white/90 font-medium">
+                                                                  {formatDateDMA(abono.fecha)}
+                                                                </span>
+                                                                <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
+                                                              </div>
+                                                              <div className="flex items-center gap-3">
+                                                                <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleAbrirEditAbonoModal(p, idx, abono); }} className="w-6 h-6 rounded-full hover:bg-primary/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] opacity-60 hover:opacity-100 transition-all" title="Editar Registro de Abono">
+                                                                  <span className="material-symbols-outlined text-[14px]">edit</span>
+                                                                </button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
+                                                                  <span className="material-symbols-outlined text-[14px]">undo</span>
+                                                                </button>
+                                                              </div>
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                      </div>
+                                                    )
+                                                  })()}
                                                 </div>
                                               </div>
-
-                                               {(() => {
-                                                 const fullHist = getCompleteHistorialAbonos(p)
-                                                 return fullHist.length > 0 && (
-                                                   <div className="pt-4 border-t border-outline-variant/10">
-                                                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-3">Historial de Pagos</h4>
-                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                       {fullHist.map((abono, idx) => (
-                                                         <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
-                                                           <div className="flex flex-col">
-                                                             <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                                               {formatDateDMA(abono.fecha)}
-                                                             </span>
-                                                             <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
-                                                           </div>
-                                                           <div className="flex items-center gap-3">
-                                                             <span className="font-bold text-secondary dark:text-[#e2bd6c]">+ ${abono.monto.toLocaleString('es-CL')}</span>
-                                                             <button onClick={(e) => { e.stopPropagation(); handleAbrirEditAbonoModal(p, idx, abono); }} className="w-6 h-6 rounded-full hover:bg-primary/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] opacity-60 hover:opacity-100 transition-all" title="Editar Registro de Abono">
-                                                               <span className="material-symbols-outlined text-[14px]">edit</span>
-                                                             </button>
-                                                             <button onClick={(e) => { e.stopPropagation(); handleEliminarAbono(p, idx); }} className="w-6 h-6 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-50 hover:opacity-100 transition-all" title="Deshacer Abono">
-                                                               <span className="material-symbols-outlined text-[14px]">undo</span>
-                                                             </button>
-                                                           </div>
-                                                         </div>
-                                                       ))}
-                                                     </div>
-                                                   </div>
-                                                 )
-                                               })()}
                                             </div>
                                           )}
                                         </div>
@@ -2147,6 +2395,7 @@ END:VCALENDAR`
             </div>
           )}
         </section>
+        )}
           </>
         ) : (
           <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -2376,7 +2625,18 @@ END:VCALENDAR`
                   {showClienteDropdown && <div className="fixed inset-0 z-[75]" onClick={() => setShowClienteDropdown(false)} />}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1">Fecha de Entrega</label>
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest">Fecha de Entrega</label>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, fechaEntrega: getLocalDateString() })}
+                      className="text-[10px] font-extrabold uppercase tracking-wider text-primary dark:text-[#e2bd6c] hover:underline flex items-center gap-1"
+                      title="Establecer fecha actual de hoy"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">today</span>
+                      <span>Usar Hoy</span>
+                    </button>
+                  </div>
                   <input 
                     type="date" 
                     className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white/90"
@@ -2904,9 +3164,20 @@ END:VCALENDAR`
 
               {/* Input Fecha */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
-                  Fecha del Abono *
-                </label>
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80">
+                    Fecha del Abono *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setAbonoForm({ ...abonoForm, fecha: getLocalDateString() })}
+                    className="text-[10px] font-extrabold uppercase tracking-wider text-primary dark:text-[#e2bd6c] hover:underline flex items-center gap-1"
+                    title="Establecer fecha actual de hoy"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">today</span>
+                    <span>Usar Fecha de Hoy</span>
+                  </button>
+                </div>
                 <input 
                   type="date"
                   required
@@ -2996,9 +3267,20 @@ END:VCALENDAR`
             <form onSubmit={handleGuardarEditAbono} className="space-y-4">
               {/* Input Fecha */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
-                  Fecha del Abono *
-                </label>
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80">
+                    Fecha del Abono *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setEditAbonoForm({ ...editAbonoForm, fecha: getLocalDateString() })}
+                    className="text-[10px] font-extrabold uppercase tracking-wider text-primary dark:text-[#e2bd6c] hover:underline flex items-center gap-1"
+                    title="Establecer fecha actual de hoy"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">today</span>
+                    <span>Usar Fecha de Hoy</span>
+                  </button>
+                </div>
                 <input 
                   type="date"
                   required

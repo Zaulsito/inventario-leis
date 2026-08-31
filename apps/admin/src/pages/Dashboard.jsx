@@ -168,36 +168,36 @@ export default function Dashboard() {
       </section>
 
       {/* Métricas */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 tour-inicio-metricas">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 tour-inicio-metricas">
         {metricas.map((m) => (
           <div 
             key={m.label} 
-            className={`p-6 rounded-3xl border backdrop-blur-2xl flex flex-col justify-between h-40 transition-all duration-500
+            className={`p-3.5 md:p-4 rounded-2xl border backdrop-blur-2xl flex flex-col justify-between min-h-[105px] transition-all duration-500 shadow-sm
               ${!isDark 
                 ? 'bg-primary/[0.04] border-primary/10 hover:bg-primary/[0.08] shadow-[0_8px_30px_rgb(142,109,60,0.05)]' 
                 : 'bg-[#1e1e1e]/60 border-white/5 shadow-sm hover:bg-[#252525]/80'}
               ${m.isAlert && m.valor > 0 ? 'shadow-lg shadow-error/10 border-error/30 dark:border-error/40' : ''}`}
           >
-            <div className="flex items-center gap-2.5">
-              <span className={`material-symbols-outlined text-2xl transition-colors duration-500 ${
+            <div className="flex items-center gap-2">
+              <span className={`material-symbols-outlined text-xl transition-colors duration-500 ${
                 m.isAlert && m.valor > 0 ? 'text-error animate-pulse' : 'text-primary/60 dark:text-[#e2bd6c]'
               }`}>
                 {m.icon}
               </span>
-              <p className={`font-label text-[10px] font-bold uppercase tracking-widest leading-none transition-colors duration-500 ${
+              <p className={`font-label text-[9px] font-bold uppercase tracking-widest leading-none transition-colors duration-500 ${
                 m.isAlert && m.valor > 0 ? 'text-error' : 'text-primary/60 dark:text-[#e2bd6c]/80'
               }`}>
                 {m.label}
               </p>
             </div>
             
-            <div className="mt-auto">
+            <div className="mt-2">
               <p className={`font-headline font-bold mb-0.5 transition-colors duration-500 ${
                 m.isAlert && m.valor > 0 ? 'text-error' : 'text-primary dark:text-white'
-              } ${m.valor.toString().length > 10 ? 'text-lg' : 'text-2xl'}`}>
+              } ${m.valor.toString().length > 10 ? 'text-base md:text-lg' : 'text-xl md:text-2xl'}`}>
                 {m.valor}
               </p>
-              <p className={`text-[9px] font-bold uppercase tracking-widest transition-colors duration-500 ${
+              <p className={`text-[8px] font-bold uppercase tracking-widest transition-colors duration-500 ${
                 m.isAlert && m.valor > 0 ? 'text-error/60' : 'text-primary/40 dark:text-white/40'
               }`}>
                 {m.sub}

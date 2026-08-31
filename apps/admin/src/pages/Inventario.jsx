@@ -979,61 +979,61 @@ REGLAS DE FORMATO ESTRICTAS:
 
       <div className="space-y-8">
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 tour-inv-metricas">
-          <div className="bg-surface-container-low dark:bg-white/5 p-5 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-2xl">deployed_code</span>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 tour-inv-metricas">
+          <div className="bg-surface-container-low dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-outline-variant/10 dark:border-white/5 shadow-sm hover:border-primary/20 transition-all">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-xl">deployed_code</span>
               <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Total Productos</p>
             </div>
-            <p className="text-3xl font-headline italic font-bold dark:text-white">{totalSKUs.toLocaleString()}</p>
+            <p className="text-2xl md:text-3xl font-headline italic font-bold dark:text-white mt-1">{totalSKUs.toLocaleString()}</p>
           </div>
 
-          <div className="bg-surface-container-highest dark:bg-white/5 p-4 rounded-xl flex flex-col justify-between h-36 border border-outline-variant/10 dark:border-white/5">
+          <div className="bg-surface-container-highest dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-outline-variant/10 dark:border-white/5 shadow-sm hover:border-primary/20 transition-all">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">payments</span>
               <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Valor Inventario</p>
             </div>
-            <div className="flex flex-col gap-0.5 text-xs text-on-surface-variant dark:text-white/70">
-              <div className="flex justify-between font-bold">
+            <div className="flex flex-col gap-0.5 text-[11px] text-on-surface-variant dark:text-white/70 mt-1">
+              <div className="flex justify-between font-bold leading-tight">
                 <span>Venta:</span>
                 <span className="dark:text-white">${valorTotal.toLocaleString('es-CL')}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between leading-tight text-[10px] opacity-75">
                 <span>Costo:</span>
                 <span className="dark:text-white">${valorTotalCosto.toLocaleString('es-CL')}</span>
               </div>
-              <div className="flex justify-between text-[#22c55e] dark:text-[#10b981] font-bold border-t border-outline-variant/10 dark:border-white/10 pt-0.5 mt-0.5 animate-pulse">
+              <div className="flex justify-between text-[#22c55e] dark:text-[#10b981] font-bold border-t border-outline-variant/10 dark:border-white/10 pt-0.5 mt-0.5 text-[10px]">
                 <span>Ganancia:</span>
-                <span>+${(valorTotal - valorTotalCosto).toLocaleString('es-CL')} ({valorTotalCosto > 0 ? (((valorTotal - valorTotalCosto) / valorTotalCosto) * 100).toFixed(1) : '0.0'}%)</span>
+                <span>+${(valorTotal - valorTotalCosto).toLocaleString('es-CL')}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-amber-500/10 dark:bg-amber-500/10 p-5 rounded-xl flex flex-col justify-between h-36 border border-amber-500/20 dark:border-amber-500/30">
+          <div className="bg-amber-500/10 dark:bg-amber-500/10 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-amber-500/20 dark:border-amber-500/30 shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-amber-500 text-2xl">account_balance_wallet</span>
+              <span className="material-symbols-outlined text-amber-500 text-xl">account_balance_wallet</span>
               <p className="text-[9px] uppercase tracking-widest font-extrabold text-amber-600 dark:text-amber-400 leading-none">Gastos Operativos</p>
             </div>
-            <div>
-              <p className="text-2xl font-headline italic font-bold text-amber-600 dark:text-amber-400">-${totalGastosOperativos.toLocaleString('es-CL')}</p>
-              <p className="text-[9px] text-outline dark:text-gray-400 mt-1 uppercase font-bold tracking-wider">Descontado del Total</p>
+            <div className="mt-1">
+              <p className="text-xl md:text-2xl font-headline italic font-bold text-amber-600 dark:text-amber-400">-${totalGastosOperativos.toLocaleString('es-CL')}</p>
+              <p className="text-[8px] text-outline dark:text-gray-400 mt-0.5 uppercase font-bold tracking-wider">Descontado del Total</p>
             </div>
           </div>
 
-          <div className="bg-secondary-container/20 dark:bg-white/5 p-5 rounded-xl flex flex-col justify-between h-36 border border-secondary-container/30 dark:border-white/5">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-2xl">inventory_2</span>
-              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades totales</p>
+          <div className="bg-secondary-container/20 dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-secondary-container/30 dark:border-white/5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">inventory_2</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades Totales</p>
             </div>
-            <p className="text-3xl font-headline italic font-bold text-secondary dark:text-white">{stockTotal.toLocaleString()}</p>
+            <p className="text-2xl md:text-3xl font-headline italic font-bold text-secondary dark:text-white mt-1">{stockTotal.toLocaleString()}</p>
           </div>
 
-          <div className={`p-5 rounded-xl flex flex-col justify-between h-36 border transition-all ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 dark:bg-error/20 dark:border-error/40 backdrop-blur-md shadow-lg shadow-error/5' : 'bg-primary-container dark:bg-white/5 border-primary/10 dark:border-white/5'}`}>
-            <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined text-2xl ${bajosDeStock > 0 ? 'text-error animate-pulse' : 'text-on-primary-container dark:text-white/60'}`}>priority_high</span>
+          <div className={`p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border transition-all shadow-sm ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 dark:bg-error/20 dark:border-error/40 backdrop-blur-md shadow-error/5' : 'bg-primary-container dark:bg-white/5 border-primary/10 dark:border-white/5'}`}>
+            <div className="flex items-center gap-2">
+              <span className={`material-symbols-outlined text-xl ${bajosDeStock > 0 ? 'text-error animate-pulse' : 'text-on-primary-container dark:text-white/60'}`}>priority_high</span>
               <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white/60'}`}>Stock Bajo</p>
             </div>
-            <p className={`text-3xl font-headline italic font-bold ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white'}`}>{bajosDeStock}</p>
+            <p className={`text-2xl md:text-3xl font-headline italic font-bold mt-1 ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white'}`}>{bajosDeStock}</p>
           </div>
         </div>
 
