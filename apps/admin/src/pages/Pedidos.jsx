@@ -265,6 +265,7 @@ export default function Pedidos() {
     nota: ''
   })
   const [editAbonoProcesando, setEditAbonoProcesando] = useState(false)
+  const [editAbonoMaxPermitido, setEditAbonoMaxPermitido] = useState(0)
 
   function closeDialog() {
     setDialog({ ...dialog, show: false })
@@ -722,9 +723,15 @@ export default function Pedidos() {
       fechaFormateada = fechaFormateada.split('T')[0]
     }
     
+    const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+    const rawHist = getCompleteHistorialAbonos(pedido)
+    const otrosAbonos = rawHist.filter((_, i) => i !== abonoIndex).reduce((acc, h) => acc + (Number(h.monto) || 0), 0)
+    const maxPermitido = Math.max(0, totalCalc - otrosAbonos)
+
     setEditAbonoTarget({ pedido, index: abonoIndex })
+    setEditAbonoMaxPermitido(maxPermitido)
     setEditAbonoForm({
-      monto: abonoItem.monto ? abonoItem.monto.toString() : '0',
+      monto: abonoItem.monto ? Math.min(Number(abonoItem.monto), maxPermitido).toString() : maxPermitido.toString(),
       fecha: fechaFormateada,
       medioPago: abonoItem.medioPago || 'transferencia',
       nota: abonoItem.nota || ''
@@ -737,42 +744,59 @@ export default function Pedidos() {
     if (!editAbonoTarget || !editAbonoTarget.pedido) return
     
     const { pedido, index } = editAbonoTarget
-    const montoNum = Number(editAbonoForm.monto)
+    let montoNum = Number(editAbonoForm.monto)
     if (isNaN(montoNum) || montoNum <= 0) {
       return alert('Ingresa un monto de abono válido mayor a $0.')
     }
     
-    setEditAbonoProcesando(true)
-    try {
-      const historial = [...(pedido.historialAbonos || [])]
-      
-      const nuevoItem = {
-        id: (historial[index] && historial[index].id) || Date.now().toString(),
-        fecha: editAbonoForm.fecha || getLocalDateString(),
-        monto: montoNum,
-        medioPago: editAbonoForm.medioPago,
-        nota: editAbonoForm.nota.trim() || 'Abono Registrado'
-      }
+    const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
+    const rawHist = getCompleteHistorialAbonos(pedido)
+    const otrosAbonos = rawHist.filter((_, i) => i !== index).reduce((acc, h) => acc + (Number(h.monto) || 0), 0)
+    const maxPermitido = Math.max(0, totalCalc - otrosAbonos)
 
-      if (index >= 0 && index < historial.length) {
-        historial[index] = nuevoItem
-      } else {
-        historial.push(nuevoItem)
-      }
+    if (montoNum > maxPermitido) {
+      montoNum = maxPermitido
+    }
 
-      const totalCalc = pedido.total || (pedido.productos || []).reduce((acc, p) => acc + (p.cantidad * (p.precio || 0)), 0)
-      const nuevoAbonoTotal = historial.reduce((acc, h) => acc + (Number(h.monto) || 0), 0)
+      const nuevoAbonoTotal = otrosAbonos + montoNum
       const nuevoSaldo = Math.max(0, totalCalc - nuevoAbonoTotal)
       const isFull = nuevoSaldo === 0
+      const nuevoPagoEstado = isFull ? 'pagado' : (nuevoAbonoTotal > 0 ? 'parcial' : 'sin pagar')
 
-      const pedidoRef = doc(db, 'pedidos', pedido.id)
-      await updateDoc(pedidoRef, {
-        abono: nuevoAbonoTotal,
-        saldoPendiente: nuevoSaldo,
-        pagoEstado: isFull ? 'pagado' : (nuevoAbonoTotal > 0 ? 'parcial' : 'sin pagar'),
-        total: totalCalc,
-        historialAbonos: historial
-      })
+      // Alerta de confirmación al usuario si el pedido estaba finalizado y ahora quedará pendiente
+      if ((pedido.pagoEstado === 'pagado' || Number(pedido.saldoPendiente) === 0) && nuevoSaldo > 0) {
+        const confirmacion = window.confirm(
+          `⚠️ ATENCIÓN AL CLIENTE: ${pedido.cliente}\n\nAl modificar el abono a $${montoNum.toLocaleString('es-CL')}, este pedido quedará con un saldo pendiente de $${nuevoSaldo.toLocaleString('es-CL')}.\n\nEl pedido SALDRÁ de "Finalizados" y volverá automáticamente a la sección de "${nuevoPagoEstado === 'parcial' ? 'Pedidos Abonados' : 'Pedidos Pendientes'}".\n\n¿Deseas confirmar este cambio?`
+        )
+        if (!confirmacion) return
+      }
+
+      setEditAbonoProcesando(true)
+      try {
+        const historial = [...rawHist]
+        
+        const nuevoItem = {
+          id: (historial[index] && historial[index].id) || Date.now().toString(),
+          fecha: editAbonoForm.fecha || getLocalDateString(),
+          monto: montoNum,
+          medioPago: editAbonoForm.medioPago,
+          nota: editAbonoForm.nota.trim() || 'Abono Registrado'
+        }
+
+        if (index >= 0 && index < historial.length) {
+          historial[index] = nuevoItem
+        } else {
+          historial.push(nuevoItem)
+        }
+
+        const pedidoRef = doc(db, 'pedidos', pedido.id)
+        await updateDoc(pedidoRef, {
+          abono: nuevoAbonoTotal,
+          saldoPendiente: nuevoSaldo,
+          pagoEstado: nuevoPagoEstado,
+          total: totalCalc,
+          historialAbonos: historial
+        })
 
       setShowEditAbonoModal(false)
       setEditAbonoTarget(null)
@@ -2986,18 +3010,31 @@ END:VCALENDAR`
 
               {/* Input Monto */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 pl-1">
-                  Monto ($) *
-                </label>
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80">
+                    Monto ($) *
+                  </label>
+                  <span className="text-[10px] font-bold text-amber-600 dark:text-[#e2bd6c]">
+                    Máximo: ${editAbonoMaxPermitido.toLocaleString('es-CL')}
+                  </span>
+                </div>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-outline dark:text-gray-400">$</span>
                   <input 
                     type="number"
                     min="1"
+                    max={editAbonoMaxPermitido}
                     required
                     value={editAbonoForm.monto}
-                    onChange={e => setEditAbonoForm({ ...editAbonoForm, monto: e.target.value })}
-                    placeholder="Ej: 43000"
+                    onChange={e => {
+                      const val = Number(e.target.value)
+                      if (val > editAbonoMaxPermitido) {
+                        setEditAbonoForm({ ...editAbonoForm, monto: editAbonoMaxPermitido.toString() })
+                      } else {
+                        setEditAbonoForm({ ...editAbonoForm, monto: e.target.value })
+                      }
+                    }}
+                    placeholder={`Ej: ${editAbonoMaxPermitido}`}
                     className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c] focus:outline-none pl-9 pr-4 py-3.5 text-on-surface dark:text-white font-black text-base rounded-2xl transition-all"
                   />
                 </div>
