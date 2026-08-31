@@ -39,10 +39,8 @@ export function formatDateDMA(dateStr) {
         const [y, m, d] = clean.split('-')
         return `${d}-${m}-${y}`
       }
-      if (/^\d{4}-\d{2}-\d{2}T/.test(clean)) {
-        const part = clean.split('T')[0]
-        const [y, m, d] = part.split('-')
-        return `${d}-${m}-${y}`
+      if (/^\d{2}-\d{2}-\d{4}$/.test(clean)) {
+        return clean
       }
     }
     const d = new Date(dateStr)

@@ -593,8 +593,8 @@ export default function Pedidos() {
         const pedidoRef = doc(collection(db, 'pedidos'));
         batch.set(pedidoRef, {
           ...pedidoData,
-          historialAbonos: abonoNum > 0 ? [{ fecha: new Date().toISOString(), monto: abonoNum }] : [],
-          fechaCreacion: new Date().toISOString()
+          historialAbonos: abonoNum > 0 ? [{ fecha: getLocalDateString(), monto: abonoNum }] : [],
+          fechaCreacion: getLocalDateString()
         });
       }
 
