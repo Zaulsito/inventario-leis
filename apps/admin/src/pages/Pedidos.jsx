@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment, useRef } from 'react'
 import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { calcularEstado, formatDateDMA, getLocalDateString } from '../utils/date'
+import { calcularEstado, formatDateDMA, getLocalDateString, getLocalTimeString } from '../utils/date'
 import Footer from '../components/Footer'
 
 const formInicial = { 
@@ -95,9 +95,19 @@ const getCompleteHistorialAbonos = (pedido) => {
   const dif = totalEfectivo - sumRegistrado
 
   if (dif > 0) {
+    let horaExtra = pedido.horaCreacion || ''
+    if (!horaExtra && pedido.createdAt) {
+      const cd = new Date(pedido.createdAt)
+      if (!isNaN(cd.getTime())) horaExtra = `${String(cd.getHours()).padStart(2, '0')}:${String(cd.getMinutes()).padStart(2, '0')}`
+    } else if (!horaExtra && pedido.id && !isNaN(Number(pedido.id)) && Number(pedido.id) > 1500000000000) {
+      const idDate = new Date(Number(pedido.id))
+      if (!isNaN(idDate.getTime())) horaExtra = `${String(idDate.getHours()).padStart(2, '0')}:${String(idDate.getMinutes()).padStart(2, '0')}`
+    }
+
     rawHistorial.push({
       id: 'auto-reconstructed-' + (pedido.id || 'virtual'),
       fecha: pedido.fechaEntrega || pedido.fechaCreacion || getLocalDateString(),
+      hora: horaExtra,
       monto: dif,
       medioPago: pedido.medioPago || 'transferencia',
       nota: rawHistorial.length > 0 ? 'Liquidación / Pago de Saldo' : 'Pago Completo de Pedido'
@@ -698,9 +708,14 @@ export default function Pedidos() {
       const nuevoSaldo = Math.max(0, totalCalc - nuevoAbonoTotal)
       const isFull = nuevoSaldo === 0
       
+      const ahora = new Date()
+      const horaActual = getLocalTimeString()
+      
       const nuevoRegistroAbono = {
         id: Date.now().toString(),
         fecha: abonoForm.fecha ? abonoForm.fecha : getLocalDateString(),
+        hora: abonoForm.hora || horaActual,
+        createdAt: ahora.toISOString(),
         monto: montoNum,
         medioPago: abonoForm.medioPago,
         nota: abonoForm.nota.trim() || `Abono vía ${abonoForm.medioPago}`
@@ -2206,7 +2221,7 @@ END:VCALENDAR`
                                                             <div key={abono.id || idx} className="flex justify-between items-center text-xs bg-surface-container-highest/30 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent dark:border-white/5">
                                                               <div className="flex flex-col">
                                                                 <span className="text-on-surface-variant dark:text-white/90 font-medium">
-                                                                  {formatDateDMA(abono.fecha)}
+                                                                  {formatDateDMA(abono.fecha, abono)}
                                                                 </span>
                                                                 <span className="text-[8px] text-outline dark:text-gray-400 uppercase font-bold">{abono.nota || 'Abono'}</span>
                                                               </div>
