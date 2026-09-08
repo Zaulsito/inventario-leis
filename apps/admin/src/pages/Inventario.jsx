@@ -1601,8 +1601,8 @@ REGLAS DE FORMATO ESTRICTAS:
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-surface-container dark:bg-[#2a2a2a]">
-                  {['', 'Producto', 'Categoría', 'P. Costo', 'Precio Unit.', 'Ganancia', 'Estado', 'Fecha Ingreso'].map((h, i) => (
-                    <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 whitespace-nowrap ${i === 0 ? 'pl-8 w-20' : 'px-7'}`}>{h}</th>
+                  {['Producto', 'Categoría', 'P. Costo', 'Precio Unit.', 'Ganancia', 'Estado', 'Fecha Ingreso'].map((h, i) => (
+                    <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 whitespace-nowrap ${i === 0 ? 'pl-6' : 'px-7'}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1611,33 +1611,53 @@ REGLAS DE FORMATO ESTRICTAS:
                   const est = estadoConfig[p.estado] || estadoConfig.disponible
                   return (
                     <tr key={p.id} className="hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors group">
-                      <td className="pl-8 py-5 w-20">
-                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button onClick={() => openEdit(p)} className="text-outline/60 dark:text-gray-500 hover:text-primary dark:hover:text-[#e2bd6c] transition-colors" title="Editar">
-                            <span className="material-symbols-outlined text-[20px]">edit</span>
-                          </button>
-                          <button onClick={() => openHistory(p.id)} className="text-outline/60 dark:text-gray-500 hover:text-secondary dark:hover:text-[#e2bd6c] transition-colors" title="Historial">
-                            <span className="material-symbols-outlined text-[20px]">history</span>
-                          </button>
-                          <button onClick={() => handleDelete(p.id)} className="text-outline/60 dark:text-gray-500 hover:text-error transition-colors" title="Eliminar">
-                            <span className="material-symbols-outlined text-[20px]">delete</span>
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-7 py-5">
-                        <div className="flex items-center gap-3">
-                          {p.fotoUrl ? (
-                            <img 
-                              src={p.fotoUrl} 
-                              alt={p.nombre} 
-                              className="w-10 h-10 rounded-lg object-cover bg-surface-variant dark:bg-white/5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity border border-outline-variant/10 dark:border-white/5" 
-                              onClick={() => setExpandedImage(p.fotoUrl)}
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-surface-variant dark:bg-white/5 flex items-center justify-center flex-shrink-0 border border-outline-variant/10 dark:border-white/5">
-                              <span className="material-symbols-outlined text-outline dark:text-gray-500 text-lg">image</span>
+                      <td className="pl-6 pr-7 py-5">
+                        <div className="flex items-start gap-4">
+                          {/* Contenedor de Imagen + Iconos desplegables de Izquierda a Derecha */}
+                          <div className="relative flex items-center gap-3 shrink-0 my-auto group/img">
+                            {/* Iconos de Acción (Cuadro Verde) desplegándose de izquierda a derecha */}
+                            <div className="flex flex-col gap-1.5 opacity-0 -translate-x-4 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto transition-all duration-300 ease-out z-10">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); openEdit(p); }} 
+                                className="w-7 h-7 rounded-xl bg-surface-container-highest dark:bg-[#282828] border border-outline-variant/20 dark:border-white/10 flex items-center justify-center text-outline dark:text-gray-300 hover:text-primary dark:hover:text-[#e2bd6c] hover:scale-110 active:scale-95 transition-all shadow-md" 
+                                title="Editar"
+                              >
+                                <span className="material-symbols-outlined text-sm">edit</span>
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); openHistory(p.id); }} 
+                                className="w-7 h-7 rounded-xl bg-surface-container-highest dark:bg-[#282828] border border-outline-variant/20 dark:border-white/10 flex items-center justify-center text-outline dark:text-gray-300 hover:text-secondary dark:hover:text-[#e2bd6c] hover:scale-110 active:scale-95 transition-all shadow-md" 
+                                title="Historial"
+                              >
+                                <span className="material-symbols-outlined text-sm">history</span>
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} 
+                                className="w-7 h-7 rounded-xl bg-surface-container-highest dark:bg-[#282828] border border-outline-variant/20 dark:border-white/10 flex items-center justify-center text-outline dark:text-gray-300 hover:text-error hover:scale-110 active:scale-95 transition-all shadow-md" 
+                                title="Eliminar"
+                              >
+                                <span className="material-symbols-outlined text-sm">delete</span>
+                              </button>
                             </div>
-                          )}
+
+                            {/* Imagen del tamaño del cuadro rojo (w-20 h-20) con efecto 50% opacidad al pasar mouse */}
+                            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-surface-variant dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 cursor-pointer shadow-sm group-hover:shadow-md transition-all duration-300 shrink-0">
+                              {p.fotoUrl ? (
+                                <img 
+                                  src={p.fotoUrl} 
+                                  alt={p.nombre} 
+                                  className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-50" 
+                                  onClick={() => setExpandedImage(p.fotoUrl)}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-outline dark:text-gray-500 transition-opacity duration-300 group-hover:opacity-50">
+                                  <span className="material-symbols-outlined text-2xl">image</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Detalle Textos del Producto */}
                           <div>
                             <p className="font-headline font-bold text-base text-on-surface dark:text-white/90 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors flex items-center gap-2">
                               <span>{p.nombre}</span>
