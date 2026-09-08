@@ -1598,10 +1598,10 @@ REGLAS DE FORMATO ESTRICTAS:
           </div>
 
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-surface-container dark:bg-[#2a2a2a]">
-                  {['', 'Producto', 'Proveedor', 'Categoría', 'P. Costo', 'Precio Unit.', 'Ganancia', 'Estado', 'Fecha Ingreso'].map((h, i) => (
+                  {['', 'Producto', 'Categoría', 'P. Costo', 'Precio Unit.', 'Ganancia', 'Estado', 'Fecha Ingreso'].map((h, i) => (
                     <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 whitespace-nowrap ${i === 0 ? 'pl-8 w-20' : 'px-7'}`}>{h}</th>
                   ))}
                 </tr>
@@ -1649,6 +1649,7 @@ REGLAS DE FORMATO ESTRICTAS:
                               )}
                             </p>
                             {p.marca && <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest mt-0.5">Marca: {p.marca}</p>}
+                            <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest">Proveedor: {(p.proveedor || 'S/P').toUpperCase()}</p>
                             <p className="text-[10px] font-bold text-outline dark:text-gray-500 uppercase tracking-widest">Cód. Barra: {p.sku}</p>
                             <p className="text-[10px] font-extrabold text-primary dark:text-[#e2bd6c] uppercase tracking-widest mt-0.5">Stock: {p.stock.toLocaleString()} unidades</p>
                             {p.variantes && p.variantes.length > 0 && (
@@ -1666,11 +1667,6 @@ REGLAS DE FORMATO ESTRICTAS:
                             )}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-7 py-5">
-                        <span className="px-3 py-1 bg-surface-variant/40 dark:bg-white/5 text-on-surface-variant dark:text-white/60 text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center border border-outline-variant/10 dark:border-white/5">
-                          {(p.proveedor || 'S/P').toUpperCase()}
-                        </span>
                       </td>
                       <td className="px-7 py-5">
                         <span className="px-3 py-1 bg-surface-variant dark:bg-white/5 text-on-surface-variant dark:text-white/60 text-[10px] font-bold uppercase rounded-full inline-block whitespace-nowrap text-center border border-outline-variant/10 dark:border-white/5">
