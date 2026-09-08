@@ -52,38 +52,55 @@ export function formatDateDMA(dateStr, extraObj = null) {
       } else if (extraObj.createdAt) {
         const cd = new Date(extraObj.createdAt)
         if (!isNaN(cd.getTime())) {
-          timeStr = `${String(cd.getHours()).padStart(2, '0')}:${String(cd.getMinutes()).padStart(2, '0')}`
-        }
-      } else if (extraObj.id && !isNaN(Number(extraObj.id)) && Number(extraObj.id) > 1500000000000) {
-        const idDate = new Date(Number(extraObj.id))
-        if (!isNaN(idDate.getTime())) {
-          timeStr = `${String(idDate.getHours()).padStart(2, '0')}:${String(idDate.getMinutes()).padStart(2, '0')}`
+          const h = String(cd.getHours()).padStart(2, '0')
+          const m = String(cd.getMinutes()).padStart(2, '0')
+          if (h !== '00' || m !== '00') {
+            const ampm = Number(h) >= 12 ? 'p. m.' : 'a. m.'
+            const h12 = Number(h) % 12 || 12
+            timeStr = `${String(h12).padStart(2, '0')}:${m} ${ampm}`
+          }
         }
       }
     }
 
-    // 2. Si dateStr contiene hora ISO o espacio (ej: 2026-08-31T21:43:12)
+    // 2. Si dateStr es string
     if (typeof dateStr === 'string') {
       const clean = dateStr.trim()
-      if (clean.includes('T') || clean.includes(' ')) {
-        const d = new Date(clean)
-        if (!isNaN(d.getTime())) {
-          const day = String(d.getDate()).padStart(2, '0')
-          const month = String(d.getMonth() + 1).padStart(2, '0')
-          const year = d.getFullYear()
-          const hours = String(d.getHours()).padStart(2, '0')
-          const minutes = String(d.getMinutes()).padStart(2, '0')
-          return `${day}-${month}-${year} (${hours}:${minutes})`
-        }
-      }
 
+      // Formato YYYY-MM-DD (ej: 2026-09-02)
       if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
         const [y, m, d] = clean.split('-')
         const base = `${d}-${m}-${y}`
         return timeStr ? `${base} (${timeStr})` : base
       }
+
+      // Formato DD-MM-YYYY (ej: 02-09-2026)
       if (/^\d{2}-\d{2}-\d{4}$/.test(clean)) {
         return timeStr ? `${clean} (${timeStr})` : clean
+      }
+
+      // Formato ISO con T o espacio (ej: 2026-09-02T00:00:00.000Z o 2026-09-02 14:30)
+      if (clean.includes('T') || clean.includes(' ')) {
+        const datePart = clean.split(/[T ]/)[0]
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+          const [y, m, d] = datePart.split('-')
+          const base = `${d}-${m}-${y}`
+
+          // Solo extraer hora si NO es medianoche UTC (T00:00:00)
+          if (!clean.includes('T00:00:00') && !clean.includes(' 00:00:00')) {
+            const parsed = new Date(clean)
+            if (!isNaN(parsed.getTime())) {
+              const hours = String(parsed.getHours()).padStart(2, '0')
+              const minutes = String(parsed.getMinutes()).padStart(2, '0')
+              if (hours !== '00' || minutes !== '00') {
+                const ampm = Number(hours) >= 12 ? 'p. m.' : 'a. m.'
+                const h12 = Number(hours) % 12 || 12
+                timeStr = `${String(h12).padStart(2, '0')}:${minutes} ${ampm}`
+              }
+            }
+          }
+          return timeStr ? `${base} (${timeStr})` : base
+        }
       }
     }
 
@@ -93,11 +110,6 @@ export function formatDateDMA(dateStr, extraObj = null) {
       const day = String(d.getDate()).padStart(2, '0')
       const month = String(d.getMonth() + 1).padStart(2, '0')
       const year = d.getFullYear()
-      const hours = String(d.getHours()).padStart(2, '0')
-      const minutes = String(d.getMinutes()).padStart(2, '0')
-      if (!timeStr && (hours !== '00' || minutes !== '00')) {
-        timeStr = `${hours}:${minutes}`
-      }
       const base = `${day}-${month}-${year}`
       return timeStr ? `${base} (${timeStr})` : base
     }

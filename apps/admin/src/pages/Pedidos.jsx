@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { calcularEstado, formatDateDMA, getLocalDateString, getLocalTimeString } from '../utils/date'
@@ -131,6 +132,20 @@ export default function Pedidos() {
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
   const [busquedaCanal, setBusquedaCanal] = useState('')
   const [showCanalDropdown, setShowCanalDropdown] = useState(false)
+  const location = useLocation()
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const qParam = searchParams.get('q') || location.state?.search
+    const idParam = searchParams.get('id') || location.state?.pedidoId
+
+    if (qParam) {
+      setBusquedaCliente(qParam)
+    }
+    if (idParam) {
+      setExpandedId(idParam)
+    }
+  }, [location.state, location.search])
   
   // Estados para secciones colapsables y paginación
   const [sectionsOpen, setSectionsOpen] = useState({
@@ -991,10 +1006,21 @@ END:VCALENDAR`
   const pedidosFiltrados = pedidos.filter(p => {
     if (!busquedaCliente.trim()) return true;
     const q = busquedaCliente.toLowerCase().trim();
+    const qClean = q.startsWith('#') ? q.slice(1) : q;
+    const shortCode = (p.id || '').slice(-5).toLowerCase();
+    const fullId = (p.id || '').toLowerCase();
+    const prodsMatch = Array.isArray(p.productos) && p.productos.some(pr => 
+      (pr.nombre || '').toLowerCase().includes(q) || 
+      (pr.sku || '').toLowerCase().includes(q)
+    );
+
     return (
       (p.cliente || '').toLowerCase().includes(q) ||
       (p.canalVenta || '').toLowerCase().includes(q) ||
-      (p.medioPago || '').toLowerCase().includes(q)
+      (p.medioPago || '').toLowerCase().includes(q) ||
+      shortCode.includes(qClean) ||
+      fullId.includes(qClean) ||
+      prodsMatch
     );
   });
 
@@ -1190,7 +1216,7 @@ END:VCALENDAR`
                     </span>
                     <input
                       type="text"
-                      placeholder="Buscar por cliente o canal..."
+                      placeholder="Buscar por #código, cliente, producto o canal..."
                       value={busquedaCliente}
                       onFocus={() => setShowSearchDropdown(true)}
                       onChange={(e) => {
@@ -1378,7 +1404,7 @@ END:VCALENDAR`
                                               </span>
                                               <div>
                                                 <div className="flex items-center gap-2">
-                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {formatDateDMA(p.fechaEntrega)}</p>
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-xs text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1.5 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {formatDateDMA(p.fechaEntrega)}</p>
                                                   <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                                     Vía {p.medioPago}
                                                   </span>
@@ -1547,7 +1573,7 @@ END:VCALENDAR`
                               <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                   <div>
-                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-[10px] text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {p.fechaEntrega}</p>
                                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                       <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                         {p.medioPago}
@@ -1763,7 +1789,7 @@ END:VCALENDAR`
                                               </span>
                                               <div>
                                                 <div className="flex items-center gap-2">
-                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {formatDateDMA(p.fechaEntrega)}</p>
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-xs text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1.5 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {formatDateDMA(p.fechaEntrega)}</p>
                                                   <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                                     Vía {p.medioPago}
                                                   </span>
@@ -1940,7 +1966,7 @@ END:VCALENDAR`
                               <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                   <div>
-                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-[10px] text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {p.fechaEntrega}</p>
                                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                       <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                         {p.medioPago}
@@ -2149,7 +2175,7 @@ END:VCALENDAR`
                                               </span>
                                               <div>
                                                 <div className="flex items-center gap-2">
-                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {formatDateDMA(p.fechaEntrega)}</p>
+                                                  <p className="text-sm font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-xs text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1.5 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {formatDateDMA(p.fechaEntrega)}</p>
                                                   <span className="text-[8px] bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-primary dark:text-gray-400">
                                                     Vía {p.medioPago}
                                                   </span>
@@ -2313,7 +2339,7 @@ END:VCALENDAR`
                               <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                   <div>
-                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido del {p.fechaEntrega}</p>
+                                    <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-[10px] text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {p.fechaEntrega}</p>
                                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                       <span className="text-[8px] bg-secondary/5 dark:bg-white/5 border border-secondary/10 dark:border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-secondary dark:text-gray-400">
                                         {p.medioPago}

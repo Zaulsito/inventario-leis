@@ -375,11 +375,18 @@ export default function Layout() {
   const [dbUser, setDbUser] = useState(null)
   const location = useLocation()
 
-  // ── Lógica de Modo Oscuro Nativo ──
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme')
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
   })
+
+  // ── Reloj y Fecha en Vivo ──
+  const [time, setTime] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     if (isDark) {
@@ -459,6 +466,20 @@ export default function Layout() {
               </button>
             )}
           </div>
+
+          {/* Reloj y Calendario en tiempo real */}
+          {!isCollapsed && (
+            <div className="-mt-6 mb-8 px-3.5 py-2.5 rounded-2xl bg-surface-container-high/40 dark:bg-white/5 border border-outline-variant/15 dark:border-white/10 flex items-center justify-between text-[11px] font-bold text-on-surface-variant dark:text-gray-300 shadow-inner">
+              <div className="flex items-center gap-1.5 capitalize">
+                <Icon name="calendar_month" className="text-sm text-primary dark:text-[#e2bd6c]" />
+                <span>{time.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+              </div>
+              <div className="flex items-center gap-1 font-mono text-xs text-primary dark:text-[#e2bd6c] font-black">
+                <Icon name="schedule" className="text-sm" />
+                <span>{time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              </div>
+            </div>
+          )}
 
           {/* Nav links */}
           <nav className="space-y-2.5 w-full">

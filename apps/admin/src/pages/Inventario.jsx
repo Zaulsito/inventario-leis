@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs } from 'firebase/firestore'
+import { useOutletContext, useNavigate } from 'react-router-dom'
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs, getDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -80,8 +80,21 @@ const normalizeText = (text) => {
 
 export default function Inventario() {
   const { isDark = false } = useOutletContext() || {}
+  const navigate = useNavigate()
   const [activeTabModal, setActiveTabModal] = useState('editar') // 'editar' | 'catalogo'
   const [previewImageIndex, setPreviewImageIndex] = useState(0)
+
+  function handleNavigateToPedido(log) {
+    if (!log || !log.esPedidoReal || !log.pedidoId) return
+    const shortCode = log.pedidoId.slice(-5)
+    setShowHistoryModal(false)
+    navigate('/pedidos', { 
+      state: { 
+        search: `#${shortCode}`, 
+        pedidoId: log.pedidoId 
+      } 
+    })
+  }
 
   const plantillaCosmetica = `1. Propósito Principal:
 • Restaurar la barrera de hidratación de forma inmediata y unificar el tono natural de la piel.
@@ -445,6 +458,48 @@ REGLAS DE FORMATO ESTRICTAS:
   const [historyLogs, setHistoryLogs] = useState([])
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [historyFilter, setHistoryFilter] = useState('todos')
+
+  const historyProduct = useMemo(() => productos.find(p => p.id === historyProductId), [productos, historyProductId])
+
+  const historyStats = useMemo(() => {
+    const stockActual = Number(historyProduct?.stock) || 0
+    if (!historyLogs || historyLogs.length === 0) return { entradas: stockActual, salidas: 0, totalHistorico: stockActual }
+    let entradas = 0
+    let salidas = 0
+    historyLogs.forEach(l => {
+      const cambio = Number(l.cambio) || 0
+      if (cambio > 0) entradas += cambio
+      else salidas += Math.abs(cambio)
+    })
+    const totalHistorico = Math.max(entradas, stockActual + salidas)
+    return { entradas, salidas, totalHistorico }
+  }, [historyLogs, historyProduct])
+
+  const [totalIngresadoHistorico, setTotalIngresadoHistorico] = useState(0)
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'historial_inventario'), (snapshot) => {
+      let sum = 0
+      snapshot.docs.forEach(doc => {
+        const d = doc.data()
+        const cambio = Number(d.cambio) || 0
+        if (cambio > 0) sum += cambio
+      })
+      setTotalIngresadoHistorico(sum)
+    }, (err) => {
+      console.error("Error cargando historial de stock global", err)
+    })
+    return () => unsub()
+  }, [])
+
+  const filteredHistoryLogs = useMemo(() => {
+    if (!historyLogs) return []
+    if (historyFilter === 'entradas') return historyLogs.filter(l => Number(l.cambio) > 0)
+    if (historyFilter === 'salidas') return historyLogs.filter(l => Number(l.cambio) < 0)
+    if (historyFilter === 'ventas') return historyLogs.filter(l => (l.accion || '').toLowerCase().includes('pedido') || (l.motivo || '').toLowerCase().includes('pedido') || (l.accion || '').toLowerCase().includes('venta') || l.esPedidoReal)
+    return historyLogs
+  }, [historyLogs, historyFilter])
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -548,22 +603,225 @@ REGLAS DE FORMATO ESTRICTAS:
     setHistoryProductId(pId)
     setIsHistoryLoading(true)
     setHistoryLogs([])
+    setHistoryFilter('todos')
     setShowHistoryModal(true)
     
     try {
+      // 1. Logs de historial_inventario
       const q = query(
         collection(db, 'historial_inventario'), 
         where('productoId', '==', pId)
       )
       const snapshot = await getDocs(q)
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      // Ordenar en memoria para evitar requerir un índice compuesto en Firestore
-      logs.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-      setHistoryLogs(logs)
+
+      // 2. Traer pedidos para vincular ventas reales
+      const pTarget = productos.find(p => p.id === pId)
+      const snapPedidos = await getDocs(collection(db, 'pedidos'))
+      const logsPedidos = []
+
+      snapPedidos.docs.forEach(pDoc => {
+        const ped = { id: pDoc.id, ...pDoc.data() }
+        if (Array.isArray(ped.productos)) {
+          ped.productos.forEach(prod => {
+            const isMatch = prod.id === pId || 
+              (pTarget && pTarget.sku && prod.sku && prod.sku.toLowerCase() === pTarget.sku.toLowerCase()) ||
+              (pTarget && pTarget.nombre && prod.nombre && prod.nombre.toLowerCase() === pTarget.nombre.toLowerCase())
+            
+            if (isMatch) {
+              const cant = Number(prod.cantidad) || 1
+              const fechaIso = ped.fechaEntrega || ped.fechaCreacion || ped.createdAt || getLocalDateString()
+              
+              const pEst = (ped.pagoEstado || ped.estado || '').toString().toLowerCase()
+              const totalPed = Number(ped.total) || 0
+              const abonoPed = Number(ped.abono) || 0
+              const saldoPed = ped.saldoPendiente !== undefined ? Number(ped.saldoPendiente) : (totalPed - abonoPed)
+
+              let statusLabel = 'Pendiente'
+              if (pEst === 'pagado' || pEst === 'finalizado' || pEst === 'completado' || (totalPed > 0 && saldoPed <= 0)) {
+                statusLabel = 'Pagado'
+              } else if (pEst === 'parcial' || pEst === 'abonado' || abonoPed > 0) {
+                statusLabel = 'Abonado'
+              }
+
+              logsPedidos.push({
+                id: `pedido-${ped.id}-${prod.id || pId}`,
+                fecha: fechaIso,
+                accion: `Venta en Pedido a ${ped.cliente || 'Cliente'}`,
+                motivo: `Pedido #${ped.id ? ped.id.slice(-5) : ''} de ${ped.cliente || 'Cliente'} • ${cant} un.`,
+                cambio: -cant,
+                stockNuevo: statusLabel,
+                esPedidoReal: true,
+                pedidoId: ped.id,
+                cliente: ped.cliente,
+                precio: prod.precio || 0
+              })
+            }
+          })
+        }
+      })
+
+      // 3. Traer mermas para vincular pérdidas reales de Reportes
+      const snapMermas = await getDocs(collection(db, 'mermas'))
+      const logsMermas = []
+
+      snapMermas.docs.forEach(mDoc => {
+        const mer = { id: mDoc.id, ...mDoc.data() }
+        if (Array.isArray(mer.productos)) {
+          mer.productos.forEach(prod => {
+            const isMatch = prod.productoId === pId || prod.id === pId ||
+              (pTarget && pTarget.sku && prod.sku && prod.sku.toLowerCase() === pTarget.sku.toLowerCase()) ||
+              (pTarget && pTarget.nombre && prod.nombre && prod.nombre.toLowerCase() === pTarget.nombre.toLowerCase())
+            
+            if (isMatch) {
+              const cant = Number(prod.cantidad) || 1
+              const fechaIso = mer.fechaEntrega || mer.fecha || mer.fechaCreacion || getLocalDateString()
+              const motivoText = mer.motivo ? `Pérdida por ${mer.motivo}` : 'Merma de inventario'
+
+              logsMermas.push({
+                id: `merma-${mer.id}-${prod.productoId || prod.id || pId}`,
+                fecha: fechaIso,
+                accion: `Merma / ${mer.motivo || 'Dañado'}`,
+                motivo: `${motivoText} • ${cant} un.`,
+                cambio: -cant,
+                stockNuevo: 'Merma',
+                esMermaReal: true,
+                mermaId: mer.id,
+                motivoMerma: mer.motivo || 'Dañado'
+              })
+            }
+          })
+        }
+      })
+
+      // Fusionar evitando duplicados: dar máxima prioridad a logsPedidos y logsMermas reales
+      const logsMap = new Map()
+      logsPedidos.forEach(lp => {
+        logsMap.set(lp.id, lp)
+      })
+      logsMermas.forEach(lm => {
+        logsMap.set(lm.id, lm)
+      })
+      logs.forEach(l => {
+        const isDupPedido = l.pedidoId && Array.from(logsMap.values()).some(lp => lp.pedidoId === l.pedidoId)
+        const isDupMerma = l.mermaId && Array.from(logsMap.values()).some(lm => lm.mermaId === l.mermaId)
+        if (!logsMap.has(l.id) && !isDupPedido && !isDupMerma) {
+          logsMap.set(l.id, l)
+        }
+      })
+
+      const combined = Array.from(logsMap.values())
+      combined.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+      setHistoryLogs(combined)
     } catch (e) {
       console.error("Error cargando historial", e)
     } finally {
       setIsHistoryLoading(false)
+    }
+  }
+
+  async function handleDeleteHistoryLog(log) {
+    if (!log || !log.id) return
+
+    const pTarget = productos.find(p => p.id === (log.productoId || historyProductId))
+    const cambioNum = Number(log.cambio) || 0
+    let mensajeConfirm = "¿Deseas eliminar este registro de movimiento del historial?"
+
+    if (!log.esPedidoReal && !log.esMermaReal && pTarget && cambioNum !== 0) {
+      const stockActual = Number(pTarget.stock) || 0
+      const stockRevertido = Math.max(0, stockActual - cambioNum)
+      mensajeConfirm = `¿Deseas eliminar este registro del historial y revertir el stock de ${stockActual} a ${stockRevertido} un.?`
+    } else if (log.esPedidoReal) {
+      const cantDevolucion = Math.abs(cambioNum)
+      mensajeConfirm = `Este registro proviene del Pedido real de ${log.cliente || 'Cliente'}.\n\n¿Deseas ELIMINAR EL PEDIDO completo de la base de datos y devolver los productos (${cantDevolucion} un. de este producto) al stock?`
+    } else if (log.esMermaReal) {
+      const cantDevolucion = Math.abs(cambioNum)
+      mensajeConfirm = `Este registro proviene de una Merma / Pérdida (${log.motivoMerma || 'Dañado'}).\n\n¿Deseas ELIMINAR la merma de la base de datos y devolver las ${cantDevolucion} un. al stock actual?`
+    }
+
+    if (window.confirm(mensajeConfirm)) {
+      try {
+        if (!log.esPedidoReal && !log.esMermaReal) {
+          // 1. Borrar de Firestore historial_inventario
+          await deleteDoc(doc(db, 'historial_inventario', log.id))
+          
+          // 2. Revertir el stock en la colección de productos
+          if (pTarget && cambioNum !== 0) {
+            const stockActual = Number(pTarget.stock) || 0
+            const stockRevertido = Math.max(0, stockActual - cambioNum)
+            await updateDoc(doc(db, 'productos', pTarget.id), { stock: stockRevertido })
+          }
+        } else if (log.esPedidoReal && log.pedidoId) {
+          // Revertir el pedido real de Firestore
+          const pedRef = doc(db, 'pedidos', log.pedidoId)
+          const pedSnap = await getDoc(pedRef)
+          
+          if (pedSnap.exists()) {
+            const pedData = pedSnap.data()
+            const batch = writeBatch(db)
+
+            // Devolver stock de cada producto involucrado en el pedido
+            if (Array.isArray(pedData.productos)) {
+              for (const item of pedData.productos) {
+                const itemPId = item.productoId || item.id
+                const pItemInState = productos.find(p => 
+                  p.id === itemPId || 
+                  (p.sku && item.sku && p.sku.toLowerCase() === item.sku.toLowerCase()) ||
+                  (p.nombre && item.nombre && p.nombre.toLowerCase() === item.nombre.toLowerCase())
+                )
+                
+                if (pItemInState) {
+                  const stockActual = Number(pItemInState.stock) || 0
+                  const cantItem = Number(item.cantidad) || 0
+                  const prodRef = doc(db, 'productos', pItemInState.id)
+                  batch.update(prodRef, { stock: stockActual + cantItem })
+                }
+              }
+            }
+
+            // Eliminar el pedido de Firestore
+            batch.delete(pedRef)
+            await batch.commit()
+          }
+        } else if (log.esMermaReal && log.mermaId) {
+          // Revertir la merma real de Firestore
+          const merRef = doc(db, 'mermas', log.mermaId)
+          const merSnap = await getDoc(merRef)
+
+          if (merSnap.exists()) {
+            const merData = merSnap.data()
+            const batch = writeBatch(db)
+
+            if (Array.isArray(merData.productos)) {
+              for (const item of merData.productos) {
+                const itemPId = item.productoId || item.id
+                const pItemInState = productos.find(p => 
+                  p.id === itemPId || 
+                  (p.nombre && item.nombre && p.nombre.toLowerCase() === item.nombre.toLowerCase())
+                )
+
+                if (pItemInState) {
+                  const stockActual = Number(pItemInState.stock) || 0
+                  const cantItem = Number(item.cantidad) || 0
+                  const prodRef = doc(db, 'productos', pItemInState.id)
+                  batch.update(prodRef, { stock: stockActual + cantItem })
+                }
+              }
+            }
+
+            batch.delete(merRef)
+            await batch.commit()
+          }
+        }
+        
+        // 3. Actualizar estado local
+        setHistoryLogs(prev => prev.filter(l => 
+          l.pedidoId ? l.pedidoId !== log.pedidoId : (l.mermaId ? l.mermaId !== log.mermaId : l.id !== log.id)
+        ))
+      } catch (err) {
+        console.error("Error al eliminar registro de historial:", err)
+        alert("Hubo un error al eliminar el registro: " + err.message)
+      }
     }
   }
 
@@ -1023,7 +1281,7 @@ REGLAS DE FORMATO ESTRICTAS:
           <div className="bg-secondary-container/20 dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-secondary-container/30 dark:border-white/5 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">inventory_2</span>
-              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades Totales</p>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades totales</p>
             </div>
             <p className="text-2xl md:text-3xl font-headline italic font-bold text-secondary dark:text-white mt-1">{stockTotal.toLocaleString()}</p>
           </div>
@@ -2584,58 +2842,215 @@ REGLAS DE FORMATO ESTRICTAS:
       {/* Modal Historial de Stock */}
       {showHistoryModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowHistoryModal(false)} />
-          <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] shadow-2xl w-full max-w-lg relative z-10 flex flex-col animate-in slide-in-from-bottom-4 duration-300 border border-outline-variant/20 dark:border-white/10 max-h-[85vh]">
-            <div className="p-6 border-b border-outline-variant/20 dark:border-white/10 flex justify-between items-center bg-surface-container-low dark:bg-white/5 rounded-t-[24px] shrink-0">
-              <div>
-                <h3 className="font-headline text-xl text-secondary dark:text-[#e2bd6c] font-bold italic leading-tight">Historial de Stock</h3>
-                <p className="text-[10px] uppercase tracking-widest text-outline dark:text-gray-400 font-bold mt-1">
-                  Movimientos Registrados
-                </p>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-md animate-in fade-in" onClick={() => setShowHistoryModal(false)} />
+          <div className="bg-surface dark:bg-[#1a1a1a] rounded-[28px] shadow-2xl w-full max-w-xl relative z-10 flex flex-col animate-in zoom-in-95 duration-300 border border-outline-variant/20 dark:border-white/10 max-h-[90vh]">
+            
+            {/* Header del Modal */}
+            <div className="p-5 md:p-6 border-b border-outline-variant/20 dark:border-white/10 flex justify-between items-start bg-surface-container-low dark:bg-white/5 rounded-t-[28px] shrink-0">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">history</span>
+                  <h3 className="font-headline text-lg md:text-xl text-secondary dark:text-[#e2bd6c] font-bold italic leading-tight">
+                    Historial de Stock (Kardex)
+                  </h3>
+                </div>
+                {historyProduct && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="text-sm font-bold text-on-surface dark:text-white">{historyProduct.nombre}</span>
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-surface-container-highest dark:bg-white/10 text-outline dark:text-gray-300">
+                      {historyProduct.sku}
+                    </span>
+                  </div>
+                )}
               </div>
-              <button onClick={() => setShowHistoryModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-variant dark:bg-white/10 dark:hover:bg-white/20 text-on-surface dark:text-white transition-colors">
+              <button 
+                onClick={() => setShowHistoryModal(false)} 
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-variant dark:bg-white/10 dark:hover:bg-white/20 text-on-surface dark:text-white transition-colors"
+                title="Cerrar"
+              >
                 <span className="material-symbols-outlined text-sm">close</span>
               </button>
             </div>
+
+            {/* Resumen de Métricas del Producto */}
+            {historyProduct && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-5 py-3 bg-surface-container-lowest dark:bg-white/[0.02] border-b border-outline-variant/10 dark:border-white/5 shrink-0">
+                <div className="bg-surface-container-low dark:bg-white/5 p-2 rounded-xl border border-outline-variant/10 dark:border-white/5 flex flex-col justify-center items-center text-center">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400">Stock Actual</span>
+                  <span className="text-base font-bold dark:text-white mt-0.5">{historyProduct.stock} un.</span>
+                </div>
+                <div className="bg-emerald-500/10 dark:bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 flex flex-col justify-center items-center text-center">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Total Entradas</span>
+                  <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">+{historyStats.entradas} un.</span>
+                </div>
+                <div className="bg-blue-500/10 dark:bg-blue-500/10 p-2 rounded-xl border border-blue-500/20 flex flex-col justify-center items-center text-center">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400">Ingresados Histórico</span>
+                  <span className="text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5">+{historyStats.totalHistorico} un.</span>
+                </div>
+                <div className="bg-purple-500/10 dark:bg-purple-500/10 p-2 rounded-xl border border-purple-500/20 flex flex-col justify-center items-center text-center">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">Total Ventas / Salidas</span>
+                  <span className="text-base font-bold text-purple-600 dark:text-purple-400 mt-0.5">-{historyStats.salidas} un.</span>
+                </div>
+              </div>
+            )}
+
+            {/* Chips de Filtros Rápidos */}
+            <div className="flex items-center gap-1.5 px-5 py-2.5 border-b border-outline-variant/10 dark:border-white/5 bg-surface-container-low/50 dark:bg-white/[0.01] shrink-0 overflow-x-auto no-scrollbar">
+              <button
+                onClick={() => setHistoryFilter('todos')}
+                className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all whitespace-nowrap ${
+                  historyFilter === 'todos' 
+                    ? 'bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black border-transparent shadow-sm' 
+                    : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-primary/30'
+                }`}
+              >
+                Todos ({historyLogs.length})
+              </button>
+              <button
+                onClick={() => setHistoryFilter('entradas')}
+                className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all whitespace-nowrap ${
+                  historyFilter === 'entradas' 
+                    ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black border-transparent shadow-sm' 
+                    : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-emerald-500/30'
+                }`}
+              >
+                Entradas (+)
+              </button>
+              <button
+                onClick={() => setHistoryFilter('salidas')}
+                className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all whitespace-nowrap ${
+                  historyFilter === 'salidas' 
+                    ? 'bg-rose-600 text-white dark:bg-rose-500 dark:text-black border-transparent shadow-sm' 
+                    : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-rose-500/30'
+                }`}
+              >
+                Salidas (-)
+              </button>
+              <button
+                onClick={() => setHistoryFilter('ventas')}
+                className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all whitespace-nowrap ${
+                  historyFilter === 'ventas' 
+                    ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-black border-transparent shadow-sm' 
+                    : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-indigo-500/30'
+                }`}
+              >
+                Ventas
+              </button>
+            </div>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+            {/* Lista de Registros */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
               {isHistoryLoading ? (
-                <div className="text-center py-10 text-outline animate-pulse text-sm font-medium">Cargando historial...</div>
-              ) : historyLogs.length === 0 ? (
-                <div className="text-center py-10">
+                <div className="text-center py-12 text-outline animate-pulse text-sm font-medium">Cargando movimientos...</div>
+              ) : filteredHistoryLogs.length === 0 ? (
+                <div className="text-center py-12">
                   <span className="material-symbols-outlined text-4xl text-outline/30 mb-2">history_toggle_off</span>
-                  <p className="text-outline text-sm font-medium">No hay registros de movimientos para este producto.</p>
+                  <p className="text-outline text-sm font-medium">No se encontraron registros de movimiento para el filtro seleccionado.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {historyLogs.map(log => {
+                <div className="space-y-2.5">
+                  {filteredHistoryLogs.map(log => {
                     const date = new Date(log.fecha)
-                    const isPositive = log.cambio > 0
-                    const isCreation = log.accion === 'Creación inicial'
+                    const isPositive = Number(log.cambio) > 0
+                    
+                    // Helper de badges
+                    const accionStr = (log.accion || '').toLowerCase()
+                    const motivoStr = (log.motivo || '').toLowerCase()
+                    let badge = { label: 'AJUSTE MANUAL', color: 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border-rose-500/20', icon: 'tune' }
+                    if (accionStr.includes('creación') || accionStr.includes('inicial')) {
+                      badge = { label: 'STOCK INICIAL', color: 'bg-amber-500/10 text-amber-600 dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border-amber-500/20 dark:border-[#e2bd6c]/30', icon: 'inventory_2' }
+                    } else if (accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')) {
+                      badge = { label: 'VENTA EN PEDIDO', color: 'bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300 border-purple-500/20', icon: 'shopping_cart' }
+                    } else if (motivoStr.includes('proveedor') || motivoStr.includes('reposición') || motivoStr.includes('compra')) {
+                      badge = { label: 'REPOSICIÓN PROVEEDOR', color: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20', icon: 'local_shipping' }
+                    } else if (motivoStr.includes('merma') || motivoStr.includes('dañad') || motivoStr.includes('rotura') || motivoStr.includes('pérdida') || log.esMermaReal) {
+                      const lbl = log.motivoMerma ? `MERMA (${log.motivoMerma.toUpperCase()})` : 'MERMA / DAÑO'
+                      badge = { label: lbl, color: 'bg-rose-500 text-white dark:bg-rose-600 dark:text-white border-rose-600 font-extrabold shadow-sm', icon: 'do_not_disturb_on' }
+                    } else if (motivoStr.includes('regalo')) {
+                      badge = { label: 'REGALO', color: 'bg-amber-500 text-black dark:bg-amber-400 dark:text-black border-amber-500 font-extrabold shadow-sm', icon: 'featured_seasonal_and_gifts' }
+                    } else if (motivoStr.includes('devolución') || motivoStr.includes('cancel')) {
+                      badge = { label: 'DEVOLUCIÓN', color: 'bg-indigo-500 text-white dark:bg-indigo-600 dark:text-white border-indigo-600 font-extrabold shadow-sm', icon: 'assignment_return' }
+                    } else if (isPositive) {
+                      badge = { label: 'INGRESO DE STOCK', color: 'bg-primary/10 text-primary dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border-primary/20', icon: 'add_circle' }
+                    }
+
                     return (
-                      <div key={log.id} className="bg-surface-container-low dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl p-4 flex gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ${isCreation ? 'bg-secondary/10 text-secondary dark:text-[#e2bd6c]' : isPositive ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}`}>
-                          <span className="material-symbols-outlined text-lg">{isCreation ? 'inventory_2' : isPositive ? 'add' : 'remove'}</span>
+                      <div 
+                        key={log.id} 
+                        onClick={() => log.esPedidoReal && handleNavigateToPedido(log)}
+                        className={`bg-surface-container-low dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm transition-all ${
+                          log.esPedidoReal 
+                            ? 'cursor-pointer hover:border-purple-500/40 hover:bg-purple-500/5 dark:hover:bg-purple-500/10 group' 
+                            : 'hover:border-primary/20'
+                        }`}
+                        title={log.esPedidoReal ? "Haz clic para ver este pedido en la sección Pedidos" : ""}
+                      >
+                        
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Icono de Movimiento */}
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${badge.color}`}>
+                            <span className="material-symbols-outlined text-lg">{badge.icon}</span>
+                          </div>
+
+                          <div className="min-w-0">
+                            {/* Header del registro: Badge de Tipo + Fecha */}
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <span className={`text-[8px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full border ${badge.color}`}>
+                                {badge.label}
+                              </span>
+                              <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
+                                {formatDateDMA(log.fecha, log)}
+                              </span>
+                            </div>
+
+                            {/* Motivo o Detalle */}
+                            <div className="text-xs font-semibold text-on-surface dark:text-white/90 truncate flex items-center gap-1.5 flex-wrap">
+                              {log.esPedidoReal ? (
+                                <>
+                                  <span>Pedido</span>
+                                  <span className="font-mono text-[11px] bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5 group-hover:bg-purple-500 group-hover:text-white transition-all shadow-sm">
+                                    #{log.pedidoId ? log.pedidoId.slice(-5) : ''}
+                                    <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                                  </span>
+                                  <span>de {log.cliente || 'Cliente'} • {Math.abs(log.cambio)} un.</span>
+                                </>
+                              ) : (
+                                log.motivo || log.accion || 'Movimiento de stock registrado'
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-outline dark:text-gray-500 font-bold tracking-widest uppercase mb-1">
-                            {date.toLocaleDateString('es-CL')} a las {date.toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'})}
-                          </p>
-                          <h4 className="text-sm font-bold text-on-surface dark:text-white mb-1">{log.accion}</h4>
-                          <p className="text-xs text-outline-variant dark:text-gray-400">{log.motivo}</p>
+
+                        {/* Columna Derecha: Cifra de Cambio, Stock Resultante y Botón Eliminar */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="text-right">
+                            <p className={`text-base font-black ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'}`}>
+                              {isPositive ? '+' : ''}{log.cambio}
+                            </p>
+                            <p className="text-[9px] text-outline dark:text-gray-400 font-bold mt-0.5 uppercase tracking-wider">
+                              {log.esPedidoReal ? 'Estado' : 'Stock'}: <span className={`font-bold ${
+                                log.esPedidoReal
+                                  ? (log.stockNuevo === 'Pagado' ? 'text-emerald-600 dark:text-emerald-400' : (log.stockNuevo === 'Abonado' ? 'text-amber-500 dark:text-amber-400' : 'text-rose-500 dark:text-rose-400'))
+                                  : 'text-on-surface dark:text-white'
+                              }`}>{log.stockNuevo}</span>
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteHistoryLog(log); }}
+                            className="w-7 h-7 rounded-full hover:bg-error/10 flex items-center justify-center text-error opacity-40 hover:opacity-100 transition-all ml-1"
+                            title="Eliminar este registro del historial"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">delete</span>
+                          </button>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-base font-bold ${isCreation ? 'text-secondary dark:text-[#e2bd6c]' : isPositive ? 'text-primary' : 'text-error'}`}>
-                            {isPositive ? '+' : ''}{log.cambio}
-                          </p>
-                          <p className="text-[10px] text-outline font-bold mt-1">Stock: {log.stockNuevo}</p>
-                        </div>
+
                       </div>
                     )
                   })}
                 </div>
               )}
             </div>
+
           </div>
         </div>
       )}

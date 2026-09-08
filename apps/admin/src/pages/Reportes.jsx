@@ -23,33 +23,53 @@ const CATEGORIAS_GASTOS = [
   { id: 'otros', label: 'Otros / Gastos Varios', icon: 'payments', color: 'text-emerald-500' }
 ]
 
+function parseLocalDate(fString) {
+  if (!fString) return null
+  if (typeof fString === 'string') {
+    const clean = fString.trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+      const [y, m, d] = clean.split('-').map(Number)
+      return new Date(y, m - 1, d, 0, 0, 0, 0)
+    }
+    if (clean.includes('T') || clean.includes(' ')) {
+      const datePart = clean.split(/[T ]/)[0]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        const [y, m, d] = datePart.split('-').map(Number)
+        return new Date(y, m - 1, d, 0, 0, 0, 0)
+      }
+    }
+  }
+  const d = new Date(fString)
+  return isNaN(d.getTime()) ? null : d
+}
+
 function getStartOfWeek() {
   const d = new Date()
-  const day = d.getDay() || 7
-  d.setDate(d.getDate() - day + 1)
-  d.setHours(0,0,0,0)
-  return d
+  const day = d.getDay() // 0 = Domingo, 1 = Lunes
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Lunes como inicio
+  return new Date(d.getFullYear(), d.getMonth(), diff, 0, 0, 0, 0)
 }
 
 function getStartOfMonth() {
   const d = new Date()
-  d.setDate(1)
-  d.setHours(0,0,0,0)
-  return d
+  return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0)
 }
 
 function getLocalDateISO(p) {
   if (!p) return ''
-  const f = p.fechaEntrega || p.fechaCreacion || p.fecha
+  const f = p.fechaEntrega || p.fecha || p.fechaCreacion
   if (!f) return ''
   try {
     if (typeof f === 'string') {
       const clean = f.trim()
       if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean
-      if (/^\d{4}-\d{2}-\d{2}T/.test(clean)) return clean.split('T')[0]
+      if (clean.includes('T') || clean.includes(' ')) {
+        const datePart = clean.split(/[T ]/)[0]
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart
+      }
     }
-    const d = new Date(f)
-    if (isNaN(d.getTime())) return ''
+    const d = parseLocalDate(f)
+    if (!d) return ''
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
   } catch (e) {
     return ''
@@ -271,26 +291,33 @@ export default function Reportes() {
     ]
 
     return combinados.filter(p => {
-      const fString = p.fechaCreacion || p.fechaEntrega || p.fecha
+      const fString = p.fechaEntrega || p.fecha || p.fechaCreacion
       if (!fString) return false
       
-      const pxDate = new Date(fString)
+      const pxDate = parseLocalDate(fString)
+      if (!pxDate) return false
       pxDate.setHours(0,0,0,0)
 
-      if (periodo === 0) { // Semana Actual
+      if (periodo === 0) { // Semana Actual (Lunes a Domingo)
         const start = getStartOfWeek()
-        return pxDate >= start
+        const end = new Date(start)
+        end.setDate(end.getDate() + 6)
+        end.setHours(23,59,59,999)
+        return pxDate >= start && pxDate <= end
       } else if (periodo === 1) { // Mes Actual
         const start = getStartOfMonth()
-        return pxDate >= start
+        const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59, 999)
+        return pxDate >= start && pxDate <= end
       } else { // Personalizado
-        const start = new Date(fechaInicio + 'T00:00:00')
-        const end = new Date(fechaFin + 'T23:59:59')
+        const start = parseLocalDate(fechaInicio) || new Date()
+        start.setHours(0,0,0,0)
+        const end = parseLocalDate(fechaFin) || new Date()
+        end.setHours(23,59,59,999)
         return pxDate >= start && pxDate <= end
       }
     }).sort((a,b) => {
-      const fA = new Date(a.fechaCreacion || a.fechaEntrega || a.fecha)
-      const fB = new Date(b.fechaCreacion || b.fechaEntrega || b.fecha)
+      const fA = parseLocalDate(a.fechaEntrega || a.fecha || a.fechaCreacion) || new Date(0)
+      const fB = parseLocalDate(b.fechaEntrega || b.fecha || b.fechaCreacion) || new Date(0)
       return fB - fA // Más recientes primero
     })
   }, [pedidos, mermas, gastos, periodo, fechaInicio, fechaFin])
@@ -299,13 +326,33 @@ export default function Reportes() {
   const chartData = useMemo(() => {
     const map = {}
     
-    // Preparar dominios vacíos
+    // Preparar dominios vacíos según el período seleccionado
     if (periodo === 0) {
+      // Semana Actual: de Lunes a Domingo
       const start = getStartOfWeek()
-      for(let i=0; i<7; i++) {
+      for (let i = 0; i < 7; i++) {
         const temp = new Date(start)
         temp.setDate(temp.getDate() + i)
-        map[temp.getFullYear() + '-' + String(temp.getMonth() + 1).padStart(2, '0') + '-' + String(temp.getDate()).padStart(2, '0')] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+        const iso = temp.getFullYear() + '-' + String(temp.getMonth() + 1).padStart(2, '0') + '-' + String(temp.getDate()).padStart(2, '0')
+        map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+      }
+    } else if (periodo === 1) {
+      // Mes Actual: de día 1 a fin de mes
+      const start = getStartOfMonth()
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+        map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+      }
+    } else if (periodo === 2) {
+      // Personalizado: de fechaInicio a fechaFin
+      const start = parseLocalDate(fechaInicio)
+      const end = parseLocalDate(fechaFin)
+      if (start && end && start <= end) {
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+          map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+        }
       }
     }
 
@@ -326,7 +373,7 @@ export default function Reportes() {
       if (map[dateStr] === undefined) map[dateStr] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
       
       if (p._tipo === 'venta') {
-        let gananciaReal = p.total || sum;
+        let gananciaReal = Number(p.total) || sum;
         map[dateStr].Ganancia += gananciaReal;
       } else if (p._tipo === 'gasto') {
         let montoGasto = Number(p.monto) || 0;
@@ -338,8 +385,8 @@ export default function Reportes() {
     })
 
     return Object.keys(map).sort().map(dateStr => {
-      const d = new Date(dateStr + 'T12:00:00')
-      const nombreDia = d.toLocaleDateString('es-ES', { weekday: 'short' })
+      const d = parseLocalDate(dateStr)
+      const nombreDia = d ? d.toLocaleDateString('es-ES', { weekday: 'short' }) : ''
       const [y, m, day] = dateStr.split('-')
       return {
         fechaReal: dateStr,
@@ -350,7 +397,7 @@ export default function Reportes() {
         Total: map[dateStr].Ganancia - map[dateStr].Pérdida
       }
     })
-  }, [registrosFiltrados, productos, periodo])
+  }, [registrosFiltrados, productos, periodo, fechaInicio, fechaFin])
 
   const totalMonetario = chartData.reduce((acc, curr) => acc + curr.Ganancia, 0)
   const totalPerdidaMonetario = chartData.reduce((acc, curr) => acc + Math.abs(curr.Pérdida), 0)
@@ -574,6 +621,21 @@ export default function Reportes() {
         productos: payloadProductos,
         fechaCreacion: new Date().toISOString(),
         _tipo: 'merma'
+      })
+
+      // Registrar eventos individuales en historial_inventario para sincronización en Kardex
+      payloadProductos.forEach(i => {
+        const hRef = doc(collection(db, 'historial_inventario'))
+        batch.set(hRef, {
+          productoId: i.productoId,
+          accion: `Merma / ${motivoMerma}`,
+          motivo: `Pérdida por ${motivoMerma}${i.variante ? ' (' + i.variante + ')' : ''}`,
+          cambio: -Number(i.cantidad),
+          fecha: fechaMerma || getLocalDateString(),
+          esMermaReal: true,
+          mermaId: mermaRef.id,
+          motivoMerma: motivoMerma
+        })
       })
 
       await batch.commit()
@@ -854,13 +916,13 @@ export default function Reportes() {
                     type="date" 
                     value={fechaInicio} 
                     onChange={e => setFechaInicio(e.target.value)} 
-                    className="bg-surface-container-highest px-2 py-1.5 text-[10px] font-bold uppercase rounded-lg focus:outline-none border border-outline-variant/10" 
+                    className="bg-surface-container-highest dark:bg-[#121212] text-on-surface dark:text-white [color-scheme:light] dark:[color-scheme:dark] px-3 py-1.5 text-[10px] font-bold uppercase rounded-xl focus:outline-none border border-outline-variant/10 dark:border-white/10 shadow-sm" 
                   />
                   <input 
                     type="date" 
                     value={fechaFin} 
                     onChange={e => setFechaFin(e.target.value)} 
-                    className="bg-surface-container-highest px-2 py-1.5 text-[10px] font-bold uppercase rounded-lg focus:outline-none border border-outline-variant/10" 
+                    className="bg-surface-container-highest dark:bg-[#121212] text-on-surface dark:text-white [color-scheme:light] dark:[color-scheme:dark] px-3 py-1.5 text-[10px] font-bold uppercase rounded-xl focus:outline-none border border-outline-variant/10 dark:border-white/10 shadow-sm" 
                   />
                 </div>
               )}
