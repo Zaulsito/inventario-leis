@@ -2212,7 +2212,7 @@ REGLAS DE FORMATO ESTRICTAS:
                       <input 
                         type="number" 
                         value={form.precioCosto} 
-                        onChange={e => setForm({...form, precioCosto: e.target.value})}
+                        onChange={e => setForm(prev => ({ ...prev, precioCosto: e.target.value, fechaIngreso: getLocalDateString() }))}
                         className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                         placeholder="0"
                       />
