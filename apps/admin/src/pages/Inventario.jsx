@@ -460,16 +460,19 @@ REGLAS DE FORMATO ESTRICTAS:
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [historyFilter, setHistoryFilter] = useState('todos')
   const [editProductHistory, setEditProductHistory] = useState([])
+  const [initialProductData, setInitialProductData] = useState({ stock: 0, precioCosto: 0, fechaIngreso: '' })
 
   const editProductLotesStats = useMemo(() => {
-    const stockInicial = Number(form.stock) || 0
-    const costoInicial = Number(form.precioCosto) || 0
+    const isEditing = Boolean(editingId)
+    const stockInicial = isEditing ? initialProductData.stock : (Number(form.stock) || 0)
+    const costoInicial = isEditing ? initialProductData.precioCosto : (Number(form.precioCosto) || 0)
+    const fechaInicial = isEditing ? (initialProductData.fechaIngreso || getLocalDateString()) : (form.fechaIngreso || getLocalDateString())
     const totalInicial = stockInicial * costoInicial
 
     if (!editProductHistory || editProductHistory.length === 0) {
       return {
         lotes: stockInicial > 0 ? [{
-          fecha: form.fechaIngreso || getLocalDateString(),
+          fecha: fechaInicial,
           cantidad: stockInicial,
           precioCosto: costoInicial,
           gastoFecha: totalInicial,
@@ -491,7 +494,7 @@ REGLAS DE FORMATO ESTRICTAS:
     if (entradas.length === 0) {
       return {
         lotes: stockInicial > 0 ? [{
-          fecha: form.fechaIngreso || getLocalDateString(),
+          fecha: fechaInicial,
           cantidad: stockInicial,
           precioCosto: costoInicial,
           gastoFecha: totalInicial,
@@ -506,8 +509,8 @@ REGLAS DE FORMATO ESTRICTAS:
 
     entradas.forEach(l => {
       const cant = Number(l.cambio) || 0
-      const costoUnit = Number(l.precioCosto) || costoInicial
-      const gastoFecha = Number(l.costoTotalLote) || (cant * costoUnit)
+      const costoUnit = (l.precioCosto !== undefined && l.precioCosto !== null && l.precioCosto !== '') ? Number(l.precioCosto) : costoInicial
+      const gastoFecha = (l.costoTotalLote !== undefined && l.costoTotalLote !== null && l.costoTotalLote !== '') ? Number(l.costoTotalLote) : (cant * costoUnit)
       sumaAcumulada += gastoFecha
       unidadesTotales += cant
 
@@ -530,7 +533,7 @@ REGLAS DE FORMATO ESTRICTAS:
       unidadesTotales,
       costoPromedio
     }
-  }, [editProductHistory, form.stock, form.precioCosto, form.fechaIngreso])
+  }, [editProductHistory, initialProductData, editingId, form.stock, form.precioCosto, form.fechaIngreso])
 
   const historyProduct = useMemo(() => productos.find(p => p.id === historyProductId), [productos, historyProductId])
 
@@ -666,6 +669,7 @@ REGLAS DE FORMATO ESTRICTAS:
   // Handlers del CRUD
   function openNew() {
     setForm(formInicial)
+    setInitialProductData({ stock: 0, precioCosto: 0, fechaIngreso: getLocalDateString() })
     setEditingId(null)
     setErrorMsg('')
     setEsNuevaCategoria(false)
@@ -677,6 +681,10 @@ REGLAS DE FORMATO ESTRICTAS:
   }
 
   async function openEdit(p) {
+    const costNum = Number(p.precioCosto) || 0
+    const stockNum = Number(p.stock) || 0
+    const fechaIng = p.fechaIngreso || getLocalDateString()
+
     setForm({ 
       nombre: p.nombre, 
       sku: p.sku, 
@@ -687,13 +695,14 @@ REGLAS DE FORMATO ESTRICTAS:
       precioCosto: p.precioCosto || '',
       stock: p.stock, 
       ajusteStock: '',
-      fechaIngreso: p.fechaIngreso || getLocalDateString(), 
+      fechaIngreso: fechaIng, 
       fotoUrl: p.fotoUrl || '',
       fotos: p.fotos ? [...p.fotos] : (p.fotoUrl ? [p.fotoUrl] : []),
       descripcion: p.descripcion || '',
       variantes: p.variantes ? p.variantes.map(v => ({...v})) : [],
       visibleEnCatalogo: p.visibleEnCatalogo !== false
     })
+    setInitialProductData({ stock: stockNum, precioCosto: costNum, fechaIngreso: fechaIng })
     setEditingId(p.id)
     setErrorMsg('')
     setEsNuevaCategoria(false)
