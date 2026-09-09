@@ -467,46 +467,55 @@ REGLAS DE FORMATO ESTRICTAS:
     const stockInicial = isEditing ? initialProductData.stock : (Number(form.stock) || 0)
     const costoInicial = isEditing ? initialProductData.precioCosto : (Number(form.precioCosto) || 0)
     const fechaInicial = isEditing ? (initialProductData.fechaIngreso || getLocalDateString()) : (form.fechaIngreso || getLocalDateString())
-    const totalInicial = stockInicial * costoInicial
-
-    if (!editProductHistory || editProductHistory.length === 0) {
-      return {
-        lotes: stockInicial > 0 ? [{
-          fecha: fechaInicial,
-          cantidad: stockInicial,
-          precioCosto: costoInicial,
-          gastoFecha: totalInicial,
-          sumaAcumulada: totalInicial,
-          motivo: 'Stock Inicial Registrado'
-        }] : [],
-        inversionTotal: totalInicial,
-        unidadesTotales: stockInicial,
-        costoPromedio: costoInicial
-      }
-    }
 
     let sumaAcumulada = 0
     let unidadesTotales = 0
     const lotes = []
 
-    const entradas = editProductHistory.filter(l => Number(l.cambio) > 0)
+    const validLogs = (editProductHistory || []).slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    const entradas = validLogs.filter(l => Number(l.cambio) > 0)
 
-    if (entradas.length === 0) {
-      return {
-        lotes: stockInicial > 0 ? [{
-          fecha: fechaInicial,
-          cantidad: stockInicial,
-          precioCosto: costoInicial,
-          gastoFecha: totalInicial,
-          sumaAcumulada: totalInicial,
-          motivo: 'Stock Inicial Registrado'
-        }] : [],
-        inversionTotal: totalInicial,
-        unidadesTotales: stockInicial,
-        costoPromedio: costoInicial
+    // Verificar si el historial ya incluye un registro de creación inicial (stockAnterior === 0)
+    const tieneCreacionInicialEnLogs = validLogs.some(l => 
+      Number(l.stockAnterior) === 0 || 
+      (l.motivo && l.motivo.toLowerCase().includes('nuevo producto')) ||
+      (l.accion && l.accion.toLowerCase().includes('creación inicial'))
+    )
+
+    // Determinar stock inicial base previo a los registros de Firestore
+    let cantInicialBase = 0
+    if (!tieneCreacionInicialEnLogs && stockInicial > 0) {
+      if (validLogs.length > 0) {
+        const primerLog = validLogs[0]
+        if (primerLog.stockAnterior !== undefined && primerLog.stockAnterior !== null) {
+          cantInicialBase = Number(primerLog.stockAnterior) || 0
+        } else {
+          const cambiosTotales = validLogs.reduce((acc, l) => acc + (Number(l.cambio) || 0), 0)
+          cantInicialBase = Math.max(0, stockInicial - cambiosTotales)
+        }
+      } else {
+        cantInicialBase = stockInicial
       }
     }
 
+    // Si hay un lote inicial base previo, incluirlo como primer registro acumulado
+    if (cantInicialBase > 0) {
+      const gastoInicialBase = cantInicialBase * costoInicial
+      sumaAcumulada += gastoInicialBase
+      unidadesTotales += cantInicialBase
+
+      lotes.push({
+        id: 'initial-base-lot',
+        fecha: fechaInicial,
+        cantidad: cantInicialBase,
+        precioCosto: costoInicial,
+        gastoFecha: gastoInicialBase,
+        sumaAcumulada: sumaAcumulada,
+        motivo: 'Stock Inicial Registrado'
+      })
+    }
+
+    // Procesar las entradas de compras / ediciones de stock posteriores
     entradas.forEach(l => {
       const cant = Number(l.cambio) || 0
       const costoUnit = (l.precioCosto !== undefined && l.precioCosto !== null && l.precioCosto !== '') ? Number(l.precioCosto) : costoInicial
