@@ -696,6 +696,9 @@ REGLAS DE FORMATO ESTRICTAS:
 
       // Fusionar evitando duplicados: dar máxima prioridad a logsPedidos y logsMermas reales
       const logsMap = new Map()
+      const snapPedidosIds = new Set(snapPedidos.docs.map(d => d.id))
+      const snapMermasIds = new Set(snapMermas.docs.map(d => d.id))
+
       logsPedidos.forEach(lp => {
         logsMap.set(lp.id, lp)
       })
@@ -705,7 +708,12 @@ REGLAS DE FORMATO ESTRICTAS:
       logs.forEach(l => {
         const isDupPedido = l.pedidoId && Array.from(logsMap.values()).some(lp => lp.pedidoId === l.pedidoId)
         const isDupMerma = l.mermaId && Array.from(logsMap.values()).some(lm => lm.mermaId === l.mermaId)
-        if (!logsMap.has(l.id) && !isDupPedido && !isDupMerma) {
+        
+        // Evitar que aparezcan mermas/pedidos huérfanos eliminados desde Reportes
+        const isOrphanMerma = l.mermaId && !snapMermasIds.has(l.mermaId)
+        const isOrphanPedido = l.pedidoId && !snapPedidosIds.has(l.pedidoId)
+
+        if (!logsMap.has(l.id) && !isDupPedido && !isDupMerma && !isOrphanMerma && !isOrphanPedido) {
           logsMap.set(l.id, l)
         }
       })
@@ -752,15 +760,12 @@ REGLAS DE FORMATO ESTRICTAS:
             await updateDoc(doc(db, 'productos', pTarget.id), { stock: stockRevertido })
           }
         } else if (log.esPedidoReal && log.pedidoId) {
-          // Revertir el pedido real de Firestore
+          const batch = writeBatch(db)
           const pedRef = doc(db, 'pedidos', log.pedidoId)
           const pedSnap = await getDoc(pedRef)
           
           if (pedSnap.exists()) {
             const pedData = pedSnap.data()
-            const batch = writeBatch(db)
-
-            // Devolver stock de cada producto involucrado en el pedido
             if (Array.isArray(pedData.productos)) {
               for (const item of pedData.productos) {
                 const itemPId = item.productoId || item.id
@@ -778,40 +783,57 @@ REGLAS DE FORMATO ESTRICTAS:
                 }
               }
             }
-
-            // Eliminar el pedido de Firestore
             batch.delete(pedRef)
-            await batch.commit()
           }
-        } else if (log.esMermaReal && log.mermaId) {
-          // Revertir la merma real de Firestore
-          const merRef = doc(db, 'mermas', log.mermaId)
-          const merSnap = await getDoc(merRef)
 
-          if (merSnap.exists()) {
-            const merData = merSnap.data()
-            const batch = writeBatch(db)
+          // Eliminar cualquier documento en historial_inventario vinculado
+          const qHist = query(collection(db, 'historial_inventario'), where('pedidoId', '==', log.pedidoId))
+          const snapHist = await getDocs(qHist)
+          snapHist.docs.forEach(hDoc => batch.delete(hDoc.ref))
 
-            if (Array.isArray(merData.productos)) {
-              for (const item of merData.productos) {
-                const itemPId = item.productoId || item.id
-                const pItemInState = productos.find(p => 
-                  p.id === itemPId || 
-                  (p.nombre && item.nombre && p.nombre.toLowerCase() === item.nombre.toLowerCase())
-                )
+          await batch.commit()
 
-                if (pItemInState) {
-                  const stockActual = Number(pItemInState.stock) || 0
-                  const cantItem = Number(item.cantidad) || 0
-                  const prodRef = doc(db, 'productos', pItemInState.id)
-                  batch.update(prodRef, { stock: stockActual + cantItem })
+        } else if (log.esMermaReal && (log.mermaId || log.id)) {
+          const batch = writeBatch(db)
+
+          if (log.mermaId) {
+            const merRef = doc(db, 'mermas', log.mermaId)
+            const merSnap = await getDoc(merRef)
+
+            if (merSnap.exists()) {
+              const merData = merSnap.data()
+              if (Array.isArray(merData.productos)) {
+                for (const item of merData.productos) {
+                  const itemPId = item.productoId || item.id
+                  const pItemInState = productos.find(p => 
+                    p.id === itemPId || 
+                    (p.nombre && item.nombre && p.nombre.toLowerCase() === item.nombre.toLowerCase())
+                  )
+
+                  if (pItemInState) {
+                    const stockActual = Number(pItemInState.stock) || 0
+                    const cantItem = Number(item.cantidad) || 0
+                    const prodRef = doc(db, 'productos', pItemInState.id)
+                    batch.update(prodRef, { stock: stockActual + cantItem })
+                  }
                 }
               }
+              batch.delete(merRef)
             }
 
-            batch.delete(merRef)
-            await batch.commit()
+            // Eliminar cualquier documento en historial_inventario vinculado a esta merma
+            const qHist = query(collection(db, 'historial_inventario'), where('mermaId', '==', log.mermaId))
+            const snapHist = await getDocs(qHist)
+            snapHist.docs.forEach(hDoc => batch.delete(hDoc.ref))
           }
+
+          // Si el id es un documento real en historial_inventario, borrarlo
+          if (log.id && !log.id.startsWith('merma-') && !log.id.startsWith('pedido-')) {
+            const hRef = doc(db, 'historial_inventario', log.id)
+            batch.delete(hRef)
+          }
+
+          await batch.commit()
         }
         
         // 3. Actualizar estado local

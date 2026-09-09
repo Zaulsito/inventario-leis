@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, onSnapshot, doc, writeBatch, addDoc, deleteDoc } from 'firebase/firestore'
+import { collection, onSnapshot, doc, writeBatch, addDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts'
 import { jsPDF } from 'jspdf'
@@ -705,6 +705,14 @@ export default function Reportes() {
       const colName = registro._tipo === 'merma' ? 'mermas' : 'pedidos'
       const docRef = doc(db, colName, registro.id)
       batch.delete(docRef)
+
+      // Eliminar también cualquier registro vinculado en historial_inventario
+      const fieldId = registro._tipo === 'merma' ? 'mermaId' : 'pedidoId'
+      const qHist = query(collection(db, 'historial_inventario'), where(fieldId, '==', registro.id))
+      const snapHist = await getDocs(qHist)
+      snapHist.docs.forEach(hDoc => {
+        batch.delete(hDoc.ref)
+      })
 
       await batch.commit()
       setRegistroADeshacer(null)
