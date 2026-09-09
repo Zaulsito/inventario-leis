@@ -459,6 +459,78 @@ REGLAS DE FORMATO ESTRICTAS:
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [historyFilter, setHistoryFilter] = useState('todos')
+  const [editProductHistory, setEditProductHistory] = useState([])
+
+  const editProductLotesStats = useMemo(() => {
+    const stockInicial = Number(form.stock) || 0
+    const costoInicial = Number(form.precioCosto) || 0
+    const totalInicial = stockInicial * costoInicial
+
+    if (!editProductHistory || editProductHistory.length === 0) {
+      return {
+        lotes: stockInicial > 0 ? [{
+          fecha: form.fechaIngreso || getLocalDateString(),
+          cantidad: stockInicial,
+          precioCosto: costoInicial,
+          gastoFecha: totalInicial,
+          sumaAcumulada: totalInicial,
+          motivo: 'Stock Inicial Registrado'
+        }] : [],
+        inversionTotal: totalInicial,
+        unidadesTotales: stockInicial,
+        costoPromedio: costoInicial
+      }
+    }
+
+    let sumaAcumulada = 0
+    let unidadesTotales = 0
+    const lotes = []
+
+    const entradas = editProductHistory.filter(l => Number(l.cambio) > 0)
+
+    if (entradas.length === 0) {
+      return {
+        lotes: stockInicial > 0 ? [{
+          fecha: form.fechaIngreso || getLocalDateString(),
+          cantidad: stockInicial,
+          precioCosto: costoInicial,
+          gastoFecha: totalInicial,
+          sumaAcumulada: totalInicial,
+          motivo: 'Stock Inicial Registrado'
+        }] : [],
+        inversionTotal: totalInicial,
+        unidadesTotales: stockInicial,
+        costoPromedio: costoInicial
+      }
+    }
+
+    entradas.forEach(l => {
+      const cant = Number(l.cambio) || 0
+      const costoUnit = Number(l.precioCosto) || costoInicial
+      const gastoFecha = Number(l.costoTotalLote) || (cant * costoUnit)
+      sumaAcumulada += gastoFecha
+      unidadesTotales += cant
+
+      lotes.push({
+        id: l.id,
+        fecha: l.fecha,
+        cantidad: cant,
+        precioCosto: costoUnit,
+        gastoFecha: gastoFecha,
+        sumaAcumulada: sumaAcumulada,
+        motivo: l.motivo || l.accion || 'Ingreso de Stock'
+      })
+    })
+
+    const costoPromedio = unidadesTotales > 0 ? (sumaAcumulada / unidadesTotales) : costoInicial
+
+    return {
+      lotes,
+      inversionTotal: sumaAcumulada,
+      unidadesTotales,
+      costoPromedio
+    }
+  }, [editProductHistory, form.stock, form.precioCosto, form.fechaIngreso])
 
   const historyProduct = useMemo(() => productos.find(p => p.id === historyProductId), [productos, historyProductId])
 
@@ -600,10 +672,11 @@ REGLAS DE FORMATO ESTRICTAS:
     setEsNuevoProveedor(false)
     setActiveTabModal('editar')
     setPreviewImageIndex(0)
+    setEditProductHistory([])
     setShowModal(true)
   }
 
-  function openEdit(p) {
+  async function openEdit(p) {
     setForm({ 
       nombre: p.nombre, 
       sku: p.sku, 
@@ -628,6 +701,21 @@ REGLAS DE FORMATO ESTRICTAS:
     setActiveTabModal('editar')
     setPreviewImageIndex(0)
     setShowModal(true)
+
+    // Cargar historial de compras de este producto
+    try {
+      const q = query(
+        collection(db, 'historial_inventario'), 
+        where('productoId', '==', p.id)
+      )
+      const snapshot = await getDocs(q)
+      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      logs.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      setEditProductHistory(logs)
+    } catch (e) {
+      console.error("Error cargando historial de edición", e)
+      setEditProductHistory([])
+    }
   }
 
   async function openHistory(pId) {
@@ -2183,6 +2271,81 @@ REGLAS DE FORMATO ESTRICTAS:
                           <span className="text-xl font-black text-on-surface dark:text-white">{form.stock}</span>
                         </div>
                       </div>
+                    )}
+                  </div>
+
+                  {/* ── CUADRO INFORMATIVO DE INVERSIÓN Y LOTES DE COMPRA POR FECHA ── */}
+                  <div className="bg-surface-container-high/60 dark:bg-[#202020] rounded-2xl p-4.5 border border-outline-variant/20 dark:border-white/10 shadow-sm space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-xl">analytics</span>
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c]">
+                            Historial de Inversión y Compras por Fecha
+                          </p>
+                          <p className="text-[9px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider">
+                            Gasto en este producto por fecha y suma acumulada total
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <div className="text-right px-3 py-1.5 rounded-xl bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-300 block">Inversión Total</span>
+                          <span className="text-xs font-black text-primary dark:text-[#e2bd6c]">
+                            ${editProductLotesStats.inversionTotal.toLocaleString('es-CL')}
+                          </span>
+                        </div>
+                        <div className="text-right px-3 py-1.5 rounded-xl bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-400 block">Costo Promedio</span>
+                          <span className="text-xs font-black dark:text-white">
+                            ${Math.round(editProductLotesStats.costoPromedio).toLocaleString('es-CL')} /u
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tabla Progresiva por Fecha */}
+                    {editProductLotesStats.lotes.length > 0 ? (
+                      <div className="overflow-x-auto rounded-xl border border-outline-variant/15 dark:border-white/10">
+                        <table className="w-full text-left text-[11px]">
+                          <thead>
+                            <tr className="bg-surface-container dark:bg-[#2a2a2a] text-outline dark:text-gray-400 font-extrabold uppercase tracking-wider text-[9px]">
+                              <th className="py-2.5 px-3">Fecha Compra</th>
+                              <th className="py-2.5 px-3 text-center">Cantidad</th>
+                              <th className="py-2.5 px-3 text-right">Costo Unit.</th>
+                              <th className="py-2.5 px-3 text-right">Gasto Fecha</th>
+                              <th className="py-2.5 px-3 text-right text-primary dark:text-[#e2bd6c]">Suma Acumulada</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5 font-semibold dark:text-white/90">
+                            {editProductLotesStats.lotes.map((lote, index) => (
+                              <tr key={index} className="hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-colors">
+                                <td className="py-2.5 px-3 whitespace-nowrap">
+                                  <span className="font-mono font-bold">{formatDateDMA(lote.fecha, lote)}</span>
+                                  <span className="text-[9px] text-outline/70 dark:text-gray-400 block font-normal">{lote.motivo}</span>
+                                </td>
+                                <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                  +{lote.cantidad} un.
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                                  ${lote.precioCosto.toLocaleString('es-CL')}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                                  ${lote.gastoFecha.toLocaleString('es-CL')}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-black text-primary dark:text-[#e2bd6c] whitespace-nowrap bg-primary/5 dark:bg-[#e2bd6c]/10">
+                                  ${lote.sumaAcumulada.toLocaleString('es-CL')}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] italic text-outline/70 dark:text-gray-400 text-center py-2 font-bold">
+                        Sin compras históricas registradas aún para este producto.
+                      </p>
                     )}
                   </div>
 
