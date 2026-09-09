@@ -464,16 +464,38 @@ REGLAS DE FORMATO ESTRICTAS:
 
   const historyStats = useMemo(() => {
     const stockActual = Number(historyProduct?.stock) || 0
-    if (!historyLogs || historyLogs.length === 0) return { entradas: stockActual, salidas: 0, totalHistorico: stockActual }
+    const precioCostoActual = Number(historyProduct?.precioCosto) || 0
+    if (!historyLogs || historyLogs.length === 0) {
+      return { 
+        entradas: stockActual, 
+        salidas: 0, 
+        totalHistorico: stockActual, 
+        inversionTotal: stockActual * precioCostoActual,
+        costoPromedio: precioCostoActual 
+      }
+    }
     let entradas = 0
     let salidas = 0
+    let inversionTotal = 0
+
     historyLogs.forEach(l => {
       const cambio = Number(l.cambio) || 0
-      if (cambio > 0) entradas += cambio
-      else salidas += Math.abs(cambio)
+      if (cambio > 0) {
+        entradas += cambio
+        const costoLote = Number(l.costoTotalLote) || (cambio * (Number(l.precioCosto) || precioCostoActual))
+        inversionTotal += costoLote
+      } else {
+        salidas += Math.abs(cambio)
+      }
     })
+
     const totalHistorico = Math.max(entradas, stockActual + salidas)
-    return { entradas, salidas, totalHistorico }
+    if (inversionTotal === 0 && entradas > 0) {
+      inversionTotal = entradas * precioCostoActual
+    }
+    const costoPromedio = entradas > 0 ? (inversionTotal / entradas) : precioCostoActual
+
+    return { entradas, salidas, totalHistorico, inversionTotal, costoPromedio }
   }, [historyLogs, historyProduct])
 
   const [totalIngresadoHistorico, setTotalIngresadoHistorico] = useState(0)
@@ -917,6 +939,7 @@ REGLAS DE FORMATO ESTRICTAS:
             if (stockVNuevo !== stockVAnterior) {
               const dif = stockVNuevo - stockVAnterior;
               const accion = dif > 0 ? `Se sumaron ${dif} (${vNuevo.nombre})` : `Se restaron ${Math.abs(dif)} (${vNuevo.nombre})`;
+              const costUnit = Math.floor(Number(form.precioCosto)) || 0;
               await addDoc(collection(db, 'historial_inventario'), {
                 productoId: editingId,
                 fecha: new Date().toISOString(),
@@ -924,6 +947,8 @@ REGLAS DE FORMATO ESTRICTAS:
                 cambio: dif,
                 stockAnterior: stockVAnterior,
                 stockNuevo: stockVNuevo,
+                precioCosto: costUnit,
+                costoTotalLote: dif > 0 ? (dif * costUnit) : 0,
                 motivo: "Edición manual de variante"
               });
             }
@@ -932,6 +957,7 @@ REGLAS DE FORMATO ESTRICTAS:
           if (stockCalculado !== stockAnterior) {
             const diferencia = stockCalculado - stockAnterior;
             const accion = diferencia > 0 ? `Se sumaron ${diferencia}` : `Se restaron ${Math.abs(diferencia)}`;
+            const costUnit = Math.floor(Number(form.precioCosto)) || 0;
             await addDoc(collection(db, 'historial_inventario'), {
               productoId: editingId,
               fecha: new Date().toISOString(),
@@ -939,6 +965,8 @@ REGLAS DE FORMATO ESTRICTAS:
               cambio: diferencia,
               stockAnterior: stockAnterior,
               stockNuevo: stockCalculado,
+              precioCosto: costUnit,
+              costoTotalLote: diferencia > 0 ? (diferencia * costUnit) : 0,
               motivo: "Edición manual desde panel"
             });
           }
@@ -947,15 +975,20 @@ REGLAS DE FORMATO ESTRICTAS:
         const docRef = await addDoc(collection(db, 'productos'), payload);
         savedId = docRef.id;
 
+        const costUnit = Math.floor(Number(form.precioCosto)) || 0;
+
         if (form.variantes && form.variantes.length > 0) {
           for (const v of form.variantes) {
+            const cantV = Number(v.stock) || 0;
             await addDoc(collection(db, 'historial_inventario'), {
               productoId: savedId,
               fecha: new Date().toISOString(),
               accion: `Creación inicial (${v.nombre})`,
-              cambio: Number(v.stock),
+              cambio: cantV,
               stockAnterior: 0,
-              stockNuevo: Number(v.stock),
+              stockNuevo: cantV,
+              precioCosto: costUnit,
+              costoTotalLote: cantV * costUnit,
               motivo: "Nuevo producto (Variante)"
             });
           }
@@ -967,6 +1000,8 @@ REGLAS DE FORMATO ESTRICTAS:
             cambio: stockCalculado,
             stockAnterior: 0,
             stockNuevo: stockCalculado,
+            precioCosto: costUnit,
+            costoTotalLote: stockCalculado * costUnit,
             motivo: "Nuevo producto"
           });
         }
@@ -2912,7 +2947,7 @@ REGLAS DE FORMATO ESTRICTAS:
 
             {/* Resumen de Métricas del Producto */}
             {historyProduct && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-5 py-3 bg-surface-container-lowest dark:bg-white/[0.02] border-b border-outline-variant/10 dark:border-white/5 shrink-0">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 px-5 py-3 bg-surface-container-lowest dark:bg-white/[0.02] border-b border-outline-variant/10 dark:border-white/5 shrink-0">
                 <div className="bg-surface-container-low dark:bg-white/5 p-2 rounded-xl border border-outline-variant/10 dark:border-white/5 flex flex-col justify-center items-center text-center">
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400">Stock Actual</span>
                   <span className="text-base font-bold dark:text-white mt-0.5">{historyProduct.stock} un.</span>
@@ -2922,11 +2957,15 @@ REGLAS DE FORMATO ESTRICTAS:
                   <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">+{historyStats.entradas} un.</span>
                 </div>
                 <div className="bg-blue-500/10 dark:bg-blue-500/10 p-2 rounded-xl border border-blue-500/20 flex flex-col justify-center items-center text-center">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400">Ingresados Histórico</span>
-                  <span className="text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5">+{historyStats.totalHistorico} un.</span>
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400">Inversión Compras</span>
+                  <span className="text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5">${(historyStats.inversionTotal || 0).toLocaleString('es-CL')}</span>
                 </div>
-                <div className="bg-purple-500/10 dark:bg-purple-500/10 p-2 rounded-xl border border-purple-500/20 flex flex-col justify-center items-center text-center">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">Total Ventas / Salidas</span>
+                <div className="bg-amber-500/10 dark:bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex flex-col justify-center items-center text-center">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Costo Promedio</span>
+                  <span className="text-base font-bold text-amber-600 dark:text-[#e2bd6c] mt-0.5">${Math.round(historyStats.costoPromedio || 0).toLocaleString('es-CL')} /u</span>
+                </div>
+                <div className="bg-purple-500/10 dark:bg-purple-500/10 p-2 rounded-xl border border-purple-500/20 flex flex-col justify-center items-center text-center col-span-2 sm:col-span-1">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">Total Salidas</span>
                   <span className="text-base font-bold text-purple-600 dark:text-purple-400 mt-0.5">-{historyStats.salidas} un.</span>
                 </div>
               </div>
@@ -3056,6 +3095,15 @@ REGLAS DE FORMATO ESTRICTAS:
                                 log.motivo || log.accion || 'Movimiento de stock registrado'
                               )}
                             </div>
+
+                            {/* Detalle de Costo en Entradas / Lotes */}
+                            {isPositive && (
+                              <div className="mt-1 flex items-center gap-2 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex-wrap">
+                                <span>Costo: ${(Number(log.precioCosto) || Number(historyProduct?.precioCosto) || 0).toLocaleString('es-CL')} c/u</span>
+                                <span>•</span>
+                                <span>Total Lote: ${((Number(log.cambio) || 0) * (Number(log.precioCosto) || Number(historyProduct?.precioCosto) || 0)).toLocaleString('es-CL')}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
