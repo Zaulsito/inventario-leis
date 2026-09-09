@@ -461,6 +461,7 @@ REGLAS DE FORMATO ESTRICTAS:
   const [historyFilter, setHistoryFilter] = useState('todos')
   const [editProductHistory, setEditProductHistory] = useState([])
   const [initialProductData, setInitialProductData] = useState({ stock: 0, precioCosto: 0, fechaIngreso: '' })
+  const [editingLot, setEditingLot] = useState(null)
 
   const editProductLotesStats = useMemo(() => {
     const isEditing = Boolean(editingId)
@@ -981,6 +982,98 @@ REGLAS DE FORMATO ESTRICTAS:
         console.error("Error al eliminar registro de historial:", err)
         alert("Hubo un error al eliminar el registro: " + err.message)
       }
+    }
+  }
+
+  function handleStartEditLot(lote) {
+    let fechaFormatted = getLocalDateString();
+    if (lote.fecha) {
+      if (typeof lote.fecha === 'string' && lote.fecha.includes('T')) {
+        fechaFormatted = lote.fecha.split('T')[0];
+      } else {
+        fechaFormatted = lote.fecha;
+      }
+    }
+    setEditingLot({
+      id: lote.id,
+      fecha: fechaFormatted,
+      cantidad: lote.cantidad || 0,
+      precioCosto: lote.precioCosto || 0,
+      motivo: lote.motivo || ''
+    });
+  }
+
+  async function handleSaveEditedLot() {
+    if (!editingLot) return;
+    const newCant = Number(editingLot.cantidad) || 0;
+    const newCost = Number(editingLot.precioCosto) || 0;
+    const newDate = editingLot.fecha || getLocalDateString();
+    const newMotivo = editingLot.motivo || 'Registro de Lote';
+
+    try {
+      if (editingLot.id === 'initial-base-lot') {
+        setInitialProductData(prev => ({
+          ...prev,
+          stock: newCant,
+          precioCosto: newCost,
+          fechaIngreso: newDate
+        }));
+        setForm(prev => ({
+          ...prev,
+          stock: newCant,
+          precioCosto: newCost,
+          fechaIngreso: newDate
+        }));
+        if (editingId) {
+          await updateDoc(doc(db, 'productos', editingId), {
+            stock: newCant,
+            precioCosto: newCost,
+            fechaIngreso: newDate
+          });
+        }
+      } else {
+        await updateDoc(doc(db, 'historial_inventario', editingLot.id), {
+          cambio: newCant,
+          precioCosto: newCost,
+          costoTotalLote: newCant * newCost,
+          fecha: newDate,
+          motivo: newMotivo
+        });
+
+        setEditProductHistory(prev => prev.map(l => 
+          l.id === editingLot.id ? { 
+            ...l, 
+            cambio: newCant, 
+            precioCosto: newCost, 
+            costoTotalLote: newCant * newCost, 
+            fecha: newDate, 
+            motivo: newMotivo 
+          } : l
+        ));
+      }
+      setEditingLot(null);
+    } catch (err) {
+      console.error("Error guardando cambios de lote:", err);
+      alert("Error al actualizar el lote: " + err.message);
+    }
+  }
+
+  async function handleDeleteLotInModal(lote) {
+    if (lote.id === 'initial-base-lot') {
+      if (window.confirm("¿Deseas eliminar el registro de Stock Inicial del historial de este producto?")) {
+        setInitialProductData(prev => ({ ...prev, stock: 0 }));
+        setForm(prev => ({ ...prev, stock: 0 }));
+        if (editingId) {
+          try {
+            await updateDoc(doc(db, 'productos', editingId), { stock: 0 });
+          } catch (e) {
+            console.error("Error al actualizar stock inicial:", e);
+          }
+        }
+      }
+    } else {
+      await handleDeleteHistoryLog(lote);
+      setEditProductHistory(prev => prev.filter(l => l.id !== lote.id));
     }
   }
 
@@ -2334,6 +2427,7 @@ REGLAS DE FORMATO ESTRICTAS:
                               <th className="py-2.5 px-3 text-right">Costo Unit.</th>
                               <th className="py-2.5 px-3 text-right">Gasto Fecha</th>
                               <th className="py-2.5 px-3 text-right text-primary dark:text-[#e2bd6c]">Suma Acumulada</th>
+                              <th className="py-2.5 px-3 text-center">Acciones</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5 font-semibold dark:text-white/90">
@@ -2355,6 +2449,26 @@ REGLAS DE FORMATO ESTRICTAS:
                                 <td className="py-2.5 px-3 text-right font-mono font-black text-primary dark:text-[#e2bd6c] whitespace-nowrap bg-primary/5 dark:bg-[#e2bd6c]/10">
                                   ${lote.sumaAcumulada.toLocaleString('es-CL')}
                                 </td>
+                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleStartEditLot(lote)}
+                                      title="Editar Lote / Registro"
+                                      className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-outline dark:text-gray-300 hover:text-primary dark:hover:text-[#e2bd6c] transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-[15px]">edit</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteLotInModal(lote)}
+                                      title="Eliminar Lote"
+                                      className="p-1 rounded-lg hover:bg-error/10 text-outline dark:text-gray-300 hover:text-error transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-[15px]">delete</span>
+                                    </button>
+                                  </div>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -2366,6 +2480,97 @@ REGLAS DE FORMATO ESTRICTAS:
                       </p>
                     )}
                   </div>
+
+                  {/* Modal Secundario: Editar Registro de Lote */}
+                  {editingLot && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+                      <div className="bg-surface-container-lowest dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between border-b border-outline-variant/10 dark:border-white/10 pb-3">
+                          <h3 className="text-xs font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c] flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-sm">edit_note</span>
+                            Editar Registro de Lote
+                          </h3>
+                          <button 
+                            type="button" 
+                            onClick={() => setEditingLot(null)} 
+                            className="text-outline dark:text-gray-400 hover:text-on-surface dark:hover:text-white text-sm"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Cantidad (Unidades)
+                            </label>
+                            <input 
+                              type="number" 
+                              value={editingLot.cantidad} 
+                              onChange={e => setEditingLot({...editingLot, cantidad: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="Ej. 16"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Costo Unitario ($)
+                            </label>
+                            <input 
+                              type="number" 
+                              value={editingLot.precioCosto} 
+                              onChange={e => setEditingLot({...editingLot, precioCosto: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="Ej. 3792"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Fecha Compra / Registro
+                            </label>
+                            <input 
+                              type="date" 
+                              value={editingLot.fecha} 
+                              onChange={e => setEditingLot({...editingLot, fecha: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Motivo / Nota
+                            </label>
+                            <input 
+                              type="text" 
+                              value={editingLot.motivo} 
+                              onChange={e => setEditingLot({...editingLot, motivo: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="Ej. Stock Inicial Registrado"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-outline-variant/10 dark:border-white/10">
+                          <button 
+                            type="button" 
+                            onClick={() => setEditingLot(null)}
+                            className="px-3.5 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={handleSaveEditedLot}
+                            className="px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black shadow-sm hover:opacity-90 transition-opacity"
+                          >
+                            Guardar Cambios
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
                   <div className="bg-surface-container/30 dark:bg-[#252525] rounded-2xl p-4 border border-outline-variant/10 dark:border-white/10">
