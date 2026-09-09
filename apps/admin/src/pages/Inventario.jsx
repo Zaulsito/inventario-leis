@@ -499,21 +499,30 @@ REGLAS DE FORMATO ESTRICTAS:
   }, [historyLogs, historyProduct])
 
   const [totalIngresadoHistorico, setTotalIngresadoHistorico] = useState(0)
+  const [totalInversionHistorica, setTotalInversionHistorica] = useState(0)
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'historial_inventario'), (snapshot) => {
       let sum = 0
+      let sumInversion = 0
       snapshot.docs.forEach(doc => {
         const d = doc.data()
         const cambio = Number(d.cambio) || 0
-        if (cambio > 0) sum += cambio
+        if (cambio > 0) {
+          sum += cambio
+          const pTarget = productos.find(p => p.id === d.productoId)
+          const costUnit = Number(d.precioCosto) || (pTarget ? Number(pTarget.precioCosto) : 0)
+          const costoLote = Number(d.costoTotalLote) || (cambio * costUnit)
+          sumInversion += costoLote
+        }
       })
       setTotalIngresadoHistorico(sum)
+      setTotalInversionHistorica(sumInversion)
     }, (err) => {
       console.error("Error cargando historial de stock global", err)
     })
     return () => unsub()
-  }, [])
+  }, [productos])
 
   const filteredHistoryLogs = useMemo(() => {
     if (!historyLogs) return []
@@ -1313,10 +1322,16 @@ REGLAS DE FORMATO ESTRICTAS:
                 <span>Venta:</span>
                 <span className="dark:text-white">${valorTotal.toLocaleString('es-CL')}</span>
               </div>
-              <div className="flex justify-between leading-tight text-[10px] opacity-75">
-                <span>Costo:</span>
+              <div className="flex justify-between leading-tight text-[10px] opacity-80">
+                <span>Costo Stock:</span>
                 <span className="dark:text-white">${valorTotalCosto.toLocaleString('es-CL')}</span>
               </div>
+              {totalInversionHistorica > 0 && (
+                <div className="flex justify-between leading-tight text-[9px] opacity-75 text-amber-600 dark:text-[#e2bd6c]">
+                  <span>Inv. Compras Total:</span>
+                  <span>${totalInversionHistorica.toLocaleString('es-CL')}</span>
+                </div>
+              )}
               <div className="flex justify-between text-[#22c55e] dark:text-[#10b981] font-bold border-t border-outline-variant/10 dark:border-white/10 pt-0.5 mt-0.5 text-[10px]">
                 <span>Ganancia:</span>
                 <span>+${(valorTotal - valorTotalCosto).toLocaleString('es-CL')}</span>
