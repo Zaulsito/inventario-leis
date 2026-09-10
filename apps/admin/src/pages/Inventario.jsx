@@ -3652,25 +3652,51 @@ REGLAS DE FORMATO ESTRICTAS:
                     const date = new Date(log.fecha)
                     const isPositive = Number(log.cambio) > 0
                     
-                    // Helper de badges
+                    // Helper de badges (Paso 1: Badges de Origen)
                     const accionStr = (log.accion || '').toLowerCase()
                     const motivoStr = (log.motivo || '').toLowerCase()
-                    let badge = { label: 'AJUSTE MANUAL', color: 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border-rose-500/20', icon: 'tune' }
-                    if (accionStr.includes('creación') || accionStr.includes('inicial')) {
-                      badge = { label: 'STOCK INICIAL', color: 'bg-amber-500/10 text-amber-600 dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border-amber-500/20 dark:border-[#e2bd6c]/30', icon: 'inventory_2' }
-                    } else if (accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')) {
-                      badge = { label: 'VENTA EN PEDIDO', color: 'bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300 border-purple-500/20', icon: 'shopping_cart' }
-                    } else if (motivoStr.includes('proveedor') || motivoStr.includes('reposición') || motivoStr.includes('compra')) {
-                      badge = { label: 'REPOSICIÓN PROVEEDOR', color: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20', icon: 'local_shipping' }
-                    } else if (motivoStr.includes('merma') || motivoStr.includes('dañad') || motivoStr.includes('rotura') || motivoStr.includes('pérdida') || log.esMermaReal) {
-                      const lbl = log.motivoMerma ? `MERMA (${log.motivoMerma.toUpperCase()})` : 'MERMA / DAÑO'
-                      badge = { label: lbl, color: 'bg-rose-500 text-white dark:bg-rose-600 dark:text-white border-rose-600 font-extrabold shadow-sm', icon: 'do_not_disturb_on' }
-                    } else if (motivoStr.includes('regalo')) {
-                      badge = { label: 'REGALO', color: 'bg-amber-500 text-black dark:bg-amber-400 dark:text-black border-amber-500 font-extrabold shadow-sm', icon: 'featured_seasonal_and_gifts' }
-                    } else if (motivoStr.includes('devolución') || motivoStr.includes('cancel')) {
-                      badge = { label: 'DEVOLUCIÓN', color: 'bg-indigo-500 text-white dark:bg-indigo-600 dark:text-white border-indigo-600 font-extrabold shadow-sm', icon: 'assignment_return' }
-                    } else if (isPositive) {
-                      badge = { label: 'INGRESO DE STOCK', color: 'bg-primary/10 text-primary dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border-primary/20', icon: 'add_circle' }
+                    
+                    let badge = { 
+                      label: 'AJUSTE MANUAL', 
+                      color: 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border-amber-500/30', 
+                      dot: '🟡', 
+                      icon: 'tune',
+                      textColor: 'text-amber-600 dark:text-amber-400'
+                    }
+
+                    if (log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')) {
+                      badge = { 
+                        label: 'VENTA EN PEDIDO', 
+                        color: 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-500/30', 
+                        dot: '🟢', 
+                        icon: 'shopping_cart',
+                        textColor: 'text-emerald-600 dark:text-emerald-400'
+                      }
+                    } else if (motivoStr.includes('devolución') || motivoStr.includes('devolucion') || motivoStr.includes('cancel') || accionStr.includes('devolución')) {
+                      badge = { 
+                        label: 'DEVOLUCIÓN', 
+                        color: 'bg-purple-500/15 text-purple-700 dark:bg-purple-500/25 dark:text-purple-300 border-purple-500/30', 
+                        dot: '🟣', 
+                        icon: 'assignment_return',
+                        textColor: 'text-purple-600 dark:text-purple-400'
+                      }
+                    } else if (log.esMermaReal || motivoStr.includes('merma') || motivoStr.includes('dañad') || motivoStr.includes('rotura') || motivoStr.includes('pérdida') || motivoStr.includes('perdida')) {
+                      const lbl = log.motivoMerma ? `MERMA / DAÑADO (${log.motivoMerma.toUpperCase()})` : 'MERMA / DAÑADO'
+                      badge = { 
+                        label: lbl, 
+                        color: 'bg-rose-500/15 text-rose-700 dark:bg-rose-500/25 dark:text-rose-300 border-rose-500/30', 
+                        dot: '🔴', 
+                        icon: 'do_not_disturb_on',
+                        textColor: 'text-rose-600 dark:text-rose-400'
+                      }
+                    } else if (motivoStr.includes('proveedor') || motivoStr.includes('reposición') || motivoStr.includes('reposicion') || motivoStr.includes('compra') || accionStr.includes('creación') || accionStr.includes('inicial') || motivoStr.includes('inicial') || isPositive) {
+                      badge = { 
+                        label: 'REPOSICIÓN DE STOCK', 
+                        color: 'bg-blue-500/15 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-500/30', 
+                        dot: '🔵', 
+                        icon: 'local_shipping',
+                        textColor: 'text-blue-600 dark:text-blue-400'
+                      }
                     }
 
                     return (
@@ -3679,7 +3705,7 @@ REGLAS DE FORMATO ESTRICTAS:
                         onClick={() => log.esPedidoReal && handleNavigateToPedido(log)}
                         className={`bg-surface-container-low dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm transition-all ${
                           log.esPedidoReal 
-                            ? 'cursor-pointer hover:border-purple-500/40 hover:bg-purple-500/5 dark:hover:bg-purple-500/10 group' 
+                            ? 'cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-500/5 dark:hover:bg-emerald-500/10 group' 
                             : 'hover:border-primary/20'
                         }`}
                         title={log.esPedidoReal ? "Haz clic para ver este pedido en la sección Pedidos" : ""}
@@ -3694,8 +3720,9 @@ REGLAS DE FORMATO ESTRICTAS:
                           <div className="min-w-0">
                             {/* Header del registro: Badge de Tipo + Fecha */}
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                              <span className={`text-[8px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full border ${badge.color}`}>
-                                {badge.label}
+                              <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${badge.color}`}>
+                                <span>{badge.dot}</span>
+                                <span>{badge.label}</span>
                               </span>
                               <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
                                 {formatDateDMA(log.fecha, log)}
@@ -3707,7 +3734,7 @@ REGLAS DE FORMATO ESTRICTAS:
                               {log.esPedidoReal ? (
                                 <>
                                   <span>Pedido</span>
-                                  <span className="font-mono text-[11px] bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5 group-hover:bg-purple-500 group-hover:text-white transition-all shadow-sm">
+                                  <span className="font-mono text-[11px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
                                     #{log.pedidoId ? log.pedidoId.slice(-5) : ''}
                                     <span className="material-symbols-outlined text-[10px]">open_in_new</span>
                                   </span>
@@ -3720,7 +3747,7 @@ REGLAS DE FORMATO ESTRICTAS:
 
                             {/* Detalle de Costo en Entradas / Lotes */}
                             {isPositive && (
-                              <div className="mt-1 flex items-center gap-2 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex-wrap">
+                              <div className="mt-1 flex items-center gap-2 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 flex-wrap">
                                 <span>Costo: ${(Number(log.precioCosto) || Number(historyProduct?.precioCosto) || 0).toLocaleString('es-CL')} c/u</span>
                                 <span>•</span>
                                 <span>Total Lote: ${((Number(log.cambio) || 0) * (Number(log.precioCosto) || Number(historyProduct?.precioCosto) || 0)).toLocaleString('es-CL')}</span>
@@ -3732,7 +3759,7 @@ REGLAS DE FORMATO ESTRICTAS:
                         {/* Columna Derecha: Cifra de Cambio, Stock Resultante y Botón Eliminar */}
                         <div className="flex items-center gap-2 shrink-0">
                           <div className="text-right">
-                            <p className={`text-base font-black ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'}`}>
+                            <p className={`text-base font-black ${badge.textColor}`}>
                               {isPositive ? '+' : ''}{log.cambio}
                             </p>
                             <p className="text-[9px] text-outline dark:text-gray-400 font-bold mt-0.5 uppercase tracking-wider">
