@@ -1058,6 +1058,69 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
+  async function handleAddNewLoteDirectly() {
+    const cantNum = Number(form.ajusteStock) || 0;
+    if (!cantNum) {
+      alert("Por favor ingresa una cantidad a ajustar (ej. 3 o -2)");
+      return;
+    }
+
+    if (!editingId) {
+      alert("Por favor guarda el nuevo producto antes de registrar ingresos de stock por fecha.");
+      return;
+    }
+
+    const prodTarget = productos.find(p => p.id === editingId);
+    const stockActual = prodTarget ? (Number(prodTarget.stock) || 0) : (Number(form.stock) || 0);
+    const stockNuevo = Math.max(0, stockActual + cantNum);
+    const costUnit = Math.floor(Number(form.precioCosto)) || 0;
+
+    const accionText = cantNum > 0 ? `Se sumaron ${cantNum}` : `Se restaron ${Math.abs(cantNum)}`;
+    const motivoText = cantNum > 0 ? "Edición manual desde panel" : "Ajuste manual de stock";
+
+    try {
+      const docRef = await addDoc(collection(db, 'historial_inventario'), {
+        productoId: editingId,
+        fecha: new Date().toISOString(),
+        accion: accionText,
+        cambio: cantNum,
+        stockAnterior: stockActual,
+        stockNuevo: stockNuevo,
+        precioCosto: costUnit,
+        costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
+        motivo: motivoText
+      });
+
+      await updateDoc(doc(db, 'productos', editingId), {
+        stock: stockNuevo
+      });
+
+      const newLog = {
+        id: docRef.id,
+        productoId: editingId,
+        fecha: new Date().toISOString(),
+        accion: accionText,
+        cambio: cantNum,
+        stockAnterior: stockActual,
+        stockNuevo: stockNuevo,
+        precioCosto: costUnit,
+        costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
+        motivo: motivoText
+      };
+
+      setEditProductHistory(prev => [...prev, newLog]);
+      setForm(prev => ({
+        ...prev,
+        stock: stockNuevo,
+        ajusteStock: ''
+      }));
+
+    } catch (err) {
+      console.error("Error al registrar lote:", err);
+      alert("Error al registrar lote: " + err.message);
+    }
+  }
+
   async function handleDeleteLotInModal(lote) {
     if (lote.id === 'initial-base-lot') {
       if (window.confirm("¿Deseas eliminar el registro de Stock Inicial del historial de este producto?")) {
@@ -2604,20 +2667,39 @@ REGLAS DE FORMATO ESTRICTAS:
                         />
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">Ajustar Cantidad (Sumar / Restar)</span>
-                          <input 
-                            type="number" 
-                            value={form.ajusteStock} 
-                            onChange={e => setForm({...form, ajusteStock: e.target.value})}
-                            className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                            placeholder="Ej. 3 o -2"
-                          />
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">Ajustar Cantidad (Sumar / Restar)</span>
+                            <input 
+                              type="number" 
+                              value={form.ajusteStock} 
+                              onChange={e => setForm({...form, ajusteStock: e.target.value})}
+                              className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                              placeholder="Ej. 3 o -2"
+                            />
+                          </div>
+                          <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
+                            <span className="text-xl font-black text-on-surface dark:text-white">{form.stock}</span>
+                          </div>
                         </div>
-                        <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
-                          <span className="text-xl font-black text-on-surface dark:text-white">{form.stock}</span>
+
+                        {/* Botón de Ingreso Directo */}
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={handleAddNewLoteDirectly}
+                            disabled={!form.ajusteStock || Number(form.ajusteStock) === 0}
+                            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md ${
+                              form.ajusteStock && Number(form.ajusteStock) !== 0
+                                ? 'bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black hover:opacity-90 cursor-pointer active:scale-95'
+                                : 'bg-surface-variant/50 text-outline/50 dark:bg-white/5 dark:text-gray-500 cursor-not-allowed border border-outline-variant/20'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-base font-bold">add_circle</span>
+                            Ingresar
+                          </button>
                         </div>
                       </div>
                     )}
