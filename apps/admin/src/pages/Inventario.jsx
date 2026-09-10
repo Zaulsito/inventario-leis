@@ -2126,8 +2126,8 @@ REGLAS DE FORMATO ESTRICTAS:
                         : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-base">analytics</span>
-                    Lotes y Costos
+                    <span className="material-symbols-outlined text-base">inventory_2</span>
+                    Stock y Costos
                   </button>
 
                   <button
@@ -2351,42 +2351,6 @@ REGLAS DE FORMATO ESTRICTAS:
                         className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                       />
                     </div>
-                  </div>
-
-                  {/* Fila 4: Control de Stock */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
-                      {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Control de Stock')}
-                    </label>
-                    {!editingId || form.variantes?.length > 0 ? (
-                      <div className="w-full md:w-1/3">
-                        <input 
-                          type="number" 
-                          value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
-                          onChange={e => setForm({...form, stock: e.target.value})}
-                          readOnly={form.variantes?.length > 0}
-                          className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-white/5'}`}
-                          placeholder="0"
-                        />
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">Ajustar Cantidad (Sumar / Restar)</span>
-                          <input 
-                            type="number" 
-                            value={form.ajusteStock} 
-                            onChange={e => setForm({...form, ajusteStock: e.target.value})}
-                            className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                            placeholder="Ej. 3 o -2"
-                          />
-                        </div>
-                        <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
-                          <span className="text-xl font-black text-on-surface dark:text-white">{form.stock}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                   {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
                   <div className="bg-surface-container/30 dark:bg-[#252525] rounded-2xl p-4 border border-outline-variant/10 dark:border-white/10">
@@ -2621,6 +2585,42 @@ REGLAS DE FORMATO ESTRICTAS:
                         Sincronizada con Fecha Ingreso de Ficha General
                       </span>
                     </div>
+                  </div>
+
+                  {/* Fila: Control de Stock */}
+                  <div className="bg-surface-container-low/40 dark:bg-white/5 p-4 rounded-2xl border border-outline-variant/20 dark:border-white/10">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-2 ml-1">
+                      {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Control de Stock')}
+                    </label>
+                    {!editingId || form.variantes?.length > 0 ? (
+                      <div className="w-full md:w-1/3">
+                        <input 
+                          type="number" 
+                          value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
+                          onChange={e => setForm({...form, stock: e.target.value})}
+                          readOnly={form.variantes?.length > 0}
+                          className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-[#181818]'}`}
+                          placeholder="0"
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">Ajustar Cantidad (Sumar / Restar)</span>
+                          <input 
+                            type="number" 
+                            value={form.ajusteStock} 
+                            onChange={e => setForm({...form, ajusteStock: e.target.value})}
+                            className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                            placeholder="Ej. 3 o -2"
+                          />
+                        </div>
+                        <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
+                          <span className="text-xl font-black text-on-surface dark:text-white">{form.stock}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── CUADRO INFORMATIVO DE INVERSIÓN Y LOTES DE COMPRA POR FECHA ── */}
