@@ -554,6 +554,7 @@ REGLAS DE FORMATO ESTRICTAS:
       return { 
         entradas: stockActual, 
         salidas: 0, 
+        stockCalculado: stockActual,
         totalHistorico: stockActual, 
         inversionTotal: stockActual * precioCostoActual,
         costoPromedio: precioCostoActual 
@@ -574,13 +575,14 @@ REGLAS DE FORMATO ESTRICTAS:
       }
     })
 
+    const stockCalculado = entradas > 0 ? Math.max(0, entradas - salidas) : stockActual
     const totalHistorico = Math.max(entradas, stockActual + salidas)
     if (inversionTotal === 0 && entradas > 0) {
       inversionTotal = entradas * precioCostoActual
     }
     const costoPromedio = entradas > 0 ? (inversionTotal / entradas) : precioCostoActual
 
-    return { entradas, salidas, totalHistorico, inversionTotal, costoPromedio }
+    return { entradas, salidas, stockCalculado, totalHistorico, inversionTotal, costoPromedio }
   }, [historyLogs, historyProduct])
 
   const [totalIngresadoHistorico, setTotalIngresadoHistorico] = useState(0)
@@ -3479,7 +3481,7 @@ REGLAS DE FORMATO ESTRICTAS:
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 px-5 py-3 bg-surface-container-lowest dark:bg-white/[0.02] border-b border-outline-variant/10 dark:border-white/5 shrink-0">
                 <div className="bg-surface-container-low dark:bg-white/5 p-2 rounded-xl border border-outline-variant/10 dark:border-white/5 flex flex-col justify-center items-center text-center">
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400">Stock Actual</span>
-                  <span className="text-base font-bold dark:text-white mt-0.5">{historyProduct.stock} un.</span>
+                  <span className="text-base font-bold dark:text-white mt-0.5">{historyStats.stockCalculado !== undefined ? historyStats.stockCalculado : (historyProduct.stock || 0)} un.</span>
                 </div>
                 <div className="bg-emerald-500/10 dark:bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 flex flex-col justify-center items-center text-center">
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Total Entradas</span>
