@@ -2639,6 +2639,12 @@ REGLAS DE FORMATO ESTRICTAS:
                       </div>
                       
                       <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <div className="text-right px-3 py-1.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/20 dark:border-blue-400/30">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 block">Stock Histórico</span>
+                          <span className="text-xs font-black text-blue-700 dark:text-blue-300">
+                            {editProductLotesStats.unidadesTotales.toLocaleString('es-CL')} un.
+                          </span>
+                        </div>
                         <div className="text-right px-3 py-1.5 rounded-xl bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30">
                           <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-300 block">Inversión Total</span>
                           <span className="text-xs font-black text-primary dark:text-[#e2bd6c]">
