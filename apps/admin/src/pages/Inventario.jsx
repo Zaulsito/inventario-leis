@@ -537,10 +537,14 @@ REGLAS DE FORMATO ESTRICTAS:
 
     const costoPromedio = unidadesTotales > 0 ? (sumaAcumulada / unidadesTotales) : costoInicial
 
+    const salidasTotal = validLogs.filter(l => Number(l.cambio) < 0).reduce((acc, l) => acc + Math.abs(Number(l.cambio) || 0), 0)
+    const stockCalculado = Math.max(0, unidadesTotales - salidasTotal)
+
     return {
       lotes,
       inversionTotal: sumaAcumulada,
       unidadesTotales,
+      stockCalculado,
       costoPromedio
     }
   }, [editProductHistory, initialProductData, editingId, form.stock, form.precioCosto, form.fechaIngreso])
@@ -723,7 +727,7 @@ REGLAS DE FORMATO ESTRICTAS:
     setPreviewImageIndex(0)
     setShowModal(true)
 
-    // Cargar historial de compras de este producto
+    // Cargar historial completo de este producto (compras, ventas y mermas)
     try {
       const q = query(
         collection(db, 'historial_inventario'), 
@@ -731,8 +735,87 @@ REGLAS DE FORMATO ESTRICTAS:
       )
       const snapshot = await getDocs(q)
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      logs.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-      setEditProductHistory(logs)
+
+      const snapPedidos = await getDocs(collection(db, 'pedidos'))
+      const logsPedidos = []
+
+      snapPedidos.docs.forEach(pDoc => {
+        const ped = { id: pDoc.id, ...pDoc.data() }
+        if (Array.isArray(ped.productos)) {
+          ped.productos.forEach(prod => {
+            const isMatch = prod.id === p.id || 
+              (p.sku && prod.sku && prod.sku.toLowerCase() === p.sku.toLowerCase()) ||
+              (p.nombre && prod.nombre && prod.nombre.toLowerCase() === p.nombre.toLowerCase())
+            
+            if (isMatch) {
+              const cant = Number(prod.cantidad) || 1
+              const fechaIso = ped.fechaEntrega || ped.fechaCreacion || ped.createdAt || getLocalDateString()
+              
+              logsPedidos.push({
+                id: `pedido-${ped.id}-${prod.id || p.id}`,
+                fecha: fechaIso,
+                accion: `Venta en Pedido a ${ped.cliente || 'Cliente'}`,
+                motivo: `Pedido #${ped.id ? ped.id.slice(-5) : ''} de ${ped.cliente || 'Cliente'} • ${cant} un.`,
+                cambio: -cant,
+                stockNuevo: 'Venta',
+                esPedidoReal: true,
+                pedidoId: ped.id
+              })
+            }
+          })
+        }
+      })
+
+      const snapMermas = await getDocs(collection(db, 'mermas'))
+      const logsMermas = []
+
+      snapMermas.docs.forEach(mDoc => {
+        const mer = { id: mDoc.id, ...mDoc.data() }
+        if (Array.isArray(mer.productos)) {
+          mer.productos.forEach(prod => {
+            const isMatch = prod.productoId === p.id || prod.id === p.id ||
+              (p.sku && prod.sku && prod.sku.toLowerCase() === p.sku.toLowerCase()) ||
+              (p.nombre && prod.nombre && prod.nombre.toLowerCase() === p.nombre.toLowerCase())
+            
+            if (isMatch) {
+              const cant = Number(prod.cantidad) || 1
+              const fechaIso = mer.fechaEntrega || mer.fecha || mer.fechaCreacion || getLocalDateString()
+
+              logsMermas.push({
+                id: `merma-${mer.id}-${prod.productoId || prod.id || p.id}`,
+                fecha: fechaIso,
+                accion: `Merma / ${mer.motivo || 'Dañado'}`,
+                motivo: `Pérdida por ${mer.motivo || 'Dañado'} • ${cant} un.`,
+                cambio: -cant,
+                stockNuevo: 'Merma',
+                esMermaReal: true,
+                mermaId: mer.id
+              })
+            }
+          })
+        }
+      })
+
+      const logsMap = new Map()
+      const snapPedidosIds = new Set(snapPedidos.docs.map(d => d.id))
+      const snapMermasIds = new Set(snapMermas.docs.map(d => d.id))
+
+      logsPedidos.forEach(lp => logsMap.set(lp.id, lp))
+      logsMermas.forEach(lm => logsMap.set(lm.id, lm))
+      logs.forEach(l => {
+        const isDupPedido = l.pedidoId && Array.from(logsMap.values()).some(lp => lp.pedidoId === l.pedidoId)
+        const isDupMerma = l.mermaId && Array.from(logsMap.values()).some(lm => lm.mermaId === l.mermaId)
+        const isOrphanMerma = l.mermaId && !snapMermasIds.has(l.mermaId)
+        const isOrphanPedido = l.pedidoId && !snapPedidosIds.has(l.pedidoId)
+
+        if (!logsMap.has(l.id) && !isDupPedido && !isDupMerma && !isOrphanMerma && !isOrphanPedido) {
+          logsMap.set(l.id, l)
+        }
+      })
+
+      const combined = Array.from(logsMap.values())
+      combined.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      setEditProductHistory(combined)
     } catch (e) {
       console.error("Error cargando historial de edición", e)
       setEditProductHistory([])
@@ -1073,8 +1156,12 @@ REGLAS DE FORMATO ESTRICTAS:
     }
 
     const prodTarget = productos.find(p => p.id === editingId);
-    const stockActual = prodTarget ? (Number(prodTarget.stock) || 0) : (Number(form.stock) || 0);
-    const stockNuevo = Math.max(0, stockActual + cantNum);
+    const stockBase = (Number(form.stock) > 0)
+      ? Number(form.stock)
+      : ((editProductLotesStats?.stockCalculado && editProductLotesStats.stockCalculado > 0)
+          ? editProductLotesStats.stockCalculado
+          : (Number(prodTarget?.stock) || 0));
+    const stockNuevo = Math.max(0, stockBase + cantNum);
     const costUnit = Math.floor(Number(form.precioCosto)) || 0;
 
     const accionText = cantNum > 0 ? `Se sumaron ${cantNum}` : `Se restaron ${Math.abs(cantNum)}`;
@@ -2683,7 +2770,11 @@ REGLAS DE FORMATO ESTRICTAS:
                           </div>
                           <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
                             <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
-                            <span className="text-xl font-black text-on-surface dark:text-white">{form.stock}</span>
+                            <span className="text-xl font-black text-on-surface dark:text-white">
+                              {Number(form.stock) > 0 
+                                ? form.stock 
+                                : (editProductLotesStats.stockCalculado > 0 ? editProductLotesStats.stockCalculado : (form.stock || 0))}
+                            </span>
                           </div>
                         </div>
 
