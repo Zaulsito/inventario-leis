@@ -2103,11 +2103,11 @@ REGLAS DE FORMATO ESTRICTAS:
                 </h3>
                 
                 {/* Selector de pestañas deslizable premium / Luxe */}
-                <div className="relative flex bg-surface-variant/30 dark:bg-white/5 p-1 rounded-2xl border border-outline-variant/10 dark:border-white/5">
+                <div className="relative flex bg-surface-variant/30 dark:bg-white/5 p-1 rounded-2xl border border-outline-variant/10 dark:border-white/5 overflow-x-auto">
                   <button
                     type="button"
                     onClick={() => setActiveTabModal('editar')}
-                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 ${
+                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
                       activeTabModal === 'editar' 
                         ? 'text-primary dark:text-[#e2bd6c]' 
                         : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
@@ -2116,10 +2116,24 @@ REGLAS DE FORMATO ESTRICTAS:
                     <span className="material-symbols-outlined text-base">edit_note</span>
                     Editar Producto
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabModal('lotes')}
+                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
+                      activeTabModal === 'lotes' 
+                        ? 'text-primary dark:text-[#e2bd6c]' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">analytics</span>
+                    Lotes y Costos
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setActiveTabModal('catalogo')}
-                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 ${
+                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
                       activeTabModal === 'catalogo' 
                         ? 'text-primary dark:text-[#e2bd6c]' 
                         : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
@@ -2132,8 +2146,8 @@ REGLAS DE FORMATO ESTRICTAS:
                   <div 
                     className="absolute top-1 bottom-1 left-1 rounded-xl bg-[#E5E0D3]/80 dark:bg-white/10 transition-all duration-300 ease-out"
                     style={{
-                      width: 'calc(50% - 6px)',
-                      transform: activeTabModal === 'catalogo' ? 'translateX(100%)' : 'translateX(0%)',
+                      width: 'calc(33.333% - 4px)',
+                      transform: activeTabModal === 'catalogo' ? 'translateX(200%)' : (activeTabModal === 'lotes' ? 'translateX(100%)' : 'translateX(0%)'),
                       border: '1px solid rgba(226, 189, 108, 0.2)'
                     }}
                   />
@@ -2316,18 +2330,8 @@ REGLAS DE FORMATO ESTRICTAS:
                     </div>
                   </div>
 
-                  {/* Fila 3: Precio Costo, Precio Venta y Fecha Ingreso */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Costo ($)</label>
-                      <input 
-                        type="number" 
-                        value={form.precioCosto} 
-                        onChange={e => setForm(prev => ({ ...prev, precioCosto: e.target.value, fechaIngreso: getLocalDateString() }))}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                        placeholder="0"
-                      />
-                    </div>
+                  {/* Fila 3: Precio Venta y Fecha Ingreso Inicial */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Precio Venta ($)</label>
                       <input 
@@ -2339,7 +2343,7 @@ REGLAS DE FORMATO ESTRICTAS:
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Fecha Ingreso</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Fecha Ingreso Inicial</label>
                       <input 
                         type="date" 
                         value={form.fechaIngreso} 
@@ -2384,194 +2388,6 @@ REGLAS DE FORMATO ESTRICTAS:
                       </div>
                     )}
                   </div>
-
-                  {/* ── CUADRO INFORMATIVO DE INVERSIÓN Y LOTES DE COMPRA POR FECHA ── */}
-                  <div className="bg-surface-container-high/60 dark:bg-[#202020] rounded-2xl p-4.5 border border-outline-variant/20 dark:border-white/10 shadow-sm space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-xl">analytics</span>
-                        <div>
-                          <p className="text-[11px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c]">
-                            Historial de Inversión y Compras por Fecha
-                          </p>
-                          <p className="text-[9px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider">
-                            Gasto en este producto por fecha y suma acumulada total
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 self-start sm:self-auto">
-                        <div className="text-right px-3 py-1.5 rounded-xl bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30">
-                          <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-300 block">Inversión Total</span>
-                          <span className="text-xs font-black text-primary dark:text-[#e2bd6c]">
-                            ${editProductLotesStats.inversionTotal.toLocaleString('es-CL')}
-                          </span>
-                        </div>
-                        <div className="text-right px-3 py-1.5 rounded-xl bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10">
-                          <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-400 block">Costo Promedio</span>
-                          <span className="text-xs font-black dark:text-white">
-                            ${Math.round(editProductLotesStats.costoPromedio).toLocaleString('es-CL')} /u
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Tabla Progresiva por Fecha */}
-                    {editProductLotesStats.lotes.length > 0 ? (
-                      <div className="overflow-x-auto rounded-xl border border-outline-variant/15 dark:border-white/10">
-                        <table className="w-full text-left text-[11px]">
-                          <thead>
-                            <tr className="bg-surface-container dark:bg-[#2a2a2a] text-outline dark:text-gray-400 font-extrabold uppercase tracking-wider text-[9px]">
-                              <th className="py-2.5 px-3">Fecha Compra</th>
-                              <th className="py-2.5 px-3 text-center">Cantidad</th>
-                              <th className="py-2.5 px-3 text-right">Costo Unit.</th>
-                              <th className="py-2.5 px-3 text-right">Gasto Fecha</th>
-                              <th className="py-2.5 px-3 text-right text-primary dark:text-[#e2bd6c]">Suma Acumulada</th>
-                              <th className="py-2.5 px-3 text-center">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5 font-semibold dark:text-white/90">
-                            {editProductLotesStats.lotes.map((lote, index) => (
-                              <tr key={index} className="hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-colors">
-                                <td className="py-2.5 px-3 whitespace-nowrap">
-                                  <span className="font-mono font-bold">{formatDateDMA(lote.fecha, lote)}</span>
-                                  <span className="text-[9px] text-outline/70 dark:text-gray-400 block font-normal">{lote.motivo}</span>
-                                </td>
-                                <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                                  +{lote.cantidad} un.
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
-                                  ${lote.precioCosto.toLocaleString('es-CL')}
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
-                                  ${lote.gastoFecha.toLocaleString('es-CL')}
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-mono font-black text-primary dark:text-[#e2bd6c] whitespace-nowrap bg-primary/5 dark:bg-[#e2bd6c]/10">
-                                  ${lote.sumaAcumulada.toLocaleString('es-CL')}
-                                </td>
-                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleStartEditLot(lote)}
-                                      title="Editar Lote / Registro"
-                                      className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-outline dark:text-gray-300 hover:text-primary dark:hover:text-[#e2bd6c] transition-colors"
-                                    >
-                                      <span className="material-symbols-outlined text-[15px]">edit</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteLotInModal(lote)}
-                                      title="Eliminar Lote"
-                                      className="p-1 rounded-lg hover:bg-error/10 text-outline dark:text-gray-300 hover:text-error transition-colors"
-                                    >
-                                      <span className="material-symbols-outlined text-[15px]">delete</span>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-[10px] italic text-outline/70 dark:text-gray-400 text-center py-2 font-bold">
-                        Sin compras históricas registradas aún para este producto.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Modal Secundario: Editar Registro de Lote */}
-                  {editingLot && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-                      <div className="bg-surface-container-lowest dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between border-b border-outline-variant/10 dark:border-white/10 pb-3">
-                          <h3 className="text-xs font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c] flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-sm">edit_note</span>
-                            Editar Registro de Lote
-                          </h3>
-                          <button 
-                            type="button" 
-                            onClick={() => setEditingLot(null)} 
-                            className="text-outline dark:text-gray-400 hover:text-on-surface dark:hover:text-white text-sm"
-                          >
-                            ✕
-                          </button>
-                        </div>
-
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
-                              Cantidad (Unidades)
-                            </label>
-                            <input 
-                              type="number" 
-                              value={editingLot.cantidad} 
-                              onChange={e => setEditingLot({...editingLot, cantidad: e.target.value})}
-                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                              placeholder="Ej. 16"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
-                              Costo Unitario ($)
-                            </label>
-                            <input 
-                              type="number" 
-                              value={editingLot.precioCosto} 
-                              onChange={e => setEditingLot({...editingLot, precioCosto: e.target.value})}
-                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                              placeholder="Ej. 3792"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
-                              Fecha Compra / Registro
-                            </label>
-                            <input 
-                              type="date" 
-                              value={editingLot.fecha} 
-                              onChange={e => setEditingLot({...editingLot, fecha: e.target.value})}
-                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
-                              Motivo / Nota
-                            </label>
-                            <input 
-                              type="text" 
-                              value={editingLot.motivo} 
-                              onChange={e => setEditingLot({...editingLot, motivo: e.target.value})}
-                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                              placeholder="Ej. Stock Inicial Registrado"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-outline-variant/10 dark:border-white/10">
-                          <button 
-                            type="button" 
-                            onClick={() => setEditingLot(null)}
-                            className="px-3.5 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5"
-                          >
-                            Cancelar
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={handleSaveEditedLot}
-                            className="px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black shadow-sm hover:opacity-90 transition-opacity"
-                          >
-                            Guardar Cambios
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* GESTIÓN DE VARIANTES (Colores, Tallas, etc) */}
                   <div className="bg-surface-container/30 dark:bg-[#252525] rounded-2xl p-4 border border-outline-variant/10 dark:border-white/10">
                     <div className="flex items-center justify-between mb-3">
@@ -2769,6 +2585,230 @@ REGLAS DE FORMATO ESTRICTAS:
                       )}
                     </div>
                   </div>
+                </div>
+              ) : activeTabModal === 'lotes' ? (
+                <div className="p-6 space-y-5">
+                  {/* Fila Principal: Precio Costo Actual y Fecha Ingreso Inicial Sincronizada */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-container-low/40 dark:bg-white/5 p-4 rounded-2xl border border-outline-variant/20 dark:border-white/10">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                        Precio Costo Actual ($)
+                      </label>
+                      <input 
+                        type="number" 
+                        value={form.precioCosto} 
+                        onChange={e => setForm(prev => ({ ...prev, precioCosto: e.target.value }))}
+                        className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                        placeholder="0"
+                      />
+                      <span className="text-[9px] text-outline dark:text-gray-400 font-semibold block mt-1 ml-1">
+                        Costo de referencia para futuras compras de este producto.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                        Fecha Ingreso Inicial
+                      </label>
+                      <input 
+                        type="date" 
+                        value={form.fechaIngreso} 
+                        onChange={e => setForm({...form, fechaIngreso: e.target.value})}
+                        className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                      />
+                      <span className="text-[9px] text-primary dark:text-[#e2bd6c] font-bold flex items-center gap-1 mt-1 ml-1">
+                        <span className="material-symbols-outlined text-xs">sync</span>
+                        Sincronizada con Fecha Ingreso de Ficha General
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ── CUADRO INFORMATIVO DE INVERSIÓN Y LOTES DE COMPRA POR FECHA ── */}
+                  <div className="bg-surface-container-high/60 dark:bg-[#202020] rounded-2xl p-4.5 border border-outline-variant/20 dark:border-white/10 shadow-sm space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-xl">analytics</span>
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c]">
+                            Historial de Inversión y Compras por Fecha
+                          </p>
+                          <p className="text-[9px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider">
+                            Gasto en este producto por fecha y suma acumulada total
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <div className="text-right px-3 py-1.5 rounded-xl bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-300 block">Inversión Total</span>
+                          <span className="text-xs font-black text-primary dark:text-[#e2bd6c]">
+                            ${editProductLotesStats.inversionTotal.toLocaleString('es-CL')}
+                          </span>
+                        </div>
+                        <div className="text-right px-3 py-1.5 rounded-xl bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-400 block">Costo Promedio</span>
+                          <span className="text-xs font-black dark:text-white">
+                            ${Math.round(editProductLotesStats.costoPromedio).toLocaleString('es-CL')} /u
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tabla Progresiva por Fecha */}
+                    {editProductLotesStats.lotes.length > 0 ? (
+                      <div className="overflow-x-auto rounded-xl border border-outline-variant/15 dark:border-white/10">
+                        <table className="w-full text-left text-[11px]">
+                          <thead>
+                            <tr className="bg-surface-container dark:bg-[#2a2a2a] text-outline dark:text-gray-400 font-extrabold uppercase tracking-wider text-[9px]">
+                              <th className="py-2.5 px-3">Fecha Compra</th>
+                              <th className="py-2.5 px-3 text-center">Cantidad</th>
+                              <th className="py-2.5 px-3 text-right">Costo Unit.</th>
+                              <th className="py-2.5 px-3 text-right">Gasto Fecha</th>
+                              <th className="py-2.5 px-3 text-right text-primary dark:text-[#e2bd6c]">Suma Acumulada</th>
+                              <th className="py-2.5 px-3 text-center">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5 font-semibold dark:text-white/90">
+                            {editProductLotesStats.lotes.map((lote, index) => (
+                              <tr key={index} className="hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-colors">
+                                <td className="py-2.5 px-3 whitespace-nowrap">
+                                  <span className="font-mono font-bold">{formatDateDMA(lote.fecha, lote)}</span>
+                                  <span className="text-[9px] text-outline/70 dark:text-gray-400 block font-normal">{lote.motivo}</span>
+                                </td>
+                                <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                  +{lote.cantidad} un.
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                                  ${lote.precioCosto.toLocaleString('es-CL')}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                                  ${lote.gastoFecha.toLocaleString('es-CL')}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-black text-primary dark:text-[#e2bd6c] whitespace-nowrap bg-primary/5 dark:bg-[#e2bd6c]/10">
+                                  ${lote.sumaAcumulada.toLocaleString('es-CL')}
+                                </td>
+                                <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleStartEditLot(lote)}
+                                      title="Editar Lote / Registro"
+                                      className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-outline dark:text-gray-300 hover:text-primary dark:hover:text-[#e2bd6c] transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-[15px]">edit</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteLotInModal(lote)}
+                                      title="Eliminar Lote"
+                                      className="p-1 rounded-lg hover:bg-error/10 text-outline dark:text-gray-300 hover:text-error transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-[15px]">delete</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] italic text-outline/70 dark:text-gray-400 text-center py-2 font-bold">
+                        Sin compras históricas registradas aún para este producto.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Modal Secundario: Editar Registro de Lote */}
+                  {editingLot && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+                      <div className="bg-surface-container-lowest dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between border-b border-outline-variant/10 dark:border-white/10 pb-3">
+                          <h3 className="text-xs font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c] flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-sm">edit_note</span>
+                            Editar Registro de Lote
+                          </h3>
+                          <button 
+                            type="button" 
+                            onClick={() => setEditingLot(null)} 
+                            className="text-outline dark:text-gray-400 hover:text-on-surface dark:hover:text-white text-sm"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Cantidad (Unidades)
+                            </label>
+                            <input 
+                              type="number" 
+                              value={editingLot.cantidad} 
+                              onChange={e => setEditingLot({...editingLot, cantidad: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="Ej. 16"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Costo Unitario ($)
+                            </label>
+                            <input 
+                              type="number" 
+                              value={editingLot.precioCosto} 
+                              onChange={e => setEditingLot({...editingLot, precioCosto: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="Ej. 3792"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Fecha Compra / Registro
+                            </label>
+                            <input 
+                              type="date" 
+                              value={editingLot.fecha} 
+                              onChange={e => setEditingLot({...editingLot, fecha: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mb-1 ml-1">
+                              Motivo / Nota
+                            </label>
+                            <input 
+                              type="text" 
+                              value={editingLot.motivo} 
+                              onChange={e => setEditingLot({...editingLot, motivo: e.target.value})}
+                              className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="Ej. Stock Inicial Registrado"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-outline-variant/10 dark:border-white/10">
+                          <button 
+                            type="button" 
+                            onClick={() => setEditingLot(null)}
+                            className="px-3.5 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={handleSaveEditedLot}
+                            className="px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black shadow-sm hover:opacity-90 transition-opacity"
+                          >
+                            Guardar Cambios
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* activeTabModal === 'catalogo' */
