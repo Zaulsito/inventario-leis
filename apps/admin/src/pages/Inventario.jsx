@@ -27,6 +27,8 @@ const formInicial = {
   precioCosto: '', 
   stock: '', 
   ajusteStock: '',
+  motivoAjuste: '',
+  notaAjuste: '',
   fechaIngreso: getLocalDateString(), 
   fotoUrl: '',
   fotos: [],
@@ -711,6 +713,8 @@ REGLAS DE FORMATO ESTRICTAS:
       precioCosto: p.precioCosto || '',
       stock: p.stock, 
       ajusteStock: '',
+      motivoAjuste: '',
+      notaAjuste: '',
       fechaIngreso: fechaIng, 
       fotoUrl: p.fotoUrl || '',
       fotos: p.fotos ? [...p.fotos] : (p.fotoUrl ? [p.fotoUrl] : []),
@@ -1165,7 +1169,8 @@ REGLAS DE FORMATO ESTRICTAS:
     const costUnit = Math.floor(Number(form.precioCosto)) || 0;
 
     const accionText = cantNum > 0 ? `Se sumaron ${cantNum}` : `Se restaron ${Math.abs(cantNum)}`;
-    const motivoText = cantNum > 0 ? "Edición manual desde panel" : "Ajuste manual de stock";
+    const selectedMotivo = form.motivoAjuste || (cantNum > 0 ? "Reposición de Stock" : "Merma / Producto Dañado");
+    const motivoText = form.notaAjuste ? `${selectedMotivo} • ${form.notaAjuste}` : selectedMotivo;
 
     try {
       const docRef = await addDoc(collection(db, 'historial_inventario'), {
@@ -1173,11 +1178,12 @@ REGLAS DE FORMATO ESTRICTAS:
         fecha: new Date().toISOString(),
         accion: accionText,
         cambio: cantNum,
-        stockAnterior: stockActual,
+        stockAnterior: stockBase,
         stockNuevo: stockNuevo,
         precioCosto: costUnit,
         costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
-        motivo: motivoText
+        motivo: motivoText,
+        nota: form.notaAjuste || ''
       });
 
       await updateDoc(doc(db, 'productos', editingId), {
@@ -1190,18 +1196,21 @@ REGLAS DE FORMATO ESTRICTAS:
         fecha: new Date().toISOString(),
         accion: accionText,
         cambio: cantNum,
-        stockAnterior: stockActual,
+        stockAnterior: stockBase,
         stockNuevo: stockNuevo,
         precioCosto: costUnit,
         costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
-        motivo: motivoText
+        motivo: motivoText,
+        nota: form.notaAjuste || ''
       };
 
       setEditProductHistory(prev => [...prev, newLog]);
       setForm(prev => ({
         ...prev,
         stock: stockNuevo,
-        ajusteStock: ''
+        ajusteStock: '',
+        motivoAjuste: '',
+        notaAjuste: ''
       }));
 
     } catch (err) {
@@ -1318,6 +1327,9 @@ REGLAS DE FORMATO ESTRICTAS:
             const diferencia = stockCalculado - stockAnterior;
             const accion = diferencia > 0 ? `Se sumaron ${diferencia}` : `Se restaron ${Math.abs(diferencia)}`;
             const costUnit = Math.floor(Number(form.precioCosto)) || 0;
+            const selectedMotivo = form.motivoAjuste || (diferencia > 0 ? "Reposición de Stock" : "Merma / Producto Dañado");
+            const motivoText = form.notaAjuste ? `${selectedMotivo} • ${form.notaAjuste}` : selectedMotivo;
+
             await addDoc(collection(db, 'historial_inventario'), {
               productoId: editingId,
               fecha: new Date().toISOString(),
@@ -1327,7 +1339,8 @@ REGLAS DE FORMATO ESTRICTAS:
               stockNuevo: stockCalculado,
               precioCosto: costUnit,
               costoTotalLote: diferencia > 0 ? (diferencia * costUnit) : 0,
-              motivo: "Edición manual desde panel"
+              motivo: motivoText,
+              nota: form.notaAjuste || ''
             });
           }
         }
@@ -2763,7 +2776,17 @@ REGLAS DE FORMATO ESTRICTAS:
                             <input 
                               type="number" 
                               value={form.ajusteStock} 
-                              onChange={e => setForm({...form, ajusteStock: e.target.value})}
+                              onChange={e => {
+                                const val = e.target.value;
+                                const numVal = Number(val);
+                                let defaultMotivo = form.motivoAjuste;
+                                if (numVal > 0 && (!defaultMotivo || defaultMotivo.includes('Merma') || defaultMotivo.includes('Regalo') || defaultMotivo.includes('Venta No'))) {
+                                  defaultMotivo = 'Reposición de Stock';
+                                } else if (numVal < 0 && (!defaultMotivo || defaultMotivo.includes('Reposición'))) {
+                                  defaultMotivo = 'Merma / Producto Dañado';
+                                }
+                                setForm(prev => ({ ...prev, ajusteStock: val, motivoAjuste: defaultMotivo }));
+                              }}
                               className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                               placeholder="Ej. 3 o -2"
                             />
@@ -2775,6 +2798,51 @@ REGLAS DE FORMATO ESTRICTAS:
                                 ? form.stock 
                                 : (editProductLotesStats.stockCalculado > 0 ? editProductLotesStats.stockCalculado : (form.stock || 0))}
                             </span>
+                          </div>
+                        </div>
+
+                        {/* Motivo y Nota opcional */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                          <div>
+                            <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">
+                              Motivo / Razón del Ajuste
+                            </label>
+                            <select
+                              value={
+                                form.motivoAjuste || 
+                                (Number(form.ajusteStock) < 0 ? 'Merma / Producto Dañado' : 'Reposición de Stock')
+                              }
+                              onChange={e => setForm(prev => ({ ...prev, motivoAjuste: e.target.value }))}
+                              className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white cursor-pointer"
+                            >
+                              {Number(form.ajusteStock) < 0 ? (
+                                <>
+                                  <option value="Merma / Producto Dañado">🔴 Merma / Producto Dañado</option>
+                                  <option value="Regalo / Muestra Promocional">🎁 Regalo / Muestra Promocional</option>
+                                  <option value="Venta No Registrada">🟢 Venta No Registrada / Venta Rápida</option>
+                                  <option value="Ajuste Manual">🟡 Ajuste Manual</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="Reposición de Stock">🔵 Reposición de Stock (Proveedor)</option>
+                                  <option value="Ajuste Manual">🟡 Ajuste Manual</option>
+                                  <option value="Devolución de Cliente">🟣 Devolución de Cliente</option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">
+                              Nota / Comentario (Opcional)
+                            </label>
+                            <input
+                              type="text"
+                              value={form.notaAjuste || ''}
+                              onChange={e => setForm(prev => ({ ...prev, notaAjuste: e.target.value }))}
+                              placeholder="Ej. Frasco roto durante desempaque"
+                              className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-semibold shadow-sm dark:text-white"
+                            />
                           </div>
                         </div>
 
