@@ -412,6 +412,11 @@ export default function Layout() {
     return () => unsub()
   }, [currentUser])
 
+  // ── Auto Scroll to Top al cambiar de pantalla o tocar pestañas ──
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' })
+  }, [location.pathname])
+
   useEffect(() => {
     const hasSeenTour = localStorage.getItem('hasSeenTourV1')
     if (!hasSeenTour && location.pathname === '/dashboard') {
@@ -569,8 +574,38 @@ export default function Layout() {
         </span>
       </button>
 
+      {/* ── Top Bar Mobile Header ── */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-[100] bg-background/90 dark:bg-[#141414]/90 backdrop-blur-xl border-b border-outline-variant/15 dark:border-white/10 px-4 py-2.5 flex items-center justify-between shadow-sm [.modal-open_&]:hidden">
+        <Link to="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-surface-container-highest/60 dark:bg-white/10 p-1 flex items-center justify-center border border-outline-variant/20 dark:border-white/10 shadow-inner">
+            <img src={isDark ? "/logo-dark.png" : "/logo.jpeg"} alt="Leis" className="w-full h-full object-contain rounded-lg" />
+          </div>
+          <div>
+            <p className="font-headline italic text-lg font-bold text-primary dark:text-[#e2bd6c] leading-none" style={{ fontFamily: "'Noto Serif', serif" }}>Leis</p>
+            <p className="text-[8px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">Software</p>
+          </div>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="w-9 h-9 rounded-xl bg-surface-container-high/60 dark:bg-white/10 border border-outline-variant/20 dark:border-white/10 flex items-center justify-center text-primary dark:text-[#e2bd6c] active:scale-95 transition-all"
+            title="Modo Claro/Oscuro"
+          >
+            <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-lg" />
+          </button>
+          <button
+            onClick={() => setShowUserMenu(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30 text-primary dark:text-[#e2bd6c] font-bold text-xs active:scale-95 transition-all shadow-sm tour-perfil"
+          >
+            <Icon name="person" filled={true} className="text-base" />
+            <span className="text-[10px] font-extrabold uppercase tracking-wider">Perfil</span>
+          </button>
+        </div>
+      </header>
+
       {/* ── Main content ── */}
-      <main className={`flex-1 overflow-x-hidden pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCollapsed ? 'md:pl-20' : 'md:pl-72'}`}>
+      <main className={`flex-1 overflow-x-hidden pt-16 md:pt-0 pb-24 md:pb-0 relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCollapsed ? 'md:pl-20' : 'md:pl-72'}`}>
         <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-all duration-700
           ${isCollapsed ? 'md:pl-20' : 'md:pl-72'}`}>
           
@@ -596,50 +631,37 @@ export default function Layout() {
         </div>
       </main>
 
-      {/* ── Bottom nav mobile ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 bg-background/95 dark:bg-[#121212]/95 backdrop-blur-2xl flex justify-around items-center px-4 pb-8 pt-4 shadow-[0_-8px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.5)] rounded-t-[2.5rem] border-t border-outline-variant/10 dark:border-white/5 transition-transform duration-300 [.modal-open_&]:translate-y-full">
-        {navItems.map((item) => (
-          item.type === 'action' ? (
-            <button
-              key={item.label}
-              onClick={() => setShowUserMenu(true)}
-              className="flex flex-col items-center justify-center px-3 py-2 rounded-2xl transition-all font-label text-[8px] uppercase tracking-[0.2em] font-extrabold text-on-surface-variant dark:text-gray-500 opacity-80 group active:scale-90"
-            >
-              <Icon name={item.icon} className="group-active:text-primary dark:group-active:text-[#e2bd6c] transition-colors" />
-              <span className="mt-1">{item.label}</span>
-            </button>
-          ) : item.type === 'link' ? (
-            <a
-              key={item.label}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col items-center justify-center px-3 py-2 rounded-2xl transition-all font-label text-[8px] uppercase tracking-[0.2em] font-extrabold text-on-surface-variant dark:text-gray-500 opacity-80 group active:scale-90"
-            >
-              <Icon name={item.icon} className="group-active:text-primary dark:group-active:text-[#e2bd6c] transition-colors" />
-              <span className="mt-1">{item.label}</span>
-            </a>
-          ) : (
+      {/* ── Bottom Nav Mobile ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full z-[100] bg-background/95 dark:bg-[#141414]/95 backdrop-blur-2xl px-2 pt-2 pb-6 shadow-[0_-8px_30px_rgba(0,0,0,0.2)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.7)] rounded-t-[2rem] border-t border-outline-variant/15 dark:border-white/10 transition-transform duration-300 [.modal-open_&]:translate-y-full">
+        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto items-center">
+          {[
+            { to: '/dashboard',  icon: 'dashboard',     label: 'Inicio' },
+            { to: '/inventario', icon: 'inventory_2',    label: 'Inventario' },
+            { to: '/historial',  icon: 'history',       label: 'Historial' },
+            { to: '/pedidos',    icon: 'local_shipping', label: 'Pedidos' },
+            { to: '/reportes',   icon: 'analytics',      label: 'Reportes' },
+          ].map((item) => (
             <NavLink
-              key={item.label}
+              key={item.to}
               to={item.to}
+              onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'smooth' })}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center px-4 py-2 rounded-2xl transition-all duration-300 font-label text-[8px] uppercase tracking-[0.2em] font-extrabold group
+                `flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all duration-300 text-center group
                 ${isActive
-                  ? 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] scale-110'
-                  : 'text-on-surface-variant dark:text-gray-500 opacity-60'
+                  ? 'bg-primary/10 text-primary dark:bg-[#e2bd6c]/20 dark:text-[#e2bd6c] font-black scale-105 shadow-sm'
+                  : 'text-on-surface-variant dark:text-gray-400 opacity-70 hover:opacity-100'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <Icon name={item.icon} filled={isActive} className={`${isActive ? 'scale-110' : ''} group-active:scale-125 transition-all`} />
-                  <span className="mt-1">{item.label}</span>
+                  <Icon name={item.icon} filled={isActive} className={`text-xl ${isActive ? 'scale-110' : ''} transition-transform`} />
+                  <span className="text-[9px] font-extrabold uppercase tracking-tight mt-1 truncate max-w-full leading-none">{item.label}</span>
                 </>
               )}
             </NavLink>
-          )
-        ))}
+          ))}
+        </div>
       </nav>
 
       {/* ── Modal & Tour ── */}
