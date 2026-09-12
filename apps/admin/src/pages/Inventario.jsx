@@ -2837,7 +2837,13 @@ REGLAS DE FORMATO ESTRICTAS:
                   {/* Modal Secundario: Editar Registro de Lote */}
                   {editingLot && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-                      <div className="bg-surface-container-lowest dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                      <form 
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSaveEditedLot();
+                        }}
+                        className="bg-surface-container-lowest dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200"
+                      >
                         <div className="flex items-center justify-between border-b border-outline-variant/10 dark:border-white/10 pb-3">
                           <h3 className="text-xs font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c] flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-sm">edit_note</span>
@@ -2914,14 +2920,13 @@ REGLAS DE FORMATO ESTRICTAS:
                             Cancelar
                           </button>
                           <button 
-                            type="button" 
-                            onClick={handleSaveEditedLot}
+                            type="submit" 
                             className="px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black shadow-sm hover:opacity-90 transition-opacity"
                           >
                             Guardar Cambios
                           </button>
                         </div>
-                      </div>
+                      </form>
                     </div>
                   )}
                 </div>
