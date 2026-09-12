@@ -395,18 +395,26 @@ export default function Historial() {
     <div className="min-h-screen flex flex-col justify-between pt-6 px-4 md:px-8 pb-12 max-w-7xl mx-auto">
       <div className="space-y-6">
 
-        {/* ── Encabezado Principal ── */}
+      <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-8 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 mb-6">
+        <div className="relative text-center mx-auto">
+          <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">Auditoría & Trazabilidad</p>
+          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter luxe-reveal">Historial de Stock</h1>
+          <div className="absolute left-1/2 -bottom-4 -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
+        </div>
+      </header>
+
+        {/* ── Selector de Producto ── */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-low/40 dark:bg-white/[0.03] p-5 rounded-[28px] border border-outline-variant/20 dark:border-white/10 shadow-sm backdrop-blur-md">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-secondary/10 dark:bg-[#e2bd6c]/15 text-secondary dark:text-[#e2bd6c] border border-secondary/20 dark:border-[#e2bd6c]/30 flex items-center justify-center shrink-0 shadow-inner">
-              <span className="material-symbols-outlined text-2xl">history</span>
+            <div className="w-10 h-10 rounded-2xl bg-secondary/10 dark:bg-[#e2bd6c]/15 text-secondary dark:text-[#e2bd6c] border border-secondary/20 dark:border-[#e2bd6c]/30 flex items-center justify-center shrink-0 shadow-inner">
+              <span className="material-symbols-outlined text-xl">inventory_2</span>
             </div>
             <div>
-              <h1 className="font-headline text-2xl md:text-3xl italic text-on-surface dark:text-white font-bold leading-tight">
-                Historial de Stock & Lotes
-              </h1>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">
-                Auditoría completa de movimientos, lotes de compra e inversión
+              <h2 className="font-headline text-lg italic text-on-surface dark:text-white font-bold leading-tight">
+                Seleccionar Producto a Auditar
+              </h2>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">
+                Elige un producto para visualizar sus movimientos y lotes de compra
               </p>
             </div>
           </div>
