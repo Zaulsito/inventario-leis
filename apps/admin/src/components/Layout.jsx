@@ -8,6 +8,7 @@ import { db } from '../config/firebase'
 const navItems = [
   { to: '/dashboard',  icon: 'dashboard',        label: 'Inicio' },
   { to: '/inventario', icon: 'inventory_2',       label: 'Inventario' },
+  { to: '/historial',  icon: 'history',          label: 'Historial' },
   { to: '/pedidos',    icon: 'local_shipping',    label: 'Pedidos' },
   { to: '/reportes',   icon: 'analytics',         label: 'Reportes' },
   { type: 'action',    icon: 'person',            label: 'Perfil', action: 'openUserMenu' },

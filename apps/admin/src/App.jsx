@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import UpdateNotification from './components/UpdateNotification'
 import Dashboard from './pages/Dashboard'
 import Inventario from './pages/Inventario'
+import Historial from './pages/Historial'
 import Pedidos from './pages/Pedidos'
 import Registro from './pages/Registro'
 import Reportes from './pages/Reportes'
@@ -27,6 +28,7 @@ export default function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard"  element={<Dashboard />} />
           <Route path="inventario" element={<Inventario />} />
+          <Route path="historial"  element={<Historial />} />
           <Route path="pedidos"    element={<Pedidos />} />
           <Route path="registro"   element={<Registro />} />
           <Route path="reportes"   element={<Reportes />} />
