@@ -1961,9 +1961,9 @@ REGLAS DE FORMATO ESTRICTAS:
                           <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-sm text-primary/60 dark:text-[#e2bd6c]/60">payments</span>
                             <div>
-                              <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Precio Costo / Venta</p>
+                              <p className="text-[8px] uppercase text-outline dark:text-gray-600 leading-none">Precio Venta</p>
                               <p className="text-[11px] font-bold text-on-surface dark:text-white/80">
-                                ${(p.precioCosto || 0).toLocaleString('es-CL')} / ${(p.precio || 0).toLocaleString('es-CL')}
+                                ${(p.precio || 0).toLocaleString('es-CL')}
                               </p>
                             </div>
                           </div>
@@ -2037,7 +2037,7 @@ REGLAS DE FORMATO ESTRICTAS:
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-surface-container dark:bg-[#2a2a2a]">
-                  {['Producto', 'Categoría', 'P. Costo', 'Precio Unit.', 'Ganancia', 'Estado', 'Fecha Ingreso'].map((h, i) => (
+                  {['Producto', 'Categoría', 'Precio Unit.', 'Ganancia', 'Estado', 'Fecha Ingreso'].map((h, i) => (
                     <th key={i} className={`py-5 font-label font-extrabold text-[10px] uppercase tracking-[0.2em] text-outline dark:text-gray-400 whitespace-nowrap ${i === 0 ? 'pl-6' : 'px-7'}`}>{h}</th>
                   ))}
                 </tr>
@@ -2130,9 +2130,6 @@ REGLAS DE FORMATO ESTRICTAS:
                         </span>
                       </td>
                       <td className="px-7 py-5">
-                        <p className="text-sm font-bold text-outline dark:text-gray-400">${(p.precioCosto || 0).toLocaleString('es-CL')}</p>
-                      </td>
-                      <td className="px-7 py-5">
                         <p className="text-sm font-bold text-secondary dark:text-[#e2bd6c]">${(p.precio || 0).toLocaleString('es-CL')}</p>
                       </td>
                       <td className="px-7 py-5">
@@ -2166,7 +2163,7 @@ REGLAS DE FORMATO ESTRICTAS:
                 })}
                 {filtrados.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-7 py-12 text-center text-on-surface-variant text-sm">
+                    <td colSpan={7} className="px-7 py-12 text-center text-on-surface-variant text-sm">
                       No se encontraron productos. Crea uno nuevo usando el botón de arriba.
                     </td>
                   </tr>
