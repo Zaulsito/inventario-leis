@@ -2894,12 +2894,6 @@ REGLAS DE FORMATO ESTRICTAS:
                             ${editProductLotesStats.inversionTotal.toLocaleString('es-CL')}
                           </span>
                         </div>
-                        <div className="text-right px-3 py-1.5 rounded-xl bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10">
-                          <span className="text-[8px] font-black uppercase tracking-widest text-outline dark:text-gray-400 block">Costo Promedio</span>
-                          <span className="text-xs font-black dark:text-white">
-                            ${Math.round(editProductLotesStats.costoPromedio).toLocaleString('es-CL')} /u
-                          </span>
-                        </div>
                       </div>
                     </div>
 
@@ -3637,7 +3631,7 @@ REGLAS DE FORMATO ESTRICTAS:
 
             {/* Resumen de Métricas del Producto */}
             {historyProduct && (
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 px-5 py-3 bg-surface-container-lowest dark:bg-white/[0.02] border-b border-outline-variant/10 dark:border-white/5 shrink-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-5 py-3 bg-surface-container-lowest dark:bg-white/[0.02] border-b border-outline-variant/10 dark:border-white/5 shrink-0">
                 <div className="bg-surface-container-low dark:bg-white/5 p-2 rounded-xl border border-outline-variant/10 dark:border-white/5 flex flex-col justify-center items-center text-center">
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400">Stock Actual</span>
                   <span className="text-base font-bold dark:text-white mt-0.5">{historyStats.stockCalculado !== undefined ? historyStats.stockCalculado : (historyProduct.stock || 0)} un.</span>
@@ -3646,17 +3640,13 @@ REGLAS DE FORMATO ESTRICTAS:
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Total Entradas</span>
                   <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">+{historyStats.entradas} un.</span>
                 </div>
+                <div className="bg-purple-500/10 dark:bg-purple-500/10 p-2 rounded-xl border border-purple-500/20 flex flex-col justify-center items-center text-center">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">Total Salidas</span>
+                  <span className="text-base font-bold text-purple-600 dark:text-purple-400 mt-0.5">-{historyStats.salidas} un.</span>
+                </div>
                 <div className="bg-blue-500/10 dark:bg-blue-500/10 p-2 rounded-xl border border-blue-500/20 flex flex-col justify-center items-center text-center">
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400">Inversión Compras</span>
                   <span className="text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5">${(historyStats.inversionTotal || 0).toLocaleString('es-CL')}</span>
-                </div>
-                <div className="bg-amber-500/10 dark:bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex flex-col justify-center items-center text-center">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-600 dark:text-[#e2bd6c]">Costo Promedio</span>
-                  <span className="text-base font-bold text-amber-600 dark:text-[#e2bd6c] mt-0.5">${Math.round(historyStats.costoPromedio || 0).toLocaleString('es-CL')} /u</span>
-                </div>
-                <div className="bg-purple-500/10 dark:bg-purple-500/10 p-2 rounded-xl border border-purple-500/20 flex flex-col justify-center items-center text-center col-span-2 sm:col-span-1">
-                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">Total Salidas</span>
-                  <span className="text-base font-bold text-purple-600 dark:text-purple-400 mt-0.5">-{historyStats.salidas} un.</span>
                 </div>
               </div>
             )}
