@@ -133,20 +133,8 @@ export default function Pedidos() {
   const [busquedaCanal, setBusquedaCanal] = useState('')
   const [showCanalDropdown, setShowCanalDropdown] = useState(false)
   const location = useLocation()
+  const [highlightedId, setHighlightedId] = useState(null)
 
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search)
-    const qParam = searchParams.get('q') || location.state?.search
-    const idParam = searchParams.get('id') || location.state?.pedidoId
-
-    if (qParam) {
-      setBusquedaCliente(qParam)
-    }
-    if (idParam) {
-      setExpandedId(idParam)
-    }
-  }, [location.state, location.search])
-  
   // Estados para secciones colapsables y paginación
   const [sectionsOpen, setSectionsOpen] = useState({
     pendientes: true,
@@ -160,6 +148,60 @@ export default function Pedidos() {
   const [busquedaClientes, setBusquedaClientes] = useState('')
   const [expandedCliente, setExpandedCliente] = useState(null)
   const [expandedCustomer, setExpandedCustomer] = useState(null)
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const qParam = searchParams.get('q') || location.state?.search
+    const idParam = searchParams.get('id') || location.state?.pedidoId
+
+    if (qParam) {
+      setBusquedaCliente(qParam)
+    }
+
+    if (idParam && pedidos.length > 0) {
+      const idClean = idParam.toLowerCase().replace('#', '')
+      const targetPedido = pedidos.find(p => 
+        p.id === idParam || 
+        (p.id && p.id.toLowerCase().endsWith(idClean))
+      )
+
+      if (targetPedido) {
+        const custKey = (targetPedido.cliente || 'Desconocido').trim().toLowerCase()
+        
+        // Desplegar cliente y pedido
+        setExpandedCustomer(custKey)
+        setExpandedId(targetPedido.id)
+        setHighlightedId(targetPedido.id)
+
+        // Asegurar que las secciones colapsables estén abiertas
+        setSectionsOpen({
+          pendientes: true,
+          abonados: true,
+          finalizados: true
+        })
+
+        // Auto Scroll suave con retardo para renderizado completo de React
+        const scrollTimer = setTimeout(() => {
+          const cardEl = document.getElementById(`pedido-card-${targetPedido.id}`) || 
+                         document.getElementById(`pedido-card-mobile-${targetPedido.id}`) ||
+                         document.getElementById(`pedido-cust-${custKey}`)
+          if (cardEl) {
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 350)
+
+        // Limpiar el efecto de palpitar/iluminar tras 5 segundos
+        const clearHighlightTimer = setTimeout(() => {
+          setHighlightedId(null)
+        }, 5000)
+
+        return () => {
+          clearTimeout(scrollTimer)
+          clearTimeout(clearHighlightTimer)
+        }
+      }
+    }
+  }, [location.state, location.search, pedidos])
 
   const renderPaginationControls = (currentPage, totalItems, setPage) => {
     const itemsPerPage = 20;
@@ -1354,6 +1396,7 @@ END:VCALENDAR`
                         return (
                           <Fragment key={group.id}>
                             <tr 
+                              id={`pedido-cust-${group.id}`}
                               className={`hover:bg-surface-container-high dark:hover:bg-white/5 transition-colors cursor-pointer ${expandedCustomer === group.id ? 'bg-surface-container-high dark:bg-white/10' : ''}`}
                               onClick={() => setExpandedCustomer(expandedCustomer === group.id ? null : group.id)}
                             >
@@ -1396,7 +1439,15 @@ END:VCALENDAR`
                                       const isCritico = diasFaltantes > 0 && diasFaltantes <= 3;
 
                                       return (
-                                        <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4">
+                                        <div 
+                                          key={p.id} 
+                                          id={`pedido-card-${p.id}`}
+                                          className={`bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4 transition-all duration-300 ${
+                                            highlightedId === p.id 
+                                              ? 'ring-4 ring-[#e2bd6c] dark:ring-[#e2bd6c] bg-[#e2bd6c]/20 dark:bg-[#e2bd6c]/25 shadow-2xl scale-[1.02] animate-pulse duration-700 z-20' 
+                                              : ''
+                                          }`}
+                                        >
                                           <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                               <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
@@ -1570,7 +1621,15 @@ END:VCALENDAR`
                             const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1;
                             const isCritico = diasFaltantes >= 0 && diasFaltantes <= 3;
                             return (
-                              <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
+                              <div 
+                                key={p.id} 
+                                id={`pedido-card-mobile-${p.id}`}
+                                className={`bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3 transition-all duration-300 ${
+                                  highlightedId === p.id 
+                                    ? 'ring-4 ring-[#e2bd6c] dark:ring-[#e2bd6c] bg-[#e2bd6c]/20 dark:bg-[#e2bd6c]/25 shadow-2xl scale-[1.02] animate-pulse duration-700 z-20' 
+                                    : ''
+                                }`}
+                              >
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                   <div>
                                     <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-[10px] text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {p.fechaEntrega}</p>
@@ -1781,7 +1840,15 @@ END:VCALENDAR`
                                       const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
                                       const singlePerc = totalC > 0 ? Math.round((p.abono / totalC) * 100) : 0;
                                       return (
-                                        <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4">
+                                        <div 
+                                          key={p.id} 
+                                          id={`pedido-card-${p.id}`}
+                                          className={`bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4 transition-all duration-300 ${
+                                            highlightedId === p.id 
+                                              ? 'ring-4 ring-[#e2bd6c] dark:ring-[#e2bd6c] bg-[#e2bd6c]/20 dark:bg-[#e2bd6c]/25 shadow-2xl scale-[1.02] animate-pulse duration-700 z-20' 
+                                              : ''
+                                          }`}
+                                        >
                                           <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                               <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
@@ -1963,7 +2030,15 @@ END:VCALENDAR`
                             const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
                             const singlePerc = totalC > 0 ? Math.round((p.abono / totalC) * 100) : 0;
                             return (
-                              <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
+                              <div 
+                                key={p.id} 
+                                id={`pedido-card-mobile-${p.id}`}
+                                className={`bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3 transition-all duration-300 ${
+                                  highlightedId === p.id 
+                                    ? 'ring-4 ring-[#e2bd6c] dark:ring-[#e2bd6c] bg-[#e2bd6c]/20 dark:bg-[#e2bd6c]/25 shadow-2xl scale-[1.02] animate-pulse duration-700 z-20' 
+                                    : ''
+                                }`}
+                              >
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                   <div>
                                     <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-[10px] text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {p.fechaEntrega}</p>
@@ -2167,7 +2242,15 @@ END:VCALENDAR`
                                     {group.pedidos.map(p => {
                                       const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
                                       return (
-                                        <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4">
+                                         <div 
+                                           key={p.id} 
+                                           id={`pedido-card-${p.id}`}
+                                           className={`bg-surface dark:bg-[#1a1a1a] rounded-[24px] p-5 border border-outline-variant/15 dark:border-white/5 shadow-lg space-y-4 transition-all duration-300 ${
+                                             highlightedId === p.id 
+                                               ? 'ring-4 ring-[#e2bd6c] dark:ring-[#e2bd6c] bg-[#e2bd6c]/20 dark:bg-[#e2bd6c]/25 shadow-2xl scale-[1.02] animate-pulse duration-700 z-20' 
+                                               : ''
+                                           }`}
+                                         >
                                           <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-4 cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                               <span className={`material-symbols-outlined text-outline transition-transform ${expandedId === p.id ? 'rotate-180' : ''}`}>
@@ -2336,7 +2419,15 @@ END:VCALENDAR`
                           {group.pedidos.map(p => {
                             const totalC = p.total || p.productos.reduce((acc, pr) => acc + (pr.cantidad * (pr.precio || 0)), 0);
                             return (
-                              <div key={p.id} className="bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3">
+                              <div 
+                                key={p.id} 
+                                id={`pedido-card-mobile-${p.id}`}
+                                className={`bg-surface dark:bg-[#1a1a1a] rounded-[20px] p-4 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-3 transition-all duration-300 ${
+                                  highlightedId === p.id 
+                                    ? 'ring-4 ring-[#e2bd6c] dark:ring-[#e2bd6c] bg-[#e2bd6c]/20 dark:bg-[#e2bd6c]/25 shadow-2xl scale-[1.02] animate-pulse duration-700 z-20' 
+                                    : ''
+                                }`}
+                              >
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
                                   <div>
                                     <p className="text-xs font-black text-on-surface dark:text-[#e2bd6c]">Pedido <span className="font-mono text-[10px] text-[#8b6b3e] dark:text-[#e2bd6c] bg-[#e2bd6c]/10 dark:bg-[#e2bd6c]/20 px-1 py-0.5 rounded border border-[#e2bd6c]/30 font-extrabold mr-1">#{p.id ? p.id.slice(-5) : ''}</span> del {p.fechaEntrega}</p>
