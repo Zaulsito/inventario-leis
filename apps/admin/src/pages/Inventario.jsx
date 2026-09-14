@@ -1056,11 +1056,9 @@ REGLAS DE FORMATO ESTRICTAS:
     }
 
     const prodTarget = productos.find(p => p.id === editingId);
-    const stockBase = (Number(form.stock) > 0)
+    const stockBase = (form.stock !== undefined && form.stock !== null && form.stock !== '')
       ? Number(form.stock)
-      : ((editProductLotesStats?.stockCalculado && editProductLotesStats.stockCalculado > 0)
-          ? editProductLotesStats.stockCalculado
-          : (Number(prodTarget?.stock) || 0));
+      : (Number(prodTarget?.stock) || 0);
     const stockNuevo = Math.max(0, stockBase + cantNum);
     const costUnit = Math.floor(Number(form.precioCosto)) || 0;
 
@@ -1163,7 +1161,7 @@ REGLAS DE FORMATO ESTRICTAS:
     if (form.variantes && form.variantes.length > 0) {
       stockCalculado = form.variantes.reduce((sum, v) => sum + Number(v.stock), 0);
     } else if (editingId) {
-      stockCalculado = stockAnterior + Number(form.ajusteStock || 0);
+      stockCalculado = Math.max(0, Number(form.stock || 0) + Number(form.ajusteStock || 0));
     } else {
       stockCalculado = Math.floor(Number(form.stock));
     }
@@ -2687,9 +2685,9 @@ REGLAS DE FORMATO ESTRICTAS:
                           <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
                             <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
                             <span className="text-xl font-black text-on-surface dark:text-white">
-                              {Number(form.stock) > 0 
-                                ? form.stock 
-                                : (editProductLotesStats.stockCalculado > 0 ? editProductLotesStats.stockCalculado : (form.stock || 0))}
+                              {editingId 
+                                ? (Number(form.stock || 0) + Number(form.ajusteStock || 0))
+                                : (Number(form.stock) || 0)}
                             </span>
                           </div>
                         </div>
