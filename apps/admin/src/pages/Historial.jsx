@@ -214,16 +214,27 @@ export default function Historial() {
       }
     })
 
-    const stockCalculado = Number(selectedProduct.stock) > 0 ? Number(selectedProduct.stock) : (entradas - salidas)
+    const stockCalculado = (historyLogs && historyLogs.length > 0)
+      ? Math.max(0, entradas - salidas)
+      : (Number(selectedProduct.stock) || 0)
 
     return {
       entradas,
       salidas,
-      stockCalculado: Math.max(0, stockCalculado),
+      stockCalculado,
       inversionTotal,
       unidadesTotales
     }
   }, [selectedProduct, historyLogs])
+
+  useEffect(() => {
+    if (selectedProduct && historyLogs && historyLogs.length > 0 && productStats.stockCalculado !== undefined) {
+      if (Number(selectedProduct.stock) !== productStats.stockCalculado) {
+        updateDoc(doc(db, 'productos', selectedProduct.id), { stock: productStats.stockCalculado })
+          .catch(e => console.error("Error sincronizando stock en Historial:", e))
+      }
+    }
+  }, [selectedProduct?.id, historyLogs, productStats.stockCalculado])
 
   // Lotes de compra filtrados
   const lotesDeCompra = useMemo(() => {
@@ -442,7 +453,7 @@ export default function Historial() {
                     {selectedProduct ? selectedProduct.nombre : 'Seleccionar Producto...'}
                   </p>
                   <p className="text-[9px] font-semibold text-outline dark:text-gray-400 uppercase tracking-wider truncate">
-                    {selectedProduct ? `SKU: ${selectedProduct.sku} • Stock: ${selectedProduct.stock} un.` : 'Elige para ver su historial'}
+                    {selectedProduct ? `SKU: ${selectedProduct.sku} • Stock: ${productStats.stockCalculado !== undefined ? productStats.stockCalculado : selectedProduct.stock} un.` : 'Elige para ver su historial'}
                   </p>
                 </div>
               </div>
