@@ -550,6 +550,14 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }, [editProductHistory, initialProductData, editingId, form.stock, form.precioCosto, form.fechaIngreso])
 
+  useEffect(() => {
+    if (editingId && editProductLotesStats && editProductLotesStats.stockCalculado !== undefined && !form.ajusteStock) {
+      if (Number(form.stock) !== editProductLotesStats.stockCalculado) {
+        setForm(prev => ({ ...prev, stock: editProductLotesStats.stockCalculado }))
+      }
+    }
+  }, [editingId, editProductLotesStats?.stockCalculado, form.ajusteStock])
+
   const historyProduct = useMemo(() => productos.find(p => p.id === historyProductId), [productos, historyProductId])
 
   const historyStats = useMemo(() => {
@@ -840,28 +848,14 @@ REGLAS DE FORMATO ESTRICTAS:
     try {
       if (!log.esPedidoReal && !log.esMermaReal) {
         const stockRevertido = Math.max(0, stockBaseNum - cambioNum)
-        const opcRevertir = window.confirm(
-          `¿Deseas ELIMINAR este registro del historial?\n\n` +
-          `• ACEPTAR: Eliminar registro y REVERTIR el stock actual de ${stockBaseNum} a ${stockRevertido} un.\n` +
-          `• CANCELAR: Opciones para borrar sin alterar el stock.`
-        )
-
-        let revertir = false
-        if (opcRevertir) {
-          revertir = true
-        } else {
-          const soloBorrar = window.confirm(
-            `¿Deseas BORRAR ÚNICAMENTE el registro del historial MANTENIENDO el stock actual en ${stockBaseNum} un.?`
-          )
-          if (!soloBorrar) return // Cancelar todo
-          revertir = false
-        }
+        const confirmText = `¿Deseas eliminar este registro del historial (${cambioNum > 0 ? '+' : ''}${cambioNum} un.) y ajustar el stock actual de ${stockBaseNum} a ${stockRevertido} un.?`
+        if (!window.confirm(confirmText)) return
 
         // 1. Borrar de Firestore historial_inventario
         await deleteDoc(doc(db, 'historial_inventario', log.id))
 
-        // 2. Si se eligió revertir el stock
-        if (revertir && (pTarget || editingId) && cambioNum !== 0) {
+        // 2. Actualizar el stock en la colección de productos y estado local
+        if ((pTarget || editingId) && cambioNum !== 0) {
           const pIdToUpdate = pTarget ? pTarget.id : editingId
           await updateDoc(doc(db, 'productos', pIdToUpdate), { stock: stockRevertido })
 

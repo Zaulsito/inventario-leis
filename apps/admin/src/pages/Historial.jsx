@@ -291,30 +291,16 @@ export default function Historial() {
     }
 
     const stockActual = selectedProduct ? (Number(selectedProduct.stock) || 0) : 0
-    const stockRevertido = Math.max(0, stockActual - Number(log.cambio || 0))
+    const cambioNum = Number(log.cambio || 0)
+    const stockRevertido = Math.max(0, stockActual - cambioNum)
 
-    const opcRevertir = window.confirm(
-      `¿Deseas ELIMINAR este registro del historial?\n\n` +
-      `• ACEPTAR: Eliminar registro y REVERTIR el stock actual de ${stockActual} a ${stockRevertido} un.\n` +
-      `• CANCELAR: Opciones para borrar sin alterar el stock.`
-    )
-
-    let revertir = false
-    if (opcRevertir) {
-      revertir = true
-    } else {
-      const soloBorrar = window.confirm(
-        `¿Deseas BORRAR ÚNICAMENTE el registro del historial MANTENIENDO el stock actual en ${stockActual} un.?`
-      )
-      if (!soloBorrar) return // Cancelar todo
-      revertir = false
-    }
+    if (!window.confirm(`¿Deseas eliminar este registro del historial (${cambioNum > 0 ? '+' : ''}${cambioNum} un.) y ajustar el stock de ${stockActual} a ${stockRevertido} un.?`)) return
 
     try {
       await deleteDoc(doc(db, 'historial_inventario', log.id))
       setHistoryLogs(prev => prev.filter(l => l.id !== log.id))
 
-      if (revertir && selectedProduct) {
+      if (selectedProduct && cambioNum !== 0) {
         await updateDoc(doc(db, 'productos', selectedProduct.id), {
           stock: stockRevertido
         })
