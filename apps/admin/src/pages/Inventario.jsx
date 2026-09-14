@@ -493,8 +493,7 @@ REGLAS DE FORMATO ESTRICTAS:
         if (primerLog.stockAnterior !== undefined && primerLog.stockAnterior !== null) {
           cantInicialBase = Number(primerLog.stockAnterior) || 0
         } else {
-          const cambiosTotales = validLogs.reduce((acc, l) => acc + (Number(l.cambio) || 0), 0)
-          cantInicialBase = Math.max(0, stockInicial - cambiosTotales)
+          cantInicialBase = 0
         }
       } else {
         cantInicialBase = stockInicial
@@ -836,39 +835,41 @@ REGLAS DE FORMATO ESTRICTAS:
     const targetPId = log.productoId || editingId || historyProductId
     const pTarget = productos.find(p => p.id === targetPId)
     const cambioNum = Number(log.cambio) || 0
-    let mensajeConfirm = "¿Deseas eliminar este registro de movimiento del historial?"
-
     const stockBaseNum = pTarget ? Number(pTarget.stock) : (editingId ? Number(form.stock) : 0)
 
-    if (!log.esPedidoReal && !log.esMermaReal && (pTarget || editingId) && cambioNum !== 0) {
-      const stockRevertido = Math.max(0, stockBaseNum - cambioNum)
-      mensajeConfirm = `¿Deseas eliminar este registro del historial y revertir el stock de ${stockBaseNum} a ${stockRevertido} un.?`
-    } else if (log.esPedidoReal) {
-      const cantDevolucion = Math.abs(cambioNum)
-      mensajeConfirm = `Este registro proviene del Pedido real de ${log.cliente || 'Cliente'}.\n\n¿Deseas ELIMINAR EL PEDIDO completo de la base de datos y devolver los productos (${cantDevolucion} un. de este producto) al stock?`
-    } else if (log.esMermaReal) {
-      const cantDevolucion = Math.abs(cambioNum)
-      mensajeConfirm = `Este registro proviene de una Merma / Pérdida (${log.motivoMerma || 'Dañado'}).\n\n¿Deseas ELIMINAR la merma de la base de datos y devolver las ${cantDevolucion} un. al stock actual?`
-    }
+    try {
+      if (!log.esPedidoReal && !log.esMermaReal) {
+        const stockRevertido = Math.max(0, stockBaseNum - cambioNum)
+        const opcRevertir = window.confirm(
+          `¿Deseas ELIMINAR este registro del historial?\n\n` +
+          `• ACEPTAR: Eliminar registro y REVERTIR el stock actual de ${stockBaseNum} a ${stockRevertido} un.\n` +
+          `• CANCELAR: Opciones para borrar sin alterar el stock.`
+        )
 
-    if (window.confirm(mensajeConfirm)) {
-      try {
-        if (!log.esPedidoReal && !log.esMermaReal) {
-          // 1. Borrar de Firestore historial_inventario
-          await deleteDoc(doc(db, 'historial_inventario', log.id))
-          
-          // 2. Revertir el stock en la colección de productos
-          if ((pTarget || editingId) && cambioNum !== 0) {
-            const stockRevertido = Math.max(0, stockBaseNum - cambioNum)
-            const pIdToUpdate = pTarget ? pTarget.id : editingId
-            await updateDoc(doc(db, 'productos', pIdToUpdate), { stock: stockRevertido })
-            
-            // Si estamos dentro del modal de edición de producto, actualizar el formulario local
-            if (editingId && pIdToUpdate === editingId) {
-              setForm(prev => ({ ...prev, stock: stockRevertido }))
-            }
+        let revertir = false
+        if (opcRevertir) {
+          revertir = true
+        } else {
+          const soloBorrar = window.confirm(
+            `¿Deseas BORRAR ÚNICAMENTE el registro del historial MANTENIENDO el stock actual en ${stockBaseNum} un.?`
+          )
+          if (!soloBorrar) return // Cancelar todo
+          revertir = false
+        }
+
+        // 1. Borrar de Firestore historial_inventario
+        await deleteDoc(doc(db, 'historial_inventario', log.id))
+
+        // 2. Si se eligió revertir el stock
+        if (revertir && (pTarget || editingId) && cambioNum !== 0) {
+          const pIdToUpdate = pTarget ? pTarget.id : editingId
+          await updateDoc(doc(db, 'productos', pIdToUpdate), { stock: stockRevertido })
+
+          if (editingId && pIdToUpdate === editingId) {
+            setForm(prev => ({ ...prev, stock: stockRevertido }))
           }
-        } else if (log.esPedidoReal && log.pedidoId) {
+        }
+      } else if (log.esPedidoReal) {
           const batch = writeBatch(db)
           const pedRef = doc(db, 'pedidos', log.pedidoId)
           const pedSnap = await getDoc(pedRef)
@@ -956,7 +957,6 @@ REGLAS DE FORMATO ESTRICTAS:
         alert("Hubo un error al eliminar el registro: " + err.message)
       }
     }
-  }
 
   function handleStartEditLot(lote) {
     let fechaFormatted = getLocalDateString();
@@ -2682,12 +2682,11 @@ REGLAS DE FORMATO ESTRICTAS:
                               placeholder="Ej. 3 o -2"
                             />
                           </div>
+
                           <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
                             <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
                             <span className="text-xl font-black text-on-surface dark:text-white">
-                              {editingId 
-                                ? (Number(form.stock || 0) + Number(form.ajusteStock || 0))
-                                : (Number(form.stock) || 0)}
+                              {Math.max(0, Number(form.stock || 0) + Number(form.ajusteStock || 0))}
                             </span>
                           </div>
                         </div>

@@ -284,24 +284,39 @@ export default function Historial() {
     })
   }, [historyLogs, historyFilter, searchTerm])
 
-  // Eliminar registro del historial
   async function handleDeleteLog(log) {
-    if (!window.confirm("¿Estás seguro de que deseas eliminar este registro del historial?")) return
+    if (log.esPedidoReal || log.esMermaReal) {
+      alert("Los registros de Ventas o Mermas reales están vinculados a su módulo de origen.")
+      return
+    }
+
+    const stockActual = selectedProduct ? (Number(selectedProduct.stock) || 0) : 0
+    const stockRevertido = Math.max(0, stockActual - Number(log.cambio || 0))
+
+    const opcRevertir = window.confirm(
+      `¿Deseas ELIMINAR este registro del historial?\n\n` +
+      `• ACEPTAR: Eliminar registro y REVERTIR el stock actual de ${stockActual} a ${stockRevertido} un.\n` +
+      `• CANCELAR: Opciones para borrar sin alterar el stock.`
+    )
+
+    let revertir = false
+    if (opcRevertir) {
+      revertir = true
+    } else {
+      const soloBorrar = window.confirm(
+        `¿Deseas BORRAR ÚNICAMENTE el registro del historial MANTENIENDO el stock actual en ${stockActual} un.?`
+      )
+      if (!soloBorrar) return // Cancelar todo
+      revertir = false
+    }
 
     try {
-      if (log.esPedidoReal || log.esMermaReal) {
-        alert("Los registros de Ventas o Mermas reales están vinculados a su módulo de origen.")
-        return
-      }
-
       await deleteDoc(doc(db, 'historial_inventario', log.id))
       setHistoryLogs(prev => prev.filter(l => l.id !== log.id))
 
-      // Recalcular stock
-      if (selectedProduct) {
-        const nuevoStockCalculado = Math.max(0, Number(selectedProduct.stock) - Number(log.cambio))
+      if (revertir && selectedProduct) {
         await updateDoc(doc(db, 'productos', selectedProduct.id), {
-          stock: nuevoStockCalculado
+          stock: stockRevertido
         })
       }
     } catch (e) {
