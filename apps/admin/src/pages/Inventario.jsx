@@ -833,14 +833,16 @@ REGLAS DE FORMATO ESTRICTAS:
   async function handleDeleteHistoryLog(log) {
     if (!log || !log.id) return
 
-    const pTarget = productos.find(p => p.id === (log.productoId || historyProductId))
+    const targetPId = log.productoId || editingId || historyProductId
+    const pTarget = productos.find(p => p.id === targetPId)
     const cambioNum = Number(log.cambio) || 0
     let mensajeConfirm = "¿Deseas eliminar este registro de movimiento del historial?"
 
-    if (!log.esPedidoReal && !log.esMermaReal && pTarget && cambioNum !== 0) {
-      const stockActual = Number(pTarget.stock) || 0
-      const stockRevertido = Math.max(0, stockActual - cambioNum)
-      mensajeConfirm = `¿Deseas eliminar este registro del historial y revertir el stock de ${stockActual} a ${stockRevertido} un.?`
+    const stockBaseNum = pTarget ? Number(pTarget.stock) : (editingId ? Number(form.stock) : 0)
+
+    if (!log.esPedidoReal && !log.esMermaReal && (pTarget || editingId) && cambioNum !== 0) {
+      const stockRevertido = Math.max(0, stockBaseNum - cambioNum)
+      mensajeConfirm = `¿Deseas eliminar este registro del historial y revertir el stock de ${stockBaseNum} a ${stockRevertido} un.?`
     } else if (log.esPedidoReal) {
       const cantDevolucion = Math.abs(cambioNum)
       mensajeConfirm = `Este registro proviene del Pedido real de ${log.cliente || 'Cliente'}.\n\n¿Deseas ELIMINAR EL PEDIDO completo de la base de datos y devolver los productos (${cantDevolucion} un. de este producto) al stock?`
@@ -856,10 +858,15 @@ REGLAS DE FORMATO ESTRICTAS:
           await deleteDoc(doc(db, 'historial_inventario', log.id))
           
           // 2. Revertir el stock en la colección de productos
-          if (pTarget && cambioNum !== 0) {
-            const stockActual = Number(pTarget.stock) || 0
-            const stockRevertido = Math.max(0, stockActual - cambioNum)
-            await updateDoc(doc(db, 'productos', pTarget.id), { stock: stockRevertido })
+          if ((pTarget || editingId) && cambioNum !== 0) {
+            const stockRevertido = Math.max(0, stockBaseNum - cambioNum)
+            const pIdToUpdate = pTarget ? pTarget.id : editingId
+            await updateDoc(doc(db, 'productos', pIdToUpdate), { stock: stockRevertido })
+            
+            // Si estamos dentro del modal de edición de producto, actualizar el formulario local
+            if (editingId && pIdToUpdate === editingId) {
+              setForm(prev => ({ ...prev, stock: stockRevertido }))
+            }
           }
         } else if (log.esPedidoReal && log.pedidoId) {
           const batch = writeBatch(db)
@@ -880,8 +887,13 @@ REGLAS DE FORMATO ESTRICTAS:
                 if (pItemInState) {
                   const stockActual = Number(pItemInState.stock) || 0
                   const cantItem = Number(item.cantidad) || 0
+                  const stockDevuelto = stockActual + cantItem
                   const prodRef = doc(db, 'productos', pItemInState.id)
-                  batch.update(prodRef, { stock: stockActual + cantItem })
+                  batch.update(prodRef, { stock: stockDevuelto })
+
+                  if (editingId && pItemInState.id === editingId) {
+                    setForm(prev => ({ ...prev, stock: stockDevuelto }))
+                  }
                 }
               }
             }
@@ -897,43 +909,40 @@ REGLAS DE FORMATO ESTRICTAS:
 
         } else if (log.esMermaReal && (log.mermaId || log.id)) {
           const batch = writeBatch(db)
+          const mId = log.mermaId || log.id
+          const merRef = doc(db, 'mermas', mId)
+          const merSnap = await getDoc(merRef)
 
-          if (log.mermaId) {
-            const merRef = doc(db, 'mermas', log.mermaId)
-            const merSnap = await getDoc(merRef)
+          if (merSnap.exists()) {
+            const merData = merSnap.data()
+            if (Array.isArray(merData.productos)) {
+              for (const item of merData.productos) {
+                const itemPId = item.productoId || item.id
+                const pItemInState = productos.find(p => 
+                  p.id === itemPId || 
+                  (p.nombre && item.nombre && p.nombre.toLowerCase() === item.nombre.toLowerCase())
+                )
 
-            if (merSnap.exists()) {
-              const merData = merSnap.data()
-              if (Array.isArray(merData.productos)) {
-                for (const item of merData.productos) {
-                  const itemPId = item.productoId || item.id
-                  const pItemInState = productos.find(p => 
-                    p.id === itemPId || 
-                    (p.nombre && item.nombre && p.nombre.toLowerCase() === item.nombre.toLowerCase())
-                  )
+                if (pItemInState) {
+                  const stockActual = Number(pItemInState.stock) || 0
+                  const cantItem = Number(item.cantidad) || 0
+                  const stockDevuelto = stockActual + cantItem
+                  const prodRef = doc(db, 'productos', pItemInState.id)
+                  batch.update(prodRef, { stock: stockDevuelto })
 
-                  if (pItemInState) {
-                    const stockActual = Number(pItemInState.stock) || 0
-                    const cantItem = Number(item.cantidad) || 0
-                    const prodRef = doc(db, 'productos', pItemInState.id)
-                    batch.update(prodRef, { stock: stockActual + cantItem })
+                  if (editingId && pItemInState.id === editingId) {
+                    setForm(prev => ({ ...prev, stock: stockDevuelto }))
                   }
                 }
               }
-              batch.delete(merRef)
             }
-
-            // Eliminar cualquier documento en historial_inventario vinculado a esta merma
-            const qHist = query(collection(db, 'historial_inventario'), where('mermaId', '==', log.mermaId))
-            const snapHist = await getDocs(qHist)
-            snapHist.docs.forEach(hDoc => batch.delete(hDoc.ref))
+            batch.delete(merRef)
           }
 
-          // Si el id es un documento real en historial_inventario, borrarlo
-          if (log.id && !log.id.startsWith('merma-') && !log.id.startsWith('pedido-')) {
-            const hRef = doc(db, 'historial_inventario', log.id)
-            batch.delete(hRef)
-          }
+          // Eliminar cualquier documento en historial_inventario vinculado a esta merma
+          const qHist = query(collection(db, 'historial_inventario'), where('mermaId', '==', mId))
+          const snapHist = await getDocs(qHist)
+          snapHist.docs.forEach(hDoc => batch.delete(hDoc.ref))
 
           await batch.commit()
         }
@@ -961,7 +970,7 @@ REGLAS DE FORMATO ESTRICTAS:
     setEditingLot({
       id: lote.id,
       fecha: fechaFormatted,
-      cantidad: lote.cantidad || 0,
+      cantidad: lote.cantidad || lote.cambio || 0,
       precioCosto: lote.precioCosto || 0,
       motivo: lote.motivo || ''
     });
@@ -996,6 +1005,10 @@ REGLAS DE FORMATO ESTRICTAS:
           });
         }
       } else {
+        const oldLog = editProductHistory.find(l => l.id === editingLot.id);
+        const oldCant = Number(oldLog?.cambio || oldLog?.cantidad || 0);
+        const difCant = newCant - oldCant;
+
         await updateDoc(doc(db, 'historial_inventario', editingLot.id), {
           cambio: newCant,
           precioCosto: newCost,
@@ -1004,10 +1017,18 @@ REGLAS DE FORMATO ESTRICTAS:
           motivo: newMotivo
         });
 
+        if (editingId && difCant !== 0) {
+          const stockActual = Number(form.stock) || 0;
+          const stockNuevo = Math.max(0, stockActual + difCant);
+          await updateDoc(doc(db, 'productos', editingId), { stock: stockNuevo });
+          setForm(prev => ({ ...prev, stock: stockNuevo }));
+        }
+
         setEditProductHistory(prev => prev.map(l => 
           l.id === editingLot.id ? { 
             ...l, 
             cambio: newCant, 
+            cantidad: newCant,
             precioCosto: newCost, 
             costoTotalLote: newCant * newCost, 
             fecha: newDate, 
