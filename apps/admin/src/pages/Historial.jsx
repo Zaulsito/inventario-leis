@@ -45,10 +45,11 @@ export default function Historial() {
   useEffect(() => {
     if (location.state && location.state.productoId) {
       setSelectedProductId(location.state.productoId)
+      navigate(location.pathname, { replace: true, state: null })
     } else if (!selectedProductId && productos.length > 0) {
       setSelectedProductId(productos[0].id)
     }
-  }, [location.state, productos])
+  }, [location.state, productos, navigate, selectedProductId])
 
   const selectedProduct = useMemo(() => {
     return productos.find(p => p.id === selectedProductId) || null

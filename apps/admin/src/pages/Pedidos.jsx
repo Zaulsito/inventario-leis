@@ -158,6 +158,10 @@ export default function Pedidos() {
       setBusquedaCliente(qParam)
     }
 
+    if (location.state) {
+      navigate(location.pathname + location.search, { replace: true, state: null })
+    }
+
     if (idParam && pedidos.length > 0) {
       const idClean = idParam.toLowerCase().replace('#', '')
       const targetPedido = pedidos.find(p => 
