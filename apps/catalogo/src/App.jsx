@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore'
 import { db, auth } from './config/firebase'
+import { getOptimizedImageUrl } from './utils/image'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
@@ -2489,7 +2490,14 @@ export default function CatalogoPublico() {
                     onClick={() => setProductoParaVer(p)}
                   >
                     {p.fotoUrl ? (
-                       <img src={p.fotoUrl} alt={p.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                       <img 
+                         src={getOptimizedImageUrl(p.fotoUrl, 600)} 
+                         onError={(e) => { if (e.target.src !== p.fotoUrl) e.target.src = p.fotoUrl; }}
+                         alt={p.nombre} 
+                         loading="lazy" 
+                         decoding="async" 
+                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                       />
                     ) : (
                        <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>image</span>
                     )}
@@ -2745,7 +2753,7 @@ export default function CatalogoPublico() {
                             {/* Miniatura del producto */}
                             <div className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border ${isDark ? 'border-white/5 bg-white/5' : 'border-[#e2bd6c]/20 bg-white/50'}`}>
                               {imgUrl ? (
-                                <img src={imgUrl} alt={item.nombre} className="w-full h-full object-cover" />
+                                <img src={getOptimizedImageUrl(imgUrl, 200)} alt={item.nombre} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                   <span className="material-symbols-outlined text-gray-400 text-lg">image</span>
@@ -2985,7 +2993,7 @@ export default function CatalogoPublico() {
                     {fotosProducto[indexImagenActual] && (
                       <div className="absolute inset-0">
                         <img 
-                          src={fotosProducto[indexImagenActual]} 
+                          src={getOptimizedImageUrl(fotosProducto[indexImagenActual], 100)} 
                           className="w-full h-full object-cover blur-3xl scale-150 opacity-40 transition-all duration-1000 ease-in-out" 
                           alt="Dynamic background"
                         />
@@ -3000,7 +3008,8 @@ export default function CatalogoPublico() {
                       onClick={() => setExpandedImage(fotosProducto[indexImagenActual])}
                     >
                       <img 
-                        src={fotosProducto[indexImagenActual]} 
+                        src={getOptimizedImageUrl(fotosProducto[indexImagenActual], 900)} 
+                        onError={(e) => { if (e.target.src !== fotosProducto[indexImagenActual]) e.target.src = fotosProducto[indexImagenActual]; }}
                         alt={productoParaVer.nombre} 
                         className={`max-w-full max-h-[70vh] w-auto h-auto object-contain rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border-8 ${isDark ? 'border-[#1e1e1e]' : 'border-white'}`} 
                       />
@@ -3050,7 +3059,7 @@ export default function CatalogoPublico() {
                         onClick={() => setIndexImagenActual(i)}
                         className={`w-20 h-20 rounded-2xl border-2 overflow-hidden transition-all shrink-0 p-1 ${isDark ? 'bg-[#1e1e1e]' : 'bg-white'} ${indexImagenActual === i ? (isDark ? 'border-[#e2bd6c] shadow-lg scale-110' : 'border-primary shadow-lg scale-110') : (isDark ? 'border-white/10 opacity-60 hover:opacity-100 hover:border-[#e2bd6c]/30' : 'border-outline-variant/10 opacity-60 hover:opacity-100 hover:border-primary/30')}`}
                       >
-                        <img src={f} className="w-full h-full object-cover rounded-xl" />
+                        <img src={getOptimizedImageUrl(f, 200)} className="w-full h-full object-cover rounded-xl" />
                       </button>
                     ))}
                   </div>

@@ -4,6 +4,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where
 import { db } from '../config/firebase'
 import { getLocalDateString, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
+import { getOptimizedImageUrl } from '../utils/image'
 
 export default function Historial() {
   const { isDark = false } = useOutletContext() || {}
@@ -442,7 +443,7 @@ export default function Historial() {
             >
               <div className="flex items-center gap-3 min-w-0">
                 {selectedProduct?.fotoUrl ? (
-                  <img src={selectedProduct.fotoUrl} alt="" className="w-8 h-8 rounded-xl object-cover shrink-0 border border-outline-variant/20" />
+                  <img src={getOptimizedImageUrl(selectedProduct.fotoUrl, 150)} alt="" className="w-8 h-8 rounded-xl object-cover shrink-0 border border-outline-variant/20" />
                 ) : (
                   <div className="w-8 h-8 rounded-xl bg-surface-variant dark:bg-white/10 flex items-center justify-center text-outline dark:text-gray-400 shrink-0">
                     <span className="material-symbols-outlined text-base">inventory_2</span>
@@ -497,7 +498,7 @@ export default function Historial() {
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {p.fotoUrl ? (
-                            <img src={p.fotoUrl} alt="" className="w-7 h-7 rounded-lg object-cover shrink-0" />
+                            <img src={getOptimizedImageUrl(p.fotoUrl, 150)} alt="" className="w-7 h-7 rounded-lg object-cover shrink-0" />
                           ) : (
                             <div className="w-7 h-7 rounded-lg bg-surface-variant dark:bg-white/10 flex items-center justify-center text-outline dark:text-gray-400 shrink-0">
                               <span className="material-symbols-outlined text-xs">inventory_2</span>

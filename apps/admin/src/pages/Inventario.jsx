@@ -7,6 +7,7 @@ import autoTable from 'jspdf-autotable'
 import BarcodeScanner from '../components/BarcodeScanner'
 import { getLocalDateString, calcularEstado, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
+import { getOptimizedImageUrl } from '../utils/image'
 
 const estadoConfig = {
   disponible: { label: 'Disponible', cls: 'bg-[#8b6b3e]/10 text-[#8b6b3e] dark:bg-[#8b6b3e]/20 dark:text-[#c4a484] border border-[#8b6b3e]/20 backdrop-blur-sm font-bold shadow-sm' },
@@ -1894,7 +1895,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     <div className="w-14 h-14 rounded-xl bg-surface-container dark:bg-white/5 overflow-hidden shrink-0 border border-outline-variant/20 dark:border-white/5 shadow-sm flex items-center justify-center">
                       {p.fotoUrl ? (
                         <img 
-                          src={p.fotoUrl} 
+                          src={getOptimizedImageUrl(p.fotoUrl, 200)} 
                           alt={p.nombre} 
                           className="w-full h-full object-cover"
                           onClick={(e) => { e.stopPropagation(); setExpandedImage(p.fotoUrl); }}
@@ -2093,7 +2094,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-surface-variant dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 cursor-pointer shadow-sm group-hover:shadow-md transition-all duration-300 shrink-0">
                               {p.fotoUrl ? (
                                 <img 
-                                  src={p.fotoUrl} 
+                                  src={getOptimizedImageUrl(p.fotoUrl, 200)} 
                                   alt={p.nombre} 
                                   className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-50" 
                                   onClick={() => setExpandedImage(p.fotoUrl)}

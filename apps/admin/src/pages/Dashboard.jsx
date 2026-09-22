@@ -6,6 +6,7 @@ import { Link, useOutletContext } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
+import { getOptimizedImageUrl } from '../utils/image'
 
 function BadgeStock({ nivel }) {
   const cls = nivel === 'critico'
@@ -430,7 +431,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-surface-variant dark:bg-white/5 flex items-center justify-center shrink-0 overflow-hidden">
                   {p.fotoUrl ? (
-                    <img src={p.fotoUrl} alt={p.nombre} className="w-full h-full object-cover" />
+                    <img src={getOptimizedImageUrl(p.fotoUrl, 150)} alt={p.nombre} className="w-full h-full object-cover" />
                   ) : (
                     <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-sm">inventory_2</span>
                   )}
