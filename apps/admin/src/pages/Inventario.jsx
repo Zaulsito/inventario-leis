@@ -1273,6 +1273,50 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
+function compressImage(file, maxWidth = 1000, quality = 0.8) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/') || file.size < 200 * 1024) {
+      resolve(file);
+      return;
+    }
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.src = e.target.result;
+    };
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          } else {
+            resolve(file);
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    img.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
   async function handleImageUpload(files) {
     if (!files || files.length === 0) return;
 
@@ -1287,7 +1331,7 @@ REGLAS DE FORMATO ESTRICTAS:
     const filesToUpload = Array.from(files).slice(0, spaceLeft);
 
     setIsUploadingImage(true);
-    setUploadProgress(`Subiendo 0 de ${filesToUpload.length}...`);
+    setUploadProgress(`Optimizando y subiendo 0 de ${filesToUpload.length}...`);
     setErrorMsg('');
 
     try {
@@ -1295,8 +1339,9 @@ REGLAS DE FORMATO ESTRICTAS:
       let completados = 0;
 
       await Promise.all(filesToUpload.map(async (file) => {
+        const compressedFile = await compressImage(file, 1000, 0.8);
         const formData = new FormData();
-        formData.append('image', file);
+        formData.append('image', compressedFile);
         
         try {
            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {

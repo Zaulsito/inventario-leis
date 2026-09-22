@@ -2489,7 +2489,7 @@ export default function CatalogoPublico() {
                     onClick={() => setProductoParaVer(p)}
                   >
                     {p.fotoUrl ? (
-                       <img src={p.fotoUrl} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                       <img src={p.fotoUrl} alt={p.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     ) : (
                        <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>image</span>
                     )}
