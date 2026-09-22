@@ -448,6 +448,8 @@ REGLAS DE FORMATO ESTRICTAS:
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isOptimizingBatch, setIsOptimizingBatch] = useState(false)
+  const [batchProgress, setBatchProgress] = useState('')
   const [previewImage, setPreviewImage] = useState(null)
   
   // AI generation states
@@ -1350,7 +1352,8 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
            });
            const data = await response.json();
            if (data.success) {
-             newUrls.push(data.data.url);
+             const optUrl = data.data.medium?.url || data.data.display_url || data.data.url;
+             newUrls.push(optUrl);
              completados++;
              setUploadProgress(`Subiendo ${completados} de ${filesToUpload.length}...`);
            }
@@ -1369,6 +1372,67 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
     } finally {
       setIsUploadingImage(false);
       setUploadProgress('');
+    }
+  }
+
+  async function handleBatchOptimizeImages() {
+    if (!window.confirm("¿Deseas comprimir y acelerar las imágenes de todos los productos de la tienda?\n\nEsto re-subirá versiones ultra ligeras (comprimidas a ~80KB) para que el catálogo cargue instantáneamente.")) return;
+
+    setIsOptimizingBatch(true);
+    setBatchProgress('Iniciando acelerador de imágenes...');
+    let actualizados = 0;
+
+    try {
+      for (let i = 0; i < productos.length; i++) {
+        const prod = productos[i];
+        const rawFotos = prod.fotos || (prod.fotoUrl ? [prod.fotoUrl] : []);
+        if (rawFotos.length === 0) continue;
+
+        setBatchProgress(`Procesando (${i + 1}/${productos.length}): ${prod.nombre}...`);
+
+        const newFotos = [];
+        for (const url of rawFotos) {
+          if (!url || typeof url !== 'string') continue;
+          try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const file = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' });
+            const compressed = await compressImage(file, 800, 0.75);
+
+            const formData = new FormData();
+            formData.append('image', compressed);
+
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+              method: 'POST',
+              body: formData,
+            });
+            const data = await response.json();
+            if (data.success) {
+              const optUrl = data.data.medium?.url || data.data.display_url || data.data.url;
+              newFotos.push(optUrl);
+            } else {
+              newFotos.push(url);
+            }
+          } catch (e) {
+            newFotos.push(url);
+          }
+        }
+
+        if (newFotos.length > 0) {
+          await updateDoc(doc(db, 'productos', prod.id), {
+            fotos: newFotos,
+            fotoUrl: newFotos[0]
+          });
+          actualizados++;
+        }
+      }
+      alert(`¡Optimización completada! Se aceleraron las imágenes de ${actualizados} productos.`);
+    } catch (err) {
+      console.error("Error al optimizar lote:", err);
+      alert("Error en la optimización: " + err.message);
+    } finally {
+      setIsOptimizingBatch(false);
+      setBatchProgress('');
     }
   }
 
@@ -1600,6 +1664,18 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 
       <div className="space-y-8">
 
+        {isOptimizingBatch && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-4 animate-in fade-in duration-300">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-amber-500 animate-spin">sync</span>
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-[#e2bd6c]">Acelerador de Imágenes en Proceso</h4>
+                <p className="text-xs text-on-surface/80 dark:text-white/80 font-medium">{batchProgress}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 tour-inv-metricas">
           <div className="bg-surface-container-low dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-outline-variant/10 dark:border-white/5 shadow-sm hover:border-primary/20 transition-all">
             <div className="flex items-center gap-2">
@@ -1730,6 +1806,10 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                           <button onClick={() => { exportarCSV(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 dark:hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-on-surface dark:text-white/90 transition-colors flex items-center gap-2">
                             <span className="material-symbols-outlined text-green-600 dark:text-green-500 text-lg">csv</span>
                             Exportar a CSV
+                          </button>
+                          <button onClick={() => { handleBatchOptimizeImages(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-surface-variant/50 dark:hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c] transition-colors flex items-center gap-2 border-t border-outline-variant/10">
+                            <span className="material-symbols-outlined text-amber-500 text-lg animate-pulse">electric_bolt</span>
+                            Acelerar Imágenes
                           </button>
                         </div>
                       </>
