@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext, useNavigate, useLocation } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
@@ -10,6 +10,7 @@ export default function Historial() {
   const { isDark = false } = useOutletContext() || {}
   const navigate = useNavigate()
   const location = useLocation()
+  const initializedFromStateRef = useRef(false)
 
   const [productos, setProductos] = useState([])
   const [selectedProductId, setSelectedProductId] = useState('')
@@ -43,7 +44,8 @@ export default function Historial() {
 
   // 2. Si venimos con un productoId desde state (ej. clic desde Inventario)
   useEffect(() => {
-    if (location.state && location.state.productoId) {
+    if (!initializedFromStateRef.current && location.state && location.state.productoId) {
+      initializedFromStateRef.current = true
       setSelectedProductId(location.state.productoId)
       navigate(location.pathname, { replace: true, state: null })
     } else if (!selectedProductId && productos.length > 0) {
