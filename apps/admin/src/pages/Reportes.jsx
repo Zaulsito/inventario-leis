@@ -799,79 +799,261 @@ export default function Reportes() {
     }
   }
 
-  // --- Reporte y PDF ---
+  // --- Reporte y PDF (Estilo Luxe Ejecutivo) ---
   function exportarPDF() {
-    const docPdf = new jsPDF()
-    docPdf.text("Reporte de Desempeño Leis", 14, 15)
-    docPdf.setFontSize(10)
-    docPdf.text(`Periodo: ${PERIODOS[periodo]} (${fechaInicio} - ${fechaFin})`, 14, 22)
-    docPdf.text(`Ventas: $${totalMonetario.toLocaleString('es-CL')} | Mermas: -$${totalPerdidaMonetario.toLocaleString('es-CL')} | Gastos Op: -$${totalGastosMonetario.toLocaleString('es-CL')}`, 14, 28)
-    
+    const docPdf = new jsPDF({ unit: 'mm', format: 'a4' })
+    const totalNetoReal = totalMonetario - totalPerdidaMonetario - totalGastosMonetario
+    const labelPeriodo = PERIODOS[periodo] || 'Reporte'
+    let infoPeriodo = labelPeriodo
+    if (periodo === 2 && mesSeleccionado) {
+      infoPeriodo += ` (${getNombreMesSeleccionado(mesSeleccionado)})`
+    } else if (periodo === 3) {
+      infoPeriodo += ` (Año ${anoSeleccionado})`
+    } else if (periodo === 4) {
+      infoPeriodo += ` (${fechaInicio ? fechaInicio.split('-').reverse().join('/') : ''} - ${fechaFin ? fechaFin.split('-').reverse().join('/') : ''})`
+    }
+
+    // 1. Banner Superior Oscuro y Dorado
+    docPdf.setFillColor(30, 30, 30) // #1e1e1e
+    docPdf.rect(0, 0, 210, 34, 'F')
+
+    docPdf.setFillColor(226, 189, 108) // #e2bd6c (Luxe Gold)
+    docPdf.rect(0, 34, 210, 2, 'F')
+
+    // Título y Subtítulo Corporativo
+    docPdf.setTextColor(226, 189, 108)
+    docPdf.setFont('helvetica', 'bold')
+    docPdf.setFontSize(16)
+    docPdf.text("INVENTARIO LEIS", 14, 15)
+
+    docPdf.setTextColor(255, 255, 255)
+    docPdf.setFontSize(9)
+    docPdf.setFont('helvetica', 'normal')
+    docPdf.text("INFORME EJECUTIVO DE CONTROL FINANCIERO Y COMERCIAL", 14, 24)
+
+    // Sello Fecha/Hora en Banner (Alineado a la derecha)
+    const fechaHoraHora = `${new Date().toLocaleDateString('es-CL')} ${new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`
+    docPdf.setFontSize(8)
+    docPdf.setTextColor(200, 200, 200)
+    docPdf.text(`Generado: ${fechaHoraHora}`, 196, 15, { align: 'right' })
+    docPdf.setTextColor(226, 189, 108)
+    docPdf.setFont('helvetica', 'bold')
+    docPdf.text(`Rango: ${infoPeriodo}`, 196, 24, { align: 'right' })
+
+    // 2. Tarjetas de Resumen KPI (4 cuadros superiores)
+    const cardY = 42
+    const cardH = 18
+    const cardW = 43.5
+    const gap = 3
+    let startX = 14
+
+    // KPI 1: Ventas Totales
+    docPdf.setFillColor(240, 253, 244)
+    docPdf.setDrawColor(187, 247, 208)
+    docPdf.roundedRect(startX, cardY, cardW, cardH, 2, 2, 'FD')
+    docPdf.setFontSize(7)
+    docPdf.setTextColor(22, 101, 52)
+    docPdf.setFont('helvetica', 'bold')
+    docPdf.text("VENTAS TOTALES", startX + 4, cardY + 6)
+    docPdf.setFontSize(11)
+    docPdf.text(`+$${totalMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
+
+    // KPI 2: Gastos Operativos
+    startX += cardW + gap
+    docPdf.setFillColor(255, 251, 235)
+    docPdf.setDrawColor(254, 243, 199)
+    docPdf.roundedRect(startX, cardY, cardW, cardH, 2, 2, 'FD')
+    docPdf.setFontSize(7)
+    docPdf.setTextColor(180, 83, 9)
+    docPdf.setFont('helvetica', 'bold')
+    docPdf.text("GASTOS OPERATIVOS", startX + 4, cardY + 6)
+    docPdf.setFontSize(11)
+    docPdf.text(`-$${totalGastosMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
+
+    // KPI 3: Mermas / Pérdidas
+    startX += cardW + gap
+    docPdf.setFillColor(254, 242, 242)
+    docPdf.setDrawColor(254, 202, 202)
+    docPdf.roundedRect(startX, cardY, cardW, cardH, 2, 2, 'FD')
+    docPdf.setFontSize(7)
+    docPdf.setTextColor(185, 28, 28)
+    docPdf.setFont('helvetica', 'bold')
+    docPdf.text("MERMAS Y PÉRDIDAS", startX + 4, cardY + 6)
+    docPdf.setFontSize(11)
+    docPdf.text(`-$${totalPerdidaMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
+
+    // KPI 4: Balance Neto Real
+    startX += cardW + gap
+    docPdf.setFillColor(30, 30, 30)
+    docPdf.setDrawColor(226, 189, 108)
+    docPdf.roundedRect(startX, cardY, cardW, cardH, 2, 2, 'FD')
+    docPdf.setFontSize(7)
+    docPdf.setTextColor(226, 189, 108)
+    docPdf.setFont('helvetica', 'bold')
+    docPdf.text("BALANCE NETO REAL", startX + 4, cardY + 6)
+    docPdf.setFontSize(11)
+    docPdf.setTextColor(totalNetoReal < 0 ? 239 : 226, totalNetoReal < 0 ? 68 : 189, totalNetoReal < 0 ? 68 : 108)
+    docPdf.text(`${totalNetoReal < 0 ? '-' : '+'}$${Math.abs(totalNetoReal).toLocaleString('es-CL')}`, startX + 4, cardY + 13)
+
+    // 3. Tabla Estilizada de Registro de Movimientos
     const tableData = registrosFiltrados.map(p => {
       const fecha = getLocalStr(p)
       if (p._tipo === 'gasto') {
         const catObj = CATEGORIAS_GASTOS.find(c => c.id === p.categoria)
         const catLabel = catObj ? catObj.label : 'Gasto Operativo'
-        return [fecha, `[GASTO] ${catLabel}`, p.descripcion, `-$${Number(p.monto).toLocaleString('es-CL')}`]
+        return [
+          fecha, 
+          'GASTO OPERATIVO', 
+          `${catLabel} — ${p.descripcion || 'Sin nota'}`, 
+          '-', 
+          `-$${Number(p.monto).toLocaleString('es-CL')}`,
+          `-$${Number(p.monto).toLocaleString('es-CL')}`
+        ]
       }
       const desc = p.productos ? p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(', ') : ''
       let gananciaVenta = 0
       if (p.productos && Array.isArray(p.productos)) {
         p.productos.forEach(item => {
           const pr = productos.find(xd => xd.id === item.productoId)
-          if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+          if (pr) gananciaVenta += (pr.precio || 0) * item.cantidad
         })
       }
       const isMerma = p._tipo === 'merma'
-      return [fecha, isMerma ? `[MERMA] ${p.motivo}` : p.cliente, desc, isMerma ? `-$${gananciaVenta.toLocaleString('es-CL')}` : `$${gananciaVenta.toLocaleString('es-CL')}`]
+      if (isMerma) {
+        return [
+          fecha, 
+          'MERMA DE STOCK', 
+          `[${p.motivo || 'Dañado'}] ${desc}`, 
+          '-', 
+          `-$${gananciaVenta.toLocaleString('es-CL')}`,
+          `-$${gananciaVenta.toLocaleString('es-CL')}`
+        ]
+      }
+      return [
+        fecha, 
+        'VENTA REGISTRADA', 
+        `${p.cliente || 'Cliente'} — ${desc}`, 
+        `+$${gananciaVenta.toLocaleString('es-CL')}`, 
+        '-', 
+        `+$${gananciaVenta.toLocaleString('es-CL')}`
+      ]
     })
 
     autoTable(docPdf, {
-      startY: 35,
-      head: [['Fecha', 'Tipo/Cliente', 'Detalle', 'Flujo ($)']],
+      startY: 66,
+      head: [['FECHA', 'TIPO / CATEGORÍA', 'CLIENTE / DETALLE DE PRODUCTOS', 'INGRESO', 'EGRESO', 'NETO']],
       body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 30, 30],
+        textColor: [226, 189, 108],
+        fontStyle: 'bold',
+        fontSize: 8,
+        halign: 'left',
+        cellPadding: 3
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [50, 50, 50],
+        cellPadding: 3
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 32, fontStyle: 'bold' },
+        2: { cellWidth: 72 },
+        3: { cellWidth: 22, halign: 'right', textColor: [22, 163, 74] },
+        4: { cellWidth: 22, halign: 'right', textColor: [220, 38, 38] },
+        5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }
+      },
+      didParseCell: function(data) {
+        if (data.section === 'body' && data.column.index === 5) {
+          const valStr = data.cell.raw || ''
+          if (valStr.startsWith('-')) {
+            data.cell.styles.textColor = [220, 38, 38]
+          } else if (valStr.startsWith('+')) {
+            data.cell.styles.textColor = [22, 163, 74]
+          }
+        }
+      },
+      didDrawPage: function(data) {
+        // Pie de página en cada página
+        const pageSize = docPdf.internal.pageSize
+        const pageHeight = pageSize.height || pageSize.getHeight()
+        
+        docPdf.setDrawColor(230, 230, 230)
+        docPdf.line(14, pageHeight - 12, 196, pageHeight - 12)
+        
+        docPdf.setFontSize(7)
+        docPdf.setFont('helvetica', 'normal')
+        docPdf.setTextColor(150, 150, 150)
+        docPdf.text("Inventario Leis © Documento Confidencial de Control Financiero y Comercial", 14, pageHeight - 7)
+        docPdf.text(`Página ${data.pageNumber} de ${docPdf.internal.getNumberOfPages()}`, 196, pageHeight - 7, { align: 'right' })
+      }
     })
 
-    docPdf.save("reporte_ventas_leis.pdf")
+    docPdf.save(`Reporte_Financiero_Leis_${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
+  // --- Exportar Excel Estructurado (.csv con UTF-8 BOM y Cabecera Ejecutiva) ---
   function exportarCSV() {
-    const encabezados = ['Fecha', 'Cliente/Tipo', 'Detalle Productos/Notas', 'Flujo de Dinero ($)']
-    const filas = registrosFiltrados.map(p => {
+    const fechaHora = `${new Date().toLocaleDateString('es-CL')} ${new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`
+    const totalNetoReal = totalMonetario - totalPerdidaMonetario - totalGastosMonetario
+    let infoPeriodo = PERIODOS[periodo] || 'Reporte'
+    if (periodo === 2 && mesSeleccionado) infoPeriodo += ` (${getNombreMesSeleccionado(mesSeleccionado)})`
+    else if (periodo === 3) infoPeriodo += ` (Año ${anoSeleccionado})`
+    else if (periodo === 4) infoPeriodo += ` (${fechaInicio ? fechaInicio.split('-').reverse().join('/') : ''} a ${fechaFin ? fechaFin.split('-').reverse().join('/') : ''})`
+
+    // Encabezado de la Hoja de Cálculo (Bloque Resumen Ejecutivo)
+    const lineas = [
+      '=====================================================================================',
+      'INVENTARIO LEIS — REPORTES Y BALANCE FINANCIERO EJECUTIVO',
+      '=====================================================================================',
+      `Fecha de Emisión:;${fechaHora}`,
+      `Periodo de Análisis:;${infoPeriodo}`,
+      `Total Ventas Brutas:;$${totalMonetario.toLocaleString('es-CL')}`,
+      `Total Gastos Operativos:;-$${totalGastosMonetario.toLocaleString('es-CL')}`,
+      `Total Mermas y Pérdidas:;-$${totalPerdidaMonetario.toLocaleString('es-CL')}`,
+      `Balance Neto Real:;${totalNetoReal < 0 ? '-' : '+'}$${Math.abs(totalNetoReal).toLocaleString('es-CL')}`,
+      '=====================================================================================',
+      '',
+      // Cabecera de la Tabla
+      'FECHA;TIPO DE REGISTRO;CLIENTE / CATEGORÍA;DETALLE DE PRODUCTOS / NOTAS;INGRESO ($);EGRESO ($);FLUJO NETO ($)'
+    ]
+
+    registrosFiltrados.forEach(p => {
       const fecha = getLocalStr(p)
       if (p._tipo === 'gasto') {
         const catObj = CATEGORIAS_GASTOS.find(c => c.id === p.categoria)
         const catLabel = catObj ? catObj.label : 'Gasto Operativo'
-        return [
-          `"${fecha}"`, 
-          `"[GASTO] ${catLabel}"`, 
-          `"${p.descripcion}"`, 
-          -Number(p.monto) || 0
-        ]
+        const monto = Number(p.monto) || 0
+        lineas.push(`"${fecha}";"GASTO OPERATIVO";"${catLabel}";"${p.descripcion || ''}";0;${monto};${-monto}`)
+      } else {
+        const desc = p.productos ? p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(' | ') : ''
+        let gananciaVenta = 0
+        if (p.productos && Array.isArray(p.productos)) {
+          p.productos.forEach(item => {
+            const pr = productos.find(xd => xd.id === item.productoId)
+            if (pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+          })
+        }
+        const isMerma = p._tipo === 'merma'
+        if (isMerma) {
+          lineas.push(`"${fecha}";"MERMA DE STOCK";"[MERMA] ${p.motivo || 'Dañado'}";"${desc}";0;${gananciaVenta};${-gananciaVenta}`)
+        } else {
+          lineas.push(`"${fecha}";"VENTA REGISTRADA";"${p.cliente || 'Cliente'}";"${desc}";${gananciaVenta};0;${gananciaVenta}`)
+        }
       }
-      const desc = p.productos ? p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(' | ') : ''
-      let gananciaVenta = 0
-      if (p.productos && Array.isArray(p.productos)) {
-        p.productos.forEach(item => {
-          const pr = productos.find(xd => xd.id === item.productoId)
-          if(pr) gananciaVenta += (pr.precio || 0) * item.cantidad
-        })
-      }
-      const isMerma = p._tipo === 'merma'
-      return [
-        `"${fecha}"`, 
-        `"${isMerma ? `[MERMA] ${p.motivo}` : p.cliente}"`, 
-        `"${desc}"`, 
-        isMerma ? -gananciaVenta : gananciaVenta
-      ]
     })
 
-    const csvContent = "\uFEFF" + encabezados.join(";") + "\n" + filas.map(e => e.join(";")).join("\n")
+    const csvContent = "\uFEFF" + lineas.join("\n")
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.setAttribute("download", "reporte_ventas.csv")
+    link.setAttribute("download", `Reporte_Financiero_Leis_${new Date().toISOString().slice(0, 10)}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
