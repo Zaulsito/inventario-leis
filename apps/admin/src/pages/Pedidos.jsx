@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { calcularEstado, formatDateDMA, getLocalDateString, getLocalTimeString } from '../utils/date'
@@ -133,6 +133,7 @@ export default function Pedidos() {
   const [busquedaCanal, setBusquedaCanal] = useState('')
   const [showCanalDropdown, setShowCanalDropdown] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const [highlightedId, setHighlightedId] = useState(null)
 
   // Estados para secciones colapsables y paginación
@@ -148,7 +149,9 @@ export default function Pedidos() {
   const [busquedaClientes, setBusquedaClientes] = useState('')
   const [expandedCliente, setExpandedCliente] = useState(null)
   const [expandedCustomer, setExpandedCustomer] = useState(null)
+  const pendingTargetIdRef = useRef(null)
 
+  // 1. Capturar el id del pedido objetivo desde URL o location.state
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search)
     const qParam = searchParams.get('q') || location.state?.search
@@ -158,21 +161,29 @@ export default function Pedidos() {
       setBusquedaCliente(qParam)
     }
 
+    if (idParam) {
+      pendingTargetIdRef.current = idParam
+    }
+
     if (location.state) {
       navigate(location.pathname + location.search, { replace: true, state: null })
     }
+  }, [location.state, location.search, navigate])
 
-    if (idParam && pedidos.length > 0) {
-      const idClean = idParam.toLowerCase().replace('#', '')
+  // 2. Aplicar resaltado titilante de 5s y scroll cuando los pedidos de Firestore estén listos
+  useEffect(() => {
+    const targetId = pendingTargetIdRef.current
+    if (targetId && pedidos.length > 0) {
+      const idClean = targetId.toLowerCase().replace('#', '')
       const targetPedido = pedidos.find(p => 
-        p.id === idParam || 
+        p.id === targetId || 
         (p.id && p.id.toLowerCase().endsWith(idClean))
       )
 
       if (targetPedido) {
         const custKey = (targetPedido.cliente || 'Desconocido').trim().toLowerCase()
         
-        // Desplegar cliente y pedido
+        // Desplegar cliente, pedido y activar el efecto titilante (highlight 5s)
         setExpandedCustomer(custKey)
         setExpandedId(targetPedido.id)
         setHighlightedId(targetPedido.id)
@@ -199,13 +210,15 @@ export default function Pedidos() {
           setHighlightedId(null)
         }, 5000)
 
+        pendingTargetIdRef.current = null
+
         return () => {
           clearTimeout(scrollTimer)
           clearTimeout(clearHighlightTimer)
         }
       }
     }
-  }, [location.state, location.search, pedidos])
+  }, [pedidos])
 
   const renderPaginationControls = (currentPage, totalItems, setPage) => {
     const itemsPerPage = 20;
@@ -1524,7 +1537,7 @@ END:VCALENDAR`
                                                       <div className="flex flex-col">
                                                         <div className="flex items-center gap-2">
                                                           <span className="text-primary font-black text-sm">{item.cantidad}x</span>
-                                                          <span className="font-bold text-on-surface dark:text-white/90 text-sm">{item.nombre}</span>
+                                                          <span className="font-bold text-on-surface dark:text-white/90 text-sm">{productos.find(pr => pr.id === (item.productoId || item.id))?.nombre || item.nombre}</span>
                                                         </div>
                                                         {item.variante && (
                                                           <div className="flex items-center gap-1.5 mt-1 bg-amber-500/5 dark:bg-[#e2bd6c]/5 px-2 py-0.5 rounded-lg w-fit border border-amber-500/10 dark:border-[#e2bd6c]/10">
@@ -2464,7 +2477,7 @@ END:VCALENDAR`
                                       <div key={idx} className="flex justify-between items-center bg-secondary/5 dark:bg-white/[0.03] px-3 py-2 rounded-xl border border-secondary/10">
                                         <div className="flex items-center gap-1.5">
                                           <span className="text-secondary dark:text-[#e2bd6c] font-black text-xs">{item.cantidad}x</span>
-                                          <span className="font-bold text-on-surface dark:text-white/90 text-xs">{item.nombre}</span>
+                                          <span className="font-bold text-on-surface dark:text-white/90 text-xs">{productos.find(pr => pr.id === (item.productoId || item.id))?.nombre || item.nombre}</span>
                                         </div>
                                         <span className="font-black text-secondary dark:text-[#e2bd6c] text-xs">${(item.precio * item.cantidad).toLocaleString('es-CL')}</span>
                                       </div>
@@ -3089,7 +3102,7 @@ END:VCALENDAR`
                   {form.productosSeleccionados.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center gap-3 bg-surface/50 dark:bg-white/[0.02] p-3 rounded-xl border border-outline-variant/5">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate text-on-surface dark:text-white/90">{item.nombre}</p>
+                        <p className="text-sm font-bold truncate text-on-surface dark:text-white/90">{productos.find(pr => pr.id === (item.productoId || item.id))?.nombre || item.nombre}</p>
                         {item.variante && (
                           <div className="flex items-center gap-1.5 mt-1 bg-primary/5 dark:bg-[#e2bd6c]/5 px-2 py-0.5 rounded-md w-fit border border-primary/10 dark:border-white/5">
                             <div 

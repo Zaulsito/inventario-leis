@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation, Link } from 'react-router-do
 import { useAuth } from '../context/AuthContext'
 import { useState, useEffect, useRef } from 'react'
 import { doc, getDoc, setDoc, query, collection, where, getDocs, onSnapshot } from 'firebase/firestore'
-import { updatePassword } from 'firebase/auth'
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth'
 import { db } from '../config/firebase'
 
 const navItems = [
@@ -37,6 +37,123 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme }) 
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [originalUsername, setOriginalUsername] = useState('')
+
+  // Backup & Auth Verification states
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authModalAction, setAuthModalAction] = useState('download') // 'download' | 'restore'
+  const [verifyPasswordInput, setVerifyPasswordInput] = useState('')
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
+  const [fileToRestore, setFileToRestore] = useState(null)
+
+  const handleExecuteBackup = async () => {
+    if (!verifyPasswordInput) {
+      setVerifyError('Ingresa tu contraseña para continuar.')
+      return
+    }
+    setIsVerifying(true)
+    setVerifyError('')
+
+    try {
+      const credential = EmailAuthProvider.credential(currentUser.email, verifyPasswordInput)
+      await reauthenticateWithCredential(currentUser, credential)
+
+      const collectionsToBackup = ['productos', 'movimientos', 'pedidos', 'usuarios', 'mermas', 'configuracion']
+      const backupData = {
+        version: '1.0',
+        appName: 'Leis Inventario & POS',
+        exportedAt: new Date().toISOString(),
+        exportedBy: currentUser.email,
+        collections: {}
+      }
+
+      for (const colName of collectionsToBackup) {
+        try {
+          const snap = await getDocs(collection(db, colName))
+          backupData.collections[colName] = snap.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+          }))
+        } catch (e) {
+          console.warn(`No se pudo leer la colección ${colName}:`, e)
+        }
+      }
+
+      const jsonString = JSON.stringify(backupData, null, 2)
+      const blob = new Blob([jsonString], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const dateStr = new Date().toISOString().split('T')[0]
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `backup_leis_database_${dateStr}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      setShowAuthModal(false)
+      setVerifyPasswordInput('')
+      setMessage('✅ Copia de seguridad generada y descargada exitosamente.')
+      setTimeout(() => setMessage(''), 4000)
+    } catch (err) {
+      console.error("Error al autenticar/exportar backup:", err)
+      setVerifyError('Contraseña incorrecta. Acceso denegado.')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  const handleExecuteRestore = async () => {
+    if (!verifyPasswordInput) {
+      setVerifyError('Ingresa tu contraseña para continuar.')
+      return
+    }
+    if (!fileToRestore) {
+      setVerifyError('Selecciona un archivo .json válido.')
+      return
+    }
+    setIsVerifying(true)
+    setVerifyError('')
+
+    try {
+      const credential = EmailAuthProvider.credential(currentUser.email, verifyPasswordInput)
+      await reauthenticateWithCredential(currentUser, credential)
+
+      const fileContent = await fileToRestore.text()
+      const parsedBackup = JSON.parse(fileContent)
+
+      if (!parsedBackup || !parsedBackup.collections) {
+        throw new Error('El archivo no tiene un formato válido de respaldo.')
+      }
+
+      if (!window.confirm("⚠️ ADVERTENCIA DE SEGURIDAD:\n\nSe actualizarán los registros en la base de datos con los datos del respaldo.\n¿Estás completamente seguro de restaurar los datos?")) {
+        setIsVerifying(false)
+        return
+      }
+
+      for (const [colName, docs] of Object.entries(parsedBackup.collections)) {
+        if (!Array.isArray(docs)) continue
+        for (const docData of docs) {
+          const { id, ...data } = docData
+          if (id) {
+            await setDoc(doc(db, colName, id), data, { merge: true })
+          }
+        }
+      }
+
+      setShowAuthModal(false)
+      setVerifyPasswordInput('')
+      setFileToRestore(null)
+      setMessage('✅ Base de datos restaurada correctamente.')
+      setTimeout(() => setMessage(''), 4000)
+    } catch (err) {
+      console.error("Error al restaurar backup:", err)
+      setVerifyError(err.message.includes('auth/') ? 'Contraseña incorrecta. Acceso denegado.' : 'Error al restaurar: ' + err.message)
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   useEffect(() => {
     if (!isOpen || !currentUser) return
@@ -189,6 +306,53 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme }) 
                     </div>
                   </div>
 
+                  {/* ── Copia de Seguridad & Respaldo de Base de Datos ── */}
+                  <div className="pt-6 border-t border-outline-variant/10 dark:border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Copia de Seguridad y Base de Datos</h4>
+                        <p className="text-[10px] text-outline dark:text-gray-400">Descarga o restaura un respaldo completo (.json) de la tienda.</p>
+                      </div>
+                      <Icon name="database" className="text-primary/40 dark:text-[#e2bd6c]/40 text-xl" />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthModalAction('download');
+                          setVerifyError('');
+                          setVerifyPasswordInput('');
+                          setShowAuthModal(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-surface-container-high dark:bg-[#151515] border border-outline-variant/20 dark:border-white/10 hover:border-primary dark:hover:border-[#e2bd6c] rounded-2xl font-bold text-xs text-on-surface dark:text-white transition-all shadow-sm group"
+                      >
+                        <Icon name="download" className="text-primary dark:text-[#e2bd6c] text-lg group-hover:scale-110 transition-transform" />
+                        Descargar Backup (.json)
+                      </button>
+
+                      <label className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-surface-container-high dark:bg-[#151515] border border-outline-variant/20 dark:border-white/10 hover:border-amber-500 rounded-2xl font-bold text-xs text-on-surface dark:text-white transition-all shadow-sm cursor-pointer group">
+                        <Icon name="upload" className="text-amber-500 text-lg group-hover:scale-110 transition-transform" />
+                        Restaurar Backup
+                        <input
+                          type="file"
+                          accept=".json"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setFileToRestore(e.target.files[0]);
+                              setAuthModalAction('restore');
+                              setVerifyError('');
+                              setVerifyPasswordInput('');
+                              setShowAuthModal(true);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
                   {message && (
                     <p className={`text-[10px] font-bold text-center uppercase tracking-widest py-3 rounded-xl animate-in fade-in zoom-in-95 duration-200
                       ${message.includes('❌') ? 'bg-error/10 text-error' : 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c]'}`}>
@@ -255,6 +419,79 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme }) 
             </div>
           )}
         </div>
+
+        {/* Modal de Confirmación por Contraseña para Backup/Restaurar */}
+        {showAuthModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-white dark:bg-[#1a1a1a] rounded-[2.5rem] p-8 border border-outline-variant/20 dark:border-white/10 shadow-2xl space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] flex items-center justify-center">
+                    <Icon name="lock" className="text-xl" />
+                  </div>
+                  <div>
+                    <h4 className="font-headline text-lg font-bold text-on-surface dark:text-white leading-tight">Confirmar Identidad</h4>
+                    <p className="text-[10px] text-outline dark:text-gray-400 uppercase tracking-widest font-semibold">Seguridad de la Base de Datos</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setShowAuthModal(false)} className="text-outline hover:text-error transition-colors">
+                  <Icon name="close" />
+                </button>
+              </div>
+
+              <p className="text-xs text-on-surface/80 dark:text-white/80 leading-relaxed font-medium">
+                {authModalAction === 'download' 
+                  ? 'Por seguridad, ingresa tu contraseña de acceso para autorizar la descarga del archivo de respaldo completo.'
+                  : `Por seguridad, ingresa tu contraseña de acceso para autorizar la restauración del archivo (${fileToRestore?.name}).`}
+              </p>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (authModalAction === 'download') {
+                  handleExecuteBackup();
+                } else {
+                  handleExecuteRestore();
+                }
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c] mb-2">Contraseña Actual</label>
+                  <input
+                    type="password"
+                    value={verifyPasswordInput}
+                    onChange={(e) => setVerifyPasswordInput(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoFocus
+                    className="w-full bg-surface-container-highest/20 dark:bg-[#121212] border border-outline-variant/30 dark:border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white font-bold"
+                  />
+                </div>
+
+                {verifyError && (
+                  <p className="text-[10px] font-bold text-center text-error bg-error/10 py-2.5 rounded-xl uppercase tracking-widest animate-in fade-in">
+                    ❌ {verifyError}
+                  </p>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthModal(false)}
+                    className="flex-1 py-3.5 border border-outline-variant/30 dark:border-white/10 text-outline dark:text-gray-400 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-surface-variant/30 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isVerifying || !verifyPasswordInput}
+                    className="flex-1 py-3.5 bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black rounded-2xl font-bold uppercase text-[10px] tracking-widest shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {isVerifying ? 'Verificando...' : (authModalAction === 'download' ? 'Descargar' : 'Restaurar')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

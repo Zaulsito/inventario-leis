@@ -1189,6 +1189,65 @@ REGLAS DE FORMATO ESTRICTAS:
         const variantesAnteriores = prodAnterior ? (prodAnterior.variantes || []) : [];
         
         await updateDoc(doc(db, 'productos', editingId), payload);
+
+        // Si cambió el nombre del producto, actualizar en cascada pedidos y mermas
+        if (prodAnterior && prodAnterior.nombre !== form.nombre) {
+          try {
+            const snapPedidos = await getDocs(collection(db, 'pedidos'));
+            const batchPedidos = writeBatch(db);
+            let updatedCount = 0;
+            snapPedidos.docs.forEach(pDoc => {
+              const pData = pDoc.data();
+              if (Array.isArray(pData.productos)) {
+                let modified = false;
+                const newProductos = pData.productos.map(item => {
+                  const isMatch = item.productoId === editingId || item.id === editingId || 
+                    (item.nombre && item.nombre.toLowerCase() === prodAnterior.nombre.toLowerCase());
+                  if (isMatch) {
+                    modified = true;
+                    return { ...item, nombre: form.nombre };
+                  }
+                  return item;
+                });
+                if (modified) {
+                  batchPedidos.update(pDoc.ref, { productos: newProductos });
+                  updatedCount++;
+                }
+              }
+            });
+            if (updatedCount > 0) {
+              await batchPedidos.commit();
+            }
+
+            const snapMermas = await getDocs(collection(db, 'mermas'));
+            const batchMermas = writeBatch(db);
+            let updatedMermas = 0;
+            snapMermas.docs.forEach(mDoc => {
+              const mData = mDoc.data();
+              if (Array.isArray(mData.productos)) {
+                let modified = false;
+                const newProductos = mData.productos.map(item => {
+                  const isMatch = item.productoId === editingId || item.id === editingId || 
+                    (item.nombre && item.nombre.toLowerCase() === prodAnterior.nombre.toLowerCase());
+                  if (isMatch) {
+                    modified = true;
+                    return { ...item, nombre: form.nombre };
+                  }
+                  return item;
+                });
+                if (modified) {
+                  batchMermas.update(mDoc.ref, { productos: newProductos });
+                  updatedMermas++;
+                }
+              }
+            });
+            if (updatedMermas > 0) {
+              await batchMermas.commit();
+            }
+          } catch (errCascade) {
+            console.error("Error en actualización en cascada de nombre:", errCascade);
+          }
+        }
         
         if (form.variantes && form.variantes.length > 0) {
           for (const vNuevo of form.variantes) {

@@ -271,6 +271,41 @@ export default function Historial() {
     })
   }, [historyLogs, selectedProduct])
 
+  // Conteos dinámicos para cada filtro del Kardex
+  const filterCounts = useMemo(() => {
+    let todos = 0, entradas = 0, salidas = 0, ventas = 0, reposicion = 0, mermas = 0
+
+    historyLogs.forEach(log => {
+      const cant = Number(log.cambio) || 0
+      const accionStr = (log.accion || '').toLowerCase()
+      const motivoStr = (log.motivo || '').toLowerCase()
+
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase()
+        const matchMotivo = motivoStr.includes(term)
+        const matchAccion = accionStr.includes(term)
+        const matchCliente = (log.cliente || '').toLowerCase().includes(term)
+        const matchPedido = (log.pedidoId || '').toLowerCase().includes(term)
+        if (!matchMotivo && !matchAccion && !matchCliente && !matchPedido) return
+      }
+
+      todos++
+      if (cant > 0) entradas++
+      if (cant < 0) salidas++
+
+      const isVenta = log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')
+      if (isVenta) ventas++
+
+      const isMerma = log.esMermaReal || motivoStr.includes('merma') || motivoStr.includes('dañad') || motivoStr.includes('rotura') || motivoStr.includes('pérdida') || motivoStr.includes('perdida')
+      if (isMerma) mermas++
+
+      const isReposicion = motivoStr.includes('proveedor') || motivoStr.includes('reposición') || motivoStr.includes('reposicion') || motivoStr.includes('compra') || accionStr.includes('creación') || accionStr.includes('inicial') || motivoStr.includes('inicial') || (cant > 0 && !motivoStr.includes('manual'))
+      if (isReposicion) reposicion++
+    })
+
+    return { todos, entradas, salidas, ventas, reposicion, mermas }
+  }, [historyLogs, searchTerm])
+
   // Filtrado de movimientos para el Kardex
   const filteredKardexLogs = useMemo(() => {
     return historyLogs.filter(log => {
@@ -283,7 +318,9 @@ export default function Historial() {
       if (historyFilter === 'salidas' && cant >= 0) return false
       if (historyFilter === 'ventas' && !log.esPedidoReal && !accionStr.includes('pedido') && !motivoStr.includes('pedido') && !accionStr.includes('venta') && !motivoStr.includes('venta')) return false
       if (historyFilter === 'mermas' && !log.esMermaReal && !motivoStr.includes('merma') && !motivoStr.includes('dañad') && !motivoStr.includes('pérdida') && !motivoStr.includes('perdida')) return false
-      if (historyFilter === 'reposicion' && !motivoStr.includes('proveedor') && !motivoStr.includes('reposición') && !motivoStr.includes('reposicion') && cant <= 0) return false
+
+      const isReposicion = motivoStr.includes('proveedor') || motivoStr.includes('reposición') || motivoStr.includes('reposicion') || motivoStr.includes('compra') || accionStr.includes('creación') || accionStr.includes('inicial') || motivoStr.includes('inicial') || (cant > 0 && !motivoStr.includes('manual'))
+      if (historyFilter === 'reposicion' && !isReposicion) return false
 
       // Búsqueda por texto (nota, cliente, fecha)
       if (searchTerm.trim()) {
@@ -709,12 +746,12 @@ export default function Historial() {
               {/* Chips de Filtro */}
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                 {[
-                  { id: 'todos', label: `Todos (${historyLogs.length})`, cls: 'bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black' },
-                  { id: 'entradas', label: 'Entradas (+)', cls: 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black' },
-                  { id: 'salidas', label: 'Salidas (-)', cls: 'bg-rose-600 text-white dark:bg-rose-500 dark:text-black' },
-                  { id: 'ventas', label: 'Ventas 🟢', cls: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
-                  { id: 'reposicion', label: 'Reposiciones 🔵', cls: 'bg-blue-500/20 text-blue-700 dark:text-blue-300' },
-                  { id: 'mermas', label: 'Mermas 🔴', cls: 'bg-rose-500/20 text-rose-700 dark:text-rose-300' },
+                  { id: 'todos', label: `Todos (${filterCounts.todos})`, cls: 'bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black' },
+                  { id: 'entradas', label: `Entradas (+) (${filterCounts.entradas})`, cls: 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black' },
+                  { id: 'salidas', label: `Salidas (-) (${filterCounts.salidas})`, cls: 'bg-rose-600 text-white dark:bg-rose-500 dark:text-black' },
+                  { id: 'ventas', label: `Ventas 🟢 (${filterCounts.ventas})`, cls: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
+                  { id: 'reposicion', label: `Reposiciones 🔵 (${filterCounts.reposicion})`, cls: 'bg-blue-500/20 text-blue-700 dark:text-blue-300' },
+                  { id: 'mermas', label: `Mermas 🔴 (${filterCounts.mermas})`, cls: 'bg-rose-500/20 text-rose-700 dark:text-rose-300' },
                 ].map(filter => (
                   <button
                     key={filter.id}
