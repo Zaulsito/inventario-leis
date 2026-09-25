@@ -163,6 +163,15 @@ export default function Reportes() {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showPeriodMenu, setShowPeriodMenu] = useState(false)
   const [showModeMenu, setShowModeMenu] = useState(false)
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
+  const [showYearPicker, setShowYearPicker] = useState(false)
+  const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear())
+  const [showInicioPicker, setShowInicioPicker] = useState(false)
+  const [showFinPicker, setShowFinPicker] = useState(false)
+  const [inicioCalMonth, setInicioCalMonth] = useState(() => new Date().getMonth())
+  const [inicioCalYear, setInicioCalYear] = useState(() => new Date().getFullYear())
+  const [finCalMonth, setFinCalMonth] = useState(() => new Date().getMonth())
+  const [finCalYear, setFinCalYear] = useState(() => new Date().getFullYear())
   
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
@@ -887,226 +896,497 @@ export default function Reportes() {
         {/* Decoración de fondo */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
 
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 w-full gap-6 relative z-20">
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
-              {periodo === 1 && (
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 border border-secondary/20 dark:border-[#e2bd6c]/30 text-secondary dark:text-[#e2bd6c] shadow-sm animate-in fade-in zoom-in-95 duration-300">
-                  <span className="material-symbols-outlined text-xs">calendar_month</span>
-                  <span className="font-headline font-black text-xs tracking-[0.2em] uppercase">
-                    {getNombreMesActual()}
-                  </span>
-                </div>
-              )}
-              {periodo === 2 && (
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 border border-secondary/20 dark:border-[#e2bd6c]/30 text-secondary dark:text-[#e2bd6c] shadow-sm animate-in fade-in zoom-in-95 duration-300">
-                  <span className="material-symbols-outlined text-xs">calendar_month</span>
-                  <span className="font-headline font-black text-xs tracking-[0.2em] uppercase">
-                    {getNombreMesSeleccionado(mesSeleccionado)}
-                  </span>
-                </div>
-              )}
-              {periodo === 3 && (
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 border border-secondary/20 dark:border-[#e2bd6c]/30 text-secondary dark:text-[#e2bd6c] shadow-sm animate-in fade-in zoom-in-95 duration-300">
-                  <span className="material-symbols-outlined text-xs">calendar_today</span>
-                  <span className="font-headline font-black text-xs tracking-[0.2em] uppercase">
-                    AÑO {anoSeleccionado} (HISTÓRICO ANUAL)
-                  </span>
-                </div>
-              )}
-            </div>
-            <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-[0.2em] mt-1 font-extrabold">Evolución de Ganancias vs Pérdidas</p>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 w-full gap-4 relative z-20">
+          <div>
+            <h3 className="font-headline text-3xl text-on-tertiary-fixed-variant dark:text-white/90 italic">Gráfica Comercial</h3>
+            <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-[0.2em] mt-0.5 font-extrabold">Evolución de Ganancias vs Pérdidas</p>
           </div>
           
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              {/* Botón para Registrar Gasto Operativo */}
-              <button
-                onClick={() => setShowGastoModal(true)}
-                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-[#e2bd6c] border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs font-headline italic tracking-wide transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
-                title="Registrar gastos de transporte, comida, insumos, otros"
-              >
-                <span className="material-symbols-outlined text-sm">payments</span>
-                <span>+ Registrar Gasto</span>
-              </button>
-
-              {/* Custom Mode Dropdown */}
-              <div className="relative">
-                <button 
-                  onClick={() => setShowModeMenu(!showModeMenu)}
-                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 min-w-[140px] justify-between border border-transparent dark:border-white/10"
-                >
-                  {chartMode === 'ambas' ? 'Total Neto' : chartMode === 'ventas' ? 'Solo Ventas' : 'Solo Mermas'}
-                  <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
-                </button>
-
-                {showModeMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowModeMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface-container-highest dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      {[
-                        { id: 'ambas', label: 'Total Neto' },
-                        { id: 'ventas', label: 'Solo Ventas' },
-                        { id: 'mermas', label: 'Solo Mermas' }
-                      ].map((mode, i) => (
-                        <button 
-                          key={mode.id}
-                          onClick={() => { setChartMode(mode.id); setShowModeMenu(false); }}
-                          className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
-                            ${chartMode === mode.id ? 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c]' : 'text-on-surface dark:text-white/70 hover:bg-surface-variant dark:hover:bg-white/5'}
-                            ${i !== 2 ? 'border-b border-outline-variant/5 dark:border-white/5' : ''}
-                          `}
-                        >
-                          {mode.label}
-                          {chartMode === mode.id && <span className="material-symbols-outlined text-sm">check</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-              
-              <div className="w-px h-6 bg-outline-variant/20 dark:bg-white/10 mx-1"></div>
-
-              {/* Custom Period Dropdown */}
-              <div className="relative">
-                <button 
-                  onClick={() => setShowPeriodMenu(!showPeriodMenu)}
-                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 min-w-[150px] justify-between border border-transparent dark:border-white/10"
-                >
-                  {PERIODOS[periodo]}
-                  <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
-                </button>
-
-                {showPeriodMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowPeriodMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 w-full min-w-[170px] bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      {PERIODOS.map((label, i) => (
-                        <button 
-                          key={label}
-                          onClick={() => { setPeriodo(i); setShowPeriodMenu(false); }}
-                          className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
-                            ${periodo === i ? 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c]' : 'text-on-surface dark:text-white/70 hover:bg-surface-variant dark:hover:bg-white/5'}
-                            ${i !== PERIODOS.length - 1 ? 'border-b border-outline-variant/5 dark:border-white/5' : ''}
-                          `}
-                        >
-                          {label}
-                          {periodo === i && <span className="material-symbols-outlined text-sm">check</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {periodo === 2 && (
-                <div className="flex items-center gap-2 bg-surface-container-highest dark:bg-[#121212] px-3.5 py-2 rounded-xl border border-outline-variant/10 dark:border-white/10 shadow-sm animate-in fade-in zoom-in-95 duration-200">
-                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">calendar_month</span>
-                  <input 
-                    type="month" 
-                    value={mesSeleccionado} 
-                    onChange={e => e.target.value && setMesSeleccionado(e.target.value)} 
-                    className="bg-transparent text-on-surface dark:text-white [color-scheme:light] dark:[color-scheme:dark] text-xs font-bold uppercase focus:outline-none cursor-pointer" 
-                  />
-                </div>
-              )}
-
-              {periodo === 3 && (
-                <div className="flex items-center gap-2 bg-surface-container-highest dark:bg-[#121212] px-3.5 py-2 rounded-xl border border-outline-variant/10 dark:border-white/10 shadow-sm animate-in fade-in zoom-in-95 duration-200">
-                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">calendar_today</span>
-                  <select
-                    value={anoSeleccionado}
-                    onChange={e => setAnoSeleccionado(Number(e.target.value))}
-                    className="bg-transparent text-on-surface dark:text-white text-xs font-bold uppercase focus:outline-none cursor-pointer"
-                  >
-                    {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(yr => (
-                      <option key={yr} value={yr} className="bg-surface dark:bg-[#1e1e1e] text-on-surface dark:text-white">
-                        Año {yr}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {periodo === 4 && (
-                <div className="flex gap-2 animate-in fade-in zoom-in-95 duration-200">
-                  <input 
-                    type="date" 
-                    value={fechaInicio} 
-                    onChange={e => setFechaInicio(e.target.value)} 
-                    className="bg-surface-container-highest dark:bg-[#121212] text-on-surface dark:text-white [color-scheme:light] dark:[color-scheme:dark] px-3 py-1.5 text-[10px] font-bold uppercase rounded-xl focus:outline-none border border-outline-variant/10 dark:border-white/10 shadow-sm" 
-                  />
-                  <input 
-                    type="date" 
-                    value={fechaFin} 
-                    onChange={e => setFechaFin(e.target.value)} 
-                    className="bg-surface-container-highest dark:bg-[#121212] text-on-surface dark:text-white [color-scheme:light] dark:[color-scheme:dark] px-3 py-1.5 text-[10px] font-bold uppercase rounded-xl focus:outline-none border border-outline-variant/10 dark:border-white/10 shadow-sm" 
-                  />
-                </div>
-              )}
-
-              <div className="relative">
-                <button 
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-highest dark:bg-[#121212] text-on-surface dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/10 transition-colors border border-transparent dark:border-white/10"
-                >
-                  <span className="material-symbols-outlined text-xl font-bold">more_vert</span>
-                </button>
-
-                {showExportMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <button 
-                        onClick={() => { exportarPDF(); setShowExportMenu(false); }}
-                        className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.2em] text-on-surface dark:text-white/80 hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors text-left border-b border-outline-variant/10 dark:border-white/5"
-                      >
-                        <span className="material-symbols-outlined text-base text-error">picture_as_pdf</span>
-                        Exportar PDF
-                      </button>
-                      <button 
-                        onClick={() => { exportarCSV(); setShowExportMenu(false); }}
-                        className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.2em] text-on-surface dark:text-white/80 hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors text-left"
-                      >
-                        <span className="material-symbols-outlined text-base text-secondary">csv</span>
-                        Generar Excel
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+          {/* Cuadros Resumen (Movidos a la derecha y más pequeños) */}
+          <div className="flex items-center gap-2.5 ml-auto shrink-0">
             {chartMode === 'ventas' && (
-              <div className="bg-surface-container dark:bg-[#e2bd6c]/10 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 dark:border-[#e2bd6c]/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
-                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline dark:text-[#e2bd6c]/60 mb-1">Ganancias Brutas</span>
-                <span className="font-headline font-bold text-lg md:text-2xl text-secondary dark:text-[#e2bd6c]">+${totalMonetario.toLocaleString('es-CL')}</span>
+              <div className="bg-surface-container dark:bg-[#e2bd6c]/10 px-3.5 py-1.5 rounded-xl flex flex-col items-end border border-outline-variant/20 dark:border-[#e2bd6c]/20 shadow-sm">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-[#e2bd6c]/70">Ganancias Brutas</span>
+                <span className="font-headline font-extrabold text-sm md:text-base text-secondary dark:text-[#e2bd6c]">+${totalMonetario.toLocaleString('es-CL')}</span>
               </div>
             )}
             {chartMode === 'mermas' && (
-              <div className="bg-error/10 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-error/20 flex-1 xl:flex-none overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-error mb-1 truncate w-full">Mermas / Pérdidas</span>
-                <span className="font-headline font-bold text-lg md:text-2xl text-error">-${totalPerdidaMonetario.toLocaleString('es-CL')}</span>
+              <div className="bg-error/10 px-3.5 py-1.5 rounded-xl flex flex-col items-end border border-error/20 shadow-sm">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-error">Mermas / Pérdidas</span>
+                <span className="font-headline font-extrabold text-sm md:text-base text-error">-${totalPerdidaMonetario.toLocaleString('es-CL')}</span>
               </div>
             )}
             {chartMode === 'ambas' && (
               <>
                 {totalGastosMonetario > 0 && (
-                  <div className="bg-amber-500/10 px-3 md:px-4 py-2.5 rounded-2xl flex flex-col items-start xl:items-end border border-amber-500/20 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
-                    <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">Gastos Operativos</span>
-                    <span className="font-headline font-bold text-lg md:text-2xl text-amber-600 dark:text-amber-400">-${totalGastosMonetario.toLocaleString('es-CL')}</span>
+                  <div className="bg-amber-500/10 px-3.5 py-1.5 rounded-xl flex flex-col items-end border border-amber-500/20 shadow-sm">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Gastos Operativos</span>
+                    <span className="font-headline font-extrabold text-sm md:text-base text-amber-600 dark:text-amber-400">-${totalGastosMonetario.toLocaleString('es-CL')}</span>
                   </div>
                 )}
-                <div className="bg-surface-container dark:bg-white/5 px-3 md:px-5 py-3 rounded-2xl flex flex-col items-start xl:items-end border border-outline-variant/20 dark:border-white/10 flex-1 xl:flex-none animate-in fade-in zoom-in-95 duration-200">
-                  <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-1">Total Neto Real</span>
-                  <span className={`font-headline font-bold text-lg md:text-2xl ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary dark:text-[#e2bd6c]'}`}>
+                <div className="bg-surface-container dark:bg-white/5 px-3.5 py-1.5 rounded-xl flex flex-col items-end border border-outline-variant/20 dark:border-white/10 shadow-sm">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">Total Neto Real</span>
+                  <span className={`font-headline font-extrabold text-sm md:text-base ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary dark:text-[#e2bd6c]'}`}>
                     {totalMonetario - totalPerdidaMonetario < 0 ? '-' : '+'}${Math.abs(totalMonetario - totalPerdidaMonetario).toLocaleString('es-CL')}
                   </span>
                 </div>
               </>
             )}
           </div>
+        </div>
+
+        {/* Toolbar de Controles (En una sola fila ordenada directamente arriba del gráfico) */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full mb-6 relative z-20 border-b border-outline-variant/10 dark:border-white/5 pb-4">
+            {/* Botón para Registrar Gasto Operativo */}
+            <button
+              onClick={() => setShowGastoModal(true)}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-[#e2bd6c] border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs font-headline italic tracking-wide transition-all flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0"
+              title="Registrar gastos de transporte, comida, insumos, otros"
+            >
+              <span className="material-symbols-outlined text-sm">payments</span>
+              <span className="whitespace-nowrap">+ Registrar Gasto</span>
+            </button>
+
+            {/* Custom Mode Dropdown */}
+            <div className="relative shrink-0">
+              <button 
+                onClick={() => setShowModeMenu(!showModeMenu)}
+                className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 border border-transparent dark:border-white/10 whitespace-nowrap"
+              >
+                <span>{chartMode === 'ambas' ? 'Total Neto' : chartMode === 'ventas' ? 'Solo Ventas' : 'Solo Mermas'}</span>
+                <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+              </button>
+
+              {showModeMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowModeMenu(false)} />
+                  <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface-container-highest dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {[
+                      { id: 'ambas', label: 'Total Neto' },
+                      { id: 'ventas', label: 'Solo Ventas' },
+                      { id: 'mermas', label: 'Solo Mermas' }
+                    ].map((mode, i) => (
+                      <button 
+                        key={mode.id}
+                        onClick={() => { setChartMode(mode.id); setShowModeMenu(false); }}
+                        className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
+                          ${chartMode === mode.id ? 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c]' : 'text-on-surface dark:text-white/70 hover:bg-surface-variant dark:hover:bg-white/5'}
+                          ${i !== 2 ? 'border-b border-outline-variant/5 dark:border-white/5' : ''}
+                        `}
+                      >
+                        {mode.label}
+                        {chartMode === mode.id && <span className="material-symbols-outlined text-sm">check</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            
+            <div className="w-px h-6 bg-outline-variant/20 dark:bg-white/10 mx-1 shrink-0 hidden sm:block"></div>
+
+            {/* Custom Period Dropdown */}
+            <div className="relative shrink-0">
+              <button 
+                onClick={() => setShowPeriodMenu(!showPeriodMenu)}
+                className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 border border-transparent dark:border-white/10 whitespace-nowrap"
+              >
+                <span>{PERIODOS[periodo]}</span>
+                <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+              </button>
+
+              {showPeriodMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowPeriodMenu(false)} />
+                  <div className="absolute left-0 top-full mt-2 w-full min-w-[170px] bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {PERIODOS.map((label, i) => (
+                      <button 
+                        key={label}
+                        onClick={() => { setPeriodo(i); setShowPeriodMenu(false); }}
+                        className={`w-full px-5 py-3 text-xs font-headline italic tracking-wide transition-colors text-left flex items-center justify-between
+                          ${periodo === i ? 'bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c]' : 'text-on-surface dark:text-white/70 hover:bg-surface-variant dark:hover:bg-white/5'}
+                          ${i !== PERIODOS.length - 1 ? 'border-b border-outline-variant/5 dark:border-white/5' : ''}
+                        `}
+                      >
+                        {label}
+                        {periodo === i && <span className="material-symbols-outlined text-sm">check</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Selector de Mes Custom */}
+            {periodo === 2 && (
+              <div className="relative shrink-0">
+                <button 
+                  onClick={() => {
+                    if (mesSeleccionado) {
+                      const [y] = mesSeleccionado.split('-')
+                      if (y) setPickerYear(Number(y))
+                    }
+                    setShowMonthPicker(!showMonthPicker)
+                  }}
+                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-all flex items-center gap-2 border border-transparent dark:border-white/10 shadow-sm active:scale-95 whitespace-nowrap"
+                >
+                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">calendar_month</span>
+                  <span className="font-bold uppercase tracking-wider">{getNombreMesSeleccionado(mesSeleccionado) || 'SELECCIONAR MES'}</span>
+                  <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+                </button>
+
+                {showMonthPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMonthPicker(false)} />
+                    <div className="absolute left-0 sm:right-0 top-full mt-2 w-72 bg-surface-container-high dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-[24px] shadow-2xl z-50 p-4 animate-in fade-in zoom-in-95 duration-200">
+                      {/* Header con Control de Año */}
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-outline-variant/10 dark:border-white/10">
+                        <button 
+                          onClick={() => setPickerYear(prev => prev - 1)}
+                          className="p-1 rounded-full hover:bg-white/10 text-on-surface dark:text-white transition-colors flex items-center justify-center"
+                          title="Año anterior"
+                        >
+                          <span className="material-symbols-outlined text-lg">chevron_left</span>
+                        </button>
+                        <span className="font-headline font-black text-sm tracking-widest text-primary dark:text-[#e2bd6c]">
+                          {pickerYear}
+                        </span>
+                        <button 
+                          onClick={() => setPickerYear(prev => prev + 1)}
+                          className="p-1 rounded-full hover:bg-white/10 text-on-surface dark:text-white transition-colors flex items-center justify-center"
+                          title="Año siguiente"
+                        >
+                          <span className="material-symbols-outlined text-lg">chevron_right</span>
+                        </button>
+                      </div>
+
+                      {/* Grid de Meses */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'].map((mLabel, idx) => {
+                          const mNum = String(idx + 1).padStart(2, '0')
+                          const valueIso = `${pickerYear}-${mNum}`
+                          const isSelected = mesSeleccionado === valueIso
+                          return (
+                            <button
+                              key={mLabel}
+                              onClick={() => {
+                                setMesSeleccionado(valueIso)
+                                setShowMonthPicker(false)
+                              }}
+                              className={`py-2.5 px-1 rounded-xl text-xs font-bold tracking-wide transition-all text-center ${
+                                isSelected
+                                  ? 'bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black shadow-md scale-105 font-black'
+                                  : 'text-on-surface dark:text-white/80 hover:bg-surface-variant dark:hover:bg-white/10'
+                              }`}
+                            >
+                              {mLabel}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Selector de Año Custom */}
+            {periodo === 3 && (
+              <div className="relative shrink-0">
+                <button 
+                  onClick={() => setShowYearPicker(!showYearPicker)}
+                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-all flex items-center gap-2 border border-transparent dark:border-white/10 shadow-sm active:scale-95 whitespace-nowrap"
+                >
+                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">calendar_today</span>
+                  <span className="font-bold uppercase tracking-wider">AÑO {anoSeleccionado}</span>
+                  <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+                </button>
+
+                {showYearPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowYearPicker(false)} />
+                    <div className="absolute left-0 sm:right-0 top-full mt-2 w-52 bg-surface-container-high dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-[24px] shadow-2xl z-50 p-4 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="text-[10px] font-bold text-outline dark:text-gray-400 uppercase tracking-widest text-center mb-3 pb-1 border-b border-outline-variant/10 dark:border-white/10">
+                        Seleccionar Año
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                          <button
+                            key={y}
+                            onClick={() => {
+                              setAnoSeleccionado(y)
+                              setShowYearPicker(false)
+                            }}
+                            className={`py-2 rounded-xl text-xs font-bold transition-all text-center ${
+                              anoSeleccionado === y
+                                ? 'bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black shadow-md scale-105 font-black'
+                                : 'text-on-surface dark:text-white/80 hover:bg-surface-variant dark:hover:bg-white/10'
+                            }`}
+                          >
+                            {y}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Selector de Rango Personalizado Custom */}
+            {periodo === 4 && (
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Fecha Inicio */}
+                <div className="relative shrink-0">
+                  <button 
+                    onClick={() => {
+                      if (fechaInicio) {
+                        const parts = fechaInicio.split('-').map(Number)
+                        if (parts.length === 3 && parts[0] && parts[1]) {
+                          setInicioCalYear(parts[0])
+                          setInicioCalMonth(parts[1] - 1)
+                        }
+                      }
+                      setShowInicioPicker(!showInicioPicker)
+                      setShowFinPicker(false)
+                    }}
+                    className="bg-surface-container-highest dark:bg-[#1e1e1e] px-3.5 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-all flex items-center gap-1.5 border border-transparent dark:border-white/10 shadow-sm active:scale-95 whitespace-nowrap"
+                  >
+                    <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">calendar_today</span>
+                    <span className="font-bold uppercase tracking-wider">Desde: {fechaInicio ? fechaInicio.split('-').reverse().join('/') : 'INICIO'}</span>
+                    <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+                  </button>
+
+                  {showInicioPicker && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowInicioPicker(false)} />
+                      <div className="absolute left-0 sm:right-0 top-full mt-2 w-72 bg-surface-container-high dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-[24px] shadow-2xl z-50 p-4 animate-in fade-in zoom-in-95 duration-200">
+                        {/* Header del Calendario */}
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-outline-variant/10 dark:border-white/10">
+                          <button 
+                            onClick={() => {
+                              if (inicioCalMonth === 0) {
+                                setInicioCalMonth(11)
+                                setInicioCalYear(prev => prev - 1)
+                              } else {
+                                setInicioCalMonth(prev => prev - 1)
+                              }
+                            }}
+                            className="p-1 rounded-full hover:bg-white/10 text-on-surface dark:text-white transition-colors flex items-center justify-center"
+                            title="Mes anterior"
+                          >
+                            <span className="material-symbols-outlined text-lg">chevron_left</span>
+                          </button>
+                          <span className="font-headline font-black text-xs tracking-wider text-primary dark:text-[#e2bd6c] uppercase">
+                            {['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'][inicioCalMonth]} {inicioCalYear}
+                          </span>
+                          <button 
+                            onClick={() => {
+                              if (inicioCalMonth === 11) {
+                                setInicioCalMonth(0)
+                                setInicioCalYear(prev => prev + 1)
+                              } else {
+                                setInicioCalMonth(prev => prev + 1)
+                              }
+                            }}
+                            className="p-1 rounded-full hover:bg-white/10 text-on-surface dark:text-white transition-colors flex items-center justify-center"
+                            title="Mes siguiente"
+                          >
+                            <span className="material-symbols-outlined text-lg">chevron_right</span>
+                          </button>
+                        </div>
+
+                        {/* Días de la semana */}
+                        <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                          {['LU', 'MA', 'MI', 'JU', 'VI', 'SÁ', 'DO'].map(d => (
+                            <span key={d} className="text-[10px] font-bold text-outline dark:text-gray-400 py-1">
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Grid de días */}
+                        <div className="grid grid-cols-7 gap-1">
+                          {(() => {
+                            const daysInMonth = new Date(inicioCalYear, inicioCalMonth + 1, 0).getDate()
+                            const rawFirstDay = new Date(inicioCalYear, inicioCalMonth, 1).getDay()
+                            const offset = (rawFirstDay + 6) % 7
+                            const cells = []
+                            for (let i = 0; i < offset; i++) {
+                              cells.push(<div key={`empty-in-${i}`} />)
+                            }
+                            for (let day = 1; day <= daysInMonth; day++) {
+                              const dayStr = String(day).padStart(2, '0')
+                              const mStr = String(inicioCalMonth + 1).padStart(2, '0')
+                              const iso = `${inicioCalYear}-${mStr}-${dayStr}`
+                              const isSelected = fechaInicio === iso
+                              cells.push(
+                                <button
+                                  key={day}
+                                  onClick={() => {
+                                    setFechaInicio(iso)
+                                    setShowInicioPicker(false)
+                                  }}
+                                  className={`py-1.5 text-xs font-bold rounded-xl transition-all text-center ${
+                                    isSelected
+                                      ? 'bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black font-black shadow-md scale-105'
+                                      : 'text-on-surface dark:text-white/80 hover:bg-surface-variant dark:hover:bg-white/10'
+                                  }`}
+                                >
+                                  {day}
+                                </button>
+                              )
+                            }
+                            return cells
+                          })()}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Fecha Fin */}
+                <div className="relative shrink-0">
+                  <button 
+                    onClick={() => {
+                      if (fechaFin) {
+                        const parts = fechaFin.split('-').map(Number)
+                        if (parts.length === 3 && parts[0] && parts[1]) {
+                          setFinCalYear(parts[0])
+                          setFinCalMonth(parts[1] - 1)
+                        }
+                      }
+                      setShowFinPicker(!showFinPicker)
+                      setShowInicioPicker(false)
+                    }}
+                    className="bg-surface-container-highest dark:bg-[#1e1e1e] px-3.5 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-all flex items-center gap-1.5 border border-transparent dark:border-white/10 shadow-sm active:scale-95 whitespace-nowrap"
+                  >
+                    <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">event</span>
+                    <span className="font-bold uppercase tracking-wider">Hasta: {fechaFin ? fechaFin.split('-').reverse().join('/') : 'FIN'}</span>
+                    <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
+                  </button>
+
+                  {showFinPicker && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowFinPicker(false)} />
+                      <div className="absolute left-0 sm:right-0 top-full mt-2 w-72 bg-surface-container-high dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-[24px] shadow-2xl z-50 p-4 animate-in fade-in zoom-in-95 duration-200">
+                        {/* Header del Calendario */}
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-outline-variant/10 dark:border-white/10">
+                          <button 
+                            onClick={() => {
+                              if (finCalMonth === 0) {
+                                setFinCalMonth(11)
+                                setFinCalYear(prev => prev - 1)
+                              } else {
+                                setFinCalMonth(prev => prev - 1)
+                              }
+                            }}
+                            className="p-1 rounded-full hover:bg-white/10 text-on-surface dark:text-white transition-colors flex items-center justify-center"
+                            title="Mes anterior"
+                          >
+                            <span className="material-symbols-outlined text-lg">chevron_left</span>
+                          </button>
+                          <span className="font-headline font-black text-xs tracking-wider text-primary dark:text-[#e2bd6c] uppercase">
+                            {['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'][finCalMonth]} {finCalYear}
+                          </span>
+                          <button 
+                            onClick={() => {
+                              if (finCalMonth === 11) {
+                                setFinCalMonth(0)
+                                setFinCalYear(prev => prev + 1)
+                              } else {
+                                setFinCalMonth(prev => prev + 1)
+                              }
+                            }}
+                            className="p-1 rounded-full hover:bg-white/10 text-on-surface dark:text-white transition-colors flex items-center justify-center"
+                            title="Mes siguiente"
+                          >
+                            <span className="material-symbols-outlined text-lg">chevron_right</span>
+                          </button>
+                        </div>
+
+                        {/* Días de la semana */}
+                        <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                          {['LU', 'MA', 'MI', 'JU', 'VI', 'SÁ', 'DO'].map(d => (
+                            <span key={d} className="text-[10px] font-bold text-outline dark:text-gray-400 py-1">
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Grid de días */}
+                        <div className="grid grid-cols-7 gap-1">
+                          {(() => {
+                            const daysInMonth = new Date(finCalYear, finCalMonth + 1, 0).getDate()
+                            const rawFirstDay = new Date(finCalYear, finCalMonth, 1).getDay()
+                            const offset = (rawFirstDay + 6) % 7
+                            const cells = []
+                            for (let i = 0; i < offset; i++) {
+                              cells.push(<div key={`empty-fi-${i}`} />)
+                            }
+                            for (let day = 1; day <= daysInMonth; day++) {
+                              const dayStr = String(day).padStart(2, '0')
+                              const mStr = String(finCalMonth + 1).padStart(2, '0')
+                              const iso = `${finCalYear}-${mStr}-${dayStr}`
+                              const isSelected = fechaFin === iso
+                              cells.push(
+                                <button
+                                  key={day}
+                                  onClick={() => {
+                                    setFechaFin(iso)
+                                    setShowFinPicker(false)
+                                  }}
+                                  className={`py-1.5 text-xs font-bold rounded-xl transition-all text-center ${
+                                    isSelected
+                                      ? 'bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black font-black shadow-md scale-105'
+                                      : 'text-on-surface dark:text-white/80 hover:bg-surface-variant dark:hover:bg-white/10'
+                                  }`}
+                                >
+                                  {day}
+                                </button>
+                              )
+                            }
+                            return cells
+                          })()}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tres Puntos / Exportar */}
+            <div className="relative shrink-0 ml-auto sm:ml-0">
+              <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-highest dark:bg-[#121212] text-on-surface dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/10 transition-colors border border-transparent dark:border-white/10"
+              >
+                <span className="material-symbols-outlined text-xl font-bold">more_vert</span>
+              </button>
+
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <button 
+                      onClick={() => { exportarPDF(); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.2em] text-on-surface dark:text-white/80 hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors text-left border-b border-outline-variant/10 dark:border-white/5"
+                    >
+                      <span className="material-symbols-outlined text-base text-error">picture_as_pdf</span>
+                      Exportar PDF
+                    </button>
+                    <button 
+                      onClick={() => { exportarCSV(); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-extrabold uppercase tracking-[0.2em] text-on-surface dark:text-white/80 hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/10 transition-colors text-left"
+                    >
+                      <span className="material-symbols-outlined text-base text-secondary">csv</span>
+                      Generar Excel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
         </div>
 
         <div className="w-full h-[400px] relative z-10 animate-in fade-in zoom-in-95 duration-1000">
