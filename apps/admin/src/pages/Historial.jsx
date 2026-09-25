@@ -21,6 +21,8 @@ export default function Historial() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showProductDropdown, setShowProductDropdown] = useState(false)
   const [productSearchInput, setProductSearchInput] = useState('')
+  const [modoGanancia, setModoGanancia] = useState('vendido') // 'vendido' | 'global'
+  const [showGananciaInfoModal, setShowGananciaInfoModal] = useState(false)
 
   // Form para ajuste directo de stock desde el historial
   const [formAjuste, setFormAjuste] = useState({
@@ -199,22 +201,48 @@ export default function Historial() {
 
   // Métricas calculadas para el producto seleccionado
   const productStats = useMemo(() => {
-    if (!selectedProduct) return { entradas: 0, salidas: 0, stockCalculado: 0, inversionTotal: 0, unidadesTotales: 0 }
+    if (!selectedProduct) return { 
+      entradas: 0, 
+      salidas: 0, 
+      stockCalculado: 0, 
+      inversionTotal: 0, 
+      unidadesTotales: 0,
+      ventasDinero: 0,
+      unidadesVendidas: 0,
+      costoVentas: 0,
+      gananciaVentas: 0,
+      balanceGlobal: 0
+    }
 
     let entradas = 0
     let salidas = 0
     let inversionTotal = 0
     let unidadesTotales = 0
+    let ventasDinero = 0
+    let unidadesVendidas = 0
+    let costoVentas = 0
 
     historyLogs.forEach(log => {
       const c = Number(log.cambio) || 0
+      const accionStr = (log.accion || '').toLowerCase()
+      const motivoStr = (log.motivo || '').toLowerCase()
+      const costUnit = Number(log.precioCosto) || Number(selectedProduct.precioCosto) || 0
+
       if (c > 0) {
         entradas += c
-        const costUnit = Number(log.precioCosto) || Number(selectedProduct.precioCosto) || 0
         inversionTotal += (c * costUnit)
         unidadesTotales += c
       } else {
-        salidas += Math.abs(c)
+        const cantSalida = Math.abs(c)
+        salidas += cantSalida
+
+        const isVenta = log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')
+        if (isVenta) {
+          unidadesVendidas += cantSalida
+          const pVentaUnit = Number(log.precio) || Number(selectedProduct.precio) || 0
+          ventasDinero += (cantSalida * pVentaUnit)
+          costoVentas += (cantSalida * costUnit)
+        }
       }
     })
 
@@ -222,12 +250,20 @@ export default function Historial() {
       ? Math.max(0, entradas - salidas)
       : (Number(selectedProduct.stock) || 0)
 
+    const gananciaVentas = ventasDinero - costoVentas
+    const balanceGlobal = ventasDinero - inversionTotal
+
     return {
       entradas,
       salidas,
       stockCalculado,
       inversionTotal,
-      unidadesTotales
+      unidadesTotales,
+      ventasDinero,
+      unidadesVendidas,
+      costoVentas,
+      gananciaVentas,
+      balanceGlobal
     }
   }, [selectedProduct, historyLogs])
 
@@ -457,8 +493,8 @@ export default function Historial() {
       </header>
 
         {/* ── Selector de Producto ── */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-low/40 dark:bg-white/[0.03] p-5 rounded-[28px] border border-outline-variant/20 dark:border-white/10 shadow-sm backdrop-blur-md">
-          <div className="flex items-center gap-3.5">
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-low/40 dark:bg-white/[0.03] p-5 rounded-[28px] border border-outline-variant/20 dark:border-white/10 shadow-sm backdrop-blur-md relative ${showProductDropdown ? 'z-[100]' : 'z-20'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3.5">
             <div className="w-10 h-10 rounded-2xl bg-secondary/10 dark:bg-[#e2bd6c]/15 text-secondary dark:text-[#e2bd6c] border border-secondary/20 dark:border-[#e2bd6c]/30 flex items-center justify-center shrink-0 shadow-inner">
               <span className="material-symbols-outlined text-xl">inventory_2</span>
             </div>
@@ -466,9 +502,23 @@ export default function Historial() {
               <h2 className="font-headline text-lg italic text-on-surface dark:text-white font-bold leading-tight">
                 Seleccionar Producto a Auditar
               </h2>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">
-                Elige un producto para visualizar sus movimientos y lotes de compra
-              </p>
+              {selectedProduct ? (
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/20">
+                    P. Venta: ${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')}
+                  </span>
+                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-500/20">
+                    P. Costo (Actual): ${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}
+                  </span>
+                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-800 dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-amber-500/20">
+                    Margen: ${((Number(selectedProduct.precio) || 0) - (Number(selectedProduct.precioCosto) || 0)).toLocaleString('es-CL')}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">
+                  Elige un producto para visualizar sus movimientos y lotes de compra
+                </p>
+              )}
             </div>
           </div>
 
@@ -494,7 +544,9 @@ export default function Historial() {
                     {selectedProduct ? selectedProduct.nombre : 'Seleccionar Producto...'}
                   </p>
                   <p className="text-[9px] font-semibold text-outline dark:text-gray-400 uppercase tracking-wider truncate">
-                    {selectedProduct ? `SKU: ${selectedProduct.sku} • Stock: ${productStats.stockCalculado !== undefined ? productStats.stockCalculado : selectedProduct.stock} un.` : 'Elige para ver su historial'}
+                    {selectedProduct 
+                      ? `SKU: ${selectedProduct.sku} • Venta: $${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')} • Costo: $${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}` 
+                      : 'Elige para ver su historial'}
                   </p>
                 </div>
               </div>
@@ -546,7 +598,9 @@ export default function Historial() {
                           )}
                           <div className="min-w-0">
                             <p className="text-xs font-bold truncate">{p.nombre}</p>
-                            <p className="text-[9px] text-outline dark:text-gray-400 font-semibold">{p.coleccion}</p>
+                            <p className="text-[9px] text-outline dark:text-gray-400 font-semibold">
+                              {p.coleccion} • Venta: ${(Number(p.precio) || 0).toLocaleString('es-CL')} • Costo: ${(Number(p.precioCosto) || 0).toLocaleString('es-CL')}
+                            </p>
                           </div>
                         </div>
                         <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-surface-variant/60 dark:bg-white/10 shrink-0 ml-2">
@@ -567,12 +621,13 @@ export default function Historial() {
 
         {/* ── Tarjetas de Métricas del Producto Seleccionado ── */}
         {selectedProduct && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="bg-surface-container-low/60 dark:bg-white/5 p-4 rounded-2xl border border-outline-variant/20 dark:border-white/10 shadow-sm flex flex-col justify-center items-center text-center">
               <span className="text-[9px] font-black uppercase tracking-widest text-outline dark:text-gray-400 mb-1">Stock Actual</span>
               <span className="text-xl font-black text-on-surface dark:text-white">
                 {productStats.stockCalculado.toLocaleString('es-CL')} un.
               </span>
+              <span className="text-[8px] font-extrabold text-outline/70 dark:text-gray-500 mt-1 uppercase tracking-wider">En inventario</span>
             </div>
 
             <div className="bg-emerald-500/10 dark:bg-emerald-500/15 p-4 rounded-2xl border border-emerald-500/20 shadow-sm flex flex-col justify-center items-center text-center">
@@ -580,6 +635,7 @@ export default function Historial() {
               <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
                 +{productStats.entradas.toLocaleString('es-CL')} un.
               </span>
+              <span className="text-[8px] font-extrabold text-emerald-700/60 dark:text-emerald-300/60 mt-1 uppercase tracking-wider">Compras / Lotes</span>
             </div>
 
             <div className="bg-purple-500/10 dark:bg-purple-500/15 p-4 rounded-2xl border border-purple-500/20 shadow-sm flex flex-col justify-center items-center text-center">
@@ -587,13 +643,157 @@ export default function Historial() {
               <span className="text-xl font-black text-purple-600 dark:text-purple-400">
                 -{productStats.salidas.toLocaleString('es-CL')} un.
               </span>
+              <span className="text-[8px] font-extrabold text-purple-700/60 dark:text-purple-300/60 mt-1 uppercase tracking-wider">Ventas / Mermas</span>
+            </div>
+
+            <div className="bg-emerald-500/10 dark:bg-emerald-500/15 p-4 rounded-2xl border border-emerald-500/20 shadow-sm flex flex-col justify-center items-center text-center">
+              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 mb-1">Total Ventas</span>
+              <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                ${productStats.ventasDinero.toLocaleString('es-CL')}
+              </span>
+              <span className="text-[8px] font-extrabold text-emerald-700/70 dark:text-emerald-300/70 mt-1 uppercase tracking-wider">
+                {productStats.unidadesVendidas} un. vendidas
+              </span>
             </div>
 
             <div className="bg-blue-500/10 dark:bg-blue-500/15 p-4 rounded-2xl border border-blue-500/20 shadow-sm flex flex-col justify-center items-center text-center">
-              <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 mb-1">Inversión Compras</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 mb-1">Inversión Lotes</span>
               <span className="text-xl font-black text-blue-600 dark:text-blue-400">
                 ${productStats.inversionTotal.toLocaleString('es-CL')}
               </span>
+              <span className="text-[8px] font-extrabold text-blue-700/70 dark:text-blue-300/70 mt-1 uppercase tracking-wider">
+                {productStats.unidadesTotales} un. compradas
+              </span>
+            </div>
+
+            <div className="bg-amber-500/10 dark:bg-[#e2bd6c]/10 p-4 rounded-2xl border border-amber-500/20 dark:border-[#e2bd6c]/30 shadow-sm flex flex-col justify-between items-center text-center relative group">
+              <div className="flex items-center justify-between w-full gap-1 mb-1">
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-800 dark:text-[#e2bd6c] truncate">
+                    {modoGanancia === 'vendido' ? 'Ganancia' : 'Balance Global'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowGananciaInfoModal(true)}
+                    className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-900 dark:bg-[#e2bd6c]/25 dark:text-[#e2bd6c] hover:scale-110 transition-all flex items-center justify-center cursor-pointer shrink-0 border border-amber-500/30"
+                    title="Ver cómo se realiza este cálculo"
+                  >
+                    <span className="material-symbols-outlined text-[10px] font-black">info</span>
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModoGanancia(prev => prev === 'vendido' ? 'global' : 'vendido')}
+                  className="px-1.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider bg-amber-500/20 dark:bg-[#e2bd6c]/20 text-amber-900 dark:text-[#e2bd6c] border border-amber-500/30 hover:scale-105 transition-all cursor-pointer shrink-0"
+                  title="Haz clic para cambiar el modo de cálculo"
+                >
+                  {modoGanancia === 'vendido' ? 'Global' : 'Vendido'}
+                </button>
+              </div>
+              <span className={`text-xl font-black ${
+                (modoGanancia === 'vendido' ? productStats.gananciaVentas : productStats.balanceGlobal) >= 0 
+                  ? 'text-emerald-600 dark:text-emerald-400' 
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}>
+                ${(modoGanancia === 'vendido' ? productStats.gananciaVentas : productStats.balanceGlobal).toLocaleString('es-CL')}
+              </span>
+              <span className="text-[8px] font-extrabold text-amber-800/70 dark:text-[#e2bd6c]/70 mt-1 uppercase tracking-wider">
+                {modoGanancia === 'vendido' ? 'Margen prod. vendidos' : 'Desc. inversión total'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal Explicativo de Cálculos Financieros ── */}
+        {showGananciaInfoModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-surface-container-high dark:bg-[#1e1e1e] border border-outline-variant/30 dark:border-white/10 rounded-[28px] max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-outline-variant/20 dark:border-white/10 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-[#e2bd6c]/15 text-amber-700 dark:text-[#e2bd6c] flex items-center justify-center font-bold">
+                    <span className="material-symbols-outlined text-lg">analytics</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-on-surface dark:text-white">
+                      Desglose de Cálculos Financieros
+                    </h3>
+                    <p className="text-[10px] text-outline dark:text-gray-400 font-bold">
+                      {selectedProduct ? selectedProduct.nombre : 'Producto Auditado'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGananciaInfoModal(false)}
+                  className="w-8 h-8 rounded-full bg-surface-variant/40 dark:bg-white/10 text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                {/* 1. Modo Ganancia Vendido */}
+                <div className="bg-emerald-500/10 dark:bg-emerald-500/15 p-4 rounded-2xl border border-emerald-500/20 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                    <span className="material-symbols-outlined text-sm">sell</span>
+                    <h4 className="text-xs font-black uppercase tracking-wider">1. Ganancia sobre Productos Vendidos</h4>
+                  </div>
+                  <p className="text-[11px] text-on-surface/80 dark:text-gray-300 leading-relaxed font-medium">
+                    Muestra el margen neto obtenido únicamente de las <strong>{productStats.unidadesVendidas} unidades</strong> que han sido efectivamente vendidas al público.
+                  </p>
+                  <div className="bg-surface/50 dark:bg-black/20 p-3 rounded-xl space-y-1 text-[11px] font-bold">
+                    <div className="flex justify-between">
+                      <span className="text-outline dark:text-gray-400">Total Ingresos por Ventas ({productStats.unidadesVendidas} un.):</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">${productStats.ventasDinero.toLocaleString('es-CL')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-outline dark:text-gray-400">Costo de Comprar esas {productStats.unidadesVendidas} un.:</span>
+                      <span className="text-rose-600 dark:text-rose-400">-${productStats.costoVentas.toLocaleString('es-CL')}</span>
+                    </div>
+                    <div className="flex justify-between pt-1.5 border-t border-outline-variant/20 dark:border-white/10 text-xs font-black">
+                      <span className="text-on-surface dark:text-white">Ganancia Neta Real:</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">${productStats.gananciaVentas.toLocaleString('es-CL')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Modo Balance Global */}
+                <div className="bg-blue-500/10 dark:bg-blue-500/15 p-4 rounded-2xl border border-blue-500/20 space-y-2">
+                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                    <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+                    <h4 className="text-xs font-black uppercase tracking-wider">2. Balance Global de Lotes (Flujo de Caja)</h4>
+                  </div>
+                  <p className="text-[11px] text-on-surface/80 dark:text-gray-300 leading-relaxed font-medium">
+                    Compara el dinero ingresado por ventas contra la inversión total de las <strong>{productStats.unidadesTotales} unidades</strong> compradas en inventario.
+                  </p>
+                  <div className="bg-surface/50 dark:bg-black/20 p-3 rounded-xl space-y-1 text-[11px] font-bold">
+                    <div className="flex justify-between">
+                      <span className="text-outline dark:text-gray-400">Total Ingresos por Ventas:</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">${productStats.ventasDinero.toLocaleString('es-CL')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-outline dark:text-gray-400">Inversión Total en Lotes ({productStats.unidadesTotales} un.):</span>
+                      <span className="text-rose-600 dark:text-rose-400">-${productStats.inversionTotal.toLocaleString('es-CL')}</span>
+                    </div>
+                    <div className="flex justify-between pt-1.5 border-t border-outline-variant/20 dark:border-white/10 text-xs font-black">
+                      <span className="text-on-surface dark:text-white">Balance de Caja Actual:</span>
+                      <span className={productStats.balanceGlobal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                        ${productStats.balanceGlobal.toLocaleString('es-CL')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowGananciaInfoModal(false)}
+                  className="px-6 py-2.5 rounded-xl bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black font-black text-xs uppercase tracking-wider hover:opacity-90 transition-all shadow-md cursor-pointer"
+                >
+                  Entendido
+                </button>
+              </div>
             </div>
           </div>
         )}
