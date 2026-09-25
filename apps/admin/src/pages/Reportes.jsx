@@ -8,12 +8,22 @@ import { getLocalDateString } from '../utils/date'
 import { calcularEstado } from '../utils/date'
 import Footer from '../components/Footer'
 
-const PERIODOS = ['Semana Actual', 'Mes Actual', 'Personalizado']
+const PERIODOS = ['Semana Actual', 'Mes Actual', 'Seleccionar Mes', 'Histórico Anual', 'Personalizado']
 
 function getNombreMesActual() {
   const d = new Date()
   const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
   return `${meses[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function getNombreMesSeleccionado(mesISO) {
+  if (!mesISO) return ''
+  const parts = mesISO.split('-')
+  if (parts.length < 2) return ''
+  const y = Number(parts[0])
+  const m = Number(parts[1]) - 1
+  const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
+  return `${meses[m]} ${y}`
 }
 
 const CATEGORIAS_GASTOS = [
@@ -141,8 +151,13 @@ const normalizeText = (text) => {
 };
 
 export default function Reportes() {
-  const [periodo, setPeriodo] = useState(0)
+  const [periodo, setPeriodo] = useState(1) // Por defecto: Mes Actual
   const [chartMode, setChartMode] = useState('ambas')
+  const [mesSeleccionado, setMesSeleccionado] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [anoSeleccionado, setAnoSeleccionado] = useState(() => new Date().getFullYear())
   const [fechaInicio, setFechaInicio] = useState(getLocalDateString())
   const [fechaFin, setFechaFin] = useState(getLocalDateString())
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -193,7 +208,7 @@ export default function Reportes() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [periodo, fechaInicio, fechaFin])
+  }, [periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
 
   useEffect(() => {
     const unsubProd = onSnapshot(collection(db, 'productos'), snap => {
@@ -308,7 +323,20 @@ export default function Reportes() {
         const start = getStartOfMonth()
         const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59, 999)
         return pxDate >= start && pxDate <= end
-      } else { // Personalizado
+      } else if (periodo === 2) { // Seleccionar Mes
+        if (!mesSeleccionado) return true
+        const [yStr, mStr] = mesSeleccionado.split('-')
+        const y = Number(yStr)
+        const m = Number(mStr) - 1
+        const start = new Date(y, m, 1, 0, 0, 0, 0)
+        const end = new Date(y, m + 1, 0, 23, 59, 59, 999)
+        return pxDate >= start && pxDate <= end
+      } else if (periodo === 3) { // Histórico Anual
+        const y = Number(anoSeleccionado) || new Date().getFullYear()
+        const start = new Date(y, 0, 1, 0, 0, 0, 0)
+        const end = new Date(y, 11, 31, 23, 59, 59, 999)
+        return pxDate >= start && pxDate <= end
+      } else { // Personalizado (periodo === 4)
         const start = parseLocalDate(fechaInicio) || new Date()
         start.setHours(0,0,0,0)
         const end = parseLocalDate(fechaFin) || new Date()
@@ -320,7 +348,7 @@ export default function Reportes() {
       const fB = parseLocalDate(b.fechaEntrega || b.fecha || b.fechaCreacion) || new Date(0)
       return fB - fA // Más recientes primero
     })
-  }, [pedidos, mermas, gastos, periodo, fechaInicio, fechaFin])
+  }, [pedidos, mermas, gastos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
 
   // Cálculo del gráfico
   const chartData = useMemo(() => {
@@ -345,6 +373,27 @@ export default function Reportes() {
         map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
       }
     } else if (periodo === 2) {
+      // Seleccionar Mes
+      if (mesSeleccionado) {
+        const [yStr, mStr] = mesSeleccionado.split('-')
+        const y = Number(yStr)
+        const m = Number(mStr) - 1
+        const start = new Date(y, m, 1)
+        const end = new Date(y, m + 1, 0)
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+          map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+        }
+      }
+    } else if (periodo === 3) {
+      // Histórico Anual: 12 meses del año seleccionado
+      const y = Number(anoSeleccionado) || new Date().getFullYear()
+      const mesesLabels = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
+      for (let m = 0; m < 12; m++) {
+        const mKey = `${y}-${String(m + 1).padStart(2, '0')}`
+        map[mKey] = { label: mesesLabels[m], Ganancia: 0, Pérdida: 0, Gasto: 0 }
+      }
+    } else if (periodo === 4) {
       // Personalizado: de fechaInicio a fechaFin
       const start = parseLocalDate(fechaInicio)
       const end = parseLocalDate(fechaFin)
@@ -359,6 +408,8 @@ export default function Reportes() {
     registrosFiltrados.forEach(p => {
       const dateStr = getLocalDateISO(p)
       if (!dateStr) return;
+      const targetKey = (periodo === 3) ? dateStr.slice(0, 7) : dateStr;
+
       let sum = 0
       if (p.productos && Array.isArray(p.productos)) {
         p.productos.forEach(item => {
@@ -370,19 +421,34 @@ export default function Reportes() {
           }
         })
       }
-      if (map[dateStr] === undefined) map[dateStr] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+      if (map[targetKey] === undefined) {
+        map[targetKey] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+      }
       
       if (p._tipo === 'venta') {
         let gananciaReal = Number(p.total) || sum;
-        map[dateStr].Ganancia += gananciaReal;
+        map[targetKey].Ganancia += gananciaReal;
       } else if (p._tipo === 'gasto') {
         let montoGasto = Number(p.monto) || 0;
-        map[dateStr].Gasto += montoGasto;
-        map[dateStr].Pérdida += montoGasto;
+        map[targetKey].Gasto += montoGasto;
+        map[targetKey].Pérdida += montoGasto;
       } else {
-        map[dateStr].Pérdida += sum;
+        map[targetKey].Pérdida += sum;
       }
     })
+
+    if (periodo === 3) {
+      return Object.keys(map).sort().map(mKey => {
+        return {
+          fechaReal: mKey,
+          label: map[mKey].label || mKey,
+          Ganancia: map[mKey].Ganancia,
+          Pérdida: -map[mKey].Pérdida,
+          Gasto: map[mKey].Gasto,
+          Total: map[mKey].Ganancia - map[mKey].Pérdida
+        }
+      })
+    }
 
     return Object.keys(map).sort().map(dateStr => {
       const d = parseLocalDate(dateStr)
@@ -397,7 +463,7 @@ export default function Reportes() {
         Total: map[dateStr].Ganancia - map[dateStr].Pérdida
       }
     })
-  }, [registrosFiltrados, productos, periodo, fechaInicio, fechaFin])
+  }, [registrosFiltrados, productos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
 
   const totalMonetario = chartData.reduce((acc, curr) => acc + curr.Ganancia, 0)
   const totalPerdidaMonetario = chartData.reduce((acc, curr) => acc + Math.abs(curr.Pérdida), 0)
@@ -833,6 +899,22 @@ export default function Reportes() {
                   </span>
                 </div>
               )}
+              {periodo === 2 && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 border border-secondary/20 dark:border-[#e2bd6c]/30 text-secondary dark:text-[#e2bd6c] shadow-sm animate-in fade-in zoom-in-95 duration-300">
+                  <span className="material-symbols-outlined text-xs">calendar_month</span>
+                  <span className="font-headline font-black text-xs tracking-[0.2em] uppercase">
+                    {getNombreMesSeleccionado(mesSeleccionado)}
+                  </span>
+                </div>
+              )}
+              {periodo === 3 && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-secondary/10 dark:bg-[#e2bd6c]/10 border border-secondary/20 dark:border-[#e2bd6c]/30 text-secondary dark:text-[#e2bd6c] shadow-sm animate-in fade-in zoom-in-95 duration-300">
+                  <span className="material-symbols-outlined text-xs">calendar_today</span>
+                  <span className="font-headline font-black text-xs tracking-[0.2em] uppercase">
+                    AÑO {anoSeleccionado} (HISTÓRICO ANUAL)
+                  </span>
+                </div>
+              )}
             </div>
             <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-[0.2em] mt-1 font-extrabold">Evolución de Ganancias vs Pérdidas</p>
           </div>
@@ -890,7 +972,7 @@ export default function Reportes() {
               <div className="relative">
                 <button 
                   onClick={() => setShowPeriodMenu(!showPeriodMenu)}
-                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 min-w-[140px] justify-between border border-transparent dark:border-white/10"
+                  className="bg-surface-container-highest dark:bg-[#1e1e1e] px-4 py-2 rounded-xl text-xs font-headline italic tracking-wide text-on-surface dark:text-white hover:bg-surface-variant dark:hover:bg-white/5 transition-colors flex items-center gap-2 min-w-[150px] justify-between border border-transparent dark:border-white/10"
                 >
                   {PERIODOS[periodo]}
                   <span className="material-symbols-outlined text-sm opacity-60">expand_more</span>
@@ -899,7 +981,7 @@ export default function Reportes() {
                 {showPeriodMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowPeriodMenu(false)} />
-                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute left-0 top-full mt-2 w-full min-w-[170px] bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       {PERIODOS.map((label, i) => (
                         <button 
                           key={label}
@@ -919,7 +1001,36 @@ export default function Reportes() {
               </div>
 
               {periodo === 2 && (
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 bg-surface-container-highest dark:bg-[#121212] px-3.5 py-2 rounded-xl border border-outline-variant/10 dark:border-white/10 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">calendar_month</span>
+                  <input 
+                    type="month" 
+                    value={mesSeleccionado} 
+                    onChange={e => e.target.value && setMesSeleccionado(e.target.value)} 
+                    className="bg-transparent text-on-surface dark:text-white [color-scheme:light] dark:[color-scheme:dark] text-xs font-bold uppercase focus:outline-none cursor-pointer" 
+                  />
+                </div>
+              )}
+
+              {periodo === 3 && (
+                <div className="flex items-center gap-2 bg-surface-container-highest dark:bg-[#121212] px-3.5 py-2 rounded-xl border border-outline-variant/10 dark:border-white/10 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">calendar_today</span>
+                  <select
+                    value={anoSeleccionado}
+                    onChange={e => setAnoSeleccionado(Number(e.target.value))}
+                    className="bg-transparent text-on-surface dark:text-white text-xs font-bold uppercase focus:outline-none cursor-pointer"
+                  >
+                    {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(yr => (
+                      <option key={yr} value={yr} className="bg-surface dark:bg-[#1e1e1e] text-on-surface dark:text-white">
+                        Año {yr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {periodo === 4 && (
+                <div className="flex gap-2 animate-in fade-in zoom-in-95 duration-200">
                   <input 
                     type="date" 
                     value={fechaInicio} 
