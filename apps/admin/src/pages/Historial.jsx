@@ -31,7 +31,31 @@ export default function Historial() {
     notaAjuste: '',
     precioCosto: ''
   })
+  const [varianteAjuste, setVarianteAjuste] = useState('')
   const [isSubmittingAjuste, setIsSubmittingAjuste] = useState(false)
+
+  function renderVariantBadge(variantName) {
+    if (!variantName) return null;
+    const nameLower = variantName.toLowerCase();
+    let dotColor = 'bg-amber-400';
+    if (nameLower.includes('rojo') || nameLower.includes('red')) dotColor = 'bg-red-500';
+    else if (nameLower.includes('azul') || nameLower.includes('blue')) dotColor = 'bg-blue-500';
+    else if (nameLower.includes('verde') || nameLower.includes('green')) dotColor = 'bg-emerald-500';
+    else if (nameLower.includes('amarillo') || nameLower.includes('yellow')) dotColor = 'bg-amber-400';
+    else if (nameLower.includes('negro') || nameLower.includes('black')) dotColor = 'bg-neutral-900 border border-white/40';
+    else if (nameLower.includes('blanco') || nameLower.includes('white')) dotColor = 'bg-white border border-gray-400';
+    else if (nameLower.includes('rosa') || nameLower.includes('pink')) dotColor = 'bg-pink-400';
+    else if (nameLower.includes('morado') || nameLower.includes('purple')) dotColor = 'bg-purple-500';
+    else if (nameLower.includes('naranja') || nameLower.includes('orange')) dotColor = 'bg-orange-500';
+    else if (nameLower.includes('gris') || nameLower.includes('gray')) dotColor = 'bg-slate-400';
+
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-primary/10 text-primary dark:bg-[#e2bd6c]/20 dark:text-[#e2bd6c] border border-primary/20 dark:border-[#e2bd6c]/30 shadow-xs">
+        <span className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} />
+        <span>{variantName}</span>
+      </span>
+    );
+  }
 
   // 1. Escuchar lista de productos de Firestore
   useEffect(() => {
@@ -59,13 +83,14 @@ export default function Historial() {
     return productos.find(p => p.id === selectedProductId) || null
   }, [productos, selectedProductId])
 
-  // Actualizar precio de costo referencial en el formulario de ajuste
+  // Actualizar precio de costo referencial y variante por defecto en el formulario de ajuste
   useEffect(() => {
     if (selectedProduct) {
       setFormAjuste(prev => ({
         ...prev,
         precioCosto: selectedProduct.precioCosto || ''
       }))
+      setVarianteAjuste(selectedProduct.variantes?.[0]?.nombre || '')
     }
   }, [selectedProduct])
 
@@ -96,8 +121,8 @@ export default function Historial() {
         snapPedidos.docs.forEach(pDoc => {
           const ped = { id: pDoc.id, ...pDoc.data() }
           if (Array.isArray(ped.productos)) {
-            ped.productos.forEach(prod => {
-              const isMatch = prod.id === selectedProductId || 
+            ped.productos.forEach((prod, pIdx) => {
+              const isMatch = prod.productoId === selectedProductId || prod.id === selectedProductId || 
                 (targetProd && targetProd.sku && prod.sku && prod.sku.toLowerCase() === targetProd.sku.toLowerCase()) ||
                 (targetProd && targetProd.nombre && prod.nombre && prod.nombre.toLowerCase() === targetProd.nombre.toLowerCase())
 
@@ -116,8 +141,10 @@ export default function Historial() {
                   statusLabel = 'Abonado'
                 }
 
+                const varName = prod.varianteNombre || prod.variante || prod.color || ''
+
                 logsPedidos.push({
-                  id: `pedido-${ped.id}-${prod.id || selectedProductId}`,
+                  id: `pedido-${ped.id}-${prod.productoId || prod.id || selectedProductId}-${varName || pIdx}`,
                   fecha: fechaIso,
                   accion: `Venta en Pedido a ${ped.cliente || 'Cliente'}`,
                   motivo: `Pedido #${ped.id ? ped.id.slice(-5) : ''} de ${ped.cliente || 'Cliente'} • ${cant} un.`,
@@ -126,7 +153,8 @@ export default function Historial() {
                   esPedidoReal: true,
                   pedidoId: ped.id,
                   cliente: ped.cliente,
-                  precio: prod.precio || 0
+                  precio: prod.precio || 0,
+                  varianteNombre: varName
                 })
               }
             })
@@ -140,7 +168,7 @@ export default function Historial() {
         snapMermas.docs.forEach(mDoc => {
           const mer = { id: mDoc.id, ...mDoc.data() }
           if (Array.isArray(mer.productos)) {
-            mer.productos.forEach(prod => {
+            mer.productos.forEach((prod, mIdx) => {
               const isMatch = prod.productoId === selectedProductId || prod.id === selectedProductId ||
                 (targetProd && targetProd.sku && prod.sku && prod.sku.toLowerCase() === targetProd.sku.toLowerCase()) ||
                 (targetProd && targetProd.nombre && prod.nombre && prod.nombre.toLowerCase() === targetProd.nombre.toLowerCase())
@@ -149,9 +177,10 @@ export default function Historial() {
                 const cant = Number(prod.cantidad) || 1
                 const fechaIso = mer.fechaEntrega || mer.fecha || mer.fechaCreacion || getLocalDateString()
                 const motivoText = mer.motivo ? `Pérdida por ${mer.motivo}` : 'Merma de inventario'
+                const varName = prod.varianteNombre || prod.variante || prod.color || ''
 
                 logsMermas.push({
-                  id: `merma-${mer.id}-${prod.productoId || prod.id || selectedProductId}`,
+                  id: `merma-${mer.id}-${prod.productoId || prod.id || selectedProductId}-${varName || mIdx}`,
                   fecha: fechaIso,
                   accion: `Merma / ${mer.motivo || 'Dañado'}`,
                   motivo: `${motivoText} • ${cant} un.`,
@@ -159,7 +188,8 @@ export default function Historial() {
                   stockNuevo: 'Merma',
                   esMermaReal: true,
                   mermaId: mer.id,
-                  motivoMerma: mer.motivo || 'Dañado'
+                  motivoMerma: mer.motivo || 'Dañado',
+                  varianteNombre: varName
                 })
               }
             })
@@ -268,7 +298,7 @@ export default function Historial() {
   }, [selectedProduct, historyLogs])
 
   useEffect(() => {
-    if (selectedProduct && historyLogs && historyLogs.length > 0 && productStats.stockCalculado !== undefined) {
+    if (selectedProduct && (!selectedProduct.variantes || selectedProduct.variantes.length === 0) && historyLogs && historyLogs.length > 0 && productStats.stockCalculado !== undefined) {
       if (Number(selectedProduct.stock) !== productStats.stockCalculado) {
         updateDoc(doc(db, 'productos', selectedProduct.id), { stock: productStats.stockCalculado })
           .catch(e => console.error("Error sincronizando stock en Historial:", e))
@@ -380,18 +410,40 @@ export default function Historial() {
 
     const stockActual = selectedProduct ? (Number(selectedProduct.stock) || 0) : 0
     const cambioNum = Number(log.cambio || 0)
-    const stockRevertido = Math.max(0, stockActual - cambioNum)
 
-    if (!window.confirm(`¿Deseas eliminar este registro del historial (${cambioNum > 0 ? '+' : ''}${cambioNum} un.) y ajustar el stock de ${stockActual} a ${stockRevertido} un.?`)) return
+    const hasVariants = Array.isArray(selectedProduct?.variantes) && selectedProduct.variantes.length > 0;
+    const targetVarName = log.varianteNombre || log.variante || '';
+    let updatedVariantes = null;
+
+    if (hasVariants && targetVarName) {
+      updatedVariantes = selectedProduct.variantes.map(v => {
+        if (v.nombre === targetVarName) {
+          const currentVStock = Number(v.stock || 0);
+          const newVStock = Math.max(0, currentVStock - cambioNum);
+          return { ...v, stock: newVStock };
+        }
+        return v;
+      });
+    }
+
+    const stockRevertido = hasVariants && updatedVariantes
+      ? updatedVariantes.reduce((sum, v) => sum + Number(v.stock || 0), 0)
+      : Math.max(0, stockActual - cambioNum);
+
+    const varInfoMsg = targetVarName ? ` (Variante: ${targetVarName})` : '';
+    if (!window.confirm(`¿Deseas eliminar este registro del historial (${cambioNum > 0 ? '+' : ''}${cambioNum} un.${varInfoMsg}) y ajustar el stock actual de ${stockActual} a ${stockRevertido} un.?`)) return
 
     try {
       await deleteDoc(doc(db, 'historial_inventario', log.id))
       setHistoryLogs(prev => prev.filter(l => l.id !== log.id))
 
       if (selectedProduct && cambioNum !== 0) {
-        await updateDoc(doc(db, 'productos', selectedProduct.id), {
-          stock: stockRevertido
-        })
+        const updateObj = { stock: stockRevertido };
+        if (hasVariants && updatedVariantes) {
+          updateObj.variantes = updatedVariantes;
+        }
+
+        await updateDoc(doc(db, 'productos', selectedProduct.id), updateObj)
       }
     } catch (e) {
       console.error("Error al eliminar log:", e)
@@ -414,16 +466,45 @@ export default function Historial() {
     }
 
     setIsSubmittingAjuste(true)
-    const stockBase = Number(selectedProduct.stock) || 0
-    const stockNuevo = Math.max(0, stockBase + cantNum)
+    const hasVariants = Array.isArray(selectedProduct.variantes) && selectedProduct.variantes.length > 0;
+    let targetVariantName = '';
+    let updatedVariantes = null;
+
+    if (hasVariants) {
+      const selectedName = varianteAjuste || selectedProduct.variantes[0]?.nombre || '';
+      const targetIdx = selectedProduct.variantes.findIndex(v => v.nombre === selectedName || (!v.nombre && selectedName === `Variante 1`));
+      const validIdx = targetIdx !== -1 ? targetIdx : 0;
+      const targetVar = selectedProduct.variantes[validIdx];
+      targetVariantName = targetVar?.nombre || `Variante ${validIdx + 1}`;
+
+      const currentVarStock = Number(targetVar?.stock) || 0;
+      const newVarStock = Math.max(0, currentVarStock + cantNum);
+
+      updatedVariantes = selectedProduct.variantes.map((v, i) => {
+        if (i === validIdx) {
+          return { ...v, stock: newVarStock };
+        }
+        return v;
+      });
+    }
+
+    const stockBase = hasVariants
+      ? selectedProduct.variantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+      : (Number(selectedProduct.stock) || 0);
+
+    const stockNuevo = hasVariants
+      ? updatedVariantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+      : Math.max(0, stockBase + cantNum);
+
     const costUnit = Math.floor(Number(formAjuste.precioCosto)) || Math.floor(Number(selectedProduct.precioCosto)) || 0
 
-    const accionText = cantNum > 0 ? `Se sumaron ${cantNum}` : `Se restaron ${Math.abs(cantNum)}`
+    const varSuffix = targetVariantName ? ` [${targetVariantName}]` : '';
+    const accionText = cantNum > 0 ? `Se sumaron ${cantNum}${varSuffix}` : `Se restaron ${Math.abs(cantNum)}${varSuffix}`
     const selectedMotivo = formAjuste.motivoAjuste || (cantNum > 0 ? "Reposición de Stock" : "Merma / Producto Dañado")
     const motivoText = formAjuste.notaAjuste ? `${selectedMotivo} • ${formAjuste.notaAjuste}` : selectedMotivo
 
     try {
-      const docRef = await addDoc(collection(db, 'historial_inventario'), {
+      const logData = {
         productoId: selectedProduct.id,
         fecha: new Date().toISOString(),
         accion: accionText,
@@ -433,25 +514,22 @@ export default function Historial() {
         precioCosto: costUnit,
         costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
         motivo: motivoText,
-        nota: formAjuste.notaAjuste || ''
-      })
+        nota: formAjuste.notaAjuste || '',
+        varianteNombre: targetVariantName || ''
+      };
 
-      await updateDoc(doc(db, 'productos', selectedProduct.id), {
-        stock: stockNuevo
-      })
+      const docRef = await addDoc(collection(db, 'historial_inventario'), logData)
+
+      const prodUpdate = { stock: stockNuevo };
+      if (hasVariants && updatedVariantes) {
+        prodUpdate.variantes = updatedVariantes;
+      }
+
+      await updateDoc(doc(db, 'productos', selectedProduct.id), prodUpdate)
 
       const newLog = {
         id: docRef.id,
-        productoId: selectedProduct.id,
-        fecha: new Date().toISOString(),
-        accion: accionText,
-        cambio: cantNum,
-        stockAnterior: stockBase,
-        stockNuevo: stockNuevo,
-        precioCosto: costUnit,
-        costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
-        motivo: motivoText,
-        nota: formAjuste.notaAjuste || ''
+        ...logData
       }
 
       setHistoryLogs(prev => [newLog, ...prev])
@@ -809,7 +887,26 @@ export default function Historial() {
             </div>
 
             <form onSubmit={handleAddDirectStockAdjustment} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className={`grid grid-cols-1 ${selectedProduct?.variantes?.length > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
+                {selectedProduct?.variantes && selectedProduct.variantes.length > 0 && (
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
+                      Variante / Color a Ajustar
+                    </label>
+                    <select
+                      value={varianteAjuste || (selectedProduct.variantes[0]?.nombre || '')}
+                      onChange={e => setVarianteAjuste(e.target.value)}
+                      className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white cursor-pointer"
+                    >
+                      {selectedProduct.variantes.map((v, i) => (
+                        <option key={i} value={v.nombre || `Variante ${i + 1}`}>
+                          🎨 {v.nombre || `Variante ${i + 1}`} (Stock: {v.stock || 0})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
                     Cantidad (Sumar / Restar)
@@ -1074,9 +1171,13 @@ export default function Historial() {
                                     <span className="material-symbols-outlined text-[10px]">open_in_new</span>
                                   </span>
                                   <span>de {log.cliente || 'Cliente'} • {Math.abs(cant)} un.</span>
+                                  {renderVariantBadge(log.varianteNombre || log.variante)}
                                 </>
                               ) : (
-                                log.motivo || log.accion || 'Movimiento de stock registrado'
+                                <>
+                                  <span>{log.motivo || log.accion || 'Movimiento de stock registrado'}</span>
+                                  {renderVariantBadge(log.varianteNombre || log.variante)}
+                                </>
                               )}
                             </div>
 
@@ -1157,7 +1258,10 @@ export default function Historial() {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center text-blue-600 dark:text-blue-400 font-black">
-                            +{lote.cant} un.
+                            <div className="flex flex-col items-center justify-center">
+                              <span>+{lote.cant} un.</span>
+                              {renderVariantBadge(lote.varianteNombre || lote.variante)}
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-right text-outline dark:text-gray-300">
                             ${lote.costUnit.toLocaleString('es-CL')}

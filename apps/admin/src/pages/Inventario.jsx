@@ -444,6 +444,7 @@ REGLAS DE FORMATO ESTRICTAS:
   const [isScanning, setIsScanning] = useState(false)
   const [form, setForm] = useState(formInicial)
   const [editingId, setEditingId] = useState(null)
+  const [varianteAjuste, setVarianteAjuste] = useState('')
   const [expandedProduct, setExpandedProduct] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [isUploadingImage, setIsUploadingImage] = useState(false)
@@ -457,6 +458,41 @@ REGLAS DE FORMATO ESTRICTAS:
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [tempApiKey, setTempApiKey] = useState('')
+  const [isUpdatingVisibilidad, setIsUpdatingVisibilidad] = useState(false)
+
+  const handleHideOutOfStockProducts = async () => {
+    const sinStockVisibles = productos.filter(p => Number(p.stock || 0) <= 0 && p.visibleEnCatalogo !== false)
+    
+    if (sinStockVisibles.length === 0) {
+      alert('No hay productos visibles sin stock actualmente.')
+      return
+    }
+
+    const confirmacion = window.confirm(
+      `¿Deseas ocultar del catálogo todos los productos sin stock?\n\nSe ocultarán ${sinStockVisibles.length} producto(s).`
+    )
+    if (!confirmacion) return
+
+    setIsUpdatingVisibilidad(true)
+    try {
+      const BATCH_SIZE = 450
+      for (let i = 0; i < sinStockVisibles.length; i += BATCH_SIZE) {
+        const chunk = sinStockVisibles.slice(i, i + BATCH_SIZE)
+        const batch = writeBatch(db)
+        chunk.forEach(prod => {
+          const docRef = doc(db, 'productos', prod.id)
+          batch.update(docRef, { visibleEnCatalogo: false })
+        })
+        await batch.commit()
+      }
+      alert(`Se han ocultado ${sinStockVisibles.length} productos sin stock del catálogo.`)
+    } catch (err) {
+      console.error('Error al ocultar productos sin stock:', err)
+      alert('Ocurrió un error al actualizar la visibilidad de los productos: ' + err.message)
+    } finally {
+      setIsUpdatingVisibilidad(false)
+    }
+  }
   
   // Historial
   const [historyProductId, setHistoryProductId] = useState(null)
@@ -467,6 +503,29 @@ REGLAS DE FORMATO ESTRICTAS:
   const [editProductHistory, setEditProductHistory] = useState([])
   const [initialProductData, setInitialProductData] = useState({ stock: 0, precioCosto: 0, fechaIngreso: '' })
   const [editingLot, setEditingLot] = useState(null)
+
+  function renderVariantBadge(variantName) {
+    if (!variantName) return null;
+    const nameLower = variantName.toLowerCase();
+    let dotColor = 'bg-amber-400';
+    if (nameLower.includes('rojo') || nameLower.includes('red')) dotColor = 'bg-red-500';
+    else if (nameLower.includes('azul') || nameLower.includes('blue')) dotColor = 'bg-blue-500';
+    else if (nameLower.includes('verde') || nameLower.includes('green')) dotColor = 'bg-emerald-500';
+    else if (nameLower.includes('amarillo') || nameLower.includes('yellow')) dotColor = 'bg-amber-400';
+    else if (nameLower.includes('negro') || nameLower.includes('black')) dotColor = 'bg-neutral-900 border border-white/40';
+    else if (nameLower.includes('blanco') || nameLower.includes('white')) dotColor = 'bg-white border border-gray-400';
+    else if (nameLower.includes('rosa') || nameLower.includes('pink')) dotColor = 'bg-pink-400';
+    else if (nameLower.includes('morado') || nameLower.includes('purple')) dotColor = 'bg-purple-500';
+    else if (nameLower.includes('naranja') || nameLower.includes('orange')) dotColor = 'bg-orange-500';
+    else if (nameLower.includes('gris') || nameLower.includes('gray')) dotColor = 'bg-slate-400';
+
+    return (
+      <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-primary/10 text-primary dark:bg-[#e2bd6c]/20 dark:text-[#e2bd6c] border border-primary/20 dark:border-[#e2bd6c]/30 shadow-xs">
+        <span className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} />
+        <span>{variantName}</span>
+      </span>
+    );
+  }
 
   const editProductLotesStats = useMemo(() => {
     const isEditing = Boolean(editingId)
@@ -535,7 +594,8 @@ REGLAS DE FORMATO ESTRICTAS:
         precioCosto: costoUnit,
         gastoFecha: gastoFecha,
         sumaAcumulada: sumaAcumulada,
-        motivo: l.motivo || l.accion || 'Ingreso de Stock'
+        motivo: l.motivo || l.accion || 'Ingreso de Stock',
+        varianteNombre: l.varianteNombre || l.variante || ''
       })
     })
 
@@ -699,6 +759,7 @@ REGLAS DE FORMATO ESTRICTAS:
     setForm(formInicial)
     setInitialProductData({ stock: 0, precioCosto: 0, fechaIngreso: getLocalDateString() })
     setEditingId(null)
+    setVarianteAjuste('')
     setErrorMsg('')
     setEsNuevaCategoria(false)
     setEsNuevoProveedor(false)
@@ -713,6 +774,7 @@ REGLAS DE FORMATO ESTRICTAS:
     const stockNum = Number(p.stock) || 0
     const fechaIng = p.fechaIngreso || getLocalDateString()
 
+    const vars = p.variantes ? p.variantes.map(v => ({...v})) : []
     setForm({ 
       nombre: p.nombre, 
       sku: p.sku, 
@@ -729,9 +791,10 @@ REGLAS DE FORMATO ESTRICTAS:
       fotoUrl: p.fotoUrl || '',
       fotos: p.fotos ? [...p.fotos] : (p.fotoUrl ? [p.fotoUrl] : []),
       descripcion: p.descripcion || '',
-      variantes: p.variantes ? p.variantes.map(v => ({...v})) : [],
+      variantes: vars,
       visibleEnCatalogo: p.visibleEnCatalogo !== false
     })
+    setVarianteAjuste(vars[0]?.nombre || '')
     setInitialProductData({ stock: stockNum, precioCosto: costNum, fechaIngreso: fechaIng })
     setEditingId(p.id)
     setErrorMsg('')
@@ -756,24 +819,26 @@ REGLAS DE FORMATO ESTRICTAS:
       snapPedidos.docs.forEach(pDoc => {
         const ped = { id: pDoc.id, ...pDoc.data() }
         if (Array.isArray(ped.productos)) {
-          ped.productos.forEach(prod => {
-            const isMatch = prod.id === p.id || 
+          ped.productos.forEach((prod, pIdx) => {
+            const isMatch = prod.productoId === p.id || prod.id === p.id || 
               (p.sku && prod.sku && prod.sku.toLowerCase() === p.sku.toLowerCase()) ||
               (p.nombre && prod.nombre && prod.nombre.toLowerCase() === p.nombre.toLowerCase())
             
             if (isMatch) {
               const cant = Number(prod.cantidad) || 1
               const fechaIso = ped.fechaEntrega || ped.fechaCreacion || ped.createdAt || getLocalDateString()
-              
+              const varName = prod.varianteNombre || prod.variante || prod.color || ''
+
               logsPedidos.push({
-                id: `pedido-${ped.id}-${prod.id || p.id}`,
+                id: `pedido-${ped.id}-${prod.productoId || prod.id || p.id}-${varName || pIdx}`,
                 fecha: fechaIso,
                 accion: `Venta en Pedido a ${ped.cliente || 'Cliente'}`,
                 motivo: `Pedido #${ped.id ? ped.id.slice(-5) : ''} de ${ped.cliente || 'Cliente'} • ${cant} un.`,
                 cambio: -cant,
                 stockNuevo: 'Venta',
                 esPedidoReal: true,
-                pedidoId: ped.id
+                pedidoId: ped.id,
+                varianteNombre: varName
               })
             }
           })
@@ -786,7 +851,7 @@ REGLAS DE FORMATO ESTRICTAS:
       snapMermas.docs.forEach(mDoc => {
         const mer = { id: mDoc.id, ...mDoc.data() }
         if (Array.isArray(mer.productos)) {
-          mer.productos.forEach(prod => {
+          mer.productos.forEach((prod, mIdx) => {
             const isMatch = prod.productoId === p.id || prod.id === p.id ||
               (p.sku && prod.sku && prod.sku.toLowerCase() === p.sku.toLowerCase()) ||
               (p.nombre && prod.nombre && prod.nombre.toLowerCase() === p.nombre.toLowerCase())
@@ -794,16 +859,18 @@ REGLAS DE FORMATO ESTRICTAS:
             if (isMatch) {
               const cant = Number(prod.cantidad) || 1
               const fechaIso = mer.fechaEntrega || mer.fecha || mer.fechaCreacion || getLocalDateString()
+              const varName = prod.varianteNombre || prod.variante || prod.color || ''
 
               logsMermas.push({
-                id: `merma-${mer.id}-${prod.productoId || prod.id || p.id}`,
+                id: `merma-${mer.id}-${prod.productoId || prod.id || p.id}-${varName || mIdx}`,
                 fecha: fechaIso,
                 accion: `Merma / ${mer.motivo || 'Dañado'}`,
                 motivo: `Pérdida por ${mer.motivo || 'Dañado'} • ${cant} un.`,
                 cambio: -cant,
                 stockNuevo: 'Merma',
                 esMermaReal: true,
-                mermaId: mer.id
+                mermaId: mer.id,
+                varianteNombre: varName
               })
             }
           })
@@ -850,8 +917,34 @@ REGLAS DE FORMATO ESTRICTAS:
 
     try {
       if (!log.esPedidoReal && !log.esMermaReal) {
-        const stockRevertido = Math.max(0, stockBaseNum - cambioNum)
-        const confirmText = `¿Deseas eliminar este registro del historial (${cambioNum > 0 ? '+' : ''}${cambioNum} un.) y ajustar el stock actual de ${stockBaseNum} a ${stockRevertido} un.?`
+        const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0
+          ? true
+          : (Array.isArray(pTarget?.variantes) && pTarget.variantes.length > 0);
+
+        const currentVars = (form.variantes && form.variantes.length > 0)
+          ? form.variantes
+          : (pTarget?.variantes || []);
+
+        const targetVarName = log.varianteNombre || log.variante || '';
+        let updatedVariantes = null;
+
+        if (hasVariants && targetVarName) {
+          updatedVariantes = currentVars.map(v => {
+            if (v.nombre === targetVarName) {
+              const currentVStock = Number(v.stock || 0);
+              const newVStock = Math.max(0, currentVStock - cambioNum);
+              return { ...v, stock: newVStock };
+            }
+            return v;
+          });
+        }
+
+        const stockRevertido = hasVariants && updatedVariantes
+          ? updatedVariantes.reduce((sum, v) => sum + Number(v.stock || 0), 0)
+          : Math.max(0, stockBaseNum - cambioNum);
+
+        const varInfoMsg = targetVarName ? ` (Variante: ${targetVarName})` : '';
+        const confirmText = `¿Deseas eliminar este registro del historial (${cambioNum > 0 ? '+' : ''}${cambioNum} un.${varInfoMsg}) y ajustar el stock actual de ${stockBaseNum} a ${stockRevertido} un.?`
         if (!window.confirm(confirmText)) return
 
         // 1. Borrar de Firestore historial_inventario
@@ -860,10 +953,19 @@ REGLAS DE FORMATO ESTRICTAS:
         // 2. Actualizar el stock en la colección de productos y estado local
         if ((pTarget || editingId) && cambioNum !== 0) {
           const pIdToUpdate = pTarget ? pTarget.id : editingId
-          await updateDoc(doc(db, 'productos', pIdToUpdate), { stock: stockRevertido })
+          const updateObj = { stock: stockRevertido };
+          if (hasVariants && updatedVariantes) {
+            updateObj.variantes = updatedVariantes;
+          }
+
+          await updateDoc(doc(db, 'productos', pIdToUpdate), updateObj)
 
           if (editingId && pIdToUpdate === editingId) {
-            setForm(prev => ({ ...prev, stock: stockRevertido }))
+            setForm(prev => ({
+              ...prev,
+              stock: stockRevertido,
+              ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
+            }))
           }
         }
       } else if (log.esPedidoReal) {
@@ -1015,10 +1117,37 @@ REGLAS DE FORMATO ESTRICTAS:
         });
 
         if (editingId && difCant !== 0) {
+          const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0;
+          const targetVarName = oldLog?.varianteNombre || oldLog?.variante || '';
+          let updatedVariantes = null;
+
+          if (hasVariants && targetVarName) {
+            updatedVariantes = form.variantes.map(v => {
+              if (v.nombre === targetVarName) {
+                const currentVStock = Number(v.stock || 0);
+                const newVStock = Math.max(0, currentVStock + difCant);
+                return { ...v, stock: newVStock };
+              }
+              return v;
+            });
+          }
+
           const stockActual = Number(form.stock) || 0;
-          const stockNuevo = Math.max(0, stockActual + difCant);
-          await updateDoc(doc(db, 'productos', editingId), { stock: stockNuevo });
-          setForm(prev => ({ ...prev, stock: stockNuevo }));
+          const stockNuevo = hasVariants && updatedVariantes
+            ? updatedVariantes.reduce((sum, v) => sum + Number(v.stock || 0), 0)
+            : Math.max(0, stockActual + difCant);
+
+          const updateObj = { stock: stockNuevo };
+          if (hasVariants && updatedVariantes) {
+            updateObj.variantes = updatedVariantes;
+          }
+
+          await updateDoc(doc(db, 'productos', editingId), updateObj);
+          setForm(prev => ({
+            ...prev,
+            stock: stockNuevo,
+            ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
+          }));
         }
 
         setEditProductHistory(prev => prev.map(l => 
@@ -1052,19 +1181,48 @@ REGLAS DE FORMATO ESTRICTAS:
       return;
     }
 
+    const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0;
+    let targetVariantName = '';
+    let updatedVariantes = null;
+
+    if (hasVariants) {
+      const selectedName = varianteAjuste || form.variantes[0]?.nombre || '';
+      const targetIdx = form.variantes.findIndex(v => v.nombre === selectedName || (!v.nombre && selectedName === `Variante 1`));
+      const validIdx = targetIdx !== -1 ? targetIdx : 0;
+      const targetVar = form.variantes[validIdx];
+      targetVariantName = targetVar?.nombre || `Variante ${validIdx + 1}`;
+
+      const currentVarStock = Number(targetVar?.stock) || 0;
+      const newVarStock = Math.max(0, currentVarStock + cantNum);
+
+      updatedVariantes = form.variantes.map((v, i) => {
+        if (i === validIdx) {
+          return { ...v, stock: newVarStock };
+        }
+        return v;
+      });
+    }
+
     const prodTarget = productos.find(p => p.id === editingId);
-    const stockBase = (form.stock !== undefined && form.stock !== null && form.stock !== '')
-      ? Number(form.stock)
-      : (Number(prodTarget?.stock) || 0);
-    const stockNuevo = Math.max(0, stockBase + cantNum);
+    const stockBase = hasVariants
+      ? form.variantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+      : ((form.stock !== undefined && form.stock !== null && form.stock !== '')
+          ? Number(form.stock)
+          : (Number(prodTarget?.stock) || 0));
+
+    const stockNuevo = hasVariants
+      ? updatedVariantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+      : Math.max(0, stockBase + cantNum);
+
     const costUnit = Math.floor(Number(form.precioCosto)) || 0;
 
-    const accionText = cantNum > 0 ? `Se sumaron ${cantNum}` : `Se restaron ${Math.abs(cantNum)}`;
+    const varSuffix = targetVariantName ? ` [${targetVariantName}]` : '';
+    const accionText = cantNum > 0 ? `Se sumaron ${cantNum}${varSuffix}` : `Se restaron ${Math.abs(cantNum)}${varSuffix}`;
     const selectedMotivo = form.motivoAjuste || (cantNum > 0 ? "Reposición de Stock" : "Merma / Producto Dañado");
     const motivoText = form.notaAjuste ? `${selectedMotivo} • ${form.notaAjuste}` : selectedMotivo;
 
     try {
-      const docRef = await addDoc(collection(db, 'historial_inventario'), {
+      const logData = {
         productoId: editingId,
         fecha: new Date().toISOString(),
         accion: accionText,
@@ -1074,31 +1232,29 @@ REGLAS DE FORMATO ESTRICTAS:
         precioCosto: costUnit,
         costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
         motivo: motivoText,
-        nota: form.notaAjuste || ''
-      });
+        nota: form.notaAjuste || '',
+        varianteNombre: targetVariantName || ''
+      };
 
-      await updateDoc(doc(db, 'productos', editingId), {
-        stock: stockNuevo
-      });
+      const docRef = await addDoc(collection(db, 'historial_inventario'), logData);
+
+      const prodUpdate = { stock: stockNuevo };
+      if (hasVariants && updatedVariantes) {
+        prodUpdate.variantes = updatedVariantes;
+      }
+
+      await updateDoc(doc(db, 'productos', editingId), prodUpdate);
 
       const newLog = {
         id: docRef.id,
-        productoId: editingId,
-        fecha: new Date().toISOString(),
-        accion: accionText,
-        cambio: cantNum,
-        stockAnterior: stockBase,
-        stockNuevo: stockNuevo,
-        precioCosto: costUnit,
-        costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
-        motivo: motivoText,
-        nota: form.notaAjuste || ''
+        ...logData
       };
 
       setEditProductHistory(prev => [...prev, newLog]);
       setForm(prev => ({
         ...prev,
         stock: stockNuevo,
+        ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {}),
         ajusteStock: '',
         motivoAjuste: '',
         notaAjuste: ''
@@ -1174,7 +1330,15 @@ REGLAS DE FORMATO ESTRICTAS:
       precio: Math.floor(Number(form.precio)) || 0,
       precioCosto: Math.floor(Number(form.precioCosto)) || 0,
       stock: stockCalculado,
-      variantes: (form.variantes || []).map(v => ({ ...v, stock: Number(v.stock) })),
+      variantes: (form.variantes || []).map((v, index) => {
+        const baseSku = (form.sku || '').trim().toUpperCase();
+        const autoSku = baseSku ? `${baseSku}-${index + 1}` : `VAR-${index + 1}`;
+        return {
+          ...v,
+          stock: Number(v.stock),
+          sku: (v.sku || autoSku).trim().toUpperCase()
+        };
+      }),
       estado: estadoFinal,
       fechaIngreso: form.fechaIngreso,
       fotoUrl: form.fotos && form.fotos.length > 0 ? form.fotos[0] : '',
@@ -1930,6 +2094,17 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     )}
                   </div>
                   
+                  <button 
+                    onClick={handleHideOutOfStockProducts} 
+                    disabled={isUpdatingVisibilidad}
+                    title="Ocultar del catálogo los productos con stock 0"
+                    className="flex-1 md:flex-none h-full flex items-center justify-center gap-1.5 md:gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-3 md:px-4 rounded-xl font-label font-bold uppercase text-[9px] md:text-[10px] tracking-tight md:tracking-widest shadow-xs hover:scale-105 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-sm">visibility_off</span>
+                    <span className="hidden sm:inline">{isUpdatingVisibilidad ? 'Ocultando...' : 'Ocultar Sin Stock'}</span>
+                    <span className="sm:hidden">{isUpdatingVisibilidad ? '...' : 'Ocultar 0 Stock'}</span>
+                  </button>
+
                   <button onClick={openNew} className="flex-1 md:flex-none h-full flex items-center justify-center gap-1.5 md:gap-2 bg-secondary text-white px-3 md:px-5 rounded-xl font-label font-bold uppercase text-[9px] md:text-[10px] tracking-tight md:tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all tour-inv-nuevo whitespace-nowrap">
                     <span className="material-symbols-outlined text-sm">add</span>
                     <span className="hidden sm:inline">Nuevo Producto</span>
@@ -2183,15 +2358,20 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             <p className="text-[10px] font-extrabold text-primary dark:text-[#e2bd6c] uppercase tracking-widest mt-0.5">Stock: {p.stock.toLocaleString()} unidades</p>
                             {p.variantes && p.variantes.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {p.variantes.map((v, i) => (
-                                  <span key={i} className="inline-flex items-center gap-1 text-[8px] bg-surface-variant dark:bg-white/5 px-1.5 py-0.5 rounded text-on-surface-variant dark:text-white/60 font-bold uppercase border border-outline-variant/5 dark:border-white/5">
-                                    <div 
-                                      className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10"
-                                      style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
-                                    />
-                                    {v.nombre} ({v.stock})
-                                  </span>
-                                ))}
+                                {p.variantes.map((v, i) => {
+                                  const vSku = v.sku || (p.sku ? `${p.sku}-${i + 1}` : `VAR-${i + 1}`);
+                                  return (
+                                    <span key={i} className="inline-flex items-center gap-1.5 text-[8px] bg-surface-variant dark:bg-white/5 px-2 py-0.5 rounded-lg text-on-surface-variant dark:text-white/70 font-bold uppercase border border-outline-variant/5 dark:border-white/5 shadow-xs">
+                                      <div 
+                                        className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10 shrink-0"
+                                        style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
+                                      />
+                                      <span>{v.nombre}</span>
+                                      <span className="text-[7px] text-primary dark:text-[#e2bd6c] font-mono font-black">[{vSku}]</span>
+                                      <span className="text-[7px] text-outline opacity-80">({v.stock} u.)</span>
+                                    </span>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -2596,50 +2776,73 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       </div>
                       <button 
                         type="button"
-                        onClick={() => setForm({...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0 }]})}
-                        className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all"
+                        onClick={() => {
+                          const nextNum = (form.variantes || []).length + 1;
+                          const baseSku = (form.sku || '').trim().toUpperCase();
+                          const autoSku = baseSku ? `${baseSku}-${nextNum}` : `VAR-${nextNum}`;
+                          setForm({ ...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0, sku: autoSku }] });
+                        }}
+                        className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all cursor-pointer flex items-center gap-1"
                       >
-                        + Añadir
+                        <span className="material-symbols-outlined text-xs">add</span>
+                        <span>+ Añadir</span>
                       </button>
                     </div>
 
                     <div className="space-y-2">
-                      {(form.variantes || []).map((variant, index) => (
-                        <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
-                          <input 
-                            type="text" 
-                            value={variant.nombre}
-                            onChange={e => {
-                              const newV = [...form.variantes]
-                              newV[index].nombre = e.target.value
-                              setForm({...form, variantes: newV})
-                            }}
-                            className="flex-1 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                            placeholder="Ej. Verde"
-                          />
-                          <input 
-                            type="number" 
-                            value={variant.stock}
-                            onChange={e => {
-                              const newV = [...form.variantes]
-                              newV[index].stock = e.target.value
-                              setForm({...form, variantes: newV})
-                            }}
-                            className="w-20 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                            placeholder="0"
-                          />
-                          <button 
-                            type="button"
-                            onClick={() => setForm({...form, variantes: form.variantes.filter((_, i) => i !== index)})}
-                            className="w-10 h-10 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all"
-                          >
-                            <span className="material-symbols-outlined text-xl">delete</span>
-                          </button>
-                        </div>
-                      ))}
+                      {(form.variantes || []).map((variant, index) => {
+                        const baseSku = (form.sku || '').trim().toUpperCase();
+                        const autoSku = baseSku ? `${baseSku}-${index + 1}` : `VAR-${index + 1}`;
+                        const displaySku = variant.sku || autoSku;
+
+                        return (
+                          <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                            {/* Badge con el Cód. SKU asignado a la Variante */}
+                            <div 
+                              className="px-2.5 py-2.5 bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30 rounded-xl text-[10px] font-mono font-black text-primary dark:text-[#e2bd6c] shrink-0 flex items-center gap-1 shadow-sm select-none"
+                              title={`SKU Asignado: ${displaySku}`}
+                            >
+                              <span className="material-symbols-outlined text-[12px] opacity-70">barcode</span>
+                              <span>{displaySku}</span>
+                            </div>
+
+                            <input 
+                              type="text" 
+                              value={variant.nombre}
+                              onChange={e => {
+                                const newV = [...form.variantes]
+                                newV[index] = { ...newV[index], nombre: e.target.value, sku: displaySku }
+                                setForm({ ...form, variantes: newV })
+                              }}
+                              className="flex-1 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                              placeholder="Ej. Rojo, Azul, Rosa..."
+                            />
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-[9px] font-bold text-outline dark:text-gray-400 uppercase">Stock:</span>
+                              <input 
+                                type="number" 
+                                value={variant.stock || 0}
+                                readOnly
+                                title="El stock de cada color se agrega y gestiona en la pestaña 'Stock y Costos'"
+                                className="w-14 bg-surface-variant/30 dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center text-outline dark:text-gray-400 cursor-not-allowed select-none"
+                              />
+                            </div>
+
+                            <button 
+                              type="button"
+                              onClick={() => setForm({ ...form, variantes: form.variantes.filter((_, i) => i !== index) })}
+                              className="w-9 h-9 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all shrink-0 cursor-pointer"
+                              title="Eliminar variante"
+                            >
+                              <span className="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                          </div>
+                        );
+                      })}
                       {(!form.variantes || form.variantes.length === 0) && (
                         <p className="text-[10px] text-outline/80 dark:text-neutral-300 text-center py-2 italic font-bold">
-                          Ideal para productos con diferentes colores o tallas.
+                          Añade los colores o variantes de este producto. El stock de cada variante se agrega en la pestaña "Stock y Costos".
                         </p>
                       )}
                     </div>
@@ -2825,9 +3028,9 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                   {/* Fila: Control de Stock */}
                   <div className="bg-surface-container-low/40 dark:bg-white/5 p-4 rounded-2xl border border-outline-variant/20 dark:border-white/10">
                     <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-2 ml-1">
-                      {form.variantes?.length > 0 ? 'Stock Total' : (!editingId ? 'Stock Inicial' : 'Control de Stock')}
+                      {!editingId ? 'Stock Inicial' : 'Control de Stock'}
                     </label>
-                    {!editingId || form.variantes?.length > 0 ? (
+                    {!editingId ? (
                       <div className="w-full md:w-1/3">
                         <input 
                           type="number" 
@@ -2840,35 +3043,108 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">Ajustar Cantidad (Sumar / Restar)</span>
-                            <input 
-                              type="number" 
-                              value={form.ajusteStock} 
-                              onChange={e => {
-                                const val = e.target.value;
-                                const numVal = Number(val);
-                                let defaultMotivo = form.motivoAjuste;
-                                if (numVal > 0 && (!defaultMotivo || defaultMotivo.includes('Merma') || defaultMotivo.includes('Regalo') || defaultMotivo.includes('Venta No'))) {
-                                  defaultMotivo = 'Reposición de Stock';
-                                } else if (numVal < 0 && (!defaultMotivo || defaultMotivo.includes('Reposición'))) {
-                                  defaultMotivo = 'Merma / Producto Dañado';
-                                }
-                                setForm(prev => ({ ...prev, ajusteStock: val, motivoAjuste: defaultMotivo }));
-                              }}
-                              className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
-                              placeholder="Ej. 3 o -2"
-                            />
-                          </div>
+                        {/* SI EL PRODUCTO TIENE VARIANTES */}
+                        {form.variantes && form.variantes.length > 0 ? (
+                          (() => {
+                            const selectedName = varianteAjuste || (form.variantes[0]?.nombre || '');
+                            const targetVar = form.variantes.find(v => v.nombre === selectedName) || form.variantes[0];
+                            const vStockActual = Number(targetVar?.stock || 0);
+                            const vStockNuevo = Math.max(0, vStockActual + Number(form.ajusteStock || 0));
+                            const totStockActual = form.variantes.reduce((sum, v) => sum + Number(v.stock || 0), 0);
+                            const totStockNuevo = Math.max(0, totStockActual + Number(form.ajusteStock || 0));
 
-                          <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
-                            <span className="text-xl font-black text-on-surface dark:text-white">
-                              {Math.max(0, Number(form.stock || 0) + Number(form.ajusteStock || 0))}
-                            </span>
+                            return (
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">
+                                    Variante / Color a Ajustar
+                                  </span>
+                                  <select
+                                    value={varianteAjuste || (form.variantes[0]?.nombre || '')}
+                                    onChange={e => setVarianteAjuste(e.target.value)}
+                                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-3 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] shadow-sm dark:text-white cursor-pointer"
+                                  >
+                                    {form.variantes.map((v, i) => (
+                                      <option key={i} value={v.nombre || `Variante ${i + 1}`}>
+                                        🎨 {v.nombre || `Variante ${i + 1}`} (Stock actual: {v.stock || 0})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">
+                                    Ajustar Cantidad (+ / -)
+                                  </span>
+                                  <input 
+                                    type="number" 
+                                    value={form.ajusteStock} 
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      const numVal = Number(val);
+                                      let defaultMotivo = form.motivoAjuste;
+                                      if (numVal > 0 && (!defaultMotivo || defaultMotivo.includes('Merma') || defaultMotivo.includes('Regalo') || defaultMotivo.includes('Venta No'))) {
+                                        defaultMotivo = 'Reposición de Stock';
+                                      } else if (numVal < 0 && (!defaultMotivo || defaultMotivo.includes('Reposición'))) {
+                                        defaultMotivo = 'Merma / Producto Dañado';
+                                      }
+                                      setForm(prev => ({ ...prev, ajusteStock: val, motivoAjuste: defaultMotivo }));
+                                    }}
+                                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                                    placeholder="Ej. 3 o -2"
+                                  />
+                                </div>
+
+                                <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-0.5 text-center">
+                                    Stock Variante ({targetVar?.nombre || 'Color'})
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xl font-black text-on-surface dark:text-white">
+                                      {vStockNuevo} un.
+                                    </span>
+                                    {Number(form.ajusteStock) !== 0 && form.ajusteStock && (
+                                      <span className="text-[10px] font-bold text-outline/70 dark:text-gray-400">
+                                        (Total: {totStockNuevo})
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          /* SIN VARIANTES - LÓGICA ESTÁNDAR INTACTA */
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">Ajustar Cantidad (Sumar / Restar)</span>
+                              <input 
+                                type="number" 
+                                value={form.ajusteStock} 
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  const numVal = Number(val);
+                                  let defaultMotivo = form.motivoAjuste;
+                                  if (numVal > 0 && (!defaultMotivo || defaultMotivo.includes('Merma') || defaultMotivo.includes('Regalo') || defaultMotivo.includes('Venta No'))) {
+                                    defaultMotivo = 'Reposición de Stock';
+                                  } else if (numVal < 0 && (!defaultMotivo || defaultMotivo.includes('Reposición'))) {
+                                    defaultMotivo = 'Merma / Producto Dañado';
+                                  }
+                                  setForm(prev => ({ ...prev, ajusteStock: val, motivoAjuste: defaultMotivo }));
+                                }}
+                                className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                                placeholder="Ej. 3 o -2"
+                              />
+                            </div>
+
+                            <div className="bg-surface-variant/30 dark:bg-[#252525] rounded-xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center justify-center p-3 leading-tight">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 mb-1">Stock Actual</span>
+                              <span className="text-xl font-black text-on-surface dark:text-white">
+                                {Math.max(0, Number(form.stock || 0) + Number(form.ajusteStock || 0))}
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* Motivo y Nota opcional */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -2988,7 +3264,10 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                   <span className="text-[9px] text-outline/70 dark:text-gray-400 block font-normal">{lote.motivo}</span>
                                 </td>
                                 <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                                  +{lote.cantidad} un.
+                                  <div className="flex flex-col items-center justify-center">
+                                    <span>+{lote.cantidad} un.</span>
+                                    {renderVariantBadge(lote.varianteNombre)}
+                                  </div>
                                 </td>
                                 <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
                                   ${lote.precioCosto.toLocaleString('es-CL')}

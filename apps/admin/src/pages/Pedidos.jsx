@@ -18,15 +18,40 @@ const formInicial = {
   canalVenta: ''
 }
 
+const CANALES_CONFIG = [
+  { id: 'todos', label: 'Todos', dot: 'bg-amber-500' },
+  { id: 'jumbo', label: 'JUMBO', dot: 'bg-emerald-500' },
+  { id: 'facebook', label: 'FACEBOOK', dot: 'bg-[#1877F2]' },
+  { id: 'cesfam', label: 'CESFAM', dot: 'bg-orange-500' },
+  { id: 'instagram', label: 'INSTAGRAM', dot: 'bg-pink-500' },
+  { id: 'whatsapp', label: 'WHATSAPP', dot: 'bg-emerald-800 dark:bg-emerald-500' },
+  { id: 'web', label: 'ONLINE', dot: 'bg-zinc-300 dark:bg-white' },
+  { id: 'otros', label: 'OTROS', dot: 'bg-amber-500' }
+];
+
 const getCanalColor = (canal) => {
-  if (!canal) return 'bg-amber-500/10 text-amber-600';
+  if (!canal) return 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30';
   const c = canal.toLowerCase();
-  if (c.includes('facebook')) return 'bg-[#1877F2]/10 text-[#1877F2]';
-  if (c.includes('whatsapp')) return 'bg-[#25D366]/10 text-[#25D366]';
-  if (c.includes('instagram')) return 'bg-[#E1306C]/10 text-[#E1306C]';
-  if (c.includes('jumbo')) return 'bg-green-500/10 text-green-600';
-  return 'bg-amber-500/10 text-amber-600';
-}
+  if (c.includes('jumbo')) return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
+  if (c.includes('facebook')) return 'bg-[#1877F2]/15 text-[#1877F2] dark:text-[#589bff] border border-[#1877F2]/30';
+  if (c.includes('cesfam')) return 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30';
+  if (c.includes('instagram')) return 'bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/30';
+  if (c.includes('whatsapp')) return 'bg-emerald-800/20 text-emerald-800 dark:text-emerald-400 border border-emerald-800/40';
+  if (c.includes('web') || c.includes('online')) return 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white border border-zinc-300 dark:border-white/20';
+  return 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30';
+};
+
+const getCanalIcon = (canal) => {
+  if (!canal) return 'storefront';
+  const c = canal.toLowerCase();
+  if (c.includes('jumbo')) return 'shopping_cart';
+  if (c.includes('facebook')) return 'public';
+  if (c.includes('cesfam')) return 'local_hospital';
+  if (c.includes('instagram')) return 'photo_camera';
+  if (c.includes('whatsapp')) return 'chat';
+  if (c.includes('web') || c.includes('online')) return 'language';
+  return 'storefront';
+};
 
 const getHexColor = (name) => {
   if (!name) return null;
@@ -356,8 +381,10 @@ export default function Pedidos() {
   const [editAbonoProcesando, setEditAbonoProcesando] = useState(false)
   const [editAbonoMaxPermitido, setEditAbonoMaxPermitido] = useState(0)
 
-  // Estados para sub-pestañas, buscador por cliente con autocompletado y ordenamiento dinámico
+  // Estados para sub-pestañas, filtro por canal de origen, buscador por cliente con autocompletado y ordenamiento dinámico
   const [subTab, setSubTab] = useState('todos') // 'todos' | 'pendientes' | 'abonados' | 'finalizados'
+  const [filtroCanal, setFiltroCanal] = useState('todos') // 'todos' | 'jumbo' | 'facebook' | 'cesfam' | 'instagram' | 'whatsapp' | 'web' | 'otros'
+  const [showOrigenDropdown, setShowOrigenDropdown] = useState(false)
   const [busquedaCliente, setBusquedaCliente] = useState('')
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [ordenCriterio, setOrdenCriterio] = useState('fecha_desc') // 'fecha_desc' | 'fecha_asc' | 'nombre_asc' | 'nombre_desc' | 'monto_desc' | 'monto_asc'
@@ -394,7 +421,7 @@ export default function Pedidos() {
 
   const sortedClientes = Object.values(clientesData).sort((a, b) => b.pedidosCount - a.pedidosCount)
 
-  const canalesBase = ['Facebook', 'Instagram', 'WhatsApp', 'TikTok']
+  const canalesBase = ['Jumbo', 'Facebook', 'Cesfam', 'Instagram', 'WhatsApp', 'Web / Online']
   const canalesExistentes = Array.from(new Set(pedidos.filter(p => p.canalVenta).map(p => p.canalVenta)))
   const canalesDisponibles = Array.from(new Set([...canalesBase, ...canalesExistentes]))
 
@@ -1054,15 +1081,44 @@ END:VCALENDAR`
     URL.revokeObjectURL(url)
   }
 
-  // Sugerencias de Autocompletado para el Buscador por Nombre de Cliente
+  // Sugerencias y autocompletado para el buscador
   const sugerenciasClientes = Array.from(new Set(pedidos.map(p => (p.cliente || '').trim()).filter(Boolean))).sort();
 
   const sugerenciasFiltradas = busquedaCliente.trim()
     ? sugerenciasClientes.filter(c => c.toLowerCase().includes(busquedaCliente.toLowerCase().trim()))
     : sugerenciasClientes;
 
-  // Filtrado general por texto en buscador
+  // Contador de pedidos por origen / canal
+  const getCanalCount = (canalId) => {
+    if (canalId === 'todos') return pedidos.length;
+    return pedidos.filter(p => {
+      const c = (p.canalVenta || '').toLowerCase();
+      if (canalId === 'jumbo') return c.includes('jumbo');
+      if (canalId === 'facebook') return c.includes('facebook');
+      if (canalId === 'cesfam') return c.includes('cesfam');
+      if (canalId === 'instagram') return c.includes('instagram');
+      if (canalId === 'whatsapp') return c.includes('whatsapp');
+      if (canalId === 'web') return c.includes('web') || c.includes('online');
+      if (canalId === 'otros') return c && !c.includes('jumbo') && !c.includes('facebook') && !c.includes('cesfam') && !c.includes('instagram') && !c.includes('whatsapp') && !c.includes('web') && !c.includes('online');
+      return c.includes(canalId.toLowerCase());
+    }).length;
+  };
+
+  // Filtrado general por canal de origen y texto en buscador
   const pedidosFiltrados = pedidos.filter(p => {
+    // 1. Filtro por Canal de Venta / Origen
+    if (filtroCanal !== 'todos') {
+      const c = (p.canalVenta || '').toLowerCase();
+      if (filtroCanal === 'jumbo' && !c.includes('jumbo')) return false;
+      if (filtroCanal === 'facebook' && !c.includes('facebook')) return false;
+      if (filtroCanal === 'cesfam' && !c.includes('cesfam')) return false;
+      if (filtroCanal === 'instagram' && !c.includes('instagram')) return false;
+      if (filtroCanal === 'whatsapp' && !c.includes('whatsapp')) return false;
+      if (filtroCanal === 'web' && !c.includes('web') && !c.includes('online')) return false;
+      if (filtroCanal === 'otros' && (c.includes('jumbo') || c.includes('facebook') || c.includes('cesfam') || c.includes('instagram') || c.includes('whatsapp') || c.includes('web') || c.includes('online'))) return false;
+    }
+
+    // 2. Filtro por Buscador de texto
     if (!busquedaCliente.trim()) return true;
     const q = busquedaCliente.toLowerCase().trim();
     const qClean = q.startsWith('#') ? q.slice(1) : q;
@@ -1267,86 +1323,143 @@ END:VCALENDAR`
                   </button>
                 </div>
 
-                {/* Buscador de Clientes con Autocompletado */}
-                <div className="flex-1 min-w-[240px] max-w-md relative">
+                {/* Grupo de Controles: Origen + Ordenamiento */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Selector Desplegable Personalizado de Origen */}
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline dark:text-gray-400 text-lg">
-                      search
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Buscar por #código, cliente, producto o canal..."
-                      value={busquedaCliente}
-                      onFocus={() => setShowSearchDropdown(true)}
-                      onChange={(e) => {
-                        setBusquedaCliente(e.target.value)
-                        setShowSearchDropdown(true)
-                      }}
-                      className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl pl-10 pr-9 py-2.5 text-xs text-on-surface dark:text-white font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all"
-                    />
-                    {busquedaCliente && (
-                      <button
-                        onClick={() => {
-                          setBusquedaCliente('')
-                          setShowSearchDropdown(false)
-                        }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white"
-                      >
-                        <span className="material-symbols-outlined text-sm">close</span>
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowOrigenDropdown(!showOrigenDropdown)}
+                      className="flex items-center gap-2 bg-surface-container dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-extrabold text-on-surface dark:text-white hover:border-primary/40 dark:hover:border-[#e2bd6c]/40 transition-all cursor-pointer shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-base">storefront</span>
+                      <span>{CANALES_CONFIG.find(c => c.id === filtroCanal)?.label || 'Origen: Todos'}</span>
+                      <span className="w-5 h-5 rounded-full bg-primary/10 dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] flex items-center justify-center text-[10px] font-black">
+                        {getCanalCount(filtroCanal)}
+                      </span>
+                      <span className={`material-symbols-outlined text-sm text-outline dark:text-gray-400 transition-transform duration-200 ${showOrigenDropdown ? 'rotate-180' : ''}`}>
+                        expand_more
+                      </span>
+                    </button>
+
+                    {showOrigenDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setShowOrigenDropdown(false)} />
+                        <div className="absolute right-0 top-full mt-2 z-40 bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl p-2 min-w-[210px] space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                          <p className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-outline dark:text-gray-500">
+                            Origen de Venta
+                          </p>
+                          {CANALES_CONFIG.map(cat => {
+                            const count = getCanalCount(cat.id);
+                            const isActive = filtroCanal === cat.id;
+                            return (
+                              <button
+                                key={cat.id}
+                                onClick={() => {
+                                  setFiltroCanal(cat.id);
+                                  setShowOrigenDropdown(false);
+                                }}
+                                className={`w-full px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                                  isActive
+                                    ? 'bg-primary/10 dark:bg-[#e2bd6c]/15 text-primary dark:text-[#e2bd6c] font-black'
+                                    : 'hover:bg-surface-container-high dark:hover:bg-white/5 text-on-surface dark:text-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-2.5 h-2.5 rounded-full ${cat.dot} shrink-0`} />
+                                  <span>{cat.label}</span>
+                                </div>
+                                <span className="w-5 h-5 rounded-full bg-outline-variant/20 dark:bg-white/10 text-[9px] font-black flex items-center justify-center">
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
                     )}
                   </div>
 
-                  {/* Desplegable Autocompletado */}
-                  {showSearchDropdown && sugerenciasFiltradas.length > 0 && (
-                    <>
-                      <div className="fixed inset-0 z-20" onClick={() => setShowSearchDropdown(false)} />
-                      <div className="absolute left-0 right-0 top-full mt-2 z-30 bg-surface dark:bg-[#1f1f1f] rounded-2xl shadow-2xl border border-outline-variant/20 dark:border-white/10 max-h-56 overflow-y-auto py-2">
-                        <p className="px-4 py-1 text-[9px] font-black uppercase tracking-widest text-outline dark:text-gray-500">
-                          Sugerencias ({sugerenciasFiltradas.length})
-                        </p>
-                        {sugerenciasFiltradas.map((clienteNombre) => (
-                          <div
-                            key={clienteNombre}
-                            onClick={() => {
-                              setBusquedaCliente(clienteNombre)
-                              setShowSearchDropdown(false)
-                            }}
-                            className="px-4 py-2.5 hover:bg-surface-container-high dark:hover:bg-white/5 cursor-pointer flex items-center justify-between transition-colors text-xs font-bold text-on-surface dark:text-white"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">person</span>
-                              <span>{clienteNombre}</span>
-                            </div>
-                            <span className="text-[9px] bg-primary/10 dark:bg-white/10 text-primary dark:text-[#e2bd6c] px-2 py-0.5 rounded-full font-bold">
-                              {pedidos.filter(p => p.cliente === clienteNombre).length} pedidos
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
+                  {/* Selector de Ordenamiento */}
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-outline dark:text-gray-400 text-lg hidden sm:block">
+                      sort
+                    </span>
+                    <select
+                      value={ordenCriterio}
+                      onChange={(e) => setOrdenCriterio(e.target.value)}
+                      className="bg-surface-container dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-extrabold text-on-surface dark:text-white focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all cursor-pointer"
+                    >
+                      <option value="fecha_desc">📅 Fecha: Más Recientes</option>
+                      <option value="fecha_asc">📅 Fecha: Más Antiguos</option>
+                      <option value="nombre_asc">🔤 Cliente: A ➔ Z</option>
+                      <option value="nombre_desc">🔤 Cliente: Z ➔ A</option>
+                      <option value="monto_desc">💲 Monto: Mayor a Menor</option>
+                      <option value="monto_asc">💲 Monto: Menor a Mayor</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buscador de Clientes en su propia línea inferior */}
+              <div className="w-full relative pt-1">
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline dark:text-gray-400 text-lg">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Buscar por #código, cliente, producto o canal..."
+                    value={busquedaCliente}
+                    onFocus={() => setShowSearchDropdown(true)}
+                    onChange={(e) => {
+                      setBusquedaCliente(e.target.value)
+                      setShowSearchDropdown(true)
+                    }}
+                    className="w-full bg-surface-container dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl pl-10 pr-9 py-3 text-xs text-on-surface dark:text-white font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all shadow-inner"
+                  />
+                  {busquedaCliente && (
+                    <button
+                      onClick={() => {
+                        setBusquedaCliente('')
+                        setShowSearchDropdown(false)
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
                   )}
                 </div>
 
-                {/* Selector de Ordenamiento */}
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-outline dark:text-gray-400 text-lg hidden sm:block">
-                    sort
-                  </span>
-                  <select
-                    value={ordenCriterio}
-                    onChange={(e) => setOrdenCriterio(e.target.value)}
-                    className="bg-surface-container dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-extrabold text-on-surface dark:text-white focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] transition-all cursor-pointer"
-                  >
-                    <option value="fecha_desc">📅 Fecha: Más Recientes</option>
-                    <option value="fecha_asc">📅 Fecha: Más Antiguos</option>
-                    <option value="nombre_asc">🔤 Cliente: A ➔ Z</option>
-                    <option value="nombre_desc">🔤 Cliente: Z ➔ A</option>
-                    <option value="monto_desc">💲 Monto: Mayor a Menor</option>
-                    <option value="monto_asc">💲 Monto: Menor a Mayor</option>
-                  </select>
-                </div>
-
+                {/* Desplegable Autocompletado */}
+                {showSearchDropdown && sugerenciasFiltradas.length > 0 && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setShowSearchDropdown(false)} />
+                    <div className="absolute left-0 right-0 top-full mt-2 z-30 bg-surface dark:bg-[#1f1f1f] rounded-2xl shadow-2xl border border-outline-variant/20 dark:border-white/10 max-h-56 overflow-y-auto py-2">
+                      <p className="px-4 py-1 text-[9px] font-black uppercase tracking-widest text-outline dark:text-gray-500">
+                        Sugerencias ({sugerenciasFiltradas.length})
+                      </p>
+                      {sugerenciasFiltradas.map((clienteNombre) => (
+                        <div
+                          key={clienteNombre}
+                          onClick={() => {
+                            setBusquedaCliente(clienteNombre)
+                            setShowSearchDropdown(false)
+                          }}
+                          className="px-4 py-2.5 hover:bg-surface-container-high dark:hover:bg-white/5 cursor-pointer flex items-center justify-between transition-colors text-xs font-bold text-on-surface dark:text-white"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">person</span>
+                            <span>{clienteNombre}</span>
+                          </div>
+                          <span className="text-[9px] bg-primary/10 dark:bg-white/10 text-primary dark:text-[#e2bd6c] px-2 py-0.5 rounded-full font-bold">
+                            {pedidos.filter(p => p.cliente === clienteNombre).length} pedidos
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1477,8 +1590,8 @@ END:VCALENDAR`
                                                     Vía {p.medioPago}
                                                   </span>
                                                   {p.canalVenta && (
-                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm`}>
+                                                      <span className="material-symbols-outlined text-[10px]">{getCanalIcon(p.canalVenta)}</span>
                                                       {p.canalVenta}
                                                     </span>
                                                   )}
@@ -1655,8 +1768,8 @@ END:VCALENDAR`
                                         {p.medioPago}
                                       </span>
                                       {p.canalVenta && (
-                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                          <span className="material-symbols-outlined text-[9px]">location_on</span>
+                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm`}>
+                                          <span className="material-symbols-outlined text-[9px]">{getCanalIcon(p.canalVenta)}</span>
                                           {p.canalVenta}
                                         </span>
                                       )}
@@ -1878,8 +1991,8 @@ END:VCALENDAR`
                                                     Vía {p.medioPago}
                                                   </span>
                                                   {p.canalVenta && (
-                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm`}>
+                                                      <span className="material-symbols-outlined text-[10px]">{getCanalIcon(p.canalVenta)}</span>
                                                       {p.canalVenta}
                                                     </span>
                                                   )}
@@ -2064,8 +2177,8 @@ END:VCALENDAR`
                                         {p.medioPago}
                                       </span>
                                       {p.canalVenta && (
-                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                          <span className="material-symbols-outlined text-[9px]">location_on</span>
+                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm`}>
+                                          <span className="material-symbols-outlined text-[9px]">{getCanalIcon(p.canalVenta)}</span>
                                           {p.canalVenta}
                                         </span>
                                       )}
@@ -2280,8 +2393,8 @@ END:VCALENDAR`
                                                     Vía {p.medioPago}
                                                   </span>
                                                   {p.canalVenta && (
-                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                                      <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                                    <span className={`${getCanalColor(p.canalVenta)} px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm`}>
+                                                      <span className="material-symbols-outlined text-[10px]">{getCanalIcon(p.canalVenta)}</span>
                                                       {p.canalVenta}
                                                     </span>
                                                   )}
@@ -2453,8 +2566,8 @@ END:VCALENDAR`
                                         {p.medioPago}
                                       </span>
                                       {p.canalVenta && (
-                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1`}>
-                                          <span className="material-symbols-outlined text-[9px]">location_on</span>
+                                        <span className={`px-2 py-0.5 rounded-full ${getCanalColor(p.canalVenta)} text-[8px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm`}>
+                                          <span className="material-symbols-outlined text-[9px]">{getCanalIcon(p.canalVenta)}</span>
                                           {p.canalVenta}
                                         </span>
                                       )}
@@ -2812,7 +2925,37 @@ END:VCALENDAR`
 
                 {form.esVentaOnline && (
                   <div className="grid grid-cols-1 gap-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1 dark:text-gray-500">Lugar o Canal de Venta</label>
+                    <label className="text-[10px] font-bold text-outline uppercase tracking-widest px-1 dark:text-gray-500">Selecciona o Escribe el Origen / Canal</label>
+                    
+                    {/* Botones de selección rápida de 1-clic con círculos de colores */}
+                    <div className="flex flex-wrap gap-1.5 mb-1">
+                      {[
+                        { name: 'Jumbo', dot: 'bg-emerald-500' },
+                        { name: 'Facebook', dot: 'bg-[#1877F2]' },
+                        { name: 'Cesfam', dot: 'bg-orange-500' },
+                        { name: 'Instagram', dot: 'bg-pink-500' },
+                        { name: 'WhatsApp', dot: 'bg-emerald-800 dark:bg-emerald-500' },
+                        { name: 'Web / Online', dot: 'bg-zinc-300 dark:bg-white' }
+                      ].map(cItem => {
+                        const isSelected = (form.canalVenta || '').toLowerCase().includes(cItem.name.toLowerCase());
+                        return (
+                          <button
+                            key={cItem.name}
+                            type="button"
+                            onClick={() => setForm({ ...form, canalVenta: cItem.name, esVentaOnline: true })}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-secondary dark:bg-[#e2bd6c] text-white dark:text-black border-transparent shadow-md scale-105'
+                                : 'bg-surface-container-lowest dark:bg-white/5 text-on-surface dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-primary/40'
+                            }`}
+                          >
+                            <span className={`w-2.5 h-2.5 rounded-full ${cItem.dot} shrink-0`} />
+                            <span>{cItem.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     <div className="relative">
                       <div className="relative group">
                         <input 
@@ -2824,9 +2967,9 @@ END:VCALENDAR`
                           }}
                           onFocus={() => setShowCanalDropdown(true)}
                           className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] pr-10 dark:text-white/90"
-                          placeholder="Ej: Facebook, Jumbo, Cesfam..."
+                          placeholder="O escribe un origen personalizado..."
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40 dark:text-white/40">location_on</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm opacity-40 dark:text-white/40">{getCanalIcon(form.canalVenta)}</span>
                       </div>
 
                       {showCanalDropdown && (
