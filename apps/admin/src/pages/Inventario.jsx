@@ -459,38 +459,114 @@ REGLAS DE FORMATO ESTRICTAS:
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [tempApiKey, setTempApiKey] = useState('')
   const [isUpdatingVisibilidad, setIsUpdatingVisibilidad] = useState(false)
+  const [showVisibilidadDropdown, setShowVisibilidadDropdown] = useState(false)
+  const [visibilidadModal, setVisibilidadModal] = useState(null)
 
-  const handleHideOutOfStockProducts = async () => {
-    const sinStockVisibles = productos.filter(p => Number(p.stock || 0) <= 0 && p.visibleEnCatalogo !== false)
-    
-    if (sinStockVisibles.length === 0) {
-      alert('No hay productos visibles sin stock actualmente.')
-      return
-    }
-
-    const confirmacion = window.confirm(
-      `¿Deseas ocultar del catálogo todos los productos sin stock?\n\nSe ocultarán ${sinStockVisibles.length} producto(s).`
-    )
-    if (!confirmacion) return
-
+  const executeVisibilidadBatch = async (targetProducts, setVisibleBool, successMsg) => {
     setIsUpdatingVisibilidad(true)
+    setVisibilidadModal(null)
     try {
       const BATCH_SIZE = 450
-      for (let i = 0; i < sinStockVisibles.length; i += BATCH_SIZE) {
-        const chunk = sinStockVisibles.slice(i, i + BATCH_SIZE)
+      for (let i = 0; i < targetProducts.length; i += BATCH_SIZE) {
+        const chunk = targetProducts.slice(i, i + BATCH_SIZE)
         const batch = writeBatch(db)
         chunk.forEach(prod => {
           const docRef = doc(db, 'productos', prod.id)
-          batch.update(docRef, { visibleEnCatalogo: false })
+          batch.update(docRef, { visibleEnCatalogo: setVisibleBool })
         })
         await batch.commit()
       }
-      alert(`Se han ocultado ${sinStockVisibles.length} productos sin stock del catálogo.`)
+      setVisibilidadModal({
+        type: 'alert',
+        title: '¡Operación Exitosa!',
+        message: successMsg,
+        icon: 'check_circle',
+        iconColor: 'text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20'
+      })
     } catch (err) {
-      console.error('Error al ocultar productos sin stock:', err)
-      alert('Ocurrió un error al actualizar la visibilidad de los productos: ' + err.message)
+      console.error('Error al cambiar visibilidad:', err)
+      setVisibilidadModal({
+        type: 'alert',
+        title: 'Error de Actualización',
+        message: 'Ocurrió un error al actualizar los productos: ' + err.message,
+        icon: 'error',
+        iconColor: 'text-rose-500 bg-rose-500/10 dark:bg-rose-500/20'
+      })
     } finally {
       setIsUpdatingVisibilidad(false)
+    }
+  }
+
+  const requestVisibilidadAction = (actionType) => {
+    if (actionType === 'activar_todo') {
+      const targetProducts = productos.filter(p => p.visibleEnCatalogo === false)
+      if (targetProducts.length === 0) {
+        setVisibilidadModal({
+          type: 'alert',
+          title: 'Todo está Activo',
+          message: 'Todos los productos ya se encuentran visibles en el catálogo web.',
+          icon: 'info',
+          iconColor: 'text-amber-500 bg-amber-500/10 dark:bg-amber-500/20'
+        })
+        return
+      }
+      setVisibilidadModal({
+        type: 'confirm',
+        actionType,
+        title: '¿Activar Todo el Catálogo?',
+        message: `Se harán visibles en el catálogo web ${targetProducts.length} producto(s) que actualmente están ocultos.`,
+        icon: 'visibility',
+        iconColor: 'text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20',
+        buttonColor: 'bg-emerald-600 hover:bg-emerald-500 text-white',
+        confirmText: 'Sí, Activar Todos',
+        onConfirm: () => executeVisibilidadBatch(targetProducts, true, `Se activaron ${targetProducts.length} producto(s) en el catálogo web.`)
+      })
+    } else if (actionType === 'ocultar_sin_stock') {
+      const targetProducts = productos.filter(p => Number(p.stock || 0) <= 0 && p.visibleEnCatalogo !== false)
+      if (targetProducts.length === 0) {
+        setVisibilidadModal({
+          type: 'alert',
+          title: 'Sin Productos a Ocultar',
+          message: 'No hay productos sin stock actualmente visibles en el catálogo.',
+          icon: 'info',
+          iconColor: 'text-amber-500 bg-amber-500/10 dark:bg-amber-500/20'
+        })
+        return
+      }
+      setVisibilidadModal({
+        type: 'confirm',
+        actionType,
+        title: '¿Ocultar Productos Sin Stock?',
+        message: `Se ocultarán del catálogo web ${targetProducts.length} producto(s) que tienen stock 0 o menor.`,
+        icon: 'visibility_off',
+        iconColor: 'text-amber-500 bg-amber-500/10 dark:bg-amber-500/20',
+        buttonColor: 'bg-amber-600 hover:bg-amber-500 text-white',
+        confirmText: 'Sí, Ocultar Sin Stock',
+        onConfirm: () => executeVisibilidadBatch(targetProducts, false, `Se ocultaron ${targetProducts.length} producto(s) sin stock del catálogo.`)
+      })
+    } else if (actionType === 'ocultar_todo') {
+      const targetProducts = productos.filter(p => p.visibleEnCatalogo !== false)
+      if (targetProducts.length === 0) {
+        setVisibilidadModal({
+          type: 'alert',
+          title: 'Todo está Oculto',
+          message: 'Todos los productos ya se encuentran ocultos del catálogo web.',
+          icon: 'info',
+          iconColor: 'text-amber-500 bg-amber-500/10 dark:bg-amber-500/20'
+        })
+        return
+      }
+      setVisibilidadModal({
+        type: 'confirm',
+        actionType,
+        title: '¿Ocultar Todo el Catálogo?',
+        message: `Se ocultarán del catálogo web ${targetProducts.length} producto(s). Los productos seguirán existiendo en tu inventario.`,
+        icon: 'hide_source',
+        iconColor: 'text-rose-500 bg-rose-500/10 dark:bg-rose-500/20',
+        buttonColor: 'bg-rose-600 hover:bg-rose-500 text-white',
+        confirmText: 'Sí, Ocultar Todos',
+        onConfirm: () => executeVisibilidadBatch(targetProducts, false, `Se ocultaron ${targetProducts.length} producto(s) del catálogo web.`)
+      })
     }
   }
   
@@ -2094,16 +2170,64 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     )}
                   </div>
                   
-                  <button 
-                    onClick={handleHideOutOfStockProducts} 
-                    disabled={isUpdatingVisibilidad}
-                    title="Ocultar del catálogo los productos con stock 0"
-                    className="flex-1 md:flex-none h-full flex items-center justify-center gap-1.5 md:gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-3 md:px-4 rounded-xl font-label font-bold uppercase text-[9px] md:text-[10px] tracking-tight md:tracking-widest shadow-xs hover:scale-105 transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="material-symbols-outlined text-sm">visibility_off</span>
-                    <span className="hidden sm:inline">{isUpdatingVisibilidad ? 'Ocultando...' : 'Ocultar Sin Stock'}</span>
-                    <span className="sm:hidden">{isUpdatingVisibilidad ? '...' : 'Ocultar 0 Stock'}</span>
-                  </button>
+                  <div className="relative h-full">
+                    <button 
+                      onClick={() => setShowVisibilidadDropdown(prev => !prev)}
+                      disabled={isUpdatingVisibilidad}
+                      title="Gestionar visibilidad del catálogo"
+                      className="flex items-center bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-3 md:px-4 gap-2 md:gap-3 hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-all shadow-sm justify-between h-full whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-1.5 md:gap-2">
+                        <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">visibility</span>
+                        <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">
+                          {isUpdatingVisibilidad ? '...' : 'Visibilidad'}
+                        </span>
+                      </div>
+                      <span className={`material-symbols-outlined text-sm opacity-40 transition-transform duration-300 ${showVisibilidadDropdown ? 'rotate-180' : ''}`}>expand_more</span>
+                    </button>
+
+                    {showVisibilidadDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-[60]" onClick={() => setShowVisibilidadDropdown(false)} />
+                        <div className="absolute right-0 top-full mt-2 w-[240px] bg-surface-container-highest dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 p-1.5">
+                          <button
+                            onClick={() => { setShowVisibilidadDropdown(false); requestVisibilidadAction('activar_todo'); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-wider transition-all text-left rounded-xl text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                          >
+                            <span className="material-symbols-outlined text-base shrink-0">visibility</span>
+                            <div className="flex flex-col">
+                              <span>Activar Todo</span>
+                              <span className="text-[8px] font-normal lowercase tracking-normal opacity-70 text-on-surface dark:text-white/70">Mostrar todos en catálogo</span>
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => { setShowVisibilidadDropdown(false); requestVisibilidadAction('ocultar_sin_stock'); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-wider transition-all text-left rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                          >
+                            <span className="material-symbols-outlined text-base shrink-0">visibility_off</span>
+                            <div className="flex flex-col">
+                              <span>Ocultar Sin Stock</span>
+                              <span className="text-[8px] font-normal lowercase tracking-normal opacity-70 text-on-surface dark:text-white/70">Ocultar productos con stock 0</span>
+                            </div>
+                          </button>
+
+                          <div className="my-1 border-t border-outline-variant/10 dark:border-white/10" />
+
+                          <button
+                            onClick={() => { setShowVisibilidadDropdown(false); requestVisibilidadAction('ocultar_todo'); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-wider transition-all text-left rounded-xl text-rose-500 dark:text-rose-400 hover:bg-rose-500/10"
+                          >
+                            <span className="material-symbols-outlined text-base shrink-0">hide_source</span>
+                            <div className="flex flex-col">
+                              <span>Ocultar Todo</span>
+                              <span className="text-[8px] font-normal lowercase tracking-normal opacity-70 text-on-surface dark:text-white/70">Ocultar todo el catálogo</span>
+                            </div>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
 
                   <button onClick={openNew} className="flex-1 md:flex-none h-full flex items-center justify-center gap-1.5 md:gap-2 bg-secondary text-white px-3 md:px-5 rounded-xl font-label font-bold uppercase text-[9px] md:text-[10px] tracking-tight md:tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all tour-inv-nuevo whitespace-nowrap">
                     <span className="material-symbols-outlined text-sm">add</span>
@@ -4256,6 +4380,72 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
               >
                 Guardar y Generar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Personalizado Elegante para Visibilidad del Catálogo */}
+      {visibilidadModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200" 
+            onClick={() => setVisibilidadModal(null)} 
+          />
+          <div className="bg-surface dark:bg-[#1a1a1a] rounded-[24px] shadow-2xl w-full max-w-md relative z-10 flex flex-col animate-in zoom-in-95 duration-200 border border-outline-variant/20 dark:border-white/10 p-6 text-on-surface dark:text-white/90">
+            <div className="flex items-start gap-4 mb-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${visibilidadModal.iconColor}`}>
+                <span className="material-symbols-outlined text-2xl">{visibilidadModal.icon}</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-headline text-lg font-bold text-secondary dark:text-[#e2bd6c] leading-tight">
+                  {visibilidadModal.title}
+                </h3>
+                <p className="text-[10px] uppercase tracking-widest text-outline dark:text-gray-400 font-bold mt-1">
+                  Visibilidad de Catálogo
+                </p>
+              </div>
+              <button 
+                onClick={() => setVisibilidadModal(null)}
+                className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-outline dark:text-gray-400 transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <p className="text-sm text-on-surface-variant dark:text-gray-300 leading-relaxed mb-6">
+              {visibilidadModal.message}
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant/10 dark:border-white/10">
+              {visibilidadModal.type === 'confirm' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setVisibilidadModal(null)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (visibilidadModal.onConfirm) visibilidadModal.onConfirm();
+                    }}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all ${visibilidadModal.buttonColor}`}
+                  >
+                    {visibilidadModal.confirmText}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setVisibilidadModal(null)}
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-secondary text-white dark:bg-[#e2bd6c] dark:text-black hover:opacity-90 shadow-md hover:scale-105 transition-all"
+                >
+                  Entendido
+                </button>
+              )}
             </div>
           </div>
         </div>
