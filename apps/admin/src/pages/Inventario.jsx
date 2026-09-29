@@ -73,6 +73,27 @@ const getHexColor = (name) => {
   return colors[name.toLowerCase()] || null;
 };
 
+// Convierte textos como "AMPOLLA SHOCK KERATINA" a "Ampolla Shock Keratina"
+export const toTitleCase = (str) => {
+  if (!str || typeof str !== 'string') return str || '';
+  
+  const lowercaseWords = new Set(['de', 'del', 'con', 'en', 'para', 'por', 'sin', 'y', 'e', 'o', 'u', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'a']);
+
+  return str
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word, index) => {
+      if (!word) return '';
+      const cleanWord = word.replace(/^[^\wáéíóúñÁÉÍÓÚÑ]+|[^\wáéíóúñÁÉÍÓÚÑ]+$/g, '');
+      if (index > 0 && lowercaseWords.has(cleanWord.toLowerCase())) {
+        return word.toLowerCase();
+      }
+      return word.replace(/[a-zA-ZáéíóúñÁÉÍÓÚÑ]/, (char) => char.toUpperCase());
+    })
+    .join(' ');
+};
+
 // Utilidad para normalizar texto (quitar acentos y convertir a minúsculas)
 const normalizeText = (text) => {
   if (!text) return '';
@@ -1398,7 +1419,7 @@ REGLAS DE FORMATO ESTRICTAS:
     const estadoFinal = calcularEstado(stockCalculado)
     
     const payload = {
-      nombre: form.nombre,
+      nombre: toTitleCase(form.nombre),
       sku: form.sku,
       coleccion: form.coleccion.trim().toUpperCase(),
       proveedor: (form.proveedor || '').trim().toUpperCase(),
@@ -2264,7 +2285,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-headline font-bold text-base text-on-surface dark:text-white/90 truncate leading-tight mb-0.5 flex items-center gap-2">
-                        <span>{p.nombre}</span>
+                        <span>{toTitleCase(p.nombre)}</span>
                         {p.visibleEnCatalogo === false && (
                           <span className="inline-flex items-center gap-1 text-[8px] bg-error-container/20 text-error px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-error/10 shrink-0">
                             <span className="material-symbols-outlined text-[10px]">visibility_off</span>
@@ -2468,7 +2489,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                           {/* Detalle Textos del Producto */}
                           <div>
                             <p className="font-headline font-bold text-base text-on-surface dark:text-white/90 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors flex items-center gap-2">
-                              <span>{p.nombre}</span>
+                              <span>{toTitleCase(p.nombre)}</span>
                               {p.visibleEnCatalogo === false && (
                                 <span className="inline-flex items-center gap-1 text-[8px] bg-error-container/20 text-error px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-error/10">
                                   <span className="material-symbols-outlined text-[10px]">visibility_off</span>
