@@ -149,6 +149,7 @@ export default function CatalogoPublico() {
   const [precioMax, setPrecioMax] = useState('')
   const [soloDisponibles, setSoloDisponibles] = useState(false)
   const [soloConImagenes, setSoloConImagenes] = useState(false)
+  const [categorySearchTerm, setCategorySearchTerm] = useState('')
   const categoryContainerRef = useRef(null)
 
   // Carrito: array de { idCart, producto, variante, cantidad, precio, maxStock }
@@ -1323,12 +1324,13 @@ export default function CatalogoPublico() {
       if (!tieneStock) return false;
     }
 
-    if (soloConImagenes) {
-      const tieneImagen = p.fotoUrl || (p.fotos && p.fotos.length > 0 && p.fotos[0]);
-      if (!tieneImagen) return false;
-    }
-
     return true;
+  }).sort((a, b) => {
+    const aTieneFoto = !!(a.fotoUrl || (a.fotos && a.fotos.length > 0 && a.fotos[0]));
+    const bTieneFoto = !!(b.fotoUrl || (b.fotos && b.fotos.length > 0 && b.fotos[0]));
+    if (aTieneFoto && !bTieneFoto) return -1;
+    if (!aTieneFoto && bTieneFoto) return 1;
+    return 0;
   })
 
   const handleAuthSubmit = async (e) => {
@@ -2044,7 +2046,7 @@ export default function CatalogoPublico() {
                 <div className="relative animate-in fade-in slide-in-from-top-1 duration-200">
                   <input 
                     type="text" 
-                    placeholder="Nombre, SKU..."
+                    placeholder="Buscar producto o marca..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
@@ -2132,19 +2134,6 @@ export default function CatalogoPublico() {
                       <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
                     </div>
                   </label>
-
-                  <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-variant/50'}`}>
-                    <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-on-surface'}`}>Solo con imágenes</span>
-                    <div className="relative flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer"
-                        checked={soloConImagenes}
-                        onChange={e => setSoloConImagenes(e.target.checked)}
-                      />
-                      <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
-                    </div>
-                  </label>
                 </div>
               )}
             </div>
@@ -2165,61 +2154,97 @@ export default function CatalogoPublico() {
               </button>
               
               {isCategoriasExpanded && (
-                <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {categoriasUnicas.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => {
-                        setFiltroCategoria(c)
-                        if (window.innerWidth < 768) setIsSidebarOpen(false)
-                      }}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-300 relative group overflow-hidden border cursor-pointer
-                        ${filtroCategoria === c
-                          ? (isDark 
-                              ? 'bg-gradient-to-r from-[#e2bd6c]/20 to-[#e2bd6c]/5 border-[#e2bd6c]/40 text-[#e2bd6c] shadow-[0_0_15px_rgba(226,189,108,0.15)] scale-[1.02]' 
-                              : 'bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 text-primary scale-[1.02]')
-                          : (isDark 
-                              ? 'bg-transparent border-transparent text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/5' 
-                              : 'bg-transparent border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 hover:border-surface-variant/10')
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {categoriasUnicas.length > 5 && (
+                    <div className="relative mb-2">
+                      <input 
+                        type="text"
+                        placeholder="Filtrar categoría..."
+                        value={categorySearchTerm}
+                        onChange={e => setCategorySearchTerm(e.target.value)}
+                        className={`w-full border rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium focus:outline-none ${
+                          isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'
                         }`}
-                    >
-                      {/* Left line indicator for active category */}
-                      {filtroCategoria === c && (
-                        <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-md ${isDark ? 'bg-[#e2bd6c]' : 'bg-primary'}`} />
+                      />
+                      {categorySearchTerm && (
+                        <button 
+                          onClick={() => setCategorySearchTerm('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                        >
+                          <span className="material-symbols-outlined text-[10px]">close</span>
+                        </button>
                       )}
-                      
-                      <div className="flex items-center gap-3">
-                        <span className={`material-symbols-outlined text-[16px] transition-transform duration-500 group-hover:rotate-[15deg] ${filtroCategoria === c ? (isDark ? 'text-[#e2bd6c]' : 'text-primary') : 'text-gray-500 group-hover:text-gray-300'}`}>
-                          {getCategoriaIcon(c)}
-                        </span>
-                        <span className="font-semibold tracking-widest text-[10px]">{c}</span>
-                      </div>
-                      
-                      {filtroCategoria === c ? (
-                        <span className={`material-symbols-outlined text-sm ${isDark ? 'text-[#e2bd6c]' : 'text-primary'} animate-pulse`}>check</span>
-                      ) : (
-                        <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-40 group-hover:translate-x-0.5 transition-all text-gray-500">chevron_right</span>
-                      )}
-                    </button>
-                  ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-1.5 max-h-[240px] overflow-y-auto custom-scrollbar p-0.5">
+                    {categoriasUnicas
+                      .filter(c => c.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                      .map(c => (
+                        <button
+                          key={c}
+                          onClick={() => {
+                            setFiltroCategoria(c)
+                          }}
+                          className={`px-3 py-2 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 border cursor-pointer select-none
+                            ${filtroCategoria === c
+                              ? (isDark 
+                                  ? 'bg-gradient-to-r from-[#e2bd6c]/25 to-[#e2bd6c]/10 border-[#e2bd6c]/50 text-[#e2bd6c] shadow-[0_0_12px_rgba(226,189,108,0.2)] scale-[1.03]' 
+                                  : 'bg-gradient-to-r from-primary/15 to-primary/5 border-primary/40 text-primary shadow-sm scale-[1.03]')
+                              : (isDark 
+                                  ? 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/10' 
+                                  : 'bg-surface-container-low border-outline-variant/20 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40')
+                            }`}
+                        >
+                          <span className={`material-symbols-outlined text-[14px] ${filtroCategoria === c ? (isDark ? 'text-[#e2bd6c]' : 'text-primary') : 'text-gray-500'}`}>
+                            {getCategoriaIcon(c)}
+                          </span>
+                          <span>{c}</span>
+                          {filtroCategoria === c && (
+                            <span className="material-symbols-outlined text-[12px] font-bold">check</span>
+                          )}
+                        </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
           </div>
           
-          {/* FOOTER SIDEBAR */}
-          <div className={`p-6 border-t shrink-0 ${isDark ? 'border-white/5 bg-[#151515]' : 'border-outline-variant/20 bg-surface-container-lowest'}`}>
+          {/* FOOTER SIDEBAR STICKY */}
+          <div className={`sticky bottom-0 p-5 border-t shrink-0 backdrop-blur-md flex flex-col gap-2.5 z-10 ${
+            isDark ? 'border-white/10 bg-[#151515]/95 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]' : 'border-outline-variant/20 bg-white/95 shadow-[0_-10px_25px_rgba(0,0,0,0.05)]'
+          }`}>
+            <button 
+              onClick={() => {
+                if (window.innerWidth < 768) setIsSidebarOpen(false);
+              }}
+              className={`w-full py-3.5 rounded-xl font-headline font-bold text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95 hover:scale-[1.02] ${
+                isDark 
+                  ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90 shadow-[#e2bd6c]/20' 
+                  : 'bg-primary text-on-primary hover:bg-primary/90 shadow-primary/20'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base font-bold">tune</span>
+              <span>Ver {productosFiltrados.length} {productosFiltrados.length === 1 ? 'resultado' : 'resultados'}</span>
+            </button>
+
             <button 
               onClick={() => {
                 setFiltroCategoria('TODAS')
                 setSearchTerm('')
                 setPrecioMin('')
                 setPrecioMax('')
+                setCategorySearchTerm('')
                 setSoloDisponibles(false)
                 setSoloConImagenes(false)
               }}
-              className={`w-full py-3 rounded-xl border font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer ${isDark ? 'border-white/10 text-white hover:bg-white/5' : 'border-outline-variant/30 text-on-surface hover:bg-surface-variant'}`}
+              className={`w-full py-2 rounded-xl border font-bold text-[11px] uppercase tracking-widest transition-colors cursor-pointer ${
+                isDark 
+                  ? 'border-white/10 text-gray-400 hover:bg-white/5 hover:text-white' 
+                  : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant/40'
+              }`}
             >
               Limpiar Filtros
             </button>
