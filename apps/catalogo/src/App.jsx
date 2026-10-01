@@ -2557,15 +2557,15 @@ export default function CatalogoPublico() {
                     ) : (
                        <ProductImagePlaceholder isDark={isDark} iconSize="text-3xl" text="LEIS" />
                     )}
-                    {p.marca && (
-                      <div className={`absolute top-2 right-2 backdrop-blur-sm px-2 py-1 rounded-md ${isDark ? 'bg-[#151515]/90' : 'bg-white/90'}`}>
-                        <span className={`text-[8px] font-bold uppercase tracking-widest ${isDark ? 'text-[#e2bd6c]' : 'text-on-surface'}`}>{p.marca}</span>
-                      </div>
-                    )}
                   </div>
                   
                   {/* Info */}
                   <div className="p-4 flex flex-col flex-1">
+                    {p.marca && (
+                      <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-1 truncate ${isDark ? 'text-[#e2bd6c]/70' : 'text-[#78350f]/60'}`}>
+                        {p.marca}
+                      </p>
+                    )}
                     <h3 
                       className={`font-headline font-bold text-sm md:text-xl leading-tight line-clamp-2 min-h-[2.5rem] md:min-h-[3.25rem] flex items-start mb-1 cursor-pointer transition-colors ${isDark ? 'text-white hover:text-[#e2bd6c]' : 'text-on-surface hover:text-primary'}`}
                       onClick={() => setProductoParaVer(p)}
