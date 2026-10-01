@@ -2574,31 +2574,84 @@ export default function CatalogoPublico() {
                     </h3>
                     <p className={`text-[10px] md:text-xs uppercase tracking-wider mb-3 ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>{(p.coleccion || '').toUpperCase()}</p>
                     
-                    <div className="mt-auto flex items-end justify-between gap-2">
-                      <p className={`font-bold text-base md:text-lg ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>${(p.precio || 0).toLocaleString('es-CL')}</p>
+                    <div className="mt-auto pt-2">
+                      <div className="flex items-baseline justify-between mb-2">
+                        <p className={`font-bold text-base md:text-xl ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                          ${(p.precio || 0).toLocaleString('es-CL')}
+                        </p>
+                        {cartItem && (
+                          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-500 animate-in fade-in">
+                            <span className="material-symbols-outlined text-xs">check_circle</span>
+                            En carro ({cartItem.cantidad})
+                          </span>
+                        )}
+                      </div>
                       
-                      {/* LÓGICA DE BOTONES INLINE */}
+                      {/* BOTÓN O CONTROLES DE ANCHO COMPLETO */}
                       {!tieneStock ? (
-                        <span className={`px-3 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-white/5 text-gray-400' : 'bg-surface-variant text-on-surface-variant'}`}>
+                        <button 
+                          disabled
+                          className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest opacity-60 cursor-not-allowed ${isDark ? 'bg-white/5 border border-white/10 text-gray-400' : 'bg-surface-variant text-on-surface-variant'}`}
+                        >
+                          <span className="material-symbols-outlined text-sm">block</span>
                           Agotado
-                        </span>
+                        </button>
                       ) : tieneVariantes ? (
                         <button 
                           onClick={() => abrirModalAñadir(p)}
-                          className={`px-3 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-widest shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
+                          className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                            totalEnCarritoVariants > 0
+                              ? (isDark 
+                                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30' 
+                                  : 'bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100')
+                              : (isDark 
+                                  ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90 shadow-[#e2bd6c]/10' 
+                                  : 'bg-primary text-on-primary hover:bg-primary-fixed-dim shadow-primary/10')
+                          } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-105') : ''}`}
                         >
-                          Opciones {totalEnCarritoVariants > 0 && <span className={`ml-1 px-1.5 py-0.5 rounded-md ${isDark ? 'bg-black/20 text-black/80' : 'bg-white/20 text-on-primary/80'}`}>{totalEnCarritoVariants}</span>}
+                          <span className="material-symbols-outlined text-sm md:text-base">tune</span>
+                          <span>Opciones</span>
+                          {totalEnCarritoVariants > 0 && (
+                            <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white shadow-sm flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[10px]">check</span> {totalEnCarritoVariants}
+                            </span>
+                          )}
                         </button>
                       ) : cartItem ? (
-                        <div className={`flex items-center gap-1 rounded-xl p-1 h-10 shrink-0 border ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-highest border-outline-variant/20'}`}>
-                          <button onClick={() => {
-                            if(cartItem.cantidad === 1) eliminarDelCarrito(cartItem.idCart);
-                            else actualizarCantidad(cartItem.idCart, -1);
-                          }} className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white text-on-surface'}`}>
-                            <span className="material-symbols-outlined text-[16px]">remove</span>
+                        <div className={`w-full flex items-center justify-between p-1 rounded-xl h-10 border transition-all animate-in zoom-in-95 ${
+                          isDark ? 'bg-white/5 border-[#e2bd6c]/40 text-white' : 'bg-primary/5 border-primary/30 text-primary'
+                        }`}>
+                          <button 
+                            onClick={() => {
+                              if (cartItem.cantidad === 1) eliminarDelCarrito(cartItem.idCart);
+                              else actualizarCantidad(cartItem.idCart, -1);
+                            }} 
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                              cartItem.cantidad === 1 
+                                ? 'hover:bg-red-500/20 text-red-500' 
+                                : (isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-primary/10 text-primary')
+                            }`}
+                            title={cartItem.cantidad === 1 ? "Quitar del carrito" : "Restar uno"}
+                          >
+                            <span className="material-symbols-outlined text-[16px]">
+                              {cartItem.cantidad === 1 ? 'delete' : 'remove'}
+                            </span>
                           </button>
-                          <span className={`w-5 text-center font-bold text-xs ${isDark ? 'text-white' : 'text-on-surface'}`}>{cartItem.cantidad}</span>
-                          <button onClick={() => actualizarCantidad(cartItem.idCart, 1)} className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-white text-on-surface'}`}>
+
+                          <div className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-emerald-500 font-bold">check_circle</span>
+                            <span className={`font-extrabold text-xs ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                              {cartItem.cantidad} <span className="text-[10px] font-semibold opacity-75">en carro</span>
+                            </span>
+                          </div>
+
+                          <button 
+                            onClick={() => actualizarCantidad(cartItem.idCart, 1)} 
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                              isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-primary/10 text-primary'
+                            }`}
+                            title="Agregar otro"
+                          >
                             <span className="material-symbols-outlined text-[16px]">add</span>
                           </button>
                         </div>
@@ -2608,9 +2661,14 @@ export default function CatalogoPublico() {
                             animateFlyToCart(e, p.fotoUrl);
                             añadirAlCarrito(p, null);
                           }}
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 ${isDark ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90' : 'bg-primary text-on-primary hover:bg-primary-fixed-dim'} ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-110' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-110') : ''}`}
+                          className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                            isDark 
+                              ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90 shadow-[#e2bd6c]/20' 
+                              : 'bg-primary text-on-primary hover:bg-primary/90 shadow-primary/20'
+                          } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-105') : ''}`}
                         >
-                          <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+                          <span className="material-symbols-outlined text-sm md:text-base">add_shopping_cart</span>
+                          <span>Agregar</span>
                         </button>
                       )}
                     </div>
