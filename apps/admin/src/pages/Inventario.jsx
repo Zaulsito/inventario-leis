@@ -94,6 +94,24 @@ export const toTitleCase = (str) => {
     .join(' ');
 };
 
+// Placeholder elegante para productos sin imagen
+const ProductImagePlaceholder = ({ className = "w-full h-full", iconSize = "text-xl", showText = true, text = "LEIS" }) => (
+  <div className={`relative overflow-hidden flex flex-col items-center justify-center select-none bg-gradient-to-br from-[#1e1c18] via-[#141414] to-[#0f0e0d] text-[#e2bd6c]/50 border border-[#e2bd6c]/20 shadow-inner group/ph ${className}`}>
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.12)_0%,transparent_70%)] pointer-events-none" />
+    <div className="absolute inset-1 border border-[#e2bd6c]/10 rounded-[inherit] pointer-events-none" />
+    <div className="flex flex-col items-center justify-center gap-0.5 z-10 transition-transform duration-300 group-hover/ph:scale-105">
+      <span className={`material-symbols-outlined ${iconSize} text-[#e2bd6c]/70 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]`}>
+        auto_awesome
+      </span>
+      {showText && (
+        <span className="font-headline italic font-bold text-[8px] tracking-[0.25em] text-[#e2bd6c]/70 uppercase">
+          {text}
+        </span>
+      )}
+    </div>
+  </div>
+);
+
 // Utilidad para normalizar texto (quitar acentos y convertir a minúsculas)
 const normalizeText = (text) => {
   if (!text) return '';
@@ -800,7 +818,14 @@ REGLAS DE FORMATO ESTRICTAS:
 
   useEffect(() => {
     const unsubProd = onSnapshot(collection(db, 'productos'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const data = snapshot.docs.map(dDoc => {
+        const dData = dDoc.data()
+        const titleCaseName = toTitleCase(dData.nombre)
+        if (dData.nombre && dData.nombre !== titleCaseName && dData.nombre === dData.nombre.toUpperCase() && dData.nombre.length > 3) {
+          updateDoc(dDoc.ref, { nombre: titleCaseName }).catch(err => console.warn('Auto TitleCase update skipped:', err))
+        }
+        return { id: dDoc.id, ...dData, nombre: titleCaseName }
+      })
       setProductos(data)
       setLoading(false)
     })
@@ -2271,7 +2296,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
                     className="p-4 flex items-center gap-4 active:bg-surface-variant/20 dark:active:bg-white/5 transition-colors cursor-pointer"
                   >
-                    <div className="w-14 h-14 rounded-xl bg-surface-container dark:bg-white/5 overflow-hidden shrink-0 border border-outline-variant/20 dark:border-white/5 shadow-sm flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-outline-variant/20 dark:border-white/5 shadow-sm flex items-center justify-center">
                       {p.fotoUrl ? (
                         <img 
                           src={getOptimizedImageUrl(p.fotoUrl, 200)} 
@@ -2280,7 +2305,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                           onClick={(e) => { e.stopPropagation(); setExpandedImage(p.fotoUrl); }}
                         />
                       ) : (
-                        <span className="material-symbols-outlined text-outline/40">image</span>
+                        <ProductImagePlaceholder iconSize="text-base" showText={false} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -2479,9 +2504,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                   onClick={() => setExpandedImage(p.fotoUrl)}
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-outline dark:text-gray-500 transition-opacity duration-300 group-hover:opacity-50">
-                                  <span className="material-symbols-outlined text-2xl">image</span>
-                                </div>
+                                <ProductImagePlaceholder iconSize="text-2xl" />
                               )}
                             </div>
                           </div>

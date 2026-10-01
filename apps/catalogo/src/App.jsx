@@ -69,6 +69,59 @@ const getCategoriaIcon = (catName) => {
   return 'star_rate';
 }
 
+// Convierte textos como "AMPOLLA SHOCK KERATINA" a "Ampolla Shock Keratina"
+const toTitleCase = (str) => {
+  if (!str || typeof str !== 'string') return str || '';
+  
+  const lowercaseWords = new Set(['de', 'del', 'con', 'en', 'para', 'por', 'sin', 'y', 'e', 'o', 'u', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'a']);
+
+  return str
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word, index) => {
+      if (!word) return '';
+      const cleanWord = word.replace(/^[^\wáéíóúñÁÉÍÓÚÑ]+|[^\wáéíóúñÁÉÍÓÚÑ]+$/g, '');
+      if (index > 0 && lowercaseWords.has(cleanWord.toLowerCase())) {
+        return word.toLowerCase();
+      }
+      return word.replace(/[a-zA-ZáéíóúñÁÉÍÓÚÑ]/, (char) => char.toUpperCase());
+    })
+    .join(' ');
+};
+
+// Placeholder elegante para productos sin imagen
+const ProductImagePlaceholder = ({ className = "w-full h-full", iconSize = "text-3xl", showText = true, isDark = true, text = "LEIS" }) => (
+  <div className={`relative overflow-hidden flex flex-col items-center justify-center select-none ${
+    isDark 
+      ? 'bg-gradient-to-br from-[#1e1c18] via-[#141414] to-[#0f0e0d] text-[#e2bd6c]/50 border border-[#e2bd6c]/15 shadow-inner' 
+      : 'bg-gradient-to-br from-[#fdfbf7] via-[#f5efe4] to-[#ebe1d1] text-[#785427]/60 border border-[#e2bd6c]/30 shadow-inner'
+  } ${className}`}>
+    <div className={`absolute inset-0 pointer-events-none ${
+      isDark 
+        ? 'bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.12)_0%,transparent_75%)]' 
+        : 'bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.25)_0%,transparent_75%)]'
+    }`} />
+    <div className={`absolute inset-1.5 rounded-[inherit] pointer-events-none border ${
+      isDark ? 'border-[#e2bd6c]/10' : 'border-[#785427]/15'
+    }`} />
+    <div className="flex flex-col items-center justify-center gap-1 z-10 p-2 text-center transition-transform duration-300 group-hover:scale-105">
+      <span className={`material-symbols-outlined ${iconSize} ${
+        isDark ? 'text-[#e2bd6c]/70' : 'text-[#785427]/80'
+      } drop-shadow-sm`}>
+        auto_awesome
+      </span>
+      {showText && (
+        <span className={`font-headline italic font-black uppercase tracking-[0.25em] text-[9px] sm:text-[10px] ${
+          isDark ? 'text-[#e2bd6c]/70' : 'text-[#785427]/80'
+        }`}>
+          {text}
+        </span>
+      )}
+    </div>
+  </div>
+);
+
 export default function CatalogoPublico() {
   const [productos, setProductos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1228,7 +1281,10 @@ export default function CatalogoPublico() {
   useEffect(() => {
     // Escuchar productos en tiempo real
     const unsub = onSnapshot(collection(db, 'productos'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const data = snapshot.docs.map(dDoc => {
+        const dData = dDoc.data()
+        return { id: dDoc.id, ...dData, nombre: toTitleCase(dData.nombre) }
+      })
       // Ordenar alfabéticamente
       data.sort((a, b) => a.nombre.localeCompare(b.nombre))
       setProductos(data)
@@ -2499,7 +2555,7 @@ export default function CatalogoPublico() {
                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
                        />
                     ) : (
-                       <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>image</span>
+                       <ProductImagePlaceholder isDark={isDark} iconSize="text-3xl" text="LEIS" />
                     )}
                     {p.marca && (
                       <div className={`absolute top-2 right-2 backdrop-blur-sm px-2 py-1 rounded-md ${isDark ? 'bg-[#151515]/90' : 'bg-white/90'}`}>
@@ -2755,9 +2811,7 @@ export default function CatalogoPublico() {
                               {imgUrl ? (
                                 <img src={getOptimizedImageUrl(imgUrl, 200)} alt={item.nombre} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <span className="material-symbols-outlined text-gray-400 text-lg">image</span>
-                                </div>
+                                <ProductImagePlaceholder isDark={isDark} iconSize="text-base" showText={false} />
                               )}
                             </div>
 
@@ -3016,8 +3070,8 @@ export default function CatalogoPublico() {
                       <div className={`absolute inset-0 rounded-[40px] transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} />
                     </div>
                   ) : (
-                    <div className="relative z-10">
-                      <span className={`material-symbols-outlined text-7xl ${isDark ? 'text-white/20' : 'text-outline/30'}`}>image</span>
+                    <div className="relative z-10 w-64 h-64 sm:w-80 sm:h-80 rounded-[40px] overflow-hidden shadow-xl">
+                      <ProductImagePlaceholder isDark={isDark} iconSize="text-5xl" text="LEIS COLLECTION" />
                     </div>
                   )}
 
