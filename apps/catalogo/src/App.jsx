@@ -2567,10 +2567,10 @@ export default function CatalogoPublico() {
                   {/* Info */}
                   <div className="p-4 flex flex-col flex-1">
                     <h3 
-                      className={`font-headline font-bold text-sm md:text-xl leading-tight line-clamp-2 mb-1 cursor-pointer transition-colors ${isDark ? 'text-white hover:text-[#e2bd6c]' : 'text-on-surface hover:text-primary'}`}
+                      className={`font-headline font-bold text-sm md:text-xl leading-tight line-clamp-2 min-h-[2.5rem] md:min-h-[3.25rem] flex items-start mb-1 cursor-pointer transition-colors ${isDark ? 'text-white hover:text-[#e2bd6c]' : 'text-on-surface hover:text-primary'}`}
                       onClick={() => setProductoParaVer(p)}
                     >
-                      {p.nombre}
+                      {toTitleCase(p.nombre)}
                     </h3>
                     <p className={`text-[10px] md:text-xs uppercase tracking-wider mb-3 ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>{(p.coleccion || '').toUpperCase()}</p>
                     
