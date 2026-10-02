@@ -2586,20 +2586,29 @@ export default function CatalogoPublico() {
                   
                   {/* Info */}
                   <div className="p-4 flex flex-col flex-1">
-                    {p.marca && (
-                      <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-1 truncate ${isDark ? 'text-[#e2bd6c]/70' : 'text-[#78350f]/60'}`}>
-                        {p.marca}
+                    {/* Marca: Reserva de espacio vertical constante (h-4) */}
+                    <div className="h-4 flex items-center mb-1">
+                      <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate ${isDark ? 'text-[#e2bd6c]/70' : 'text-[#78350f]/60'}`}>
+                        {p.marca || 'LEIS COLLECTION'}
                       </p>
-                    )}
+                    </div>
+
+                    {/* Título: Altura fija constante para 2 líneas con font-size optimizado */}
                     <h3 
-                      className={`font-headline font-bold text-sm md:text-xl leading-tight line-clamp-2 min-h-[2.5rem] md:min-h-[3.25rem] flex items-start mb-1 cursor-pointer transition-colors ${isDark ? 'text-white hover:text-[#e2bd6c]' : 'text-on-surface hover:text-primary'}`}
+                      className={`font-headline font-bold text-xs sm:text-sm md:text-base leading-snug line-clamp-2 h-[2.5rem] md:h-[2.75rem] flex items-start mb-1 cursor-pointer transition-colors ${isDark ? 'text-white hover:text-[#e2bd6c]' : 'text-on-surface hover:text-primary'}`}
                       onClick={() => setProductoParaVer(p)}
+                      title={toTitleCase(p.nombre)}
                     >
                       {toTitleCase(p.nombre)}
                     </h3>
-                    <p className={`text-[10px] md:text-xs uppercase tracking-wider mb-3 ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>{(p.coleccion || '').toUpperCase()}</p>
+
+                    {/* Categoría: Truncada a 1 línea */}
+                    <p className={`text-[10px] md:text-xs uppercase tracking-wider mb-2 truncate ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>
+                      {(p.coleccion || 'JOYAS').toUpperCase()}
+                    </p>
                     
-                    <div className="mt-auto pt-2">
+                    {/* Contenedor Inferior: mt-auto para alineación horizontal exacta del precio y botón */}
+                    <div className="mt-auto pt-2 flex flex-col justify-end">
                       <div className="flex items-baseline justify-between mb-2">
                         <p className={`font-bold text-base md:text-xl ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
                           ${(p.precio || 0).toLocaleString('es-CL')}
