@@ -2069,12 +2069,15 @@ export default function CatalogoPublico() {
               
               {isBusquedaExpanded && (
                 <div className="relative animate-in fade-in slide-in-from-top-1 duration-200">
+                  <span className={`material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                    search
+                  </span>
                   <input 
                     type="text" 
                     placeholder="Buscar producto o marca..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
+                    className={`w-full border rounded-xl pl-9 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
                   />
                   {searchTerm && (
                     <button 
@@ -2130,39 +2133,6 @@ export default function CatalogoPublico() {
               )}
             </div>
 
-            {/* DISPONIBILIDAD */}
-            <div className="space-y-3">
-              <button 
-                onClick={() => setIsDisponibilidadExpanded(!isDisponibilidadExpanded)}
-                className="w-full flex items-center justify-between py-1 cursor-pointer select-none group focus:outline-none"
-              >
-                <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 ${isDark ? 'text-[#e2bd6c]/80' : 'text-outline'} group-hover:text-[#e2bd6c] transition-colors`}>
-                  <span className="material-symbols-outlined text-sm">inventory_2</span>
-                  Disponibilidad
-                </h3>
-                <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${isDark ? 'text-gray-400' : 'text-outline'} ${isDisponibilidadExpanded ? 'rotate-180' : ''}`}>
-                  expand_more
-                </span>
-              </button>
-              
-              {isDisponibilidadExpanded && (
-                <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
-                  <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-variant/50'}`}>
-                    <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-on-surface'}`}>Solo disponible</span>
-                    <div className="relative flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer"
-                        checked={soloDisponibles}
-                        onChange={e => setSoloDisponibles(e.target.checked)}
-                      />
-                      <div className={`w-10 h-6 bg-outline-variant/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isDark ? 'peer-checked:bg-[#e2bd6c]' : 'peer-checked:bg-primary'}`}></div>
-                    </div>
-                  </label>
-                </div>
-              )}
-            </div>
-
             {/* CATEGORÍAS */}
             <div className="space-y-3">
               <button 
@@ -2202,7 +2172,7 @@ export default function CatalogoPublico() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-1.5 max-h-[240px] overflow-y-auto custom-scrollbar p-0.5">
+                  <div className="flex flex-wrap gap-1.5 max-h-[380px] overflow-y-auto custom-scrollbar p-0.5">
                     {categoriasUnicas
                       .filter(c => c.toLowerCase().includes(categorySearchTerm.toLowerCase()))
                       .map(c => (
