@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore'
 import { db, auth } from './config/firebase'
 import { getOptimizedImageUrl } from './utils/image'
@@ -143,6 +143,8 @@ export default function CatalogoPublico() {
   
   // Filtros Avanzados
   const [filtroCategoria, setFiltroCategoria] = useState('TODAS')
+  const [ordenamiento, setOrdenamiento] = useState('destacados')
+  const [isSortOpen, setIsSortOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [precioMin, setPrecioMin] = useState('')
@@ -206,12 +208,22 @@ export default function CatalogoPublico() {
 
   // Estado para la rotación automática de productos destacados en el Hero Banner
   const [heroIndex, setHeroIndex] = useState(0)
+  const [heroBannerConfig, setHeroBannerConfig] = useState(null)
 
   useEffect(() => {
     const timer = setInterval(() => {
       setHeroIndex(prev => prev + 1)
     }, 4500)
     return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const unsubHero = onSnapshot(doc(db, 'configuracion', 'heroBanner'), (docSnap) => {
+      if (docSnap.exists()) {
+        setHeroBannerConfig(docSnap.data())
+      }
+    })
+    return () => unsubHero()
   }, [])
 
   // Estado para la vista ampliada (hover zoom)
@@ -1313,6 +1325,17 @@ export default function CatalogoPublico() {
     return a.localeCompare(b);
   })
 
+  const categoryCounts = useMemo(() => {
+    const counts = { TODAS: productosVisibles.length }
+    productosVisibles.forEach(p => {
+      const cat = (p.coleccion || '').trim().toUpperCase()
+      if (cat) {
+        counts[cat] = (counts[cat] || 0) + 1
+      }
+    })
+    return counts
+  }, [productosVisibles])
+
   const productosFiltrados = productosVisibles.filter(p => {
     if (filtroCategoria !== 'TODAS' && (p.coleccion || '').trim().toUpperCase() !== filtroCategoria) return false;
     
@@ -1336,6 +1359,24 @@ export default function CatalogoPublico() {
 
     return true;
   }).sort((a, b) => {
+    if (ordenamiento === 'precio_asc') {
+      return (Number(a.precio) || 0) - (Number(b.precio) || 0);
+    }
+    if (ordenamiento === 'precio_desc') {
+      return (Number(b.precio) || 0) - (Number(a.precio) || 0);
+    }
+    if (ordenamiento === 'recientes') {
+      const dateA = new Date(a.fechaIngreso || a.createdAt || 0).getTime();
+      const dateB = new Date(b.fechaIngreso || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    }
+    if (ordenamiento === 'mas_vendidos') {
+      const ventasA = Number(a.ventasTotal || a.ventasCount || a.stockInvertido || 0);
+      const ventasB = Number(b.ventasTotal || b.ventasCount || b.stockInvertido || 0);
+      if (ventasB !== ventasA) return ventasB - ventasA;
+    }
+
+    // Por defecto (Destacados): productos con fotos primero
     const aTieneFoto = !!(a.fotoUrl || (a.fotos && a.fotos.length > 0 && a.fotos[0]));
     const bTieneFoto = !!(b.fotoUrl || (b.fotos && b.fotos.length > 0 && b.fotos[0]));
     if (aTieneFoto && !bTieneFoto) return -1;
@@ -1996,17 +2037,6 @@ export default function CatalogoPublico() {
 
   return (
     <div className={`flex h-[100dvh] ${isDark ? 'bg-[#0c0c0c]' : 'bg-surface'} relative overflow-hidden transition-colors duration-500`}>
-      
-      {/* ── BACKGROUND WATERMARK ── */}
-      <div className={`fixed inset-0 pointer-events-none z-0 flex items-center justify-center transition-opacity duration-500 ${isDark ? 'opacity-10' : 'opacity-15'}`}>
-        <div className="w-[85%] md:w-[40%] max-w-lg rounded-[3.5rem] crystal-effect">
-          <img 
-            src={isDark ? "/logo-dark.png" : "/logo.jpeg"} 
-            alt="Watermark" 
-            className={`w-full h-full object-contain rounded-[3.5rem] shadow-sm transition-all duration-500 ${isDark ? 'mix-blend-overlay' : 'mix-blend-multiply'}`}
-          />
-        </div>
-      </div>
 
       {/* OVERLAY MÓVIL PARA SIDEBAR */}
       {isSidebarOpen && (
@@ -2074,10 +2104,10 @@ export default function CatalogoPublico() {
                   </span>
                   <input 
                     type="text" 
-                    placeholder="Buscar producto o marca..."
+                    placeholder="Buscar producto..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full border rounded-xl pl-9 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
+                    className={`w-full border rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
                   />
                   {searchTerm && (
                     <button 
@@ -2172,34 +2202,53 @@ export default function CatalogoPublico() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-1.5 max-h-[380px] overflow-y-auto custom-scrollbar p-0.5">
+                  <div className="flex flex-col gap-1.5 max-h-[380px] overflow-y-auto custom-scrollbar p-0.5">
                     {categoriasUnicas
                       .filter(c => c.toLowerCase().includes(categorySearchTerm.toLowerCase()))
-                      .map(c => (
-                        <button
-                          key={c}
-                          onClick={() => {
-                            setFiltroCategoria(c)
-                          }}
-                          className={`px-3 py-2 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 border cursor-pointer select-none
-                            ${filtroCategoria === c
-                              ? (isDark 
-                                  ? 'bg-gradient-to-r from-[#e2bd6c]/25 to-[#e2bd6c]/10 border-[#e2bd6c]/50 text-[#e2bd6c] shadow-[0_0_12px_rgba(226,189,108,0.2)] scale-[1.03]' 
-                                  : 'bg-gradient-to-r from-primary/15 to-primary/5 border-primary/40 text-primary shadow-sm scale-[1.03]')
-                              : (isDark 
-                                  ? 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/10' 
-                                  : 'bg-surface-container-low border-outline-variant/20 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40')
-                            }`}
-                        >
-                          <span className={`material-symbols-outlined text-[14px] ${filtroCategoria === c ? (isDark ? 'text-[#e2bd6c]' : 'text-primary') : 'text-gray-500'}`}>
-                            {getCategoriaIcon(c)}
-                          </span>
-                          <span>{c}</span>
-                          {filtroCategoria === c && (
-                            <span className="material-symbols-outlined text-[12px] font-bold">check</span>
-                          )}
-                        </button>
-                    ))}
+                      .map(c => {
+                        const isSelected = filtroCategoria === c;
+                        const count = categoryCounts[c] || 0;
+                        return (
+                          <button
+                            key={c}
+                            onClick={() => {
+                              setFiltroCategoria(c)
+                            }}
+                            className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center justify-between border cursor-pointer select-none text-left
+                              ${isSelected
+                                ? (isDark 
+                                    ? 'bg-gradient-to-r from-[#e2bd6c]/25 to-[#e2bd6c]/10 border-[#e2bd6c]/50 text-[#e2bd6c] shadow-[0_0_12px_rgba(226,189,108,0.2)]' 
+                                    : 'bg-gradient-to-r from-primary/15 to-primary/5 border-primary/40 text-primary shadow-sm')
+                                : (isDark 
+                                    ? 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/10' 
+                                    : 'bg-surface-container-low border-outline-variant/20 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40')
+                              }`}
+                          >
+                            <div className="flex items-center gap-2.5 truncate pr-2">
+                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                                isSelected 
+                                  ? (isDark ? 'border-[#e2bd6c] bg-[#e2bd6c]' : 'border-primary bg-primary') 
+                                  : (isDark ? 'border-white/20' : 'border-gray-300')
+                              }`}>
+                                {isSelected && (
+                                  <span className={`material-symbols-outlined text-[10px] font-bold ${isDark ? 'text-black' : 'text-white'}`}>check</span>
+                                )}
+                              </div>
+                              <span className={`material-symbols-outlined text-[16px] shrink-0 ${isSelected ? (isDark ? 'text-[#e2bd6c]' : 'text-primary') : 'text-gray-500'}`}>
+                                {getCategoriaIcon(c)}
+                              </span>
+                              <span className="truncate">{c}</span>
+                            </div>
+                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
+                              isSelected 
+                                ? (isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/20 text-primary') 
+                                : (isDark ? 'bg-white/5 text-gray-400' : 'bg-surface-variant text-on-surface-variant')
+                            }`}>
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -2253,7 +2302,7 @@ export default function CatalogoPublico() {
         {/* HEADER PRINCIPAL COMPACTO */}
         <header className={`sticky top-0 z-30 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b flex items-center justify-between shrink-0 transition-colors duration-500 ${isDark ? 'bg-[#0c0c0c]/80 border-white/5' : 'bg-white/80 border-outline-variant/20'}`}>
           <div className="flex items-center gap-3">
-            {/* Botón de 3 Líneas (Hamburguesa / Menú de Filtros) */}
+            {/* Botón de 3 Líneas (Hamburguesa / Toggle de Filtros Lateral) */}
             <button 
               onClick={() => {
                 if (window.innerWidth < 768) {
@@ -2263,14 +2312,18 @@ export default function CatalogoPublico() {
                 }
               }}
               className={`p-3 rounded-2xl transition-all flex items-center gap-2 cursor-pointer font-bold text-xs uppercase tracking-wider ${
-                isDark 
-                  ? 'bg-white/5 text-[#e2bd6c] hover:bg-white/10 border border-white/5' 
-                  : 'bg-surface-container-high text-on-surface hover:bg-surface-variant border border-outline-variant/20'
+                !isSidebarCollapsed
+                  ? (isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/40' : 'bg-primary/10 text-primary border border-primary/30')
+                  : (isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5' : 'bg-surface-container-high text-on-surface hover:bg-surface-variant border border-outline-variant/20')
               }`}
-              title="Abrir / Cerrar Filtros"
+              title={isSidebarCollapsed ? "Mostrar Filtros Lateral" : "Ocultar Filtros (Pantalla Completa)"}
             >
-              <span className="material-symbols-outlined text-xl">menu</span>
-              <span className="hidden sm:inline">Filtros</span>
+              <span className="material-symbols-outlined text-xl">
+                {isSidebarCollapsed ? 'menu' : 'menu_open'}
+              </span>
+              <span className="hidden sm:inline">
+                {isSidebarCollapsed ? 'Filtros' : 'Ocultar Filtros'}
+              </span>
             </button>
           </div>
 
@@ -2413,13 +2466,19 @@ export default function CatalogoPublico() {
 
                   {/* Título Principal */}
                   <h1 className={`font-headline text-2xl md:text-4xl lg:text-5xl font-extrabold italic leading-tight ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>
-                    NUEVA COLECCIÓN & <br className="hidden lg:inline" />
-                    <span className={isDark ? 'text-[#e2bd6c]' : 'text-[#785427]'}>CUIDADO PERSONAL</span>
+                    {heroBannerConfig?.titulo ? (
+                      heroBannerConfig.titulo
+                    ) : (
+                      <>
+                        NUEVA COLECCIÓN & <br className="hidden lg:inline" />
+                        <span className={isDark ? 'text-[#e2bd6c]' : 'text-[#785427]'}>CUIDADO PERSONAL</span>
+                      </>
+                    )}
                   </h1>
 
                   {/* Subtítulo */}
                   <p className={`text-xs md:text-sm max-w-xl font-medium leading-relaxed ${isDark ? 'text-gray-300' : 'text-[#5d3a28]/80'}`}>
-                    Joyería en Plata 925 y cosmética capilar seleccionada para realzar tu estilo.
+                    {heroBannerConfig?.subtitulo || "Joyería en Plata 925 y cosmética capilar seleccionada para realzar tu estilo."}
                   </p>
 
                   {/* CHIPS / FILTROS RÁPIDOS */}
@@ -2468,7 +2527,7 @@ export default function CatalogoPublico() {
                   </div>
                 </div>
 
-                {/* COLUMNA DERECHA: COMPOSICIÓN FOTOGRÁFICA DE PRODUCTOS REALES DE LA TIENDA */}
+                {/* COLUMNA DERECHA: COMPOSICIÓN FOTOGRÁFICA DE PRODUCTOS / IMÁGENES LIMPIAS DE ALTA RESOLUCIÓN */}
                 {(() => {
                   const productosConFoto = productos.filter(p => p.fotoUrl || (p.fotos && p.fotos.length > 0));
                   
@@ -2490,60 +2549,62 @@ export default function CatalogoPublico() {
                   const heroProd1 = list1.length > 0 ? list1[heroIndex % list1.length] : null;
                   const heroProd2 = list2.length > 0 ? list2[(heroIndex + 1) % list2.length] : null;
 
+                  const list1Images = (heroBannerConfig?.imagenes1 && heroBannerConfig.imagenes1.length > 0)
+                    ? heroBannerConfig.imagenes1
+                    : (heroBannerConfig?.imagen1Url ? [heroBannerConfig.imagen1Url] : list1.map(p => p.fotoUrl).filter(Boolean));
+
+                  const list2Images = (heroBannerConfig?.imagenes2 && heroBannerConfig.imagenes2.length > 0)
+                    ? heroBannerConfig.imagenes2
+                    : (heroBannerConfig?.imagen2Url ? [heroBannerConfig.imagen2Url] : list2.map(p => p.fotoUrl).filter(Boolean));
+
+                  const img1Url = list1Images.length > 0 ? list1Images[heroIndex % list1Images.length] : null;
+                  const img2Url = list2Images.length > 0 ? list2Images[(heroIndex + 1) % list2Images.length] : null;
+
+                  const label1 = heroBannerConfig?.imagen1Label || '✨ Joyería';
+                  const label2 = heroBannerConfig?.imagen2Label || '🌿 Cosmética';
+
                   return (
                     <div className="hidden md:flex items-center justify-center shrink-0 relative w-72 lg:w-96 h-56 lg:h-64 select-none">
-                      {heroProd1 && (
+                      {img1Url && (
                         <div 
-                          key={heroProd1.id}
-                          onClick={() => setProductoParaVer(heroProd1)}
-                          className={`absolute left-0 top-1 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out cursor-pointer hover:z-30 hover:scale-110 -rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+                          onClick={() => heroProd1 && setProductoParaVer(heroProd1)}
+                          className={`absolute left-1 top-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd1 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} -rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
                             isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
                           }`}
-                          title={`Ver ${heroProd1.nombre}`}
+                          title={heroProd1 ? `Ver ${heroProd1.nombre}` : 'Destacado 1'}
                         >
                           <img 
-                            src={getOptimizedImageUrl(heroProd1.fotoUrl, 400)} 
-                            alt={heroProd1.nombre}
+                            src={getOptimizedImageUrl(img1Url, 600)} 
+                            alt="Destacado 1"
                             className="w-full h-full object-cover" 
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent p-2 flex flex-col justify-end">
-                            <span className="text-[8px] font-extrabold text-[#e2bd6c] uppercase tracking-widest truncate">{heroProd1.marca || 'Joyería'}</span>
-                            <p className="text-[10px] font-bold text-white leading-tight truncate">{toTitleCase(heroProd1.nombre)}</p>
-                            <p className="text-[11px] font-black text-[#e2bd6c] mt-0.5">${(heroProd1.precio || 0).toLocaleString('es-CL')}</p>
-                          </div>
-                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[8px] font-black bg-[#e2bd6c] text-black shadow-md uppercase tracking-wider">
-                            ✨ Joyería
+                          <span className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-[#e2bd6c] text-black shadow-md uppercase tracking-wider backdrop-blur-md">
+                            {label1}
                           </span>
                         </div>
                       )}
 
-                      {heroProd2 && (
+                      {img2Url && (
                         <div 
-                          key={heroProd2.id}
-                          onClick={() => setProductoParaVer(heroProd2)}
-                          className={`absolute right-0 bottom-1 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out cursor-pointer hover:z-30 hover:scale-110 rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+                          onClick={() => heroProd2 && setProductoParaVer(heroProd2)}
+                          className={`absolute right-1 bottom-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd2 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
                             isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
                           }`}
-                          title={`Ver ${heroProd2.nombre}`}
+                          title={heroProd2 ? `Ver ${heroProd2.nombre}` : 'Destacado 2'}
                         >
                           <img 
-                            src={getOptimizedImageUrl(heroProd2.fotoUrl, 400)} 
-                            alt={heroProd2.nombre}
+                            src={getOptimizedImageUrl(img2Url, 600)} 
+                            alt="Destacado 2"
                             className="w-full h-full object-cover" 
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent p-2 flex flex-col justify-end">
-                            <span className="text-[8px] font-extrabold text-[#e2bd6c] uppercase tracking-widest truncate">{heroProd2.marca || 'Cuidado Personal'}</span>
-                            <p className="text-[10px] font-bold text-white leading-tight truncate">{toTitleCase(heroProd2.nombre)}</p>
-                            <p className="text-[11px] font-black text-[#e2bd6c] mt-0.5">${(heroProd2.precio || 0).toLocaleString('es-CL')}</p>
-                          </div>
-                          <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full text-[8px] font-black bg-emerald-500 text-white shadow-md uppercase tracking-wider">
-                            🌿 Cosmética
+                          <span className="absolute top-2 right-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-emerald-500 text-white shadow-md uppercase tracking-wider backdrop-blur-md">
+                            {label2}
                           </span>
                         </div>
                       )}
 
                       {/* Badge flotante central */}
-                      <div className={`absolute -bottom-2 z-20 px-3.5 py-1 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-1.5 select-none ${
+                      <div className={`absolute bottom-0 z-20 px-3.5 py-1 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-1.5 select-none ${
                         isDark ? 'bg-black/80 border-[#e2bd6c]/40 text-[#e2bd6c]' : 'bg-white/90 border-[#e2bd6c]/50 text-[#785427]'
                       }`}>
                         <span className="material-symbols-outlined text-xs animate-pulse text-[#e2bd6c]">auto_awesome</span>
@@ -2569,12 +2630,98 @@ export default function CatalogoPublico() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                <span className={`text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-full border shadow-sm ${
+              <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto shrink-0">
+                {/* Contador de Productos */}
+                <span className={`text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-2xl border shadow-sm flex items-center gap-2 ${
                   isDark ? 'bg-white/5 border-white/10 text-[#e2bd6c]' : 'bg-surface-container-high border-outline-variant/30 text-primary'
                 }`}>
-                  {productosFiltrados.length} {productosFiltrados.length === 1 ? 'producto' : 'productos'}
+                  <span className="material-symbols-outlined text-base">inventory_2</span>
+                  {productosFiltrados.length} {productosFiltrados.length === 1 ? 'PRODUCTO' : 'PRODUCTOS'}
                 </span>
+
+                {/* SELECTOR DE ORDENAMIENTO PERSONALIZADO LUXE (CUSTOM DROPDOWN) */}
+                {(() => {
+                  const opcionesOrden = [
+                    { id: 'destacados', label: 'Ordenar por: Destacados', icon: 'auto_awesome' },
+                    { id: 'precio_asc', label: 'Precio: Menor a Mayor', icon: 'arrow_upward' },
+                    { id: 'precio_desc', label: 'Precio: Mayor a Menor', icon: 'arrow_downward' },
+                    { id: 'recientes', label: 'Más recientes', icon: 'schedule' },
+                    { id: 'mas_vendidos', label: 'Más vendidos', icon: 'local_fire_department' },
+                  ];
+                  const opcionActual = opcionesOrden.find(o => o.id === ordenamiento) || opcionesOrden[0];
+
+                  return (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsSortOpen(!isSortOpen)}
+                        className={`px-4 py-2.5 rounded-2xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm flex items-center gap-2.5 backdrop-blur-md select-none ${
+                          isDark 
+                            ? 'bg-[#151515] border-[#e2bd6c]/30 text-white hover:border-[#e2bd6c] hover:bg-white/5' 
+                            : 'bg-white border-outline-variant/30 text-on-surface hover:border-primary hover:bg-surface-container-low'
+                        }`}
+                      >
+                        <span className={`material-symbols-outlined text-base ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                          swap_vert
+                        </span>
+                        <span>{opcionActual.label}</span>
+                        <span className={`material-symbols-outlined text-base transition-transform duration-300 ${isDark ? 'text-gray-400' : 'text-outline'} ${isSortOpen ? 'rotate-180' : ''}`}>
+                          expand_more
+                        </span>
+                      </button>
+
+                      {/* MENÚ DESPLEGABLE CON DISEÑO REDONDEADO Y GLASSMORPHISM (POPOVER) */}
+                      {isSortOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setIsSortOpen(false)} 
+                          />
+                          <div className={`absolute right-0 top-full mt-2.5 w-64 rounded-2xl border shadow-2xl z-50 p-2 space-y-1 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 ${
+                            isDark 
+                              ? 'bg-[#1e1e1e]/95 border-[#e2bd6c]/30 text-white shadow-black/80' 
+                              : 'bg-white/95 border-outline-variant/20 text-on-surface shadow-black/10'
+                          }`}>
+                            {opcionesOrden.map(op => {
+                              const isSelected = ordenamiento === op.id;
+                              return (
+                                <button
+                                  key={op.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setOrdenamiento(op.id);
+                                    setIsSortOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-between cursor-pointer ${
+                                    isSelected
+                                      ? (isDark 
+                                          ? 'bg-gradient-to-r from-[#e2bd6c]/25 to-[#e2bd6c]/10 border border-[#e2bd6c]/40 text-[#e2bd6c] shadow-sm' 
+                                          : 'bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/30 text-primary shadow-sm')
+                                      : (isDark 
+                                          ? 'text-gray-300 hover:bg-white/5 hover:text-white' 
+                                          : 'text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface')
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <span className={`material-symbols-outlined text-base ${isSelected ? (isDark ? 'text-[#e2bd6c]' : 'text-primary') : 'text-gray-500'}`}>
+                                      {op.icon}
+                                    </span>
+                                    <span>{op.label}</span>
+                                  </div>
+                                  {isSelected && (
+                                    <span className={`material-symbols-outlined text-base font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                                      check
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -2687,7 +2834,11 @@ export default function CatalogoPublico() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className={`grid gap-4 md:gap-6 ${
+              isSidebarCollapsed 
+                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+                : 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+            }`}>
               {productosPaginados.map((p, pIndex) => {
                 const tieneVariantes = p.variantes && p.variantes.length > 0;
               const cartItem = !tieneVariantes ? carrito.find(item => item.productoId === p.id) : null;

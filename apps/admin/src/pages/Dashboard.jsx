@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
 import { getOptimizedImageUrl } from '../utils/image'
+import HeroBannerModal from '../components/HeroBannerModal'
 
 function BadgeStock({ nivel }) {
   const cls = nivel === 'critico'
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [pedidos, setPedidos] = useState([])
   const [showAlerta, setShowAlerta] = useState(true)
   const [showMoreBajos, setShowMoreBajos] = useState(false)
+  const [showHeroModal, setShowHeroModal] = useState(false)
   const prevCriticos = useRef(0)
 
   useEffect(() => {
@@ -136,10 +138,18 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <div className="flex gap-3 relative z-10 w-full md:w-auto">
+          <div className="flex flex-wrap gap-3 relative z-10 w-full md:w-auto">
+            <button 
+              onClick={() => setShowHeroModal(true)}
+              className="flex-1 md:flex-none px-5 py-3.5 bg-[#e2bd6c]/15 hover:bg-[#e2bd6c]/25 text-[#e2bd6c] rounded-2xl font-bold text-[11px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-[#e2bd6c]/30 shadow-md cursor-pointer"
+              title="Personalizar Banner Hero del Catálogo"
+            >
+              <span className="material-symbols-outlined text-lg">auto_awesome</span>
+              Banner Hero
+            </button>
             <button 
               onClick={() => {
-                const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
+                const url = window.location.origin.includes('localhost') ? "http://localhost:5174" : "https://inventario-leis-catalogo.vercel.app";
                 navigator.clipboard.writeText(url);
                 alert("✅ Enlace copiado");
               }}
@@ -150,7 +160,7 @@ export default function Dashboard() {
             </button>
             <button 
               onClick={() => {
-                const url = window.location.origin.includes('localhost') ? "http://localhost:5175" : "https://inventario-leis-catalogo.vercel.app";
+                const url = window.location.origin.includes('localhost') ? "http://localhost:5174" : "https://inventario-leis-catalogo.vercel.app";
                 const msg = `¡Hola! Te comparto mi catálogo actualizado de Leis Belleza ✨: ${url}`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
               }}
@@ -452,6 +462,11 @@ export default function Dashboard() {
         </div>
       </section>
       <Footer />
+      <HeroBannerModal 
+        isOpen={showHeroModal} 
+        onClose={() => setShowHeroModal(false)} 
+        isDark={isDark} 
+      />
     </div>
   )
 }
