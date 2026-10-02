@@ -2277,20 +2277,13 @@ export default function CatalogoPublico() {
         
         {/* HEADER PRINCIPAL COMPACTO */}
         <header className={`sticky top-0 z-30 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b flex items-center justify-between shrink-0 transition-colors duration-500 ${isDark ? 'bg-[#0c0c0c]/80 border-white/5' : 'bg-white/80 border-outline-variant/20'}`}>
-          <div className="w-16 shrink-0">
+          <div className="w-16 shrink-0 md:hidden">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className={`md:hidden w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${isDark ? 'bg-white/5 text-white' : 'bg-surface-variant text-on-surface'}`}
+              className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${isDark ? 'bg-white/5 text-white' : 'bg-surface-variant text-on-surface'}`}
             >
               <span className="material-symbols-outlined">menu_open</span>
             </button>
-          </div>
-
-          <div className="flex-1 hidden md:flex justify-center">
-            <h2 className={`font-headline text-lg md:text-2xl font-bold italic leading-tight text-center ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
-              {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
-              <span className={`ml-2 text-sm font-sans font-normal not-italic ${isDark ? 'text-gray-400' : 'text-outline'}`}>({productosFiltrados.length})</span>
-            </h2>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -2509,14 +2502,26 @@ export default function CatalogoPublico() {
               </div>
             </div>
 
-            {/* Título de categoría solo para celulares */}
-            <div className="md:hidden mb-6 flex justify-between items-center px-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <h1 className={`font-headline text-2xl font-bold italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
-                {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
-              </h1>
-              <span className={`text-xs font-sans font-normal not-italic px-3 py-1 rounded-full ${isDark ? 'bg-white/5 text-gray-400' : 'bg-surface-container-high text-outline'}`}>
-                {productosFiltrados.length} {productosFiltrados.length === 1 ? 'producto' : 'productos'}
-              </span>
+            {/* ── ENCABEZADO DE CATEGORÍA / PRODUCTOS (DEBAJO DEL HERO BANNER) ── */}
+            <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 animate-in fade-in slide-in-from-top-2 duration-300 border-b pb-5 border-white/5">
+              <div>
+                <h2 className={`font-headline text-2xl md:text-3xl font-bold italic leading-tight ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                  {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
+                </h2>
+                <p className={`text-xs font-medium mt-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                  {filtroCategoria === 'TODAS' 
+                    ? 'Explora nuestra colección completa de joyería y cuidado personal.' 
+                    : `Mostrando productos de la categoría ${filtroCategoria}`}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <span className={`text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-full border shadow-sm ${
+                  isDark ? 'bg-white/5 border-white/10 text-[#e2bd6c]' : 'bg-surface-container-high border-outline-variant/30 text-primary'
+                }`}>
+                  {productosFiltrados.length} {productosFiltrados.length === 1 ? 'producto' : 'productos'}
+                </span>
+              </div>
             </div>
 
             {/* ── TUTORIAL INTERACTIVO DE PASOS PARA PEDIDOS ── */}
