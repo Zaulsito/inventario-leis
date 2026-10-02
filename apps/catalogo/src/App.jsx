@@ -2565,9 +2565,9 @@ export default function CatalogoPublico() {
                     setHoveredZoomProduct(null);
                   }}
                 >
-                  {/* Imagen */}
+                  {/* Imagen con Aspect Ratio Uniforme (Square 1:1) */}
                   <div 
-                    className={`aspect-square relative overflow-hidden flex items-center justify-center cursor-pointer ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
+                    className={`w-full aspect-square shrink-0 relative overflow-hidden flex items-center justify-center cursor-pointer ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
                     onClick={() => setProductoParaVer(p)}
                   >
                     {p.fotoUrl ? (
