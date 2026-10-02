@@ -3447,11 +3447,14 @@ export default function CatalogoPublico() {
                         abrirModalAñadir(productoParaVer);
                         setProductoParaVer(null);
                       }}
-                      className={`group relative flex-1 w-full py-5 md:py-7 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all ${isDark ? 'bg-[#e2bd6c] text-black' : 'bg-primary text-on-primary'} ${isAutoDemo && (autoDemoStep === 4 || autoDemoStep === 5) ? 'demo-highlight' : ''}`}
+                      className={`group relative flex-1 w-full py-5 md:py-6 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl transition-all duration-300 active:scale-[0.98] cursor-pointer ${
+                        isDark 
+                          ? 'bg-gradient-to-r from-[#d4af37] via-[#e2bd6c] to-[#f0d088] text-black shadow-[#e2bd6c]/20 hover:shadow-[0_10px_35px_rgba(226,189,108,0.45)] hover:scale-[1.02] hover:brightness-105' 
+                          : 'bg-gradient-to-r from-primary via-indigo-600 to-primary text-on-primary shadow-primary/20 hover:shadow-[0_10px_35px_rgba(67,56,202,0.35)] hover:scale-[1.02]'
+                      } ${isAutoDemo && (autoDemoStep === 4 || autoDemoStep === 5) ? 'demo-highlight' : ''}`}
                     >
-                      <div className={`absolute inset-0 w-1/2 h-full skew-x-[-25deg] -translate-x-full group-hover:translate-x-[250%] transition-transform duration-1000 ease-in-out ${isDark ? 'bg-black/20' : 'bg-white/20'}`} />
-                      <div className="relative flex justify-center items-center gap-4">
-                        <span className="material-symbols-outlined text-2xl md:text-3xl group-hover:rotate-12 transition-transform">shopping_cart_checkout</span>
+                      <div className="relative flex justify-center items-center gap-3">
+                        <span className="material-symbols-outlined text-2xl md:text-3xl group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300">shopping_cart_checkout</span>
                         <span>Añadir al Pedido</span>
                       </div>
                     </button>
