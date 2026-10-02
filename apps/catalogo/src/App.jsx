@@ -2409,6 +2409,106 @@ export default function CatalogoPublico() {
         {/* MAIN SCROLLABLE AREA */}
         <main ref={mainScrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative z-10 pb-32 md:pb-8">
           <div className="max-w-7xl mx-auto">
+            
+            {/* ── HERO BANNER PRINCIPAL DE INICIO ── */}
+            <div className={`mb-8 p-6 md:p-10 rounded-[2.5rem] border relative overflow-hidden transition-all duration-500 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700 ${
+              isDark 
+                ? 'bg-gradient-to-r from-neutral-900 via-stone-900 to-neutral-950 border-amber-500/20 text-white shadow-black/60' 
+                : 'bg-gradient-to-r from-[#fdfbf7] via-[#f7f0e4] to-[#ede3d1] border-[#e2bd6c]/30 text-[#2a1b0a] shadow-black/5'
+            }`}>
+              {/* Luces de fondo difuminadas */}
+              <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-[#e2bd6c]/15 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                
+                {/* COLUMNA IZQUIERDA: TEXTOS Y FILTROS RÁPIDOS */}
+                <div className="flex-1 space-y-4 text-center md:text-left">
+                  {/* Isotipo sutil */}
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#e2bd6c]/30 backdrop-blur-md bg-white/5">
+                    <img src="/logo.jpeg" alt="Leis" className="w-5 h-5 rounded-full object-cover" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#e2bd6c]">LEIS COLLECTION</span>
+                  </div>
+
+                  {/* Título Principal */}
+                  <h1 className={`font-headline text-2xl md:text-4xl lg:text-5xl font-extrabold italic leading-tight ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>
+                    NUEVA COLECCIÓN & <br className="hidden lg:inline" />
+                    <span className={isDark ? 'text-[#e2bd6c]' : 'text-[#785427]'}>CUIDADO PERSONAL</span>
+                  </h1>
+
+                  {/* Subtítulo */}
+                  <p className={`text-xs md:text-sm max-w-xl font-medium leading-relaxed ${isDark ? 'text-gray-300' : 'text-[#5d3a28]/80'}`}>
+                    Joyería en Plata 925 y cosmética capilar seleccionada para realzar tu estilo.
+                  </p>
+
+                  {/* CHIPS / FILTROS RÁPIDOS */}
+                  <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2.5">
+                    <button
+                      onClick={() => {
+                        const catJoya = categoriasUnicas.find(c => c.includes('JOYA') || c.includes('ANILLO') || c.includes('AROS')) || 'JOYAS';
+                        setFiltroCategoria(catJoya);
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl text-[11px] md:text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border ${
+                        filtroCategoria.includes('JOYA') || filtroCategoria.includes('ANILLO') || filtroCategoria.includes('AROS')
+                          ? (isDark ? 'bg-[#e2bd6c] text-black border-[#e2bd6c]' : 'bg-primary text-on-primary border-primary')
+                          : (isDark ? 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-[#e2bd6c]/40' : 'bg-white/80 border-[#e2bd6c]/30 text-[#2a1b0a] hover:bg-white')
+                      }`}
+                    >
+                      <span>✨ Ver Joyería</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const catCapilar = categoriasUnicas.find(c => c.includes('CAPILAR') || c.includes('CABELLO') || c.includes('COSMETICA') || c.includes('SHOCK')) || 'CAPILAR';
+                        setFiltroCategoria(catCapilar);
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl text-[11px] md:text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border ${
+                        filtroCategoria.includes('CAPILAR') || filtroCategoria.includes('CABELLO')
+                          ? (isDark ? 'bg-[#e2bd6c] text-black border-[#e2bd6c]' : 'bg-primary text-on-primary border-primary')
+                          : (isDark ? 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-[#e2bd6c]/40' : 'bg-white/80 border-[#e2bd6c]/30 text-[#2a1b0a] hover:bg-white')
+                      }`}
+                    >
+                      <span>🌿 Cuidado Capilar</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setFiltroCategoria('TODAS');
+                        setSoloDisponibles(true);
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl text-[11px] md:text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border ${
+                        soloDisponibles && filtroCategoria === 'TODAS'
+                          ? (isDark ? 'bg-[#e2bd6c] text-black border-[#e2bd6c]' : 'bg-primary text-on-primary border-primary')
+                          : (isDark ? 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-[#e2bd6c]/40' : 'bg-white/80 border-[#e2bd6c]/30 text-[#2a1b0a] hover:bg-white')
+                      }`}
+                    >
+                      <span>🔥 Lo más vendido</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* COLUMNA DERECHA: COMPOSICIÓN VISUAL ELEGANTE */}
+                <div className="hidden md:flex items-center justify-center shrink-0 relative w-64 lg:w-80 h-48 lg:h-56">
+                  <div className={`absolute inset-0 rounded-3xl border backdrop-blur-md transform rotate-3 transition-transform hover:rotate-0 duration-500 flex items-center justify-center p-6 shadow-2xl ${
+                    isDark ? 'bg-gradient-to-br from-white/10 to-white/5 border-white/15' : 'bg-gradient-to-br from-white/80 to-white/40 border-[#e2bd6c]/30'
+                  }`}>
+                    <div className="text-center space-y-2">
+                      <div className="flex justify-center items-center gap-3">
+                        <span className="material-symbols-outlined text-4xl text-[#e2bd6c] animate-pulse">diamond</span>
+                        <span className="text-2xl font-light text-gray-400">&</span>
+                        <span className="material-symbols-outlined text-4xl text-emerald-400 animate-pulse">spa</span>
+                      </div>
+                      <p className={`font-headline text-sm font-bold italic ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>Exclusividad & Estilo</p>
+                      <div className="inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/40">
+                        Calidad Garantizada
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
             {/* Título de categoría solo para celulares */}
             <div className="md:hidden mb-6 flex justify-between items-center px-2 animate-in fade-in slide-in-from-top-2 duration-300">
               <h1 className={`font-headline text-2xl font-bold italic ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
