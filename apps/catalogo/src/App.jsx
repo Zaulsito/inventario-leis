@@ -2633,14 +2633,14 @@ export default function CatalogoPublico() {
                       ) : tieneVariantes ? (
                         <button 
                           onClick={() => abrirModalAñadir(p)}
-                          className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                          className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider cursor-pointer ${
                             totalEnCarritoVariants > 0
                               ? (isDark 
                                   ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30' 
                                   : 'bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100')
                               : (isDark 
-                                  ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90 shadow-[#e2bd6c]/10' 
-                                  : 'bg-primary text-on-primary hover:bg-primary-fixed-dim shadow-primary/10')
+                                  ? 'border border-[#e2bd6c]/70 text-[#e2bd6c] bg-transparent hover:bg-[#e2bd6c]/10 hover:border-[#e2bd6c]' 
+                                  : 'border border-primary/60 text-primary bg-transparent hover:bg-primary/10 hover:border-primary')
                           } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-105') : ''}`}
                         >
                           <span className="material-symbols-outlined text-sm md:text-base">tune</span>
