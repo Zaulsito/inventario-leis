@@ -132,6 +132,10 @@ export default function CatalogoPublico() {
   })
 
   useEffect(() => {
+    document.title = 'Catálogo Leis'
+  }, [])
+
+  useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark')
       localStorage.setItem('theme', 'dark')

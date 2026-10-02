@@ -10,7 +10,7 @@ export default defineConfig({
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'Catálogo Leis',
-        short_name: 'Catálogo',
+        short_name: 'Catálogo Leis',
         description: 'Catálogo público de productos Leis Belleza',
         theme_color: '#8e6d3c',
         background_color: '#fdfaf5',
