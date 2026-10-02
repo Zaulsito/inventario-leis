@@ -2034,7 +2034,17 @@ export default function CatalogoPublico() {
                 <p className={`text-[9px] uppercase tracking-widest font-bold ${isDark ? 'text-[#e2bd6c]/60' : 'text-outline'}`}>Filtros</p>
               </div>
             </div>
-            <button onClick={() => setIsSidebarOpen(false)} className={`md:hidden p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:bg-white/5' : 'text-outline hover:bg-surface-variant'}`}>
+            <button 
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setIsSidebarOpen(false);
+                } else {
+                  setIsSidebarCollapsed(true);
+                }
+              }} 
+              className={`p-2 rounded-full transition-colors cursor-pointer ${isDark ? 'text-gray-400 hover:bg-white/5 hover:text-white' : 'text-outline hover:bg-surface-variant hover:text-on-surface'}`}
+              title="Cerrar Filtros"
+            >
               <span className="material-symbols-outlined text-lg">close</span>
             </button>
           </div>
@@ -2267,32 +2277,30 @@ export default function CatalogoPublico() {
         </div>
       </aside>
 
-      {/* Botón Toggle Flotante (Círculo en el Borde de la Sidebar Desktop) */}
-      <button
-        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        title={isSidebarCollapsed ? 'Mostrar filtros' : 'Ocultar filtros'}
-        className={`hidden md:flex fixed top-1/2 z-[60] w-8 h-8 items-center justify-center rounded-full shadow-lg border hover:scale-110 active:scale-95 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] group -translate-y-1/2 -translate-x-1/2 cursor-pointer
-          ${isDark 
-            ? 'bg-[#1e1e1e] border-white/10 text-[#e2bd6c] hover:bg-[#e2bd6c] hover:text-black shadow-black/40' 
-            : 'bg-white border-outline-variant/30 text-secondary hover:bg-secondary hover:text-white shadow-black/10'}
-          ${isSidebarCollapsed ? 'left-0' : 'left-[280px]'}`}
-      >
-        <span className={`material-symbols-outlined text-sm font-bold transition-transform duration-500 ${isSidebarCollapsed ? 'rotate-0' : 'rotate-180'}`}>
-          chevron_right
-        </span>
-      </button>
-
       {/* ── CONTENIDO PRINCIPAL ── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* HEADER PRINCIPAL COMPACTO */}
         <header className={`sticky top-0 z-30 backdrop-blur-md px-4 py-4 md:px-8 md:py-6 border-b flex items-center justify-between shrink-0 transition-colors duration-500 ${isDark ? 'bg-[#0c0c0c]/80 border-white/5' : 'bg-white/80 border-outline-variant/20'}`}>
-          <div className="w-16 shrink-0 md:hidden">
+          <div className="flex items-center gap-3">
+            {/* Botón de 3 Líneas (Hamburguesa / Menú de Filtros) */}
             <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${isDark ? 'bg-white/5 text-white' : 'bg-surface-variant text-on-surface'}`}
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setIsSidebarOpen(!isSidebarOpen);
+                } else {
+                  setIsSidebarCollapsed(!isSidebarCollapsed);
+                }
+              }}
+              className={`p-3 rounded-2xl transition-all flex items-center gap-2 cursor-pointer font-bold text-xs uppercase tracking-wider ${
+                isDark 
+                  ? 'bg-white/5 text-[#e2bd6c] hover:bg-white/10 border border-white/5' 
+                  : 'bg-surface-container-high text-on-surface hover:bg-surface-variant border border-outline-variant/20'
+              }`}
+              title="Abrir / Cerrar Filtros"
             >
-              <span className="material-symbols-outlined">menu_open</span>
+              <span className="material-symbols-outlined text-xl">menu</span>
+              <span className="hidden sm:inline">Filtros</span>
             </button>
           </div>
 
