@@ -204,6 +204,16 @@ export default function CatalogoPublico() {
   const [pointerStyle, setPointerStyle] = useState({ display: 'none' })
   const [pointerType, setPointerType] = useState('right') // 'left' or 'right'
 
+  // Estado para la rotación automática de productos destacados en el Hero Banner
+  const [heroIndex, setHeroIndex] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHeroIndex(prev => prev + 1)
+    }, 4500)
+    return () => clearInterval(timer)
+  }, [])
+
   // Estado para la vista ampliada (hover zoom)
   const [hoveredZoomProduct, setHoveredZoomProduct] = useState(null)
   const hoverZoomTimeoutRef = useRef(null)
@@ -2480,24 +2490,90 @@ export default function CatalogoPublico() {
                   </div>
                 </div>
 
-                {/* COLUMNA DERECHA: COMPOSICIÓN VISUAL ELEGANTE */}
-                <div className="hidden md:flex items-center justify-center shrink-0 relative w-64 lg:w-80 h-48 lg:h-56">
-                  <div className={`absolute inset-0 rounded-3xl border backdrop-blur-md transform rotate-3 transition-transform hover:rotate-0 duration-500 flex items-center justify-center p-6 shadow-2xl ${
-                    isDark ? 'bg-gradient-to-br from-white/10 to-white/5 border-white/15' : 'bg-gradient-to-br from-white/80 to-white/40 border-[#e2bd6c]/30'
-                  }`}>
-                    <div className="text-center space-y-2">
-                      <div className="flex justify-center items-center gap-3">
-                        <span className="material-symbols-outlined text-4xl text-[#e2bd6c] animate-pulse">diamond</span>
-                        <span className="text-2xl font-light text-gray-400">&</span>
-                        <span className="material-symbols-outlined text-4xl text-emerald-400 animate-pulse">spa</span>
-                      </div>
-                      <p className={`font-headline text-sm font-bold italic ${isDark ? 'text-white' : 'text-[#2a1b0a]'}`}>Exclusividad & Estilo</p>
-                      <div className="inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/40">
-                        Calidad Garantizada
+                {/* COLUMNA DERECHA: COMPOSICIÓN FOTOGRÁFICA DE PRODUCTOS REALES DE LA TIENDA */}
+                {(() => {
+                  const productosConFoto = productos.filter(p => p.fotoUrl || (p.fotos && p.fotos.length > 0));
+                  
+                  const prodJoyaList = productosConFoto.filter(p => {
+                    const cat = (p.coleccion || '').toUpperCase();
+                    const nom = (p.nombre || '').toUpperCase();
+                    return cat.includes('JOYA') || cat.includes('ANILLO') || cat.includes('AROS') || cat.includes('COLLAR') || nom.includes('ARO') || nom.includes('PLATA');
+                  });
+
+                  const prodCapilarList = productosConFoto.filter(p => {
+                    const cat = (p.coleccion || '').toUpperCase();
+                    const nom = (p.nombre || '').toUpperCase();
+                    return cat.includes('CAPILAR') || cat.includes('CABELLO') || cat.includes('COSMETICA') || nom.includes('ACEITE') || nom.includes('SHOCK') || nom.includes('KERATINA');
+                  });
+
+                  const list1 = prodJoyaList.length > 0 ? prodJoyaList : productosConFoto;
+                  const list2 = prodCapilarList.length > 0 ? prodCapilarList : (productosConFoto.length > 1 ? productosConFoto.slice(1) : productosConFoto);
+
+                  const heroProd1 = list1.length > 0 ? list1[heroIndex % list1.length] : null;
+                  const heroProd2 = list2.length > 0 ? list2[(heroIndex + 1) % list2.length] : null;
+
+                  return (
+                    <div className="hidden md:flex items-center justify-center shrink-0 relative w-72 lg:w-96 h-56 lg:h-64 select-none">
+                      {heroProd1 && (
+                        <div 
+                          key={heroProd1.id}
+                          onClick={() => setProductoParaVer(heroProd1)}
+                          className={`absolute left-0 top-1 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out cursor-pointer hover:z-30 hover:scale-110 -rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+                            isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
+                          }`}
+                          title={`Ver ${heroProd1.nombre}`}
+                        >
+                          <img 
+                            src={getOptimizedImageUrl(heroProd1.fotoUrl, 400)} 
+                            alt={heroProd1.nombre}
+                            className="w-full h-full object-cover" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent p-2 flex flex-col justify-end">
+                            <span className="text-[8px] font-extrabold text-[#e2bd6c] uppercase tracking-widest truncate">{heroProd1.marca || 'Joyería'}</span>
+                            <p className="text-[10px] font-bold text-white leading-tight truncate">{toTitleCase(heroProd1.nombre)}</p>
+                            <p className="text-[11px] font-black text-[#e2bd6c] mt-0.5">${(heroProd1.precio || 0).toLocaleString('es-CL')}</p>
+                          </div>
+                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[8px] font-black bg-[#e2bd6c] text-black shadow-md uppercase tracking-wider">
+                            ✨ Joyería
+                          </span>
+                        </div>
+                      )}
+
+                      {heroProd2 && (
+                        <div 
+                          key={heroProd2.id}
+                          onClick={() => setProductoParaVer(heroProd2)}
+                          className={`absolute right-0 bottom-1 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out cursor-pointer hover:z-30 hover:scale-110 rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+                            isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
+                          }`}
+                          title={`Ver ${heroProd2.nombre}`}
+                        >
+                          <img 
+                            src={getOptimizedImageUrl(heroProd2.fotoUrl, 400)} 
+                            alt={heroProd2.nombre}
+                            className="w-full h-full object-cover" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent p-2 flex flex-col justify-end">
+                            <span className="text-[8px] font-extrabold text-[#e2bd6c] uppercase tracking-widest truncate">{heroProd2.marca || 'Cuidado Personal'}</span>
+                            <p className="text-[10px] font-bold text-white leading-tight truncate">{toTitleCase(heroProd2.nombre)}</p>
+                            <p className="text-[11px] font-black text-[#e2bd6c] mt-0.5">${(heroProd2.precio || 0).toLocaleString('es-CL')}</p>
+                          </div>
+                          <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full text-[8px] font-black bg-emerald-500 text-white shadow-md uppercase tracking-wider">
+                            🌿 Cosmética
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Badge flotante central */}
+                      <div className={`absolute -bottom-2 z-20 px-3.5 py-1 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-1.5 select-none ${
+                        isDark ? 'bg-black/80 border-[#e2bd6c]/40 text-[#e2bd6c]' : 'bg-white/90 border-[#e2bd6c]/50 text-[#785427]'
+                      }`}>
+                        <span className="material-symbols-outlined text-xs animate-pulse text-[#e2bd6c]">auto_awesome</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Exclusividad & Estilo</span>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
               </div>
             </div>
