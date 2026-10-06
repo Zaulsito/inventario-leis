@@ -675,38 +675,65 @@ export default function Historial() {
             </div>
           </div>
 
-          {/* Selector de Producto Inteligente */}
-          <div className="relative min-w-[280px] sm:min-w-[340px]">
-            <label className="block text-[9px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1 ml-1">
-              Producto Seleccionado
-            </label>
-            <div 
-              onClick={() => setShowProductDropdown(true)}
-              className="w-full bg-surface-container-lowest dark:bg-[#1a1a1a] border border-outline-variant/30 dark:border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer hover:border-primary dark:hover:border-[#e2bd6c] transition-all shadow-sm group"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                {selectedProduct?.fotoUrl ? (
-                  <img src={getOptimizedImageUrl(selectedProduct.fotoUrl, 150)} alt="" className="w-8 h-8 rounded-xl object-cover shrink-0 border border-outline-variant/20" />
-                ) : (
-                  <div className="w-8 h-8 rounded-xl bg-surface-variant dark:bg-white/10 flex items-center justify-center text-outline dark:text-gray-400 shrink-0">
-                    <span className="material-symbols-outlined text-base">inventory_2</span>
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-on-surface dark:text-white truncate">
-                    {selectedProduct ? selectedProduct.nombre : 'Seleccionar Producto...'}
-                  </p>
-                  <p className="text-[9px] font-semibold text-outline dark:text-gray-400 uppercase tracking-wider truncate">
-                    {selectedProduct 
-                      ? `SKU: ${selectedProduct.sku} • Venta: $${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')} • Costo: $${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}` 
-                      : 'Elige para ver su historial'}
-                  </p>
+          {/* Selector de Producto y Proveedor (Estético / Cápsula) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 w-full md:w-auto">
+            {/* Selector Estético de Proveedor (Cápsula Redondeada a la izquierda del Producto) */}
+            {selectedProduct && (
+              <div className="relative min-w-[200px] sm:min-w-[220px]">
+                <label className="block text-[9px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c] mb-1 ml-1 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">store</span>
+                  Proveedor / Lote
+                </label>
+                <div className="relative">
+                  <select
+                    value={supplierFilter}
+                    onChange={e => setSupplierFilter(e.target.value)}
+                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/40 hover:border-[#e2bd6c] rounded-full px-4 py-2.5 text-xs font-black focus:outline-none focus:ring-2 focus:ring-[#e2bd6c]/30 text-on-surface dark:text-white cursor-pointer shadow-md appearance-none pr-9 uppercase transition-all"
+                  >
+                    <option value="TODOS">🌐 TODOS LOS PROVEEDORES</option>
+                    {proveedoresDisponibles.map((pName, pIdx) => (
+                      <option key={pIdx} value={pName}>🏬 LOTE: {pName}</option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-[#e2bd6c] pointer-events-none text-base font-bold">
+                    expand_more
+                  </span>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-outline dark:text-gray-400 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors">
-                unfold_more
-              </span>
-            </div>
+            )}
+
+            {/* Selector de Producto Inteligente */}
+            <div className="relative min-w-[260px] sm:min-w-[320px]">
+              <label className="block text-[9px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1 ml-1">
+                Producto Seleccionado
+              </label>
+              <div 
+                onClick={() => setShowProductDropdown(true)}
+                className="w-full bg-surface-container-lowest dark:bg-[#1a1a1a] border border-outline-variant/30 dark:border-white/10 rounded-2xl px-4 py-2 flex items-center justify-between cursor-pointer hover:border-primary dark:hover:border-[#e2bd6c] transition-all shadow-sm group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {selectedProduct?.fotoUrl ? (
+                    <img src={getOptimizedImageUrl(selectedProduct.fotoUrl, 150)} alt="" className="w-8 h-8 rounded-xl object-cover shrink-0 border border-outline-variant/20" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-xl bg-surface-variant dark:bg-white/10 flex items-center justify-center text-outline dark:text-gray-400 shrink-0">
+                      <span className="material-symbols-outlined text-base">inventory_2</span>
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-on-surface dark:text-white truncate">
+                      {selectedProduct ? selectedProduct.nombre : 'Seleccionar Producto...'}
+                    </p>
+                    <p className="text-[9px] font-semibold text-outline dark:text-gray-400 uppercase tracking-wider truncate">
+                      {selectedProduct 
+                        ? `SKU: ${selectedProduct.sku} • Venta: $${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')} • Costo: $${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}` 
+                        : 'Elige para ver su historial'}
+                    </p>
+                  </div>
+                </div>
+                <span className="material-symbols-outlined text-outline dark:text-gray-400 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors">
+                  unfold_more
+                </span>
+              </div>
 
             {/* Dropdown flotante de selección de producto */}
             {showProductDropdown && (
@@ -771,6 +798,7 @@ export default function Historial() {
             )}
           </div>
         </div>
+      </div>
 
         {/* ── Tarjetas de Métricas del Producto Seleccionado ── */}
         {selectedProduct && (
@@ -983,20 +1011,26 @@ export default function Historial() {
                 )}
 
                 <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">store</span>
                     Proveedor / Lote Destino
                   </label>
-                  <select
-                    value={proveedorAjuste}
-                    onChange={e => setProveedorAjuste(e.target.value)}
-                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white cursor-pointer"
-                  >
-                    <option value="DEFAULT">🏢 Proveedor Principal ({(selectedProduct.proveedor || 'S/P').toUpperCase()})</option>
-                    {proveedoresDisponibles.map((pName, pIdx) => (
-                      <option key={pIdx} value={pName}>🏢 Lote: {pName}</option>
-                    ))}
-                    <option value="NUEVO">➕ Registrar Nuevo Proveedor...</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={proveedorAjuste}
+                      onChange={e => setProveedorAjuste(e.target.value)}
+                      className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/40 hover:border-[#e2bd6c] rounded-full px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#e2bd6c]/30 text-on-surface dark:text-white cursor-pointer shadow-md appearance-none pr-9 transition-all"
+                    >
+                      <option value="DEFAULT">🏢 Proveedor Principal ({(selectedProduct.proveedor || 'S/P').toUpperCase()})</option>
+                      {proveedoresDisponibles.map((pName, pIdx) => (
+                        <option key={pIdx} value={pName}>🏢 Lote: {pName}</option>
+                      ))}
+                      <option value="NUEVO">➕ Registrar Nuevo Proveedor...</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-[#e2bd6c] pointer-events-none text-base font-bold">
+                      expand_more
+                    </span>
+                  </div>
                 </div>
 
                 {proveedorAjuste === 'NUEVO' && (
