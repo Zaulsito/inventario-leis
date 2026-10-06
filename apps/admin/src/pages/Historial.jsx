@@ -24,7 +24,9 @@ export default function Historial() {
   const [modoGanancia, setModoGanancia] = useState('vendido') // 'vendido' | 'global'
   const [showGananciaInfoModal, setShowGananciaInfoModal] = useState(false)
 
-  // Form para ajuste directo de stock desde el historial
+  const [supplierFilter, setSupplierFilter] = useState('TODOS')
+  const [proveedorAjuste, setProveedorAjuste] = useState('DEFAULT')
+  const [nuevoProveedorInput, setNuevoProveedorInput] = useState('')
   const [formAjuste, setFormAjuste] = useState({
     ajusteStock: '',
     motivoAjuste: '',
@@ -306,9 +308,28 @@ export default function Historial() {
     }
   }, [selectedProduct?.id, historyLogs, productStats.stockCalculado])
 
+  // Proveedores registrados para el producto seleccionado
+  const proveedoresDisponibles = useMemo(() => {
+    if (!selectedProduct) return [];
+    const setProvs = new Set();
+    if (selectedProduct.proveedor) setProvs.add(selectedProduct.proveedor.trim().toUpperCase());
+    if (Array.isArray(selectedProduct.lotesProveedores)) {
+      selectedProduct.lotesProveedores.forEach(l => {
+        if (l.proveedor) setProvs.add(l.proveedor.trim().toUpperCase());
+      });
+    }
+    historyLogs.forEach(log => {
+      if (log.proveedor) setProvs.add(log.proveedor.trim().toUpperCase());
+    });
+    return Array.from(setProvs);
+  }, [selectedProduct, historyLogs]);
+
   // Lotes de compra filtrados
   const lotesDeCompra = useMemo(() => {
-    const lotes = historyLogs.filter(l => Number(l.cambio) > 0)
+    let lotes = historyLogs.filter(l => Number(l.cambio) > 0)
+    if (supplierFilter !== 'TODOS') {
+      lotes = lotes.filter(l => (l.proveedor || selectedProduct?.proveedor || '').trim().toUpperCase() === supplierFilter)
+    }
     let sumaAcumulada = 0
     return lotes.map(l => {
       const cant = Number(l.cambio) || 0
@@ -332,10 +353,11 @@ export default function Historial() {
         costUnit,
         totalLote,
         sumaAcumulada,
-        tipoTag
+        tipoTag,
+        proveedorNombre: l.proveedor || selectedProduct?.proveedor || 'S/P'
       }
     })
-  }, [historyLogs, selectedProduct])
+  }, [historyLogs, selectedProduct, supplierFilter])
 
   // Conteos dinámicos para cada filtro del Kardex
   const filterCounts = useMemo(() => {
@@ -345,6 +367,11 @@ export default function Historial() {
       const cant = Number(log.cambio) || 0
       const accionStr = (log.accion || '').toLowerCase()
       const motivoStr = (log.motivo || '').toLowerCase()
+
+      if (supplierFilter !== 'TODOS') {
+        const provLog = (log.proveedor || selectedProduct?.proveedor || '').trim().toUpperCase()
+        if (provLog !== supplierFilter) return
+      }
 
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase()
@@ -370,7 +397,7 @@ export default function Historial() {
     })
 
     return { todos, entradas, salidas, ventas, reposicion, mermas }
-  }, [historyLogs, searchTerm])
+  }, [historyLogs, searchTerm, supplierFilter, selectedProduct])
 
   // Filtrado de movimientos para el Kardex
   const filteredKardexLogs = useMemo(() => {
@@ -378,6 +405,12 @@ export default function Historial() {
       const cant = Number(log.cambio) || 0
       const accionStr = (log.accion || '').toLowerCase()
       const motivoStr = (log.motivo || '').toLowerCase()
+
+      // Filtro de Proveedor
+      if (supplierFilter !== 'TODOS') {
+        const provLog = (log.proveedor || selectedProduct?.proveedor || '').trim().toUpperCase()
+        if (provLog !== supplierFilter) return false
+      }
 
       // Filtro de Pestañas/Chips
       if (historyFilter === 'entradas' && cant <= 0) return false
@@ -395,12 +428,13 @@ export default function Historial() {
         const matchAccion = accionStr.includes(term)
         const matchCliente = (log.cliente || '').toLowerCase().includes(term)
         const matchPedido = (log.pedidoId || '').toLowerCase().includes(term)
-        if (!matchMotivo && !matchAccion && !matchCliente && !matchPedido) return false
+        const matchProv = (log.proveedor || '').toLowerCase().includes(term)
+        if (!matchMotivo && !matchAccion && !matchCliente && !matchPedido && !matchProv) return false
       }
 
       return true
     })
-  }, [historyLogs, historyFilter, searchTerm])
+  }, [historyLogs, historyFilter, searchTerm, supplierFilter, selectedProduct])
 
   async function handleDeleteLog(log) {
     if (log.esPedidoReal || log.esMermaReal) {
@@ -498,10 +532,47 @@ export default function Historial() {
 
     const costUnit = Math.floor(Number(formAjuste.precioCosto)) || Math.floor(Number(selectedProduct.precioCosto)) || 0
 
+    // Proveedor del ajuste
+    let targetSupplier = (selectedProduct.proveedor || 'PRINCIPAL').trim().toUpperCase();
+    if (proveedorAjuste === 'NUEVO' && nuevoProveedorInput.trim()) {
+      targetSupplier = nuevoProveedorInput.trim().toUpperCase();
+    } else if (proveedorAjuste && proveedorAjuste !== 'DEFAULT' && proveedorAjuste !== 'NUEVO') {
+      targetSupplier = proveedorAjuste.trim().toUpperCase();
+    }
+
+    let updatedLotes = Array.isArray(selectedProduct.lotesProveedores) && selectedProduct.lotesProveedores.length > 0
+      ? [...selectedProduct.lotesProveedores]
+      : [{
+          idLote: 'lote-base',
+          proveedor: (selectedProduct.proveedor || 'PRINCIPAL').toUpperCase(),
+          stock: stockBase,
+          precioCosto: costUnit,
+          fechaIngreso: selectedProduct.fechaIngreso || getLocalDateString()
+        }];
+
+    if (cantNum > 0) {
+      const idx = updatedLotes.findIndex(l => l.proveedor.toUpperCase() === targetSupplier);
+      if (idx >= 0) {
+        updatedLotes[idx] = {
+          ...updatedLotes[idx],
+          stock: (Number(updatedLotes[idx].stock) || 0) + cantNum,
+          precioCosto: costUnit || updatedLotes[idx].precioCosto
+        };
+      } else {
+        updatedLotes.push({
+          idLote: 'lote-' + Date.now(),
+          proveedor: targetSupplier,
+          stock: cantNum,
+          precioCosto: costUnit,
+          fechaIngreso: getLocalDateString()
+        });
+      }
+    }
+
     const varSuffix = targetVariantName ? ` [${targetVariantName}]` : '';
-    const accionText = cantNum > 0 ? `Se sumaron ${cantNum}${varSuffix}` : `Se restaron ${Math.abs(cantNum)}${varSuffix}`
-    const selectedMotivo = formAjuste.motivoAjuste || (cantNum > 0 ? "Reposición de Stock" : "Merma / Producto Dañado")
-    const motivoText = formAjuste.notaAjuste ? `${selectedMotivo} • ${formAjuste.notaAjuste}` : selectedMotivo
+    const accionText = cantNum > 0 ? `Se sumaron ${cantNum}${varSuffix} (${targetSupplier})` : `Se restaron ${Math.abs(cantNum)}${varSuffix}`;
+    const selectedMotivo = formAjuste.motivoAjuste || (cantNum > 0 ? "Reposición de Stock" : "Merma / Producto Dañado");
+    const motivoText = formAjuste.notaAjuste ? `${selectedMotivo} • ${formAjuste.notaAjuste}` : selectedMotivo;
 
     try {
       const logData = {
@@ -513,14 +584,18 @@ export default function Historial() {
         stockNuevo: stockNuevo,
         precioCosto: costUnit,
         costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
+        proveedor: targetSupplier,
         motivo: motivoText,
         nota: formAjuste.notaAjuste || '',
         varianteNombre: targetVariantName || ''
       };
 
-      const docRef = await addDoc(collection(db, 'historial_inventario'), logData)
+      const docRef = await addDoc(collection(db, 'historial_inventario'), logData);
 
-      const prodUpdate = { stock: stockNuevo };
+      const prodUpdate = { 
+        stock: stockNuevo,
+        lotesProveedores: updatedLotes
+      };
       if (hasVariants && updatedVariantes) {
         prodUpdate.variantes = updatedVariantes;
       }
@@ -909,6 +984,38 @@ export default function Historial() {
 
                 <div>
                   <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
+                    Proveedor / Lote Destino
+                  </label>
+                  <select
+                    value={proveedorAjuste}
+                    onChange={e => setProveedorAjuste(e.target.value)}
+                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white cursor-pointer"
+                  >
+                    <option value="DEFAULT">🏢 Proveedor Principal ({(selectedProduct.proveedor || 'S/P').toUpperCase()})</option>
+                    {proveedoresDisponibles.map((pName, pIdx) => (
+                      <option key={pIdx} value={pName}>🏢 Lote: {pName}</option>
+                    ))}
+                    <option value="NUEVO">➕ Registrar Nuevo Proveedor...</option>
+                  </select>
+                </div>
+
+                {proveedorAjuste === 'NUEVO' && (
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
+                      Nombre Nuevo Proveedor
+                    </label>
+                    <input
+                      type="text"
+                      value={nuevoProveedorInput}
+                      onChange={e => setNuevoProveedorInput(e.target.value)}
+                      placeholder="Ej. Proveedor 2"
+                      className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/40 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
                     Cantidad (Sumar / Restar)
                   </label>
                   <input
@@ -988,6 +1095,50 @@ export default function Historial() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* ── Barra de Filtro por Proveedor ── */}
+        {selectedProduct && proveedoresDisponibles.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 bg-surface-container-low/40 dark:bg-white/[0.03] p-4 rounded-[24px] border border-outline-variant/20 dark:border-white/10 shadow-sm">
+            <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5 shrink-0 mr-1">
+              <span className="material-symbols-outlined text-sm text-[#e2bd6c]">store</span>
+              Filtrar por Proveedor:
+            </span>
+            <button
+              type="button"
+              onClick={() => setSupplierFilter('TODOS')}
+              className={`px-3.5 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all cursor-pointer ${
+                supplierFilter === 'TODOS'
+                  ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black border-transparent shadow-md scale-105'
+                  : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-primary/30'
+              }`}
+            >
+              Todos los Proveedores ({proveedoresDisponibles.length})
+            </button>
+            {proveedoresDisponibles.map((pName, idx) => {
+              const countLotStock = Array.isArray(selectedProduct.lotesProveedores)
+                ? selectedProduct.lotesProveedores.find(l => (l.proveedor || '').toUpperCase() === pName)?.stock || 0
+                : (pName === (selectedProduct.proveedor || '').toUpperCase() ? selectedProduct.stock : 0);
+
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSupplierFilter(pName)}
+                  className={`px-3.5 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-1.5 ${
+                    supplierFilter === pName
+                      ? 'bg-[#e2bd6c] text-black border-transparent shadow-md scale-105 font-black'
+                      : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-[#e2bd6c]/40'
+                  }`}
+                >
+                  <span>🏢 {pName}</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[8px] bg-black/10 dark:bg-white/10 font-mono">
+                    {countLotStock} u.
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -1160,6 +1311,11 @@ export default function Historial() {
                               <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
                                 {formatDateDMA(log.fecha, log)}
                               </span>
+                              {log.proveedor && (
+                                <span className="text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/30">
+                                  🏢 {log.proveedor}
+                                </span>
+                              )}
                             </div>
 
                             <div className="text-xs font-semibold text-on-surface dark:text-white/90 truncate flex items-center gap-1.5 flex-wrap">
@@ -1239,7 +1395,7 @@ export default function Historial() {
                     <thead>
                       <tr className="bg-surface-container-high dark:bg-[#252525] text-outline dark:text-gray-400 font-extrabold uppercase tracking-wider text-[9px]">
                         <th className="py-3 px-4">Fecha Compra</th>
-                        <th className="py-3 px-4">Tipo / Origen</th>
+                        <th className="py-3 px-4">Proveedor / Origen</th>
                         <th className="py-3 px-4 text-center">Unidades</th>
                         <th className="py-3 px-4 text-right">Costo Unit.</th>
                         <th className="py-3 px-4 text-right">Gasto Lote</th>
@@ -1253,9 +1409,14 @@ export default function Historial() {
                             {formatDateDMA(lote.fecha, lote)}
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                              {lote.tipoTag}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 w-fit">
+                                {lote.tipoTag}
+                              </span>
+                              <span className="text-[10px] font-extrabold text-[#e2bd6c] uppercase">
+                                🏢 {lote.proveedorNombre}
+                              </span>
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-center text-blue-600 dark:text-blue-400 font-black">
                             <div className="flex flex-col items-center justify-center">
