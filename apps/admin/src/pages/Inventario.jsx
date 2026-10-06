@@ -1026,8 +1026,8 @@ REGLAS DE FORMATO ESTRICTAS:
     const fechaIng = p.fechaIngreso || getLocalDateString()
 
     const vars = p.variantes ? p.variantes.map(v => ({...v})) : []
-    const lotes = Array.isArray(p.lotesProveedores) && p.lotesProveedores.length > 0
-      ? p.lotesProveedores
+    let lotes = Array.isArray(p.lotesProveedores) && p.lotesProveedores.length > 0
+      ? [...p.lotesProveedores]
       : [{
           idLote: 'lote-base',
           proveedor: (p.proveedor || 'PRINCIPAL').trim().toUpperCase(),
@@ -1035,6 +1035,17 @@ REGLAS DE FORMATO ESTRICTAS:
           precioCosto: costNum,
           fechaIngreso: fechaIng
         }];
+
+    const mainProvName = (p.proveedor || '').trim().toUpperCase();
+    if (mainProvName && !lotes.some(l => (l.proveedor || '').trim().toUpperCase() === mainProvName)) {
+      lotes.unshift({
+        idLote: 'lote-base-' + Date.now(),
+        proveedor: mainProvName,
+        stock: stockNum,
+        precioCosto: costNum,
+        fechaIngreso: fechaIng
+      });
+    }
 
     setForm({ 
       nombre: p.nombre, 
@@ -1784,17 +1795,19 @@ REGLAS DE FORMATO ESTRICTAS:
       precio: Math.floor(Number(form.precio)) || 0,
       precioCosto: Math.floor(Number(form.precioCosto)) || 0,
       stock: stockCalculado,
-      lotesProveedores: editingId && prodAnterior?.lotesProveedores 
-        ? prodAnterior.lotesProveedores 
-        : [
-            {
-              idLote: 'lote-base',
-              proveedor: (form.proveedor || 'PRINCIPAL').trim().toUpperCase(),
-              stock: stockCalculado,
-              precioCosto: Math.floor(Number(form.precioCosto)) || 0,
-              fechaIngreso: form.fechaIngreso || getLocalDateString()
-            }
-          ],
+      lotesProveedores: (form.lotesProveedores && form.lotesProveedores.length > 0)
+        ? form.lotesProveedores
+        : (editingId && prodAnterior?.lotesProveedores 
+          ? prodAnterior.lotesProveedores 
+          : [
+              {
+                idLote: 'lote-base',
+                proveedor: (form.proveedor || 'PRINCIPAL').trim().toUpperCase(),
+                stock: stockCalculado,
+                precioCosto: Math.floor(Number(form.precioCosto)) || 0,
+                fechaIngreso: form.fechaIngreso || getLocalDateString()
+              }
+            ]),
       variantes: (form.variantes || []).map((v, index) => {
         const baseSku = (form.sku || '').trim().toUpperCase();
         const autoSku = baseSku ? `${baseSku}-${index + 1}` : `VAR-${index + 1}`;
