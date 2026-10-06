@@ -293,15 +293,17 @@ export default function Historial() {
 
     let stockCalculado = 0;
     if (isFiltered) {
-      const lotMatch = Array.isArray(selectedProduct.lotesProveedores)
-        ? selectedProduct.lotesProveedores.find(l => (l.proveedor || '').trim().toUpperCase() === targetProvNorm)
-        : null;
-      if (lotMatch && lotMatch.stock !== undefined) {
-        stockCalculado = Number(lotMatch.stock) || 0;
+      if (logsToProcess && logsToProcess.length > 0) {
+        stockCalculado = Math.max(0, entradas - salidas);
       } else {
-        stockCalculado = (logsToProcess && logsToProcess.length > 0)
-          ? Math.max(0, entradas - salidas)
-          : (targetProvNorm === (selectedProduct.proveedor || '').trim().toUpperCase() ? (Number(selectedProduct.stock) || 0) : 0);
+        const lotMatch = Array.isArray(selectedProduct.lotesProveedores)
+          ? selectedProduct.lotesProveedores.find(l => (l.proveedor || '').trim().toUpperCase() === targetProvNorm)
+          : null;
+        if (lotMatch && lotMatch.stock !== undefined) {
+          stockCalculado = Number(lotMatch.stock) || 0;
+        } else {
+          stockCalculado = targetProvNorm === (selectedProduct.proveedor || '').trim().toUpperCase() ? (Number(selectedProduct.stock) || 0) : 0;
+        }
       }
     } else {
       stockCalculado = (historyLogs && historyLogs.length > 0)

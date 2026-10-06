@@ -615,7 +615,29 @@ export default function Pedidos() {
       const batch = writeBatch(db)
 
       // 1. Manejar Stock (Inventario)
-      const productosMap = {}; // productoId -> { stock: number, variantes: [] }
+      const productosMap = {}; // productoId -> { stock: number, variantes: [], lotesProveedores: [] }
+
+      const adjustLotesStock = (lotesArr, qtyDiff) => {
+        if (!Array.isArray(lotesArr) || lotesArr.length === 0) return lotesArr;
+        const updated = lotesArr.map(l => ({ ...l }));
+        let rem = Math.abs(qtyDiff);
+        if (qtyDiff > 0) {
+          for (let i = 0; i < updated.length; i++) {
+            if (rem <= 0) break;
+            const s = Number(updated[i].stock) || 0;
+            if (s > 0) {
+              const d = Math.min(s, rem);
+              updated[i].stock = s - d;
+              rem -= d;
+            }
+          }
+        } else if (qtyDiff < 0) {
+          if (updated[0]) {
+            updated[0].stock = (Number(updated[0].stock) || 0) + rem;
+          }
+        }
+        return updated;
+      };
 
       // Inicializar el mapa con los productos involucrados (los actuales y los previos si editamos)
       const idsInvolucrados = new Set([
@@ -628,7 +650,8 @@ export default function Pedidos() {
         if (pM) {
           productosMap[id] = { 
             stock: Number(pM.stock), 
-            variantes: pM.variantes ? JSON.parse(JSON.stringify(pM.variantes)) : null 
+            variantes: pM.variantes ? JSON.parse(JSON.stringify(pM.variantes)) : null,
+            lotesProveedores: pM.lotesProveedores ? JSON.parse(JSON.stringify(pM.lotesProveedores)) : null
           };
         }
       }
@@ -643,6 +666,9 @@ export default function Pedidos() {
               const v = pData.variantes.find(v => (v.nombre || null) === (oldItem.variante || null));
               if (v) v.stock = Number(v.stock) + oldItem.cantidad;
             }
+            if (pData.lotesProveedores) {
+              pData.lotesProveedores = adjustLotesStock(pData.lotesProveedores, -oldItem.cantidad);
+            }
           }
         }
         // Segundo: Restar el nuevo stock solicitado
@@ -653,6 +679,9 @@ export default function Pedidos() {
             if (newItem.variante && pData.variantes) {
               const v = pData.variantes.find(v => (v.nombre || null) === (newItem.variante || null));
               if (v) v.stock = Number(v.stock) - newItem.cantidad;
+            }
+            if (pData.lotesProveedores) {
+              pData.lotesProveedores = adjustLotesStock(pData.lotesProveedores, newItem.cantidad);
             }
           }
         }
@@ -665,6 +694,9 @@ export default function Pedidos() {
             if (item.variante && pData.variantes) {
               const v = pData.variantes.find(v => (v.nombre || null) === (item.variante || null));
               if (v) v.stock = Number(v.stock) - item.cantidad;
+            }
+            if (pData.lotesProveedores) {
+              pData.lotesProveedores = adjustLotesStock(pData.lotesProveedores, item.cantidad);
             }
           }
         }
@@ -679,6 +711,7 @@ export default function Pedidos() {
           estado: calcularEstado(pData.stock) 
         };
         if (pData.variantes) payload.variantes = pData.variantes;
+        if (pData.lotesProveedores) payload.lotesProveedores = pData.lotesProveedores;
         batch.update(prodRef, payload);
       }
 
