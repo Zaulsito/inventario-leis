@@ -705,6 +705,10 @@ REGLAS DE FORMATO ESTRICTAS:
 
   const editProductLotesStats = useMemo(() => {
     const isEditing = Boolean(editingId)
+    const activeProv = (form.proveedor || '').trim().toUpperCase()
+    const hasMultipleSuppliers = form.lotesProveedores && form.lotesProveedores.length > 1
+    const firstProv = (form.lotesProveedores && form.lotesProveedores[0]?.proveedor || '').trim().toUpperCase()
+
     const stockInicial = isEditing ? initialProductData.stock : (Number(form.stock) || 0)
     const costoInicial = isEditing ? initialProductData.precioCosto : (Number(form.precioCosto) || 0)
     const fechaInicial = isEditing ? (initialProductData.fechaIngreso || getLocalDateString()) : (form.fechaIngreso || getLocalDateString())
@@ -713,7 +717,18 @@ REGLAS DE FORMATO ESTRICTAS:
     let unidadesTotales = 0
     const lotes = []
 
-    const validLogs = (editProductHistory || []).slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    let validLogs = (editProductHistory || []).slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+
+    if (hasMultipleSuppliers && activeProv) {
+      validLogs = validLogs.filter(l => {
+        const logProv = (l.proveedor || '').trim().toUpperCase()
+        if (logProv) {
+          return logProv === activeProv
+        }
+        return firstProv ? activeProv === firstProv : true
+      })
+    }
+
     const entradas = validLogs.filter(l => Number(l.cambio) > 0)
 
     // Verificar si el historial ya incluye un registro de creación inicial (stockAnterior === 0)
@@ -726,7 +741,9 @@ REGLAS DE FORMATO ESTRICTAS:
     // Determinar stock inicial base previo a los registros de Firestore
     let cantInicialBase = 0
     if (!tieneCreacionInicialEnLogs && stockInicial > 0) {
-      if (validLogs.length > 0) {
+      if (hasMultipleSuppliers && activeProv && firstProv && activeProv !== firstProv) {
+        cantInicialBase = 0
+      } else if (validLogs.length > 0) {
         const primerLog = validLogs[0]
         if (primerLog.stockAnterior !== undefined && primerLog.stockAnterior !== null) {
           cantInicialBase = Number(primerLog.stockAnterior) || 0
@@ -789,7 +806,7 @@ REGLAS DE FORMATO ESTRICTAS:
       stockCalculado,
       costoPromedio
     }
-  }, [editProductHistory, initialProductData, editingId, form.stock, form.precioCosto, form.fechaIngreso])
+  }, [editProductHistory, initialProductData, editingId, form.stock, form.precioCosto, form.fechaIngreso, form.proveedor, form.lotesProveedores])
 
   useEffect(() => {
     if (editingId && editProductLotesStats && editProductLotesStats.stockCalculado !== undefined && !form.ajusteStock) {
@@ -1476,6 +1493,22 @@ REGLAS DE FORMATO ESTRICTAS:
     const selectedMotivo = form.motivoAjuste || (cantNum > 0 ? "Reposición de Stock" : "Merma / Producto Dañado");
     const motivoText = form.notaAjuste ? `${selectedMotivo} • ${form.notaAjuste}` : selectedMotivo;
 
+    const currentProvName = (form.proveedor || '').trim().toUpperCase();
+    let updatedLotesProveedores = form.lotesProveedores;
+    if (Array.isArray(form.lotesProveedores) && form.lotesProveedores.length > 0 && currentProvName) {
+      updatedLotesProveedores = form.lotesProveedores.map((l, i) => {
+        if (i === activeLotIndex || (l.proveedor || '').trim().toUpperCase() === currentProvName) {
+          const currentLotStock = Number(l.stock || 0);
+          return {
+            ...l,
+            stock: Math.max(0, currentLotStock + cantNum),
+            precioCosto: costUnit || l.precioCosto
+          };
+        }
+        return l;
+      });
+    }
+
     try {
       const logData = {
         productoId: editingId,
@@ -1486,6 +1519,7 @@ REGLAS DE FORMATO ESTRICTAS:
         stockNuevo: stockNuevo,
         precioCosto: costUnit,
         costoTotalLote: cantNum > 0 ? (cantNum * costUnit) : 0,
+        proveedor: currentProvName,
         motivo: motivoText,
         nota: form.notaAjuste || '',
         varianteNombre: targetVariantName || ''
@@ -1496,6 +1530,9 @@ REGLAS DE FORMATO ESTRICTAS:
       const prodUpdate = { stock: stockNuevo };
       if (hasVariants && updatedVariantes) {
         prodUpdate.variantes = updatedVariantes;
+      }
+      if (updatedLotesProveedores) {
+        prodUpdate.lotesProveedores = updatedLotesProveedores;
       }
 
       await updateDoc(doc(db, 'productos', editingId), prodUpdate);
@@ -1509,6 +1546,7 @@ REGLAS DE FORMATO ESTRICTAS:
       setForm(prev => ({
         ...prev,
         stock: stockNuevo,
+        ...(updatedLotesProveedores ? { lotesProveedores: updatedLotesProveedores } : {}),
         ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {}),
         ajusteStock: '',
         motivoAjuste: '',
