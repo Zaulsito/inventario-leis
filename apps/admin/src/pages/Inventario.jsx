@@ -3293,6 +3293,34 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                   title={`Eliminar proveedor ${lote.proveedor}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    const targetProv = (lote.proveedor || '').trim().toUpperCase();
+
+                                    // Verificar si este proveedor tiene un historial de compra/venta registrado con clientes
+                                    const tieneHistorialCliente = (editProductHistory || []).some(log => {
+                                      const logProv = (log.proveedor || '').trim().toUpperCase();
+                                      const esPedidoCliente = log.esPedidoReal ||
+                                        Boolean(log.pedidoId) ||
+                                        (log.accion || '').toLowerCase().includes('pedido') ||
+                                        (log.accion || '').toLowerCase().includes('venta') ||
+                                        (log.motivo || '').toLowerCase().includes('pedido') ||
+                                        (log.motivo || '').toLowerCase().includes('venta');
+
+                                      if (!esPedidoCliente) return false;
+
+                                      if (logProv) {
+                                        return logProv === targetProv;
+                                      }
+
+                                      // Si el log de pedido no tiene proveedor explícito, se atribuye al proveedor inicial/lote 0
+                                      const mainProv = (form.lotesProveedores[0]?.proveedor || '').trim().toUpperCase();
+                                      return idx === 0 || targetProv === mainProv;
+                                    });
+
+                                    if (tieneHistorialCliente) {
+                                      alert(`No se puede eliminar el proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}" porque tiene un historial de compra/pedido registrado con algún cliente.`);
+                                      return;
+                                    }
+
                                     if (window.confirm(`¿Deseas eliminar la ficha del proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}"?`)) {
                                       const updatedLotes = form.lotesProveedores.filter((_, i) => i !== idx);
                                       const nextActiveIdx = Math.min(idx, updatedLotes.length - 1);
