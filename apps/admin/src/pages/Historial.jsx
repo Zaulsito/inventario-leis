@@ -532,13 +532,10 @@ export default function Historial() {
 
     const costUnit = Math.floor(Number(formAjuste.precioCosto)) || Math.floor(Number(selectedProduct.precioCosto)) || 0
 
-    // Proveedor del ajuste
-    let targetSupplier = (selectedProduct.proveedor || 'PRINCIPAL').trim().toUpperCase();
-    if (proveedorAjuste === 'NUEVO' && nuevoProveedorInput.trim()) {
-      targetSupplier = nuevoProveedorInput.trim().toUpperCase();
-    } else if (proveedorAjuste && proveedorAjuste !== 'DEFAULT' && proveedorAjuste !== 'NUEVO') {
-      targetSupplier = proveedorAjuste.trim().toUpperCase();
-    }
+    // Proveedor del ajuste (usa el proveedor del filtro activo en el header o el proveedor principal del producto)
+    const targetSupplier = (supplierFilter && supplierFilter !== 'TODOS')
+      ? supplierFilter.trim().toUpperCase()
+      : (selectedProduct.proveedor || 'PRINCIPAL').trim().toUpperCase();
 
     let updatedLotes = Array.isArray(selectedProduct.lotesProveedores) && selectedProduct.lotesProveedores.length > 0
       ? [...selectedProduct.lotesProveedores]
@@ -682,7 +679,7 @@ export default function Historial() {
               <div className="relative min-w-[200px] sm:min-w-[220px]">
                 <label className="block text-[9px] font-extrabold uppercase tracking-widest text-secondary dark:text-[#e2bd6c] mb-1 ml-1 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">store</span>
-                  Proveedor / Lote
+                  Proveedor
                 </label>
                 <div className="relative">
                   <select
@@ -692,7 +689,7 @@ export default function Historial() {
                   >
                     <option value="TODOS">🌐 TODOS LOS PROVEEDORES</option>
                     {proveedoresDisponibles.map((pName, pIdx) => (
-                      <option key={pIdx} value={pName}>🏬 LOTE: {pName}</option>
+                      <option key={pIdx} value={pName}>🏢 {pName}</option>
                     ))}
                   </select>
                   <span className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-[#e2bd6c] pointer-events-none text-base font-bold">
@@ -990,7 +987,7 @@ export default function Historial() {
             </div>
 
             <form onSubmit={handleAddDirectStockAdjustment} className="space-y-3">
-              <div className={`grid grid-cols-1 ${selectedProduct?.variantes?.length > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
+              <div className={`grid grid-cols-1 ${selectedProduct?.variantes?.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
                 {selectedProduct?.variantes && selectedProduct.variantes.length > 0 && (
                   <div>
                     <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
@@ -1007,44 +1004,6 @@ export default function Historial() {
                         </option>
                       ))}
                     </select>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">store</span>
-                    Proveedor / Lote Destino
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={proveedorAjuste}
-                      onChange={e => setProveedorAjuste(e.target.value)}
-                      className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/40 hover:border-[#e2bd6c] rounded-full px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#e2bd6c]/30 text-on-surface dark:text-white cursor-pointer shadow-md appearance-none pr-9 transition-all"
-                    >
-                      <option value="DEFAULT">🏢 Proveedor Principal ({(selectedProduct.proveedor || 'S/P').toUpperCase()})</option>
-                      {proveedoresDisponibles.map((pName, pIdx) => (
-                        <option key={pIdx} value={pName}>🏢 Lote: {pName}</option>
-                      ))}
-                      <option value="NUEVO">➕ Registrar Nuevo Proveedor...</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-[#e2bd6c] pointer-events-none text-base font-bold">
-                      expand_more
-                    </span>
-                  </div>
-                </div>
-
-                {proveedorAjuste === 'NUEVO' && (
-                  <div>
-                    <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
-                      Nombre Nuevo Proveedor
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevoProveedorInput}
-                      onChange={e => setNuevoProveedorInput(e.target.value)}
-                      placeholder="Ej. Proveedor 2"
-                      className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/40 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                    />
                   </div>
                 )}
 
