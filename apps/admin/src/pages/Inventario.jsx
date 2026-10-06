@@ -1125,18 +1125,39 @@ REGLAS DE FORMATO ESTRICTAS:
           ? form.variantes
           : (pTarget?.variantes || []);
 
-        const targetVarName = log.varianteNombre || log.variante || '';
+        let targetVarName = log.varianteNombre || log.variante || log.color || '';
+        if (!targetVarName && log.accion) {
+          const matchParen = log.accion.match(/\(([^)]+)\)/);
+          if (matchParen) targetVarName = matchParen[1];
+          else {
+            const matchBracket = log.accion.match(/\[([^\]]+)\]/);
+            if (matchBracket) targetVarName = matchBracket[1];
+          }
+        }
+        if (!targetVarName && log.motivo) {
+          const matchParen = log.motivo.match(/\(([^)]+)\)/);
+          if (matchParen) targetVarName = matchParen[1];
+        }
+
         let updatedVariantes = null;
 
-        if (hasVariants && targetVarName) {
-          updatedVariantes = currentVars.map(v => {
-            if (v.nombre === targetVarName) {
-              const currentVStock = Number(v.stock || 0);
-              const newVStock = Math.max(0, currentVStock - cambioNum);
-              return { ...v, stock: newVStock };
-            }
-            return v;
-          });
+        if (hasVariants) {
+          const cleanTargetVar = (targetVarName || '').trim().toLowerCase();
+          if (cleanTargetVar) {
+            updatedVariantes = currentVars.map(v => {
+              const cleanVName = (v.nombre || '').trim().toLowerCase();
+              if (cleanVName === cleanTargetVar) {
+                const currentVStock = Number(v.stock || 0);
+                const newVStock = Math.max(0, currentVStock - cambioNum);
+                return { ...v, stock: newVStock };
+              }
+              return v;
+            });
+          } else if (currentVars.length === 1) {
+            const currentVStock = Number(currentVars[0].stock || 0);
+            const newVStock = Math.max(0, currentVStock - cambioNum);
+            updatedVariantes = [{ ...currentVars[0], stock: newVStock }];
+          }
         }
 
         const stockRevertido = hasVariants && updatedVariantes
@@ -1318,18 +1339,39 @@ REGLAS DE FORMATO ESTRICTAS:
 
         if (editingId && difCant !== 0) {
           const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0;
-          const targetVarName = oldLog?.varianteNombre || oldLog?.variante || '';
+          let targetVarName = oldLog?.varianteNombre || oldLog?.variante || oldLog?.color || '';
+          if (!targetVarName && oldLog?.accion) {
+            const matchParen = oldLog.accion.match(/\(([^)]+)\)/);
+            if (matchParen) targetVarName = matchParen[1];
+            else {
+              const matchBracket = oldLog.accion.match(/\[([^\]]+)\]/);
+              if (matchBracket) targetVarName = matchBracket[1];
+            }
+          }
+          if (!targetVarName && oldLog?.motivo) {
+            const matchParen = oldLog.motivo.match(/\(([^)]+)\)/);
+            if (matchParen) targetVarName = matchParen[1];
+          }
+
           let updatedVariantes = null;
 
-          if (hasVariants && targetVarName) {
-            updatedVariantes = form.variantes.map(v => {
-              if (v.nombre === targetVarName) {
-                const currentVStock = Number(v.stock || 0);
-                const newVStock = Math.max(0, currentVStock + difCant);
-                return { ...v, stock: newVStock };
-              }
-              return v;
-            });
+          if (hasVariants) {
+            const cleanTargetVar = (targetVarName || '').trim().toLowerCase();
+            if (cleanTargetVar) {
+              updatedVariantes = form.variantes.map(v => {
+                const cleanVName = (v.nombre || '').trim().toLowerCase();
+                if (cleanVName === cleanTargetVar) {
+                  const currentVStock = Number(v.stock || 0);
+                  const newVStock = Math.max(0, currentVStock + difCant);
+                  return { ...v, stock: newVStock };
+                }
+                return v;
+              });
+            } else if (form.variantes.length === 1) {
+              const currentVStock = Number(form.variantes[0].stock || 0);
+              const newVStock = Math.max(0, currentVStock + difCant);
+              updatedVariantes = [{ ...form.variantes[0], stock: newVStock }];
+            }
           }
 
           const stockActual = Number(form.stock) || 0;
