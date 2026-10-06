@@ -570,6 +570,21 @@ REGLAS DE FORMATO ESTRICTAS:
     if (e) e.preventDefault();
     if (!nuevoProveedorInputModal || !nuevoProveedorInputModal.trim()) return;
     const newProvName = nuevoProveedorInputModal.trim().toUpperCase();
+
+    let existingLotes = Array.isArray(form.lotesProveedores) && form.lotesProveedores.length > 0
+      ? [...form.lotesProveedores]
+      : [];
+
+    if (existingLotes.length === 0 && (form.proveedor || form.nombre)) {
+      existingLotes.push({
+        idLote: 'lote-base',
+        proveedor: (form.proveedor || 'PRINCIPAL').trim().toUpperCase(),
+        stock: Number(form.stock) || 0,
+        precioCosto: Number(form.precioCosto) || 0,
+        fechaIngreso: form.fechaIngreso || getLocalDateString()
+      });
+    }
+
     const newLot = {
       idLote: 'lote-' + Date.now(),
       proveedor: newProvName,
@@ -577,7 +592,8 @@ REGLAS DE FORMATO ESTRICTAS:
       precioCosto: Number(form.precioCosto) || 0,
       fechaIngreso: getLocalDateString()
     };
-    const updatedLotes = [...(form.lotesProveedores || []), newLot];
+
+    const updatedLotes = [...existingLotes, newLot];
     setActiveLotIndex(updatedLotes.length - 1);
     setForm(prev => ({
       ...prev,
@@ -3219,7 +3235,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                   )}
 
                   {/* Fichas / Carpetas por Proveedor (Lotes) */}
-                  {editingId && form.lotesProveedores && form.lotesProveedores.length > 0 && (
+                  {form.lotesProveedores && form.lotesProveedores.length > 0 && (
                     <div className="bg-surface-container-low/60 dark:bg-white/[0.03] p-3.5 rounded-2xl border border-[#e2bd6c]/40 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5">
@@ -3279,173 +3295,180 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                   )}
 
                   {/* Fila 1: Nombre y SKU */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
-                        Nombre del Producto {registrationMode === 'nuevo_proveedor' && <span className="text-amber-500 font-normal">(Bloqueado por Producto Existente)</span>}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={form.nombre} 
-                        disabled={registrationMode === 'nuevo_proveedor'}
-                        onChange={e => setForm({...form, nombre: e.target.value})}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
-                        placeholder="Ej. Crema Collagen"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
-                        Código de Barra / SKU {registrationMode === 'nuevo_proveedor' && <span className="text-amber-500 font-normal">(Bloqueado)</span>}
-                      </label>
-                      <div className="relative">
-                        <input 
-                          type="text" 
-                          value={form.sku} 
-                          disabled={registrationMode === 'nuevo_proveedor'}
-                          onChange={e => setForm({...form, sku: e.target.value})}
-                          className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
-                          placeholder="Escribe o escanea..."
-                        />
-                        <button 
-                          type="button" 
-                          disabled={registrationMode === 'nuevo_proveedor'}
-                          onClick={() => setIsScanning(true)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
-                        >
-                          <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fila 2: Marca, Proveedor y Categoría */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="relative">
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Marca</label>
-                      <input 
-                        type="text" 
-                        value={form.marca} 
-                        disabled={registrationMode === 'nuevo_proveedor'}
-                        onChange={e => setForm({...form, marca: e.target.value})}
-                        onFocus={() => { if (registrationMode !== 'nuevo_proveedor') setShowMarcaDropdown(true); }}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all uppercase dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
-                        placeholder="BUSCAR MARCA..."
-                      />
-                      {showMarcaDropdown && registrationMode !== 'nuevo_proveedor' && (
-                        <>
-                          <div className="fixed inset-0 z-[110]" onClick={() => setShowMarcaDropdown(false)} />
-                          <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                            <button 
-                              type="button"
-                              onClick={() => setShowMarcaDropdown(false)}
-                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                            >
-                              <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
-                            </button>
-                            {marcasUnicas
-                              .filter(m => m.toLowerCase().includes((form.marca || '').toLowerCase()))
-                              .slice(0, 3)
-                              .map(m => (
-                                <button
-                                  key={m}
-                                  type="button"
-                                  onClick={() => { setForm({...form, marca: m}); setShowMarcaDropdown(false); }}
-                                  className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
-                                >
-                                  {m}
-                                </button>
-                              ))
-                            }
+                  {(() => {
+                    const isSecondarySupplier = registrationMode === 'nuevo_proveedor' || (editingId && activeLotIndex > 0);
+                    return (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                              Nombre del Producto
+                            </label>
+                            <input 
+                              type="text" 
+                              value={form.nombre} 
+                              onChange={e => setForm({...form, nombre: e.target.value})}
+                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                              placeholder="Ej. Crema Collagen"
+                            />
                           </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Proveedor</label>
-                      <input 
-                        type="text" 
-                        value={form.proveedor} 
-                        onChange={e => setForm({...form, proveedor: e.target.value})}
-                        onFocus={() => setShowProvDropdown(true)}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
-                        placeholder="BUSCAR PROVEEDOR..."
-                      />
-                      {showProvDropdown && (
-                        <>
-                          <div className="fixed inset-0 z-[110]" onClick={() => setShowProvDropdown(false)} />
-                          <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setShowProvDropdown(false);
-                                setNuevoProveedorInputModal('');
-                                setShowAddProveedorModal(true);
-                              }}
-                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                            >
-                              <span className="text-lg font-bold">+</span> AÑADIR NUEVO
-                            </button>
-                            {proveedoresUnicos
-                              .filter(p => p.toLowerCase().includes((form.proveedor || '').toLowerCase()))
-                              .slice(0, 3)
-                              .map(p => (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  onClick={() => { setForm({...form, proveedor: p}); setShowProvDropdown(false); }}
-                                  className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
-                                >
-                                  {p}
-                                </button>
-                              ))
-                            }
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                              Código de Barra / SKU {isSecondarySupplier && <span className="text-amber-500 font-normal">(Bloqueado por Producto Principal)</span>}
+                            </label>
+                            <div className="relative">
+                              <input 
+                                type="text" 
+                                value={form.sku} 
+                                disabled={isSecondarySupplier}
+                                onChange={e => setForm({...form, sku: e.target.value})}
+                                className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
+                                placeholder="Escribe o escanea..."
+                              />
+                              <button 
+                                type="button" 
+                                disabled={isSecondarySupplier}
+                                onClick={() => setIsScanning(true)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+                              </button>
+                            </div>
                           </div>
-                        </>
-                      )}
-                    </div>
+                        </div>
 
-                    <div className="relative">
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Categoría</label>
-                      <input 
-                        type="text" 
-                        value={form.coleccion} 
-                        disabled={registrationMode === 'nuevo_proveedor'}
-                        onChange={e => setForm({...form, coleccion: e.target.value})}
-                        onFocus={() => { if (registrationMode !== 'nuevo_proveedor') setShowCatDropdown(true); }}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
-                        placeholder="BUSCAR CATEGORÍA..."
-                      />
-                      {showCatDropdown && registrationMode !== 'nuevo_proveedor' && (
-                        <>
-                          <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
-                          <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                            <button 
-                              type="button"
-                              onClick={() => setShowCatDropdown(false)}
-                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                            >
-                              <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVA
-                            </button>
-                            {categoriasUnicas
-                              .filter(c => c.toLowerCase().includes((form.coleccion || '').toLowerCase()))
-                              .slice(0, 3)
-                              .map(c => (
-                                <button
-                                  key={c}
-                                  type="button"
-                                  onClick={() => { setForm({...form, coleccion: c}); setShowCatDropdown(false); }}
-                                  className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
-                                >
-                                  {c}
-                                </button>
-                              ))
-                            }
+                        {/* Fila 2: Marca, Proveedor y Categoría */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="relative">
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                              Marca {isSecondarySupplier && <span className="text-amber-500 font-normal">(Bloqueada por Producto Principal)</span>}
+                            </label>
+                            <input 
+                              type="text" 
+                              value={form.marca} 
+                              disabled={isSecondarySupplier}
+                              onChange={e => setForm({...form, marca: e.target.value})}
+                              onFocus={() => { if (!isSecondarySupplier) setShowMarcaDropdown(true); }}
+                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all uppercase dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
+                              placeholder="BUSCAR MARCA..."
+                            />
+                            {showMarcaDropdown && !isSecondarySupplier && (
+                              <>
+                                <div className="fixed inset-0 z-[110]" onClick={() => setShowMarcaDropdown(false)} />
+                                <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <button 
+                                    type="button"
+                                    onClick={() => setShowMarcaDropdown(false)}
+                                    className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                  >
+                                    <span className="text-lg font-bold">+</span> AÑADIR NUEVA
+                                  </button>
+                                  {marcasUnicas
+                                    .filter(m => m.toLowerCase().includes((form.marca || '').toLowerCase()))
+                                    .slice(0, 3)
+                                    .map(m => (
+                                      <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => { setForm({...form, marca: m}); setShowMarcaDropdown(false); }}
+                                        className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
+                                      >
+                                        {m}
+                                      </button>
+                                    ))
+                                  }
+                                </div>
+                              </>
+                            )}
                           </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
+
+                          <div className="relative">
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Proveedor</label>
+                            <input 
+                              type="text" 
+                              value={form.proveedor} 
+                              onChange={e => setForm({...form, proveedor: e.target.value})}
+                              onFocus={() => setShowProvDropdown(true)}
+                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
+                              placeholder="BUSCAR PROVEEDOR..."
+                            />
+                            {showProvDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-[110]" onClick={() => setShowProvDropdown(false)} />
+                                <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      setShowProvDropdown(false);
+                                      setNuevoProveedorInputModal('');
+                                      setShowAddProveedorModal(true);
+                                    }}
+                                    className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                                  >
+                                    <span className="text-lg font-bold">+</span> AÑADIR NUEVO
+                                  </button>
+                                  {proveedoresUnicos
+                                    .filter(p => p.toLowerCase().includes((form.proveedor || '').toLowerCase()))
+                                    .slice(0, 3)
+                                    .map(p => (
+                                      <button
+                                        key={p}
+                                        type="button"
+                                        onClick={() => { setForm({...form, proveedor: p}); setShowProvDropdown(false); }}
+                                        className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
+                                      >
+                                        {p}
+                                      </button>
+                                    ))
+                                  }
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="relative">
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Categoría</label>
+                            <input 
+                              type="text" 
+                              value={form.coleccion} 
+                              onChange={e => setForm({...form, coleccion: e.target.value})}
+                              onFocus={() => setShowCatDropdown(true)}
+                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
+                              placeholder="BUSCAR CATEGORÍA..."
+                            />
+                            {showCatDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
+                                <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <button 
+                                    type="button"
+                                    onClick={() => setShowCatDropdown(false)}
+                                    className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                  >
+                                    <span className="text-lg font-bold">+</span> AÑADIR NUEVA
+                                  </button>
+                                  {categoriasUnicas
+                                    .filter(c => c.toLowerCase().includes((form.coleccion || '').toLowerCase()))
+                                    .slice(0, 3)
+                                    .map(c => (
+                                      <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => { setForm({...form, coleccion: c}); setShowCatDropdown(false); }}
+                                        className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
+                                      >
+                                        {c}
+                                      </button>
+                                    ))
+                                  }
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
 
                   {/* Fila 3: Precio Venta y Fecha Ingreso Inicial */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
