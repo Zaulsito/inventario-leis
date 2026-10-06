@@ -562,6 +562,34 @@ REGLAS DE FORMATO ESTRICTAS:
   const [showVisibilidadDropdown, setShowVisibilidadDropdown] = useState(false)
   const [visibilidadModal, setVisibilidadModal] = useState(null)
 
+  // Modal estético para nuevo proveedor
+  const [showAddProveedorModal, setShowAddProveedorModal] = useState(false)
+  const [nuevoProveedorInputModal, setNuevoProveedorInputModal] = useState('')
+
+  function handleConfirmAddProveedorModal(e) {
+    if (e) e.preventDefault();
+    if (!nuevoProveedorInputModal || !nuevoProveedorInputModal.trim()) return;
+    const newProvName = nuevoProveedorInputModal.trim().toUpperCase();
+    const newLot = {
+      idLote: 'lote-' + Date.now(),
+      proveedor: newProvName,
+      stock: 0,
+      precioCosto: Number(form.precioCosto) || 0,
+      fechaIngreso: getLocalDateString()
+    };
+    const updatedLotes = [...(form.lotesProveedores || []), newLot];
+    setActiveLotIndex(updatedLotes.length - 1);
+    setForm(prev => ({
+      ...prev,
+      lotesProveedores: updatedLotes,
+      proveedor: newLot.proveedor,
+      stock: 0,
+      fechaIngreso: newLot.fechaIngreso
+    }));
+    setShowAddProveedorModal(false);
+    setNuevoProveedorInputModal('');
+  }
+
   const executeVisibilidadBatch = async (targetProducts, setVisibleBool, successMsg) => {
     setIsUpdatingVisibilidad(true)
     setVisibilidadModal(null)
@@ -3238,24 +3266,8 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         <button
                           type="button"
                           onClick={() => {
-                            const newProvName = prompt("Ingresa el nombre del nuevo Proveedor para este producto:");
-                            if (!newProvName || !newProvName.trim()) return;
-                            const newLot = {
-                              idLote: 'lote-' + Date.now(),
-                              proveedor: newProvName.trim().toUpperCase(),
-                              stock: 0,
-                              precioCosto: Number(form.precioCosto) || 0,
-                              fechaIngreso: getLocalDateString()
-                            };
-                            const updatedLotes = [...(form.lotesProveedores || []), newLot];
-                            setActiveLotIndex(updatedLotes.length - 1);
-                            setForm(prev => ({
-                              ...prev,
-                              lotesProveedores: updatedLotes,
-                              proveedor: newLot.proveedor,
-                              stock: 0,
-                              fechaIngreso: newLot.fechaIngreso
-                            }));
+                            setNuevoProveedorInputModal('');
+                            setShowAddProveedorModal(true);
                           }}
                           className="px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-primary/20 dark:border-[#e2bd6c]/30 hover:bg-primary/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
                         >
@@ -3365,10 +3377,14 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                           <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                             <button 
                               type="button"
-                              onClick={() => setShowProvDropdown(false)}
-                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                              onClick={() => {
+                                setShowProvDropdown(false);
+                                setNuevoProveedorInputModal('');
+                                setShowAddProveedorModal(true);
+                              }}
+                              className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
                             >
-                              <span className="text-lg font-bold">+</span> <span className="text-lg font-bold">+</span> AÑADIR NUEVO
+                              <span className="text-lg font-bold">+</span> AÑADIR NUEVO
                             </button>
                             {proveedoresUnicos
                               .filter(p => p.toLowerCase().includes((form.proveedor || '').toLowerCase()))
@@ -5097,6 +5113,76 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                 Sí, Combinar en Tarjeta
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Estético para Registrar Nuevo Proveedor / Lote */}
+      {showAddProveedorModal && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div 
+            className="bg-surface-container-high dark:bg-[#181818] border border-[#e2bd6c]/30 rounded-[28px] max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-6 relative overflow-hidden text-on-surface dark:text-white"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Resplandor decorativo de fondo */}
+            <div className="absolute -right-16 -top-16 w-32 h-32 bg-[#e2bd6c]/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center justify-between border-b border-outline-variant/10 dark:border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-secondary/10 dark:bg-[#e2bd6c]/15 text-secondary dark:text-[#e2bd6c] border border-secondary/20 dark:border-[#e2bd6c]/30 flex items-center justify-center shrink-0 shadow-inner">
+                  <span className="material-symbols-outlined text-xl">store</span>
+                </div>
+                <div>
+                  <h3 className="font-headline text-lg italic font-bold text-on-surface dark:text-white leading-tight">
+                    Registrar Nuevo Proveedor
+                  </h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 mt-0.5">
+                    Crea una nueva ficha de lote para este producto
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddProveedorModal(false)}
+                className="w-8 h-8 rounded-full bg-surface-variant/40 dark:bg-white/5 text-outline dark:text-gray-400 hover:text-on-surface dark:hover:text-white flex items-center justify-center transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmAddProveedorModal} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-2 ml-1">
+                  Nombre del Proveedor o Marca
+                </label>
+                <input
+                  type="text"
+                  value={nuevoProveedorInputModal}
+                  onChange={e => setNuevoProveedorInputModal(e.target.value)}
+                  placeholder="Ej. Cintegral, PC Factory, Feyal..."
+                  autoFocus
+                  className="w-full bg-surface-container-lowest dark:bg-[#121212] border border-[#e2bd6c]/40 focus:border-[#e2bd6c] rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#e2bd6c]/30 text-on-surface dark:text-white placeholder:text-gray-500 shadow-inner transition-all"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddProveedorModal(false)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-outline dark:text-gray-300 hover:bg-surface-variant/50 dark:hover:bg-white/5 border border-outline-variant/20 dark:border-white/10 transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!nuevoProveedorInputModal.trim()}
+                  className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  <span className="material-symbols-outlined text-sm font-bold">add_business</span>
+                  Aceptar / Crear
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
