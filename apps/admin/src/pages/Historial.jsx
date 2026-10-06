@@ -232,7 +232,7 @@ export default function Historial() {
     loadHistory()
   }, [selectedProductId, productos])
 
-  // Métricas calculadas para el producto seleccionado
+  // Métricas calculadas para el producto seleccionado (filtrado opcional por proveedor)
   const productStats = useMemo(() => {
     if (!selectedProduct) return { 
       entradas: 0, 
@@ -255,7 +255,19 @@ export default function Historial() {
     let unidadesVendidas = 0
     let costoVentas = 0
 
-    historyLogs.forEach(log => {
+    const targetProvNorm = (supplierFilter || 'TODOS').trim().toUpperCase();
+    const isFiltered = targetProvNorm !== 'TODOS';
+    const firstProv = (Array.isArray(selectedProduct.lotesProveedores) && selectedProduct.lotesProveedores[0]?.proveedor || selectedProduct.proveedor || '').trim().toUpperCase();
+
+    const logsToProcess = isFiltered 
+      ? historyLogs.filter(log => {
+          const logProv = (log.proveedor || '').trim().toUpperCase();
+          const effectiveProv = logProv || firstProv;
+          return effectiveProv === targetProvNorm;
+        })
+      : historyLogs;
+
+    logsToProcess.forEach(log => {
       const c = Number(log.cambio) || 0
       const accionStr = (log.accion || '').toLowerCase()
       const motivoStr = (log.motivo || '').toLowerCase()
@@ -279,9 +291,23 @@ export default function Historial() {
       }
     })
 
-    const stockCalculado = (historyLogs && historyLogs.length > 0)
-      ? Math.max(0, entradas - salidas)
-      : (Number(selectedProduct.stock) || 0)
+    let stockCalculado = 0;
+    if (isFiltered) {
+      const lotMatch = Array.isArray(selectedProduct.lotesProveedores)
+        ? selectedProduct.lotesProveedores.find(l => (l.proveedor || '').trim().toUpperCase() === targetProvNorm)
+        : null;
+      if (lotMatch && lotMatch.stock !== undefined) {
+        stockCalculado = Number(lotMatch.stock) || 0;
+      } else {
+        stockCalculado = (logsToProcess && logsToProcess.length > 0)
+          ? Math.max(0, entradas - salidas)
+          : (targetProvNorm === (selectedProduct.proveedor || '').trim().toUpperCase() ? (Number(selectedProduct.stock) || 0) : 0);
+      }
+    } else {
+      stockCalculado = (historyLogs && historyLogs.length > 0)
+        ? Math.max(0, entradas - salidas)
+        : (Number(selectedProduct.stock) || 0);
+    }
 
     const gananciaVentas = ventasDinero - costoVentas
     const balanceGlobal = ventasDinero - inversionTotal
@@ -298,16 +324,16 @@ export default function Historial() {
       gananciaVentas,
       balanceGlobal
     }
-  }, [selectedProduct, historyLogs])
+  }, [selectedProduct, historyLogs, supplierFilter])
 
   useEffect(() => {
-    if (selectedProduct && (!selectedProduct.variantes || selectedProduct.variantes.length === 0) && historyLogs && historyLogs.length > 0 && productStats.stockCalculado !== undefined) {
+    if (supplierFilter === 'TODOS' && selectedProduct && (!selectedProduct.variantes || selectedProduct.variantes.length === 0) && historyLogs && historyLogs.length > 0 && productStats.stockCalculado !== undefined) {
       if (Number(selectedProduct.stock) !== productStats.stockCalculado) {
         updateDoc(doc(db, 'productos', selectedProduct.id), { stock: productStats.stockCalculado })
           .catch(e => console.error("Error sincronizando stock en Historial:", e))
       }
     }
-  }, [selectedProduct?.id, historyLogs, productStats.stockCalculado])
+  }, [selectedProduct?.id, historyLogs, productStats.stockCalculado, supplierFilter])
 
   // Proveedores registrados para el producto seleccionado
   const proveedoresDisponibles = useMemo(() => {
@@ -364,14 +390,17 @@ export default function Historial() {
   const filterCounts = useMemo(() => {
     let todos = 0, entradas = 0, salidas = 0, ventas = 0, reposicion = 0, mermas = 0
 
+    const firstProv = (Array.isArray(selectedProduct?.lotesProveedores) && selectedProduct.lotesProveedores[0]?.proveedor || selectedProduct?.proveedor || '').trim().toUpperCase();
+
     historyLogs.forEach(log => {
       const cant = Number(log.cambio) || 0
       const accionStr = (log.accion || '').toLowerCase()
       const motivoStr = (log.motivo || '').toLowerCase()
 
       if (supplierFilter !== 'TODOS') {
-        const provLog = (log.proveedor || selectedProduct?.proveedor || '').trim().toUpperCase()
-        if (provLog !== supplierFilter) return
+        const logProv = (log.proveedor || '').trim().toUpperCase();
+        const effectiveProv = logProv || firstProv;
+        if (effectiveProv !== supplierFilter) return;
       }
 
       if (searchTerm.trim()) {
@@ -402,6 +431,8 @@ export default function Historial() {
 
   // Filtrado de movimientos para el Kardex
   const filteredKardexLogs = useMemo(() => {
+    const firstProv = (Array.isArray(selectedProduct?.lotesProveedores) && selectedProduct.lotesProveedores[0]?.proveedor || selectedProduct?.proveedor || '').trim().toUpperCase();
+
     return historyLogs.filter(log => {
       const cant = Number(log.cambio) || 0
       const accionStr = (log.accion || '').toLowerCase()
@@ -409,8 +440,9 @@ export default function Historial() {
 
       // Filtro de Proveedor
       if (supplierFilter !== 'TODOS') {
-        const provLog = (log.proveedor || selectedProduct?.proveedor || '').trim().toUpperCase()
-        if (provLog !== supplierFilter) return false
+        const logProv = (log.proveedor || '').trim().toUpperCase();
+        const effectiveProv = logProv || firstProv;
+        if (effectiveProv !== supplierFilter) return false;
       }
 
       // Filtro de Pestañas/Chips
@@ -1135,49 +1167,7 @@ export default function Historial() {
           </div>
         )}
 
-        {/* ── Barra de Filtro por Proveedor (Solo si hay más de 1 proveedor) ── */}
-        {selectedProduct && proveedoresDisponibles.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2 bg-surface-container-low/40 dark:bg-white/[0.03] p-4 rounded-[24px] border border-outline-variant/20 dark:border-white/10 shadow-sm">
-            <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5 shrink-0 mr-1">
-              <span className="material-symbols-outlined text-sm text-[#e2bd6c]">store</span>
-              Filtrar por Proveedor:
-            </span>
-            <button
-              type="button"
-              onClick={() => setSupplierFilter('TODOS')}
-              className={`px-3.5 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all cursor-pointer ${
-                supplierFilter === 'TODOS'
-                  ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black border-transparent shadow-md scale-105'
-                  : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-primary/30'
-              }`}
-            >
-              Todos los Proveedores ({proveedoresDisponibles.length})
-            </button>
-            {proveedoresDisponibles.map((pName, idx) => {
-              const countLotStock = Array.isArray(selectedProduct.lotesProveedores)
-                ? selectedProduct.lotesProveedores.find(l => (l.proveedor || '').toUpperCase() === pName)?.stock || 0
-                : (pName === (selectedProduct.proveedor || '').toUpperCase() ? selectedProduct.stock : 0);
 
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setSupplierFilter(pName)}
-                  className={`px-3.5 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-1.5 ${
-                    supplierFilter === pName
-                      ? 'bg-[#e2bd6c] text-black border-transparent shadow-md scale-105 font-black'
-                      : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-400 border-outline-variant/20 dark:border-white/5 hover:border-[#e2bd6c]/40'
-                  }`}
-                >
-                  <span>🏢 {pName}</span>
-                  <span className="px-1.5 py-0.2 rounded-full text-[8px] bg-black/10 dark:bg-white/10 font-mono">
-                    {countLotStock} u.
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
 
         {/* ── Sub-Pestañas: Kardex vs Lotes e Inversión ── */}
         <div className="bg-surface-container-low/50 dark:bg-white/[0.02] rounded-[24px] border border-outline-variant/20 dark:border-white/10 overflow-hidden shadow-sm">
