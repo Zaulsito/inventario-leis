@@ -1179,6 +1179,22 @@ REGLAS DE FORMATO ESTRICTAS:
           }
         }
 
+        let updatedLotesProveedores = null;
+        const logSupplier = (log.proveedor || form.proveedor || pTarget?.proveedor || '').trim().toUpperCase();
+        const currentLotesProv = form.lotesProveedores || pTarget?.lotesProveedores;
+
+        if (Array.isArray(currentLotesProv) && currentLotesProv.length > 0) {
+          updatedLotesProveedores = currentLotesProv.map((l, idx) => {
+            const lProv = (l.proveedor || '').trim().toUpperCase();
+            if (lProv === logSupplier || (!logSupplier && idx === 0)) {
+              const currentLotStock = Number(l.stock || 0);
+              const newLotStock = Math.max(0, currentLotStock - cambioNum);
+              return { ...l, stock: newLotStock };
+            }
+            return l;
+          });
+        }
+
         const stockRevertido = hasVariants && updatedVariantes
           ? updatedVariantes.reduce((sum, v) => sum + Number(v.stock || 0), 0)
           : Math.max(0, stockBaseNum - cambioNum);
@@ -1197,6 +1213,9 @@ REGLAS DE FORMATO ESTRICTAS:
           if (hasVariants && updatedVariantes) {
             updateObj.variantes = updatedVariantes;
           }
+          if (updatedLotesProveedores) {
+            updateObj.lotesProveedores = updatedLotesProveedores;
+          }
 
           await updateDoc(doc(db, 'productos', pIdToUpdate), updateObj)
 
@@ -1204,7 +1223,8 @@ REGLAS DE FORMATO ESTRICTAS:
             setForm(prev => ({
               ...prev,
               stock: stockRevertido,
-              ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
+              ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {}),
+              ...(updatedLotesProveedores ? { lotesProveedores: updatedLotesProveedores } : {})
             }))
           }
 
@@ -1213,7 +1233,8 @@ REGLAS DE FORMATO ESTRICTAS:
               return {
                 ...p,
                 stock: stockRevertido,
-                ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
+                ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {}),
+                ...(updatedLotesProveedores ? { lotesProveedores: updatedLotesProveedores } : {})
               }
             }
             return p;
@@ -1404,6 +1425,20 @@ REGLAS DE FORMATO ESTRICTAS:
             }
           }
 
+          let updatedLotesProveedores = null;
+          const logSupplier = (oldLog?.proveedor || form.proveedor || '').trim().toUpperCase();
+          if (Array.isArray(form.lotesProveedores) && form.lotesProveedores.length > 0) {
+            updatedLotesProveedores = form.lotesProveedores.map((l, idx) => {
+              const lProv = (l.proveedor || '').trim().toUpperCase();
+              if (lProv === logSupplier || (!logSupplier && idx === 0)) {
+                const currentLotStock = Number(l.stock || 0);
+                const newLotStock = Math.max(0, currentLotStock + difCant);
+                return { ...l, stock: newLotStock };
+              }
+              return l;
+            });
+          }
+
           const stockActual = Number(form.stock) || 0;
           const stockNuevo = hasVariants && updatedVariantes
             ? updatedVariantes.reduce((sum, v) => sum + Number(v.stock || 0), 0)
@@ -1413,12 +1448,16 @@ REGLAS DE FORMATO ESTRICTAS:
           if (hasVariants && updatedVariantes) {
             updateObj.variantes = updatedVariantes;
           }
+          if (updatedLotesProveedores) {
+            updateObj.lotesProveedores = updatedLotesProveedores;
+          }
 
           await updateDoc(doc(db, 'productos', editingId), updateObj);
           setForm(prev => ({
             ...prev,
             stock: stockNuevo,
-            ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
+            ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {}),
+            ...(updatedLotesProveedores ? { lotesProveedores: updatedLotesProveedores } : {})
           }));
         }
 
