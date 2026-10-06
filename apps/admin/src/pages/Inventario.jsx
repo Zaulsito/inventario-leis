@@ -1509,6 +1509,72 @@ REGLAS DE FORMATO ESTRICTAS:
       stockCalculado = Math.floor(Number(form.stock)) || 0;
     }
     
+    if (!editingId && registrationMode === 'nuevo_proveedor') {
+      if (!form.idExistente) {
+        return setErrorMsg('Por favor selecciona un producto existente de la lista.');
+      }
+      const pExist = productos.find(p => p.id === form.idExistente);
+      if (!pExist) {
+        return setErrorMsg('El producto seleccionado ya no existe.');
+      }
+      if (!form.proveedor || !form.proveedor.trim()) {
+        return setErrorMsg('Por favor ingresa un nombre para el nuevo proveedor.');
+      }
+
+      const newLot = {
+        idLote: 'lote-' + Date.now(),
+        proveedor: form.proveedor.trim().toUpperCase(),
+        stock: stockCalculado,
+        precioCosto: Math.floor(Number(form.precioCosto)) || 0,
+        precioVenta: Math.floor(Number(form.precio)) || Math.floor(Number(pExist.precio)) || 0,
+        fechaIngreso: form.fechaIngreso || getLocalDateString()
+      };
+
+      const lotesAnteriores = (pExist.lotesProveedores && pExist.lotesProveedores.length > 0)
+        ? pExist.lotesProveedores
+        : [
+            {
+              idLote: 'lote-base',
+              proveedor: (pExist.proveedor || 'PRINCIPAL').trim().toUpperCase(),
+              stock: Number(pExist.stock) || 0,
+              precioCosto: Number(pExist.precioCosto) || 0,
+              precioVenta: Number(pExist.precio) || 0,
+              fechaIngreso: pExist.fechaIngreso || getLocalDateString()
+            }
+          ];
+
+      const combinedLotes = [...lotesAnteriores, newLot];
+      const nuevoStockTotal = combinedLotes.reduce((sum, l) => sum + Number(l.stock || 0), 0);
+      const nuevoEstado = calcularEstado(nuevoStockTotal);
+
+      try {
+        await updateDoc(doc(db, 'productos', pExist.id), {
+          lotesProveedores: combinedLotes,
+          stock: nuevoStockTotal,
+          precio: Math.floor(Number(form.precio)) || pExist.precio,
+          estado: nuevoEstado
+        });
+
+        const costUnit = Math.floor(Number(form.precioCosto)) || 0;
+        await addDoc(collection(db, 'historial_inventario'), {
+          productoId: pExist.id,
+          fecha: new Date().toISOString(),
+          accion: `Nuevo Proveedor (${newLot.proveedor})`,
+          cambio: stockCalculado,
+          stockAnterior: pExist.stock || 0,
+          stockNuevo: nuevoStockTotal,
+          precioCosto: costUnit,
+          costoTotalLote: stockCalculado * costUnit,
+          motivo: `Nuevo lote del proveedor: ${newLot.proveedor}`
+        });
+
+        setShowModal(false);
+        return;
+      } catch (errProv) {
+        return setErrorMsg('Error al guardar nuevo proveedor: ' + errProv.message);
+      }
+    }
+
     // Validar duplicados
     const duplicate = productos.find(p => 
       p.id !== editingId && 
@@ -3071,29 +3137,36 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                   {/* Fila 1: Nombre y SKU */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Nombre del Producto</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                        Nombre del Producto {registrationMode === 'nuevo_proveedor' && <span className="text-amber-500 font-normal">(Bloqueado por Producto Existente)</span>}
+                      </label>
                       <input 
                         type="text" 
                         value={form.nombre} 
+                        disabled={registrationMode === 'nuevo_proveedor'}
                         onChange={e => setForm({...form, nombre: e.target.value})}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
                         placeholder="Ej. Crema Collagen"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Código de Barra / SKU</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                        Código de Barra / SKU {registrationMode === 'nuevo_proveedor' && <span className="text-amber-500 font-normal">(Bloqueado)</span>}
+                      </label>
                       <div className="relative">
                         <input 
                           type="text" 
                           value={form.sku} 
+                          disabled={registrationMode === 'nuevo_proveedor'}
                           onChange={e => setForm({...form, sku: e.target.value})}
-                          className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                          className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
                           placeholder="Escribe o escanea..."
                         />
                         <button 
                           type="button" 
+                          disabled={registrationMode === 'nuevo_proveedor'}
                           onClick={() => setIsScanning(true)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary-container dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
                         >
                           <span className="material-symbols-outlined text-[20px]">photo_camera</span>
                         </button>
@@ -3108,12 +3181,13 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       <input 
                         type="text" 
                         value={form.marca} 
+                        disabled={registrationMode === 'nuevo_proveedor'}
                         onChange={e => setForm({...form, marca: e.target.value})}
-                        onFocus={() => setShowMarcaDropdown(true)}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all uppercase dark:text-white"
+                        onFocus={() => { if (registrationMode !== 'nuevo_proveedor') setShowMarcaDropdown(true); }}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all uppercase dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
                         placeholder="BUSCAR MARCA..."
                       />
-                      {showMarcaDropdown && (
+                      {showMarcaDropdown && registrationMode !== 'nuevo_proveedor' && (
                         <>
                           <div className="fixed inset-0 z-[110]" onClick={() => setShowMarcaDropdown(false)} />
                           <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
@@ -3188,12 +3262,13 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       <input 
                         type="text" 
                         value={form.coleccion} 
+                        disabled={registrationMode === 'nuevo_proveedor'}
                         onChange={e => setForm({...form, coleccion: e.target.value})}
-                        onFocus={() => setShowCatDropdown(true)}
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
+                        onFocus={() => { if (registrationMode !== 'nuevo_proveedor') setShowCatDropdown(true); }}
+                        className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
                         placeholder="BUSCAR CATEGORÍA..."
                       />
-                      {showCatDropdown && (
+                      {showCatDropdown && registrationMode !== 'nuevo_proveedor' && (
                         <>
                           <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
                           <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
