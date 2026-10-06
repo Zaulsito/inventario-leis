@@ -25,6 +25,7 @@ export default function Historial() {
   const [showGananciaInfoModal, setShowGananciaInfoModal] = useState(false)
 
   const [supplierFilter, setSupplierFilter] = useState('TODOS')
+  const [showSupplierFilterDropdown, setShowSupplierFilterDropdown] = useState(false)
   const [proveedorAjuste, setProveedorAjuste] = useState('DEFAULT')
   const [nuevoProveedorInput, setNuevoProveedorInput] = useState('')
   const [formAjuste, setFormAjuste] = useState({
@@ -682,19 +683,64 @@ export default function Historial() {
                   Proveedor
                 </label>
                 <div className="relative">
-                  <select
-                    value={supplierFilter}
-                    onChange={e => setSupplierFilter(e.target.value)}
-                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/40 hover:border-[#e2bd6c] rounded-full px-4 py-2.5 text-xs font-black focus:outline-none focus:ring-2 focus:ring-[#e2bd6c]/30 text-on-surface dark:text-white cursor-pointer shadow-md appearance-none pr-9 uppercase transition-all"
+                  <button
+                    type="button"
+                    onClick={() => setShowSupplierFilterDropdown(!showSupplierFilterDropdown)}
+                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/40 hover:border-[#e2bd6c] rounded-full px-4 py-2.5 text-xs font-black text-on-surface dark:text-white cursor-pointer shadow-md uppercase transition-all flex items-center justify-between gap-2"
                   >
-                    <option value="TODOS">🌐 TODOS LOS PROVEEDORES</option>
-                    {proveedoresDisponibles.map((pName, pIdx) => (
-                      <option key={pIdx} value={pName}>🏢 {pName}</option>
-                    ))}
-                  </select>
-                  <span className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-[#e2bd6c] pointer-events-none text-base font-bold">
-                    expand_more
-                  </span>
+                    <span className="truncate flex items-center gap-1.5">
+                      {supplierFilter === 'TODOS' ? (
+                        <>
+                          <span className="text-sm">🌐</span>
+                          <span>TODOS LOS PROVEEDORES</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm">🏢</span>
+                          <span>{supplierFilter}</span>
+                        </>
+                      )}
+                    </span>
+                    <span className={`material-symbols-outlined text-[#e2bd6c] text-base font-bold transition-transform duration-200 shrink-0 ${showSupplierFilterDropdown ? 'rotate-180' : ''}`}>
+                      expand_more
+                    </span>
+                  </button>
+
+                  {showSupplierFilterDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-[60]" onClick={() => setShowSupplierFilterDropdown(false)} />
+                      <div className="absolute left-0 top-full mt-2 w-full min-w-[210px] bg-surface-container-highest dark:bg-[#1c1c1c] border border-[#e2bd6c]/40 rounded-2xl shadow-2xl z-[70] overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <button
+                          type="button"
+                          onClick={() => { setSupplierFilter('TODOS'); setShowSupplierFilterDropdown(false); }}
+                          className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs font-black uppercase tracking-wider transition-all text-left border-b border-outline-variant/10 dark:border-white/5 ${
+                            supplierFilter === 'TODOS'
+                              ? 'bg-gradient-to-r from-[#e2bd6c]/20 to-transparent text-primary dark:text-[#e2bd6c] font-black'
+                              : 'text-on-surface dark:text-white/90 hover:bg-surface-variant/50 dark:hover:bg-white/10'
+                          }`}
+                        >
+                          <span className="text-sm">🌐</span>
+                          <span>TODOS LOS PROVEEDORES</span>
+                        </button>
+
+                        {proveedoresDisponibles.map((pName, pIdx) => (
+                          <button
+                            key={pIdx}
+                            type="button"
+                            onClick={() => { setSupplierFilter(pName); setShowSupplierFilterDropdown(false); }}
+                            className={`w-full flex items-center gap-2.5 px-4 py-3 text-xs font-black uppercase tracking-wider transition-all text-left border-b border-outline-variant/10 dark:border-white/5 last:border-0 ${
+                              supplierFilter === pName
+                                ? 'bg-gradient-to-r from-[#e2bd6c]/20 to-transparent text-primary dark:text-[#e2bd6c] font-black'
+                                : 'text-on-surface dark:text-white/90 hover:bg-surface-variant/50 dark:hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="text-sm">🏢</span>
+                            <span className="truncate">{pName}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
