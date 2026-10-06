@@ -987,9 +987,9 @@ export default function Historial() {
             </div>
 
             <form onSubmit={handleAddDirectStockAdjustment} className="space-y-3">
-              <div className={`grid grid-cols-1 ${selectedProduct?.variantes?.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
+              <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3">
                 {selectedProduct?.variantes && selectedProduct.variantes.length > 0 && (
-                  <div>
+                  <div className="w-full md:w-48 shrink-0">
                     <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
                       Variante / Color a Ajustar
                     </label>
@@ -1007,7 +1007,7 @@ export default function Historial() {
                   </div>
                 )}
 
-                <div>
+                <div className="w-full md:w-44 shrink-0">
                   <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
                     Cantidad (Sumar / Restar)
                   </label>
@@ -1030,7 +1030,7 @@ export default function Historial() {
                   />
                 </div>
 
-                <div>
+                <div className="w-full md:w-64 shrink-0">
                   <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
                     Motivo / Razón
                   </label>
@@ -1059,7 +1059,7 @@ export default function Historial() {
                   </select>
                 </div>
 
-                <div>
+                <div className="flex-1 min-w-[200px]">
                   <label className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/70 mb-1 ml-1">
                     Nota / Comentario (Opcional)
                   </label>
@@ -1071,13 +1071,11 @@ export default function Historial() {
                     className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
                   />
                 </div>
-              </div>
 
-              <div className="flex justify-end pt-1">
                 <button
                   type="submit"
                   disabled={!formAjuste.ajusteStock || Number(formAjuste.ajusteStock) === 0 || isSubmittingAjuste}
-                  className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md ${
+                  className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md shrink-0 h-[38px] ${
                     formAjuste.ajusteStock && Number(formAjuste.ajusteStock) !== 0
                       ? 'bg-primary text-on-primary dark:bg-[#e2bd6c] dark:text-black hover:opacity-90 cursor-pointer active:scale-95'
                       : 'bg-surface-variant/50 text-outline/50 dark:bg-white/5 dark:text-gray-500 cursor-not-allowed border border-outline-variant/20'
