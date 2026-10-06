@@ -764,9 +764,11 @@ REGLAS DE FORMATO ESTRICTAS:
       unidadesTotales += cant
 
       lotes.push({
+        ...l,
         id: l.id,
         fecha: l.fecha,
         cantidad: cant,
+        cambio: cant,
         precioCosto: costoUnit,
         gastoFecha: gastoFecha,
         sumaAcumulada: sumaAcumulada,
@@ -1112,7 +1114,7 @@ REGLAS DE FORMATO ESTRICTAS:
 
     const targetPId = log.productoId || editingId || historyProductId
     const pTarget = productos.find(p => p.id === targetPId)
-    const cambioNum = Number(log.cambio) || 0
+    const cambioNum = Math.abs(Number(log.cambio !== undefined ? log.cambio : (log.cantidad !== undefined ? log.cantidad : 0)))
     const stockBaseNum = pTarget ? Number(pTarget.stock) : (editingId ? Number(form.stock) : 0)
 
     try {
@@ -1125,7 +1127,7 @@ REGLAS DE FORMATO ESTRICTAS:
           ? form.variantes
           : (pTarget?.variantes || []);
 
-        let targetVarName = log.varianteNombre || log.variante || log.color || '';
+        let targetVarName = String(log.varianteNombre || log.variante || log.color || '').trim();
         if (!targetVarName && log.accion) {
           const matchParen = log.accion.match(/\(([^)]+)\)/);
           if (matchParen) targetVarName = matchParen[1];
@@ -1142,10 +1144,10 @@ REGLAS DE FORMATO ESTRICTAS:
         let updatedVariantes = null;
 
         if (hasVariants) {
-          const cleanTargetVar = (targetVarName || '').trim().toLowerCase();
+          const cleanTargetVar = String(targetVarName || '').trim().toLowerCase();
           if (cleanTargetVar) {
             updatedVariantes = currentVars.map(v => {
-              const cleanVName = (v.nombre || '').trim().toLowerCase();
+              const cleanVName = String(v.nombre || '').trim().toLowerCase();
               if (cleanVName === cleanTargetVar) {
                 const currentVStock = Number(v.stock || 0);
                 const newVStock = Math.max(0, currentVStock - cambioNum);
@@ -1188,6 +1190,17 @@ REGLAS DE FORMATO ESTRICTAS:
               ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
             }))
           }
+
+          setProductos(prev => prev.map(p => {
+            if (p.id === pIdToUpdate) {
+              return {
+                ...p,
+                stock: stockRevertido,
+                ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
+              }
+            }
+            return p;
+          }))
         }
       } else if (log.esPedidoReal) {
           const batch = writeBatch(db)
