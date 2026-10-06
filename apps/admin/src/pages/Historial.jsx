@@ -1098,8 +1098,8 @@ export default function Historial() {
           </div>
         )}
 
-        {/* ── Barra de Filtro por Proveedor ── */}
-        {selectedProduct && proveedoresDisponibles.length > 0 && (
+        {/* ── Barra de Filtro por Proveedor (Solo si hay más de 1 proveedor) ── */}
+        {selectedProduct && proveedoresDisponibles.length > 1 && (
           <div className="flex flex-wrap items-center gap-2 bg-surface-container-low/40 dark:bg-white/[0.03] p-4 rounded-[24px] border border-outline-variant/20 dark:border-white/10 shadow-sm">
             <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5 shrink-0 mr-1">
               <span className="material-symbols-outlined text-sm text-[#e2bd6c]">store</span>

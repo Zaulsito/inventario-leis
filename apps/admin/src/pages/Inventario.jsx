@@ -2627,8 +2627,8 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               </div>
                             )}
                             
-                            {/* Botón y Acordeón Desglosable de Lotes por Proveedor */}
-                            {p.lotesProveedores && p.lotesProveedores.length > 0 && (
+                            {/* Botón y Acordeón Desglosable de Lotes por Proveedor (solo si hay más de 1 proveedor) */}
+                            {p.lotesProveedores && p.lotesProveedores.length > 1 && (
                               <div className="mt-2">
                                 <button
                                   onClick={(e) => {
