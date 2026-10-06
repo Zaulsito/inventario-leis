@@ -3264,9 +3264,8 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         {form.lotesProveedores.map((lote, idx) => {
                           const isActive = activeLotIndex === idx;
                           return (
-                            <button
+                            <div
                               key={lote.idLote || idx}
-                              type="button"
                               onClick={() => {
                                 setActiveLotIndex(idx);
                                 setForm(prev => ({
@@ -3277,7 +3276,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                   fechaIngreso: lote.fechaIngreso || prev.fechaIngreso
                                 }));
                               }}
-                              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 border cursor-pointer ${
+                              className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 border cursor-pointer ${
                                 isActive
                                   ? 'bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black border-transparent shadow-md scale-105 font-black'
                                   : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
@@ -3288,7 +3287,33 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-black/10 dark:bg-white/10 font-mono">
                                 {lote.stock} u.
                               </span>
-                            </button>
+                              {form.lotesProveedores.length > 1 && (
+                                <button
+                                  type="button"
+                                  title={`Eliminar proveedor ${lote.proveedor}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`¿Deseas eliminar la ficha del proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}"?`)) {
+                                      const updatedLotes = form.lotesProveedores.filter((_, i) => i !== idx);
+                                      const nextActiveIdx = Math.min(idx, updatedLotes.length - 1);
+                                      const targetLot = updatedLotes[nextActiveIdx];
+                                      setActiveLotIndex(nextActiveIdx);
+                                      setForm(prev => ({
+                                        ...prev,
+                                        lotesProveedores: updatedLotes,
+                                        proveedor: targetLot?.proveedor || '',
+                                        precioCosto: targetLot?.precioCosto !== undefined ? targetLot.precioCosto : prev.precioCosto,
+                                        stock: targetLot?.stock !== undefined ? targetLot.stock : prev.stock,
+                                        fechaIngreso: targetLot?.fechaIngreso || prev.fechaIngreso
+                                      }));
+                                    }
+                                  }}
+                                  className="w-4 h-4 rounded-full bg-black/20 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all ml-1 cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-[11px] font-bold">close</span>
+                                </button>
+                              )}
+                            </div>
                           );
                         })}
 
