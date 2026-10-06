@@ -937,9 +937,14 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }, [showModal, showHistoryModal]);
 
+  const [registrationMode, setRegistrationMode] = useState('nuevo_producto')
+  const [activeLotIndex, setActiveLotIndex] = useState(0)
+
   // Handlers del CRUD
   function openNew() {
     setForm(formInicial)
+    setRegistrationMode('nuevo_producto')
+    setActiveLotIndex(0)
     setInitialProductData({ stock: 0, precioCosto: 0, fechaIngreso: getLocalDateString() })
     setEditingId(null)
     setVarianteAjuste('')
@@ -958,6 +963,16 @@ REGLAS DE FORMATO ESTRICTAS:
     const fechaIng = p.fechaIngreso || getLocalDateString()
 
     const vars = p.variantes ? p.variantes.map(v => ({...v})) : []
+    const lotes = Array.isArray(p.lotesProveedores) && p.lotesProveedores.length > 0
+      ? p.lotesProveedores
+      : [{
+          idLote: 'lote-base',
+          proveedor: (p.proveedor || 'PRINCIPAL').trim().toUpperCase(),
+          stock: stockNum,
+          precioCosto: costNum,
+          fechaIngreso: fechaIng
+        }];
+
     setForm({ 
       nombre: p.nombre, 
       sku: p.sku, 
@@ -967,6 +982,7 @@ REGLAS DE FORMATO ESTRICTAS:
       precio: p.precio, 
       precioCosto: p.precioCosto || '',
       stock: p.stock, 
+      lotesProveedores: lotes,
       ajusteStock: '',
       motivoAjuste: '',
       notaAjuste: '',
@@ -977,6 +993,7 @@ REGLAS DE FORMATO ESTRICTAS:
       variantes: vars,
       visibleEnCatalogo: p.visibleEnCatalogo !== false
     })
+    setActiveLotIndex(0)
     setVarianteAjuste(vars[0]?.nombre || '')
     setInitialProductData({ stock: stockNum, precioCosto: costNum, fechaIngreso: fechaIng })
     setEditingId(p.id)
@@ -2892,6 +2909,165 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 
               {activeTabModal === 'editar' ? (
                 <div className="p-6 space-y-5">
+                  {/* Selector de Modo: Nuevo Producto vs Agregar Proveedor (Solo al crear) */}
+                  {!editingId && (
+                    <div className="bg-surface-container-low/60 dark:bg-white/[0.03] p-4 rounded-2xl border border-outline-variant/20 dark:border-white/10 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm text-[#e2bd6c]">swap_horizontal_circle</span>
+                          ¿Cómo deseas registrar este producto?
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRegistrationMode('nuevo_producto');
+                            setForm(formInicial);
+                          }}
+                          className={`p-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
+                            registrationMode === 'nuevo_producto'
+                              ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black border-transparent shadow-md font-black'
+                              : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-base">add_box</span>
+                          Nuevo Producto Normal
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRegistrationMode('nuevo_proveedor');
+                          }}
+                          className={`p-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
+                            registrationMode === 'nuevo_proveedor'
+                              ? 'bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black border-transparent shadow-md font-black'
+                              : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-base">store</span>
+                          Nuevo Proveedor (Producto Existente)
+                        </button>
+                      </div>
+
+                      {registrationMode === 'nuevo_proveedor' && (
+                        <div className="pt-2 space-y-2">
+                          <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c] ml-1">
+                            🔍 Seleccionar Producto Existente en Inventario:
+                          </label>
+                          <select
+                            value={form.idExistente || ''}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              const pExist = productos.find(p => p.id === selectedId);
+                              if (pExist) {
+                                setForm(prev => ({
+                                  ...prev,
+                                  idExistente: pExist.id,
+                                  nombre: pExist.nombre,
+                                  sku: pExist.sku,
+                                  marca: pExist.marca || '',
+                                  coleccion: (pExist.coleccion || '').trim().toUpperCase(),
+                                  precio: pExist.precio || '',
+                                  precioCosto: pExist.precioCosto || '',
+                                  stock: '',
+                                  proveedor: '',
+                                  lotesProveedores: pExist.lotesProveedores || []
+                                }));
+                              }
+                            }}
+                            className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/60 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white cursor-pointer shadow-sm"
+                          >
+                            <option value="">-- Buscar o Seleccionar Producto (ej. Computador Hp) --</option>
+                            {productos.map(p => (
+                              <option key={p.id} value={p.id}>
+                                📦 {p.nombre} (SKU: {p.sku}) • Marca: {p.marca || 'S/M'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fichas / Carpetas por Proveedor (Lotes) */}
+                  {editingId && form.lotesProveedores && form.lotesProveedores.length > 0 && (
+                    <div className="bg-surface-container-low/60 dark:bg-white/[0.03] p-3.5 rounded-2xl border border-[#e2bd6c]/40 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm text-[#e2bd6c]">folder_open</span>
+                          Fichas por Proveedor (Lotes)
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-bold uppercase">
+                          {form.lotesProveedores.length} {form.lotesProveedores.length === 1 ? 'Proveedor Registrado' : 'Proveedores Registrados'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                        {form.lotesProveedores.map((lote, idx) => {
+                          const isActive = activeLotIndex === idx;
+                          return (
+                            <button
+                              key={lote.idLote || idx}
+                              type="button"
+                              onClick={() => {
+                                setActiveLotIndex(idx);
+                                setForm(prev => ({
+                                  ...prev,
+                                  proveedor: lote.proveedor || prev.proveedor,
+                                  precioCosto: lote.precioCosto !== undefined ? lote.precioCosto : prev.precioCosto,
+                                  stock: lote.stock !== undefined ? lote.stock : prev.stock,
+                                  fechaIngreso: lote.fechaIngreso || prev.fechaIngreso
+                                }));
+                              }}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 border cursor-pointer ${
+                                isActive
+                                  ? 'bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black border-transparent shadow-md scale-105 font-black'
+                                  : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-sm">store</span>
+                              <span>{lote.proveedor || `Proveedor ${idx + 1}`}</span>
+                              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-black/10 dark:bg-white/10 font-mono">
+                                {lote.stock} u.
+                              </span>
+                            </button>
+                          );
+                        })}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newProvName = prompt("Ingresa el nombre del nuevo Proveedor para este producto:");
+                            if (!newProvName || !newProvName.trim()) return;
+                            const newLot = {
+                              idLote: 'lote-' + Date.now(),
+                              proveedor: newProvName.trim().toUpperCase(),
+                              stock: 0,
+                              precioCosto: Number(form.precioCosto) || 0,
+                              fechaIngreso: getLocalDateString()
+                            };
+                            const updatedLotes = [...(form.lotesProveedores || []), newLot];
+                            setActiveLotIndex(updatedLotes.length - 1);
+                            setForm(prev => ({
+                              ...prev,
+                              lotesProveedores: updatedLotes,
+                              proveedor: newLot.proveedor,
+                              stock: 0,
+                              fechaIngreso: newLot.fechaIngreso
+                            }));
+                          }}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-primary/20 dark:border-[#e2bd6c]/30 hover:bg-primary/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">add</span>
+                          <span>+ Nuevo Lote Proveedor</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Fila 1: Nombre y SKU */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
