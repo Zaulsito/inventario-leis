@@ -3162,203 +3162,123 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                 </div>
               )}
 
+              {/* Fichas / Carpetas por Proveedor (Lotes) - Visible en todas las pestañas */}
+              {form.lotesProveedores && form.lotesProveedores.length > 0 && (
+                <div className="px-6 pt-5 pb-1">
+                  <div className="bg-surface-container-low/60 dark:bg-white/[0.03] p-3.5 rounded-2xl border border-[#e2bd6c]/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm text-[#e2bd6c]">folder_open</span>
+                        Fichas por Proveedor (Lotes)
+                      </span>
+                      <span className="text-[9px] text-gray-400 font-bold uppercase">
+                        {form.lotesProveedores.length} {form.lotesProveedores.length === 1 ? 'Proveedor Registrado' : 'Proveedores Registrados'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                      {form.lotesProveedores.map((lote, idx) => {
+                        const isActive = activeLotIndex === idx;
+                        return (
+                          <div
+                            key={lote.idLote || idx}
+                            onClick={() => {
+                              setActiveLotIndex(idx);
+                              setForm(prev => ({
+                                ...prev,
+                                proveedor: lote.proveedor || prev.proveedor,
+                                precioCosto: lote.precioCosto !== undefined ? lote.precioCosto : prev.precioCosto,
+                                stock: lote.stock !== undefined ? lote.stock : prev.stock,
+                                fechaIngreso: lote.fechaIngreso || prev.fechaIngreso
+                              }));
+                            }}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 border cursor-pointer ${
+                              isActive
+                                ? 'bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black border-transparent shadow-md scale-105 font-black'
+                                : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-sm">store</span>
+                            <span>{lote.proveedor || `Proveedor ${idx + 1}`}</span>
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-black/10 dark:bg-white/10 font-mono">
+                              {lote.stock} u.
+                            </span>
+                            {form.lotesProveedores.length > 1 && (
+                              <button
+                                type="button"
+                                title={`Eliminar proveedor ${lote.proveedor}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const targetProv = (lote.proveedor || '').trim().toUpperCase();
+
+                                  // Verificar si este proveedor tiene un historial de compra/venta registrado con clientes
+                                  const tieneHistorialCliente = (editProductHistory || []).some(log => {
+                                    const logProv = (log.proveedor || '').trim().toUpperCase();
+                                    const esPedidoCliente = log.esPedidoReal ||
+                                      Boolean(log.pedidoId) ||
+                                      (log.accion || '').toLowerCase().includes('pedido') ||
+                                      (log.accion || '').toLowerCase().includes('venta') ||
+                                      (log.motivo || '').toLowerCase().includes('pedido') ||
+                                      (log.motivo || '').toLowerCase().includes('venta');
+
+                                    if (!esPedidoCliente) return false;
+
+                                    if (logProv) {
+                                      return logProv === targetProv;
+                                    }
+
+                                    // Si el log de pedido no tiene proveedor explícito, se atribuye al proveedor inicial/lote 0
+                                    const mainProv = (form.lotesProveedores[0]?.proveedor || '').trim().toUpperCase();
+                                    return idx === 0 || targetProv === mainProv;
+                                  });
+
+                                  if (tieneHistorialCliente) {
+                                    alert(`No se puede eliminar el proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}" porque tiene un historial de compra/pedido registrado con algún cliente.`);
+                                    return;
+                                  }
+
+                                  if (window.confirm(`¿Deseas eliminar la ficha del proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}"?`)) {
+                                    const updatedLotes = form.lotesProveedores.filter((_, i) => i !== idx);
+                                    const nextActiveIdx = Math.min(idx, updatedLotes.length - 1);
+                                    const targetLot = updatedLotes[nextActiveIdx];
+                                    setActiveLotIndex(nextActiveIdx);
+                                    setForm(prev => ({
+                                      ...prev,
+                                      lotesProveedores: updatedLotes,
+                                      proveedor: targetLot?.proveedor || '',
+                                      precioCosto: targetLot?.precioCosto !== undefined ? targetLot.precioCosto : prev.precioCosto,
+                                      stock: targetLot?.stock !== undefined ? targetLot.stock : prev.stock,
+                                      fechaIngreso: targetLot?.fechaIngreso || prev.fechaIngreso
+                                    }));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded-full bg-black/20 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all ml-1 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-[11px] font-bold">close</span>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNuevoProveedorInputModal('');
+                          setShowAddProveedorModal(true);
+                        }}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-primary/20 dark:border-[#e2bd6c]/30 hover:bg-primary/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                        <span>+ Nuevo Lote Proveedor</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {activeTabModal === 'editar' ? (
                 <div className="p-6 space-y-5">
-                  {/* Selector de Modo: Nuevo Producto vs Agregar Proveedor (Solo al crear) */}
-                  {!editingId && (
-                    <div className="bg-surface-container-low/60 dark:bg-white/[0.03] p-4 rounded-2xl border border-outline-variant/20 dark:border-white/10 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-sm text-[#e2bd6c]">swap_horizontal_circle</span>
-                          ¿Cómo deseas registrar este producto?
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRegistrationMode('nuevo_producto');
-                            setForm(formInicial);
-                          }}
-                          className={`p-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
-                            registrationMode === 'nuevo_producto'
-                              ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black border-transparent shadow-md font-black'
-                              : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-base">add_box</span>
-                          Nuevo Producto Normal
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRegistrationMode('nuevo_proveedor');
-                          }}
-                          className={`p-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border cursor-pointer ${
-                            registrationMode === 'nuevo_proveedor'
-                              ? 'bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black border-transparent shadow-md font-black'
-                              : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-base">store</span>
-                          Nuevo Proveedor (Producto Existente)
-                        </button>
-                      </div>
-
-                      {registrationMode === 'nuevo_proveedor' && (
-                        <div className="pt-2 space-y-2">
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c] ml-1">
-                            🔍 Seleccionar Producto Existente en Inventario:
-                          </label>
-                          <select
-                            value={form.idExistente || ''}
-                            onChange={(e) => {
-                              const selectedId = e.target.value;
-                              const pExist = productos.find(p => p.id === selectedId);
-                              if (pExist) {
-                                setForm(prev => ({
-                                  ...prev,
-                                  idExistente: pExist.id,
-                                  nombre: pExist.nombre,
-                                  sku: pExist.sku,
-                                  marca: pExist.marca || '',
-                                  coleccion: (pExist.coleccion || '').trim().toUpperCase(),
-                                  precio: pExist.precio || '',
-                                  precioCosto: pExist.precioCosto || '',
-                                  stock: '',
-                                  proveedor: '',
-                                  lotesProveedores: pExist.lotesProveedores || []
-                                }));
-                              }
-                            }}
-                            className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-[#e2bd6c]/60 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white cursor-pointer shadow-sm"
-                          >
-                            <option value="">-- Buscar o Seleccionar Producto (ej. Computador Hp) --</option>
-                            {productos.map(p => (
-                              <option key={p.id} value={p.id}>
-                                📦 {p.nombre} (SKU: {p.sku}) • Marca: {p.marca || 'S/M'}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Fichas / Carpetas por Proveedor (Lotes) */}
-                  {form.lotesProveedores && form.lotesProveedores.length > 0 && (
-                    <div className="bg-surface-container-low/60 dark:bg-white/[0.03] p-3.5 rounded-2xl border border-[#e2bd6c]/40 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-secondary dark:text-[#e2bd6c] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-sm text-[#e2bd6c]">folder_open</span>
-                          Fichas por Proveedor (Lotes)
-                        </span>
-                        <span className="text-[9px] text-gray-400 font-bold uppercase">
-                          {form.lotesProveedores.length} {form.lotesProveedores.length === 1 ? 'Proveedor Registrado' : 'Proveedores Registrados'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                        {form.lotesProveedores.map((lote, idx) => {
-                          const isActive = activeLotIndex === idx;
-                          return (
-                            <div
-                              key={lote.idLote || idx}
-                              onClick={() => {
-                                setActiveLotIndex(idx);
-                                setForm(prev => ({
-                                  ...prev,
-                                  proveedor: lote.proveedor || prev.proveedor,
-                                  precioCosto: lote.precioCosto !== undefined ? lote.precioCosto : prev.precioCosto,
-                                  stock: lote.stock !== undefined ? lote.stock : prev.stock,
-                                  fechaIngreso: lote.fechaIngreso || prev.fechaIngreso
-                                }));
-                              }}
-                              className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 border cursor-pointer ${
-                                isActive
-                                  ? 'bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black border-transparent shadow-md scale-105 font-black'
-                                  : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
-                              }`}
-                            >
-                              <span className="material-symbols-outlined text-sm">store</span>
-                              <span>{lote.proveedor || `Proveedor ${idx + 1}`}</span>
-                              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-black/10 dark:bg-white/10 font-mono">
-                                {lote.stock} u.
-                              </span>
-                              {form.lotesProveedores.length > 1 && (
-                                <button
-                                  type="button"
-                                  title={`Eliminar proveedor ${lote.proveedor}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const targetProv = (lote.proveedor || '').trim().toUpperCase();
-
-                                    // Verificar si este proveedor tiene un historial de compra/venta registrado con clientes
-                                    const tieneHistorialCliente = (editProductHistory || []).some(log => {
-                                      const logProv = (log.proveedor || '').trim().toUpperCase();
-                                      const esPedidoCliente = log.esPedidoReal ||
-                                        Boolean(log.pedidoId) ||
-                                        (log.accion || '').toLowerCase().includes('pedido') ||
-                                        (log.accion || '').toLowerCase().includes('venta') ||
-                                        (log.motivo || '').toLowerCase().includes('pedido') ||
-                                        (log.motivo || '').toLowerCase().includes('venta');
-
-                                      if (!esPedidoCliente) return false;
-
-                                      if (logProv) {
-                                        return logProv === targetProv;
-                                      }
-
-                                      // Si el log de pedido no tiene proveedor explícito, se atribuye al proveedor inicial/lote 0
-                                      const mainProv = (form.lotesProveedores[0]?.proveedor || '').trim().toUpperCase();
-                                      return idx === 0 || targetProv === mainProv;
-                                    });
-
-                                    if (tieneHistorialCliente) {
-                                      alert(`No se puede eliminar el proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}" porque tiene un historial de compra/pedido registrado con algún cliente.`);
-                                      return;
-                                    }
-
-                                    if (window.confirm(`¿Deseas eliminar la ficha del proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}"?`)) {
-                                      const updatedLotes = form.lotesProveedores.filter((_, i) => i !== idx);
-                                      const nextActiveIdx = Math.min(idx, updatedLotes.length - 1);
-                                      const targetLot = updatedLotes[nextActiveIdx];
-                                      setActiveLotIndex(nextActiveIdx);
-                                      setForm(prev => ({
-                                        ...prev,
-                                        lotesProveedores: updatedLotes,
-                                        proveedor: targetLot?.proveedor || '',
-                                        precioCosto: targetLot?.precioCosto !== undefined ? targetLot.precioCosto : prev.precioCosto,
-                                        stock: targetLot?.stock !== undefined ? targetLot.stock : prev.stock,
-                                        fechaIngreso: targetLot?.fechaIngreso || prev.fechaIngreso
-                                      }));
-                                    }
-                                  }}
-                                  className="w-4 h-4 rounded-full bg-black/20 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all ml-1 cursor-pointer"
-                                >
-                                  <span className="material-symbols-outlined text-[11px] font-bold">close</span>
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNuevoProveedorInputModal('');
-                            setShowAddProveedorModal(true);
-                          }}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-primary/20 dark:border-[#e2bd6c]/30 hover:bg-primary/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-sm">add</span>
-                          <span>+ Nuevo Lote Proveedor</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Fila 1: Nombre y SKU */}
                   {(() => {
