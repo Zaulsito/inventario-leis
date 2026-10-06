@@ -513,18 +513,28 @@ export default function Pedidos() {
     const prod = productos.find(p => p.id === productoId)
     
     if (!prod) return
+
+    // Si el producto tiene variantes y no se especificó variante al presionar el nombre del producto,
+    // se asigna por defecto la primera variante disponible con stock (o la primera del producto)
+    let selectedVariantName = varianteNombre;
+    if (!selectedVariantName && Array.isArray(prod.variantes) && prod.variantes.length > 0) {
+      const firstAvailable = prod.variantes.find(v => Number(v.stock) > 0) || prod.variantes[0];
+      if (firstAvailable) {
+        selectedVariantName = firstAvailable.nombre;
+      }
+    }
     
     let stockDisp = prod.stock;
-    if (varianteNombre && prod.variantes) {
-      const v = prod.variantes.find(v => v.nombre === varianteNombre);
+    if (selectedVariantName && prod.variantes) {
+      const v = prod.variantes.find(v => v.nombre === selectedVariantName);
       if (v) stockDisp = v.stock;
     }
 
     if (stockDisp <= 0) {
-      return setErrorMsg(`El producto ${prod.nombre} ${varianteNombre ? `(${varianteNombre})` : ''} no tiene stock disponible.`)
+      return setErrorMsg(`El producto ${prod.nombre} ${selectedVariantName ? `(${selectedVariantName})` : ''} no tiene stock disponible.`)
     }
 
-    const yaExiste = form.productosSeleccionados.find(p => p.productoId === productoId && (p.variante || null) === (varianteNombre || null))
+    const yaExiste = form.productosSeleccionados.find(p => p.productoId === productoId && (p.variante || null) === (selectedVariantName || null))
     if (yaExiste) return
     
     setForm({
@@ -532,7 +542,7 @@ export default function Pedidos() {
       productosSeleccionados: [...form.productosSeleccionados, { 
         productoId: prod.id, 
         nombre: prod.nombre, 
-        variante: varianteNombre,
+        variante: selectedVariantName,
         cantidad: 1, 
         precio: prod.precio || 0,
         stockOriginal: stockDisp 
