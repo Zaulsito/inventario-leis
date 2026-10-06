@@ -125,6 +125,67 @@ export default function Inventario() {
   const navigate = useNavigate()
   const [activeTabModal, setActiveTabModal] = useState('editar') // 'editar' | 'catalogo'
   const [previewImageIndex, setPreviewImageIndex] = useState(0)
+  const [duplicatePrompt, setDuplicatePrompt] = useState(null)
+  const [expandedLotsProductId, setExpandedLotsProductId] = useState(null)
+
+  async function handleConfirmCombineDuplicate() {
+    if (!duplicatePrompt || !duplicatePrompt.duplicateProduct) return;
+    const { duplicateProduct, newLotData } = duplicatePrompt;
+    
+    let existingLotes = Array.isArray(duplicateProduct.lotesProveedores) && duplicateProduct.lotesProveedores.length > 0
+      ? [...duplicateProduct.lotesProveedores]
+      : [
+          {
+            idLote: 'lote-base',
+            proveedor: (duplicateProduct.proveedor || 'ORIGINAL').toUpperCase(),
+            stock: Number(duplicateProduct.stock) || 0,
+            precioCosto: Number(duplicateProduct.precioCosto) || 0,
+            fechaIngreso: duplicateProduct.fechaIngreso || getLocalDateString()
+          }
+        ];
+
+    const newLoteItem = {
+      idLote: 'lote-' + Date.now(),
+      proveedor: newLotData.proveedor,
+      stock: newLotData.stock,
+      precioCosto: newLotData.precioCosto,
+      fechaIngreso: newLotData.fechaIngreso
+    };
+
+    const updatedLotes = [...existingLotes, newLoteItem];
+    const totalNuevoStock = updatedLotes.reduce((sum, l) => sum + (Number(l.stock) || 0), 0);
+    const estadoFinal = calcularEstado(totalNuevoStock);
+
+    try {
+      await updateDoc(doc(db, 'productos', duplicateProduct.id), {
+        stock: totalNuevoStock,
+        lotesProveedores: updatedLotes,
+        estado: estadoFinal,
+        precioCosto: duplicateProduct.precioCosto || newLotData.precioCosto
+      });
+
+      await addDoc(collection(db, 'historial_inventario'), {
+        productoId: duplicateProduct.id,
+        fecha: new Date().toISOString(),
+        accion: `Ingreso Nuevo Lote (${newLotData.proveedor})`,
+        cambio: newLotData.stock,
+        stockAnterior: duplicateProduct.stock || 0,
+        stockNuevo: totalNuevoStock,
+        precioCosto: newLotData.precioCosto,
+        costoTotalLote: newLotData.stock * newLotData.precioCosto,
+        proveedor: newLotData.proveedor,
+        motivo: `Combinación de producto por duplicado Cód. Barra (${duplicateProduct.sku})`
+      });
+
+      setDuplicatePrompt(null);
+      setShowModal(false);
+      setForm(formInicial);
+      alert(`¡Lote del proveedor "${newLotData.proveedor}" combinado exitosamente en "${duplicateProduct.nombre}"! Stock total actual: ${totalNuevoStock} u.`);
+    } catch (err) {
+      console.error("Error al combinar lote:", err);
+      alert("Error al combinar lote: " + err.message);
+    }
+  }
 
   function handleNavigateToPedido(log) {
     if (!log || !log.esPedidoReal || !log.pedidoId) return
@@ -1418,16 +1479,6 @@ REGLAS DE FORMATO ESTRICTAS:
     if (!form.nombre || !form.sku || !form.coleccion) {
       return setErrorMsg('Nombre, Cód. Barra y Categoría son obligatorios.')
     }
-    
-    // Validar duplicados
-    const duplicate = productos.find(p => 
-      p.id !== editingId && 
-      (p.sku.toLowerCase() === form.sku.toLowerCase() || p.nombre.toLowerCase() === form.nombre.toLowerCase())
-    )
-
-    if (duplicate) {
-      return setErrorMsg('Ya existe un producto con el mismo Nombre o Cód. Barra.')
-    }
 
     const prodAnterior = editingId ? productos.find(p => p.id === editingId) : null;
     const stockAnterior = prodAnterior ? Number(prodAnterior.stock) : 0;
@@ -1438,7 +1489,29 @@ REGLAS DE FORMATO ESTRICTAS:
     } else if (editingId) {
       stockCalculado = Math.max(0, Number(form.stock || 0) + Number(form.ajusteStock || 0));
     } else {
-      stockCalculado = Math.floor(Number(form.stock));
+      stockCalculado = Math.floor(Number(form.stock)) || 0;
+    }
+    
+    // Validar duplicados
+    const duplicate = productos.find(p => 
+      p.id !== editingId && 
+      (p.sku.toLowerCase() === form.sku.toLowerCase() || p.nombre.toLowerCase() === form.nombre.toLowerCase())
+    )
+
+    if (duplicate && !editingId) {
+      setDuplicatePrompt({
+        duplicateProduct: duplicate,
+        newLotData: {
+          proveedor: (form.proveedor || '').trim().toUpperCase() || 'PROVEEDOR GENERAL',
+          stock: stockCalculado,
+          precioCosto: Math.floor(Number(form.precioCosto)) || 0,
+          precioVenta: Math.floor(Number(form.precio)) || 0,
+          fechaIngreso: form.fechaIngreso || getLocalDateString()
+        }
+      });
+      return;
+    } else if (duplicate && editingId) {
+      return setErrorMsg('Ya existe otro producto con el mismo Nombre o Cód. Barra.')
     }
 
     const estadoFinal = calcularEstado(stockCalculado)
@@ -1452,6 +1525,17 @@ REGLAS DE FORMATO ESTRICTAS:
       precio: Math.floor(Number(form.precio)) || 0,
       precioCosto: Math.floor(Number(form.precioCosto)) || 0,
       stock: stockCalculado,
+      lotesProveedores: editingId && prodAnterior?.lotesProveedores 
+        ? prodAnterior.lotesProveedores 
+        : [
+            {
+              idLote: 'lote-base',
+              proveedor: (form.proveedor || 'PRINCIPAL').trim().toUpperCase(),
+              stock: stockCalculado,
+              precioCosto: Math.floor(Number(form.precioCosto)) || 0,
+              fechaIngreso: form.fechaIngreso || getLocalDateString()
+            }
+          ],
       variantes: (form.variantes || []).map((v, index) => {
         const baseSku = (form.sku || '').trim().toUpperCase();
         const autoSku = baseSku ? `${baseSku}-${index + 1}` : `VAR-${index + 1}`;
@@ -2540,6 +2624,57 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                     </span>
                                   );
                                 })}
+                              </div>
+                            )}
+                            
+                            {/* Botón y Acordeón Desglosable de Lotes por Proveedor */}
+                            {p.lotesProveedores && p.lotesProveedores.length > 0 && (
+                              <div className="mt-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedLotsProductId(expandedLotsProductId === p.id ? null : p.id);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider bg-[#e2bd6c]/15 text-[#e2bd6c] border border-[#e2bd6c]/30 hover:bg-[#e2bd6c]/25 transition-all shadow-xs cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-xs">layers</span>
+                                  <span>{p.lotesProveedores.length} {p.lotesProveedores.length === 1 ? 'Proveedor' : 'Proveedores'} (Ver Lotes)</span>
+                                  <span className={`material-symbols-outlined text-xs transition-transform duration-200 ${expandedLotsProductId === p.id ? 'rotate-180' : ''}`}>expand_more</span>
+                                </button>
+
+                                {expandedLotsProductId === p.id && (
+                                  <div className="mt-2.5 bg-surface-container-low dark:bg-[#1a1a1a] rounded-xl p-3 border border-[#e2bd6c]/30 space-y-2 max-w-md shadow-lg animate-in fade-in duration-200">
+                                    <div className="flex items-center justify-between pb-1.5 border-b border-outline-variant/10 dark:border-white/10">
+                                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#e2bd6c] flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-xs">store</span>
+                                        Lotes por Proveedor (Salidas FIFO)
+                                      </span>
+                                      <span className="text-[8px] text-gray-400 font-bold uppercase">Orden Antigüedad</span>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      {(() => {
+                                        const sortedLotes = [...p.lotesProveedores].sort((a, b) => new Date(a.fechaIngreso || '2000-01-01') - new Date(b.fechaIngreso || '2000-01-01'));
+                                        return sortedLotes.map((lote, idx) => (
+                                          <div key={lote.idLote || idx} className="flex items-center justify-between bg-surface-variant/40 dark:bg-white/5 px-2.5 py-2 rounded-lg text-[10px] border border-outline-variant/5 dark:border-white/5">
+                                            <div className="flex items-center gap-2">
+                                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${idx === 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-gray-400'}`}>
+                                                {idx === 0 ? 'FIFO #1' : `#${idx + 1}`}
+                                              </span>
+                                              <div>
+                                                <span className="font-extrabold text-on-surface dark:text-white uppercase">{lote.proveedor || 'S/P'}</span>
+                                                <span className="text-gray-400 text-[9px] block">Ingreso: {formatDateDMA(lote.fechaIngreso) || '-'}</span>
+                                              </div>
+                                            </div>
+                                            <div className="text-right">
+                                              <span className="font-extrabold text-[#e2bd6c] block">{lote.stock} u.</span>
+                                              <span className="text-gray-400 text-[9px] block">Costo: ${(lote.precioCosto || 0).toLocaleString('es-CL')}</span>
+                                            </div>
+                                          </div>
+                                        ));
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -4490,6 +4625,94 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                   Entendido
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE DUPLICADO DE CÓDIGO DE BARRA / COMBINAR LOTES */}
+      {duplicatePrompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-surface-container-high dark:bg-[#1a1a1a] border border-[#e2bd6c]/30 rounded-3xl p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-outline-variant/10 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#e2bd6c]/15 text-[#e2bd6c] border border-[#e2bd6c]/30 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-2xl">layers</span>
+                </div>
+                <div>
+                  <h3 className="font-headline font-bold text-lg text-on-surface dark:text-white leading-tight">
+                    ¡Producto o Cód. de Barra Existente!
+                  </h3>
+                  <p className="text-xs text-outline dark:text-gray-400 mt-0.5">
+                    Se detectó una coincidencia en el catálogo
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setDuplicatePrompt(null)}
+                className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-outline dark:text-gray-400 transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <div className="bg-surface-variant/40 dark:bg-white/5 rounded-2xl p-4 border border-outline-variant/10 dark:border-white/5 space-y-2 text-xs">
+              <p className="font-bold text-primary dark:text-[#e2bd6c] uppercase tracking-wider text-[10px]">
+                Producto Encontrado:
+              </p>
+              <p className="text-sm font-extrabold text-on-surface dark:text-white">
+                {duplicatePrompt.duplicateProduct.nombre}
+              </p>
+              <p className="text-outline dark:text-gray-400">
+                <span className="font-semibold">Cód. Barra (SKU):</span> <span className="font-mono text-on-surface dark:text-gray-200">{duplicatePrompt.duplicateProduct.sku}</span> | <span className="font-semibold">Stock Actual:</span> {duplicatePrompt.duplicateProduct.stock} u.
+              </p>
+            </div>
+
+            <div className="bg-[#e2bd6c]/10 border border-[#e2bd6c]/20 rounded-2xl p-4 space-y-2 text-xs">
+              <p className="font-bold text-[#e2bd6c] uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm">add_box</span>
+                Nuevo Lote a Combinar:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-on-surface dark:text-white">
+                <div>
+                  <span className="text-[10px] text-gray-400 block uppercase">Proveedor:</span>
+                  <span className="font-bold">{duplicatePrompt.newLotData.proveedor}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block uppercase">Stock a Sumar:</span>
+                  <span className="font-bold text-[#e2bd6c]">+{duplicatePrompt.newLotData.stock} unidades</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block uppercase">Precio Costo:</span>
+                  <span className="font-bold">${duplicatePrompt.newLotData.precioCosto.toLocaleString('es-CL')}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block uppercase">Fecha Ingreso:</span>
+                  <span className="font-bold">{duplicatePrompt.newLotData.fechaIngreso}</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-outline dark:text-gray-300 leading-relaxed">
+              ¿Deseas <strong>combinar las tarjetas</strong> y registrar este nuevo lote de <strong className="text-[#e2bd6c]">{duplicatePrompt.newLotData.proveedor}</strong> dentro de la misma tarjeta del producto?
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDuplicatePrompt(null)}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5 transition-all text-center"
+              >
+                Cancelar / Cambiar Cód.
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCombineDuplicate}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black shadow-lg hover:brightness-110 active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">layers</span>
+                Sí, Combinar en Tarjeta
+              </button>
             </div>
           </div>
         </div>
