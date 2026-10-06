@@ -217,7 +217,7 @@ export default function CatalogoPublico() {
   useEffect(() => {
     const timer = setInterval(() => {
       setHeroIndex(prev => prev + 1)
-    }, 4500)
+    }, 5000)
     return () => clearInterval(timer)
   }, [])
 
@@ -2567,54 +2567,124 @@ export default function CatalogoPublico() {
                   const label1 = heroBannerConfig?.imagen1Label || '✨ Joyería';
                   const label2 = heroBannerConfig?.imagen2Label || '🌿 Cosmética';
 
+                  const mobileItems = [];
+                  list1Images.forEach((img, idx) => {
+                    mobileItems.push({
+                      img,
+                      prod: list1[idx % (list1.length || 1)],
+                      label: label1,
+                      isJoya: true
+                    });
+                  });
+                  list2Images.forEach((img, idx) => {
+                    mobileItems.push({
+                      img,
+                      prod: list2[idx % (list2.length || 1)],
+                      label: label2,
+                      isJoya: false
+                    });
+                  });
+
+                  const currentMobileItem = mobileItems.length > 0 ? mobileItems[heroIndex % mobileItems.length] : null;
+
                   return (
-                    <div className="hidden md:flex items-center justify-center shrink-0 relative w-72 lg:w-96 h-56 lg:h-64 select-none">
-                      {img1Url && (
-                        <div 
-                          onClick={() => heroProd1 && setProductoParaVer(heroProd1)}
-                          className={`absolute left-1 top-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd1 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} -rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
-                            isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
-                          }`}
-                          title={heroProd1 ? `Ver ${heroProd1.nombre}` : 'Destacado 1'}
-                        >
-                          <img 
-                            src={getOptimizedImageUrl(img1Url, 600)} 
-                            alt="Destacado 1"
-                            className="w-full h-full object-cover" 
-                          />
-                          <span className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-[#e2bd6c] text-black shadow-md uppercase tracking-wider backdrop-blur-md">
-                            {label1}
-                          </span>
-                        </div>
-                      )}
+                    <>
+                      {/* COLUMNA DERECHA ESCRITORIO: COMPOSICIÓN FOTOGRÁFICA */}
+                      <div className="hidden md:flex items-center justify-center shrink-0 relative w-72 lg:w-96 h-56 lg:h-64 select-none">
+                        {img1Url && (
+                          <div 
+                            onClick={() => heroProd1 && setProductoParaVer(heroProd1)}
+                            className={`absolute left-1 top-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd1 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} -rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+                              isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
+                            }`}
+                            title={heroProd1 ? `Ver ${heroProd1.nombre}` : 'Destacado 1'}
+                          >
+                            <img 
+                              src={getOptimizedImageUrl(img1Url, 600)} 
+                              alt="Destacado 1"
+                              className="w-full h-full object-cover" 
+                            />
+                            <span className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-[#e2bd6c] text-black shadow-md uppercase tracking-wider backdrop-blur-md">
+                              {label1}
+                            </span>
+                          </div>
+                        )}
 
-                      {img2Url && (
-                        <div 
-                          onClick={() => heroProd2 && setProductoParaVer(heroProd2)}
-                          className={`absolute right-1 bottom-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd2 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
-                            isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
-                          }`}
-                          title={heroProd2 ? `Ver ${heroProd2.nombre}` : 'Destacado 2'}
-                        >
-                          <img 
-                            src={getOptimizedImageUrl(img2Url, 600)} 
-                            alt="Destacado 2"
-                            className="w-full h-full object-cover" 
-                          />
-                          <span className="absolute top-2 right-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-emerald-500 text-white shadow-md uppercase tracking-wider backdrop-blur-md">
-                            {label2}
-                          </span>
-                        </div>
-                      )}
+                        {img2Url && (
+                          <div 
+                            onClick={() => heroProd2 && setProductoParaVer(heroProd2)}
+                            className={`absolute right-1 bottom-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd2 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+                              isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
+                            }`}
+                            title={heroProd2 ? `Ver ${heroProd2.nombre}` : 'Destacado 2'}
+                          >
+                            <img 
+                              src={getOptimizedImageUrl(img2Url, 600)} 
+                              alt="Destacado 2"
+                              className="w-full h-full object-cover" 
+                            />
+                            <span className="absolute top-2 right-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-emerald-500 text-white shadow-md uppercase tracking-wider backdrop-blur-md">
+                              {label2}
+                            </span>
+                          </div>
+                        )}
 
-                      {/* Badge flotante central */}
-                      <div className={`absolute bottom-0 z-20 px-3.5 py-1 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-1.5 select-none ${
-                        isDark ? 'bg-black/80 border-[#e2bd6c]/40 text-[#e2bd6c]' : 'bg-white/90 border-[#e2bd6c]/50 text-[#785427]'
-                      }`}>
-                        <span className="material-symbols-outlined text-xs animate-pulse text-[#e2bd6c]">auto_awesome</span>
-                        <span className="text-[9px] font-black uppercase tracking-widest">Exclusividad & Estilo</span>
+                        {/* Badge flotante central */}
+                        <div className={`absolute bottom-0 z-20 px-3.5 py-1 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-1.5 select-none ${
+                          isDark ? 'bg-black/80 border-[#e2bd6c]/40 text-[#e2bd6c]' : 'bg-white/90 border-[#e2bd6c]/50 text-[#785427]'
+                        }`}>
+                          <span className="material-symbols-outlined text-xs animate-pulse text-[#e2bd6c]">auto_awesome</span>
+                          <span className="text-[9px] font-black uppercase tracking-widest">Exclusividad & Estilo</span>
+                        </div>
                       </div>
-                    </div>
+
+                      {/* RULETA DE IMÁGENES MÓVIL AUTOMÁTICA (SOLO APP / CELULAR) */}
+                      {currentMobileItem?.img && (
+                        <div className="md:hidden mt-4 w-full flex flex-col items-center justify-center animate-in fade-in duration-500">
+                          <div 
+                            onClick={() => currentMobileItem.prod && setProductoParaVer(currentMobileItem.prod)}
+                            className={`relative w-64 h-64 sm:w-72 sm:h-72 rounded-3xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out cursor-pointer transform active:scale-95 ${
+                              isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
+                            }`}
+                          >
+                            <img 
+                              key={currentMobileItem.img}
+                              src={getOptimizedImageUrl(currentMobileItem.img, 600)} 
+                              alt={currentMobileItem.prod?.nombre || "Destacado"} 
+                              className="w-full h-full object-cover transition-opacity duration-700" 
+                            />
+                            <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur-md shadow-md ${
+                              currentMobileItem.isJoya ? 'bg-[#e2bd6c] text-black' : 'bg-emerald-500 text-white'
+                            }`}>
+                              {currentMobileItem.label}
+                            </span>
+                            {currentMobileItem.prod?.nombre && (
+                              <div className={`absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t ${isDark ? 'from-black/90 via-black/60 to-transparent text-white' : 'from-black/80 via-black/50 to-transparent text-white'} backdrop-blur-[2px]`}>
+                                <p className="text-xs font-bold truncate text-center">{currentMobileItem.prod.nombre}</p>
+                                {currentMobileItem.prod.precioVenta && (
+                                  <p className="text-[11px] font-extrabold text-[#e2bd6c] text-center">${Number(currentMobileItem.prod.precioVenta).toLocaleString('es-CL')}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {mobileItems.length > 1 && (
+                            <div className="flex items-center gap-1.5 mt-3">
+                              {mobileItems.map((_, idx) => (
+                                <div 
+                                  key={idx}
+                                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                                    (heroIndex % mobileItems.length) === idx 
+                                      ? 'w-5 bg-[#e2bd6c]' 
+                                      : (isDark ? 'w-1.5 bg-white/20' : 'w-1.5 bg-black/20')
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   );
                 })()}
 
