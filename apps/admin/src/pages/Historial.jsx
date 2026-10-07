@@ -1340,9 +1340,9 @@ export default function Historial() {
                               <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
                                 {formatDateDMA(log.fecha, log)}
                               </span>
-                              {log.proveedor && (
+                              {(log.proveedor || selectedProduct?.proveedor || (selectedProduct?.lotesProveedores?.[0]?.proveedor)) && (
                                 <span className="text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/30">
-                                  🏢 {log.proveedor}
+                                  🏢 {log.proveedor || selectedProduct?.proveedor || (selectedProduct?.lotesProveedores?.[0]?.proveedor)}
                                 </span>
                               )}
                             </div>
