@@ -86,16 +86,42 @@ export default function Historial() {
     return productos.find(p => p.id === selectedProductId) || null
   }, [productos, selectedProductId])
 
+  // Precio de costo dinámico según el proveedor seleccionado o el lote con stock activo (FIFO)
+  const precioCostoEfectivo = useMemo(() => {
+    if (!selectedProduct) return 0;
+    const targetProvNorm = (supplierFilter || 'TODOS').trim().toUpperCase();
+    if (targetProvNorm !== 'TODOS') {
+      const lotMatch = Array.isArray(selectedProduct.lotesProveedores)
+        ? selectedProduct.lotesProveedores.find(l => (l.proveedor || '').trim().toUpperCase() === targetProvNorm)
+        : null;
+      if (lotMatch && lotMatch.precioCosto !== undefined) {
+        return Number(lotMatch.precioCosto) || 0;
+      }
+      const logMatch = historyLogs.find(l => Number(l.cambio) > 0 && (l.proveedor || '').trim().toUpperCase() === targetProvNorm);
+      if (logMatch && logMatch.precioCosto !== undefined) {
+        return Number(logMatch.precioCosto) || 0;
+      }
+    }
+    if (Array.isArray(selectedProduct.lotesProveedores) && selectedProduct.lotesProveedores.length > 0) {
+      const sortedLotes = [...selectedProduct.lotesProveedores].sort((a, b) => new Date(a.fechaIngreso || '2000-01-01') - new Date(b.fechaIngreso || '2000-01-01'));
+      const activeLot = sortedLotes.find(l => Number(l.stock) > 0) || sortedLotes[sortedLotes.length - 1];
+      if (activeLot && activeLot.precioCosto !== undefined) {
+        return Number(activeLot.precioCosto) || 0;
+      }
+    }
+    return Number(selectedProduct.precioCosto) || 0;
+  }, [selectedProduct, supplierFilter, historyLogs]);
+
   // Actualizar precio de costo referencial y variante por defecto en el formulario de ajuste
   useEffect(() => {
     if (selectedProduct) {
       setFormAjuste(prev => ({
         ...prev,
-        precioCosto: selectedProduct.precioCosto || ''
+        precioCosto: precioCostoEfectivo || selectedProduct.precioCosto || ''
       }))
       setVarianteAjuste(selectedProduct.variantes?.[0]?.nombre || '')
     }
-  }, [selectedProduct])
+  }, [selectedProduct, precioCostoEfectivo])
 
   // 3. Cargar Historial Completo del Producto Seleccionado
   useEffect(() => {
@@ -766,10 +792,10 @@ export default function Historial() {
                     P. Venta: ${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')}
                   </span>
                   <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-500/20">
-                    P. Costo (Actual): ${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}
+                    P. Costo (Actual): ${precioCostoEfectivo.toLocaleString('es-CL')}
                   </span>
                   <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-800 dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-amber-500/20">
-                    Margen: ${((Number(selectedProduct.precio) || 0) - (Number(selectedProduct.precioCosto) || 0)).toLocaleString('es-CL')}
+                    Margen: ${((Number(selectedProduct.precio) || 0) - precioCostoEfectivo).toLocaleString('es-CL')}
                   </span>
                 </div>
               ) : (
@@ -875,7 +901,7 @@ export default function Historial() {
                     </p>
                     <p className="text-[9px] font-semibold text-outline dark:text-gray-400 uppercase tracking-wider truncate">
                       {selectedProduct 
-                        ? `SKU: ${selectedProduct.sku} • Venta: $${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')} • Costo: $${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}` 
+                        ? `SKU: ${selectedProduct.sku} • Venta: $${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')} • Costo: $${precioCostoEfectivo.toLocaleString('es-CL')}` 
                         : 'Elige para ver su historial'}
                     </p>
                   </div>
