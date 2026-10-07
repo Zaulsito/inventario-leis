@@ -219,8 +219,59 @@ export default function Historial() {
         })
 
         const combined = Array.from(logsMap.values())
-        combined.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-        setHistoryLogs(combined)
+        
+        // Ordenar cronológicamente ascendente (del más antiguo al más reciente) para calcular desglose de lotes FIFO
+        const sortedAsc = [...combined].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+        const firstProv = (Array.isArray(targetProd?.lotesProveedores) && targetProd.lotesProveedores[0]?.proveedor || targetProd?.proveedor || '').trim().toUpperCase()
+
+        const supplierLots = []
+        if (Array.isArray(targetProd?.lotesProveedores) && targetProd.lotesProveedores.length > 0) {
+          const lotesSorted = [...targetProd.lotesProveedores].sort((x, y) => new Date(x.fechaIngreso || '2000-01-01') - new Date(y.fechaIngreso || '2000-01-01'))
+          lotesSorted.forEach(l => {
+            const pName = (l.proveedor || firstProv).trim().toUpperCase()
+            if (pName && !supplierLots.some(sl => sl.proveedor === pName)) {
+              supplierLots.push({ proveedor: pName, rem: 0 })
+            }
+          })
+        }
+
+        sortedAsc.forEach(log => {
+          const c = Number(log.cambio) || 0
+          if (c > 0) {
+            const pName = (log.proveedor || firstProv).trim().toUpperCase()
+            log.proveedorNorm = pName
+            let lot = supplierLots.find(l => l.proveedor === pName)
+            if (!lot) {
+              lot = { proveedor: pName, rem: 0 }
+              supplierLots.push(lot)
+            }
+            lot.rem += c
+            log.proveedoresDesglose = { [pName]: c }
+          } else if (c < 0) {
+            let req = Math.abs(c)
+            const desglose = {}
+            for (const lot of supplierLots) {
+              if (req <= 0) break
+              if (lot.rem > 0) {
+                const take = Math.min(lot.rem, req)
+                lot.rem -= take
+                req -= take
+                desglose[lot.proveedor] = (desglose[lot.proveedor] || 0) + take
+              }
+            }
+            if (req > 0) {
+              const fallbackProv = (log.proveedor || firstProv || 'S/P').trim().toUpperCase()
+              desglose[fallbackProv] = (desglose[fallbackProv] || 0) + req
+            }
+            log.proveedoresDesglose = desglose
+            const topProv = Object.keys(desglose)[0] || firstProv
+            log.proveedorNorm = topProv
+          }
+        })
+
+        // Reordenar descendente (más reciente primero) para mostrar en el Kardex
+        sortedAsc.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        setHistoryLogs(sortedAsc)
       } catch (e) {
         console.error("Error cargando historial de stock:", e)
         setHistoryLogs([])
@@ -259,41 +310,41 @@ export default function Historial() {
     const isFiltered = targetProvNorm !== 'TODOS';
     const firstProv = (Array.isArray(selectedProduct.lotesProveedores) && selectedProduct.lotesProveedores[0]?.proveedor || selectedProduct.proveedor || '').trim().toUpperCase();
 
-    const logsToProcess = isFiltered 
-      ? historyLogs.filter(log => {
-          const logProv = (log.proveedor || '').trim().toUpperCase();
-          const effectiveProv = logProv || firstProv;
-          return effectiveProv === targetProvNorm;
-        })
-      : historyLogs;
-
-    logsToProcess.forEach(log => {
+    historyLogs.forEach(log => {
       const c = Number(log.cambio) || 0
       const accionStr = (log.accion || '').toLowerCase()
       const motivoStr = (log.motivo || '').toLowerCase()
       const costUnit = Number(log.precioCosto) || Number(selectedProduct.precioCosto) || 0
 
       if (c > 0) {
-        entradas += c
-        inversionTotal += (c * costUnit)
-        unidadesTotales += c
+        const logProv = (log.proveedorNorm || log.proveedor || firstProv).trim().toUpperCase();
+        if (!isFiltered || logProv === targetProvNorm) {
+          entradas += c
+          inversionTotal += (c * costUnit)
+          unidadesTotales += c
+        }
       } else {
-        const cantSalida = Math.abs(c)
-        salidas += cantSalida
+        const cantSalidaProv = isFiltered
+          ? (log.proveedoresDesglose ? (log.proveedoresDesglose[targetProvNorm] || 0) : ((log.proveedor || firstProv).trim().toUpperCase() === targetProvNorm ? Math.abs(c) : 0))
+          : Math.abs(c);
 
-        const isVenta = log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')
-        if (isVenta) {
-          unidadesVendidas += cantSalida
-          const pVentaUnit = Number(log.precio) || Number(selectedProduct.precio) || 0
-          ventasDinero += (cantSalida * pVentaUnit)
-          costoVentas += (cantSalida * costUnit)
+        if (cantSalidaProv > 0) {
+          salidas += cantSalidaProv
+
+          const isVenta = log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')
+          if (isVenta) {
+            unidadesVendidas += cantSalidaProv
+            const pVentaUnit = Number(log.precio) || Number(selectedProduct.precio) || 0
+            ventasDinero += (cantSalidaProv * pVentaUnit)
+            costoVentas += (cantSalidaProv * costUnit)
+          }
         }
       }
     })
 
     let stockCalculado = 0;
     if (isFiltered) {
-      if (logsToProcess && logsToProcess.length > 0) {
+      if (historyLogs && historyLogs.length > 0) {
         stockCalculado = Math.max(0, entradas - salidas);
       } else {
         const lotMatch = Array.isArray(selectedProduct.lotesProveedores)
@@ -400,9 +451,13 @@ export default function Historial() {
       const motivoStr = (log.motivo || '').toLowerCase()
 
       if (supplierFilter !== 'TODOS') {
-        const logProv = (log.proveedor || '').trim().toUpperCase();
-        const effectiveProv = logProv || firstProv;
-        if (effectiveProv !== supplierFilter) return;
+        if (cant > 0) {
+          const logProv = (log.proveedorNorm || log.proveedor || firstProv).trim().toUpperCase();
+          if (logProv !== supplierFilter) return;
+        } else {
+          const cantDesglose = log.proveedoresDesglose ? (log.proveedoresDesglose[supplierFilter] || 0) : 0;
+          if (cantDesglose <= 0) return;
+        }
       }
 
       if (searchTerm.trim()) {
@@ -442,9 +497,13 @@ export default function Historial() {
 
       // Filtro de Proveedor
       if (supplierFilter !== 'TODOS') {
-        const logProv = (log.proveedor || '').trim().toUpperCase();
-        const effectiveProv = logProv || firstProv;
-        if (effectiveProv !== supplierFilter) return false;
+        if (cant > 0) {
+          const logProv = (log.proveedorNorm || log.proveedor || firstProv).trim().toUpperCase();
+          if (logProv !== supplierFilter) return false;
+        } else {
+          const cantDesglose = log.proveedoresDesglose ? (log.proveedoresDesglose[supplierFilter] || 0) : 0;
+          if (cantDesglose <= 0) return false;
+        }
       }
 
       // Filtro de Pestañas/Chips
@@ -1340,10 +1399,20 @@ export default function Historial() {
                               <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
                                 {formatDateDMA(log.fecha, log)}
                               </span>
-                              {(log.proveedor || (supplierFilter !== 'TODOS' ? supplierFilter : (selectedProduct?.lotesProveedores?.[0]?.proveedor || selectedProduct?.proveedor))) && (
-                                <span className="text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/30">
-                                  🏢 {log.proveedor || (supplierFilter !== 'TODOS' ? supplierFilter : (selectedProduct?.lotesProveedores?.[0]?.proveedor || selectedProduct?.proveedor))}
-                                </span>
+                              {log.proveedoresDesglose && Object.keys(log.proveedoresDesglose).length > 0 ? (
+                                Object.entries(log.proveedoresDesglose).map(([provName, provQty]) => (
+                                  (supplierFilter === 'TODOS' || provName === supplierFilter) && (
+                                    <span key={provName} className="text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/30">
+                                      🏢 {provName}{supplierFilter === 'TODOS' && Object.keys(log.proveedoresDesglose).length > 1 ? ` (${provQty})` : ''}
+                                    </span>
+                                  )
+                                ))
+                              ) : (
+                                (log.proveedor || (supplierFilter !== 'TODOS' ? supplierFilter : (selectedProduct?.lotesProveedores?.[0]?.proveedor || selectedProduct?.proveedor))) && (
+                                  <span className="text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#e2bd6c]/20 text-[#e2bd6c] border border-[#e2bd6c]/30">
+                                    🏢 {log.proveedor || (supplierFilter !== 'TODOS' ? supplierFilter : (selectedProduct?.lotesProveedores?.[0]?.proveedor || selectedProduct?.proveedor))}
+                                  </span>
+                                )
                               )}
                             </div>
 
@@ -1355,7 +1424,7 @@ export default function Historial() {
                                     #{log.pedidoId ? log.pedidoId.slice(-5) : ''}
                                     <span className="material-symbols-outlined text-[10px]">open_in_new</span>
                                   </span>
-                                  <span>de {log.cliente || 'Cliente'} • {Math.abs(cant)} un.</span>
+                                  <span>de {log.cliente || 'Cliente'} • {!isPositive && supplierFilter !== 'TODOS' && log.proveedoresDesglose ? (log.proveedoresDesglose[supplierFilter] || 0) : Math.abs(cant)} un.</span>
                                   {renderVariantBadge(log.varianteNombre || log.variante)}
                                 </>
                               ) : (
@@ -1379,7 +1448,7 @@ export default function Historial() {
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
                             <p className={`text-lg font-black ${badge.textColor}`}>
-                              {isPositive ? '+' : ''}{cant}
+                              {isPositive ? '+' : ''}{!isPositive && supplierFilter !== 'TODOS' && log.proveedoresDesglose ? -(log.proveedoresDesglose[supplierFilter] || 0) : cant}
                             </p>
                             <p className="text-[9px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider">
                               {log.esPedidoReal ? 'Estado' : 'Stock'}: <span className="font-bold text-on-surface dark:text-white">{log.stockNuevo}</span>

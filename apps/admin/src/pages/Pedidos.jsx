@@ -629,24 +629,26 @@ export default function Pedidos() {
 
       const adjustLotesStock = (lotesArr, qtyDiff) => {
         if (!Array.isArray(lotesArr) || lotesArr.length === 0) return lotesArr;
-        const updated = lotesArr.map(l => ({ ...l }));
+        const updated = lotesArr.map((l, idx) => ({ ...l, _origIdx: idx }));
+        const sorted = [...updated].sort((a, b) => new Date(a.fechaIngreso || '2000-01-01') - new Date(b.fechaIngreso || '2000-01-01'));
         let rem = Math.abs(qtyDiff);
         if (qtyDiff > 0) {
-          for (let i = 0; i < updated.length; i++) {
+          for (let i = 0; i < sorted.length; i++) {
             if (rem <= 0) break;
-            const s = Number(updated[i].stock) || 0;
+            const s = Number(sorted[i].stock) || 0;
             if (s > 0) {
               const d = Math.min(s, rem);
-              updated[i].stock = s - d;
+              sorted[i].stock = s - d;
               rem -= d;
             }
           }
         } else if (qtyDiff < 0) {
-          if (updated[0]) {
-            updated[0].stock = (Number(updated[0].stock) || 0) + rem;
+          if (sorted[0]) {
+            sorted[0].stock = (Number(sorted[0].stock) || 0) + rem;
           }
         }
-        return updated;
+        sorted.sort((a, b) => a._origIdx - b._origIdx);
+        return sorted.map(({ _origIdx, ...rest }) => rest);
       };
 
       // Inicializar el mapa con los productos involucrados (los actuales y los previos si editamos)
