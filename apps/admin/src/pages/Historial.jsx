@@ -131,7 +131,7 @@ export default function Historial() {
 
               if (isMatch) {
                 const cant = Number(prod.cantidad) || 1
-                const fechaIso = ped.fechaEntrega || ped.fechaCreacion || ped.createdAt || getLocalDateString()
+                const fechaIso = ped.fechaCreacion || ped.createdAt || ped.fechaEntrega || getLocalDateString()
                 const pEst = (ped.estadoPago || ped.estado || '').toLowerCase()
                 const totalPed = Number(ped.total) || 0
                 const abonoPed = Number(ped.abono) || 0
@@ -178,7 +178,7 @@ export default function Historial() {
 
               if (isMatch) {
                 const cant = Number(prod.cantidad) || 1
-                const fechaIso = mer.fechaEntrega || mer.fecha || mer.fechaCreacion || getLocalDateString()
+                const fechaIso = mer.fechaCreacion || mer.createdAt || mer.fechaEntrega || mer.fecha || getLocalDateString()
                 const motivoText = mer.motivo ? `Pérdida por ${mer.motivo}` : 'Merma de inventario'
                 const varName = prod.varianteNombre || prod.variante || prod.color || ''
 
@@ -221,7 +221,17 @@ export default function Historial() {
         const combined = Array.from(logsMap.values())
         
         // Ordenar cronológicamente ascendente (del más antiguo al más reciente) para calcular desglose de lotes FIFO
-        const sortedAsc = [...combined].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+        // A igualdad de fecha/hora, colocar las Entradas (+cambio) ANTES que las Salidas (-cambio)
+        const sortedAsc = [...combined].sort((a, b) => {
+          const timeA = new Date(a.fecha).getTime()
+          const timeB = new Date(b.fecha).getTime()
+          if (timeA !== timeB) return timeA - timeB
+          const cantA = Number(a.cambio) || 0
+          const cantB = Number(b.cambio) || 0
+          if (cantA > 0 && cantB < 0) return -1
+          if (cantA < 0 && cantB > 0) return 1
+          return 0
+        })
         const firstProv = (Array.isArray(targetProd?.lotesProveedores) && targetProd.lotesProveedores[0]?.proveedor || targetProd?.proveedor || '').trim().toUpperCase()
 
         const supplierLots = []
@@ -260,8 +270,12 @@ export default function Historial() {
               }
             }
             if (req > 0) {
-              const fallbackProv = (log.proveedor || firstProv || 'S/P').trim().toUpperCase()
+              const activeLot = supplierLots.find(l => l.rem > 0) || supplierLots[supplierLots.length - 1]
+              const fallbackProv = (activeLot?.proveedor || log.proveedor || firstProv || 'S/P').trim().toUpperCase()
               desglose[fallbackProv] = (desglose[fallbackProv] || 0) + req
+              if (activeLot) {
+                activeLot.rem = Math.max(0, activeLot.rem - req)
+              }
             }
             log.proveedoresDesglose = desglose
             const topProv = Object.keys(desglose)[0] || firstProv
