@@ -792,7 +792,7 @@ export default function Layout() {
             </div>
           ) : (
             <div className="mt-auto pt-8 opacity-40 text-center">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Leis Administration V1.2</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-primary dark:text-[#e2bd6c]">Leis Administration V1.5</p>
               <p className="text-[10px] italic mt-1 font-headline text-secondary dark:text-[#e2bd6c]/80">Tu exito esta en nuestros productos</p>
             </div>
           )}
