@@ -544,6 +544,8 @@ REGLAS DE FORMATO ESTRICTAS:
   const [isScanning, setIsScanning] = useState(false)
   const [form, setForm] = useState(formInicial)
   const [editingId, setEditingId] = useState(null)
+  const [registrationMode, setRegistrationMode] = useState('nuevo_producto')
+  const [activeLotIndex, setActiveLotIndex] = useState(0)
   const [varianteAjuste, setVarianteAjuste] = useState('')
   const [expandedProduct, setExpandedProduct] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
@@ -816,18 +818,19 @@ REGLAS DE FORMATO ESTRICTAS:
 
     // Determinar stock inicial base previo a los registros de Firestore
     let cantInicialBase = 0
-    if (!tieneCreacionInicialEnLogs && stockInicial > 0) {
+    const stockActualForm = Number(form.stock) || 0
+    if (!tieneCreacionInicialEnLogs && stockInicial > 0 && stockActualForm > 0) {
       if (hasMultipleSuppliers && activeProv && firstProv && activeProv !== firstProv) {
         cantInicialBase = 0
       } else if (validLogs.length > 0) {
         const primerLog = validLogs[0]
         if (primerLog.stockAnterior !== undefined && primerLog.stockAnterior !== null) {
-          cantInicialBase = Number(primerLog.stockAnterior) || 0
+          cantInicialBase = Math.min(stockActualForm, Number(primerLog.stockAnterior) || 0)
         } else {
           cantInicialBase = 0
         }
       } else {
-        cantInicialBase = stockInicial
+        cantInicialBase = Math.min(stockInicial, stockActualForm)
       }
     }
 
@@ -886,11 +889,31 @@ REGLAS DE FORMATO ESTRICTAS:
 
   useEffect(() => {
     if (editingId && editProductLotesStats && editProductLotesStats.stockCalculado !== undefined && !form.ajusteStock) {
-      if (Number(form.stock) !== editProductLotesStats.stockCalculado) {
-        setForm(prev => ({ ...prev, stock: editProductLotesStats.stockCalculado }))
-      }
+      const calcStock = editProductLotesStats.stockCalculado;
+      setForm(prev => {
+        let changed = false;
+        const nextState = { ...prev };
+        if (Number(prev.stock) !== calcStock) {
+          nextState.stock = calcStock;
+          changed = true;
+        }
+        if (Array.isArray(prev.lotesProveedores) && prev.lotesProveedores.length > 0) {
+          const targetIdx = (activeLotIndex >= 0 && activeLotIndex < prev.lotesProveedores.length) ? activeLotIndex : 0;
+          if (prev.lotesProveedores.length === 1 || targetIdx === activeLotIndex) {
+            const currentLotStock = Number(prev.lotesProveedores[targetIdx]?.stock || 0);
+            if (currentLotStock !== calcStock) {
+              const updatedLotes = prev.lotesProveedores.map((l, i) => 
+                i === targetIdx ? { ...l, stock: calcStock } : l
+              );
+              nextState.lotesProveedores = updatedLotes;
+              changed = true;
+            }
+          }
+        }
+        return changed ? nextState : prev;
+      });
     }
-  }, [editingId, editProductLotesStats?.stockCalculado, form.ajusteStock])
+  }, [editingId, editProductLotesStats?.stockCalculado, form.ajusteStock, activeLotIndex]);
 
   const historyProduct = useMemo(() => productos.find(p => p.id === historyProductId), [productos, historyProductId])
 
@@ -1032,9 +1055,6 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }, [showModal, showHistoryModal]);
 
-  const [registrationMode, setRegistrationMode] = useState('nuevo_producto')
-  const [activeLotIndex, setActiveLotIndex] = useState(0)
-
   // Handlers del CRUD
   function openNew() {
     setForm(formInicial)
@@ -1084,12 +1104,16 @@ REGLAS DE FORMATO ESTRICTAS:
         }
       }
 
-      // Si solo hay 1 lote y mainProvName tiene valor, sincronizar el nombre del lote
-      const firstProv = (lotes[0]?.proveedor || '').trim().toUpperCase();
-      if (mainProvName && (firstProv === 'PRINCIPAL' || firstProv === '' || lotes.length === 1)) {
-        lotes[0].proveedor = mainProvName;
-      } else if (!mainProvName && firstProv === 'PRINCIPAL') {
-        lotes[0].proveedor = '';
+      // Si solo hay 1 lote, sincronizar nombre del proveedor, stock y precios con la ficha del producto
+      if (lotes.length === 1) {
+        if (mainProvName) {
+          lotes[0].proveedor = mainProvName;
+        } else if (lotes[0].proveedor === 'PRINCIPAL') {
+          lotes[0].proveedor = '';
+        }
+        lotes[0].stock = stockNum;
+        if (costNum && !lotes[0].precioCosto) lotes[0].precioCosto = costNum;
+        if (p.precio && !lotes[0].precioVenta) lotes[0].precioVenta = Number(p.precio) || 0;
       }
     }
 
@@ -1339,6 +1363,7 @@ REGLAS DE FORMATO ESTRICTAS:
           await updateDoc(doc(db, 'productos', pIdToUpdate), updateObj)
 
           if (editingId && pIdToUpdate === editingId) {
+            setInitialProductData(prev => ({ ...prev, stock: stockRevertido }));
             setForm(prev => ({
               ...prev,
               stock: stockRevertido,
@@ -1773,10 +1798,15 @@ REGLAS DE FORMATO ESTRICTAS:
     if (lote.id === 'initial-base-lot') {
       if (window.confirm("¿Deseas eliminar el registro de Stock Inicial del historial de este producto?")) {
         setInitialProductData(prev => ({ ...prev, stock: 0 }));
-        setForm(prev => ({ ...prev, stock: 0 }));
+        const nextLotes = (form.lotesProveedores || []).map((l, i) => i === activeLotIndex ? { ...l, stock: 0 } : l);
+        setForm(prev => ({ ...prev, stock: 0, lotesProveedores: nextLotes }));
         if (editingId) {
           try {
-            await updateDoc(doc(db, 'productos', editingId), { stock: 0 });
+            await updateDoc(doc(db, 'productos', editingId), { 
+              stock: 0,
+              lotesProveedores: nextLotes
+            });
+            setProductos(prev => prev.map(p => p.id === editingId ? { ...p, stock: 0, lotesProveedores: nextLotes } : p));
           } catch (e) {
             console.error("Error al actualizar stock inicial:", e);
           }
@@ -3431,7 +3461,15 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             {idx === 0 ? <span title="Proveedor Principal">👑</span> : <span className="material-symbols-outlined text-sm">store</span>}
                             <span>{lote.proveedor || (idx === 0 ? 'Sin Proveedor' : `Proveedor ${idx + 1}`)}</span>
                             <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-black/10 dark:bg-white/10 font-mono">
-                              {lote.stock} u.
+                              {(() => {
+                                let s = Number(lote.stock || 0);
+                                if (form.lotesProveedores.length === 1) {
+                                  s = Number(form.stock !== undefined && form.stock !== '' ? form.stock : s);
+                                } else if (isActive && editProductLotesStats?.stockCalculado !== undefined) {
+                                  s = Number(editProductLotesStats.stockCalculado);
+                                }
+                                return `${s} u.`;
+                              })()}
                             </span>
                             {form.lotesProveedores.length > 1 && (
                               <button
