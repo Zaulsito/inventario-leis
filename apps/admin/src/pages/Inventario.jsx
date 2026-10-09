@@ -3187,6 +3187,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               setForm(prev => ({
                                 ...prev,
                                 proveedor: lote.proveedor || prev.proveedor,
+                                precio: lote.precioVenta !== undefined ? lote.precioVenta : (lote.precio !== undefined ? lote.precio : prev.precio),
                                 precioCosto: lote.precioCosto !== undefined ? lote.precioCosto : prev.precioCosto,
                                 stock: lote.stock !== undefined ? lote.stock : prev.stock,
                                 fechaIngreso: lote.fechaIngreso || prev.fechaIngreso
@@ -3198,7 +3199,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 : 'bg-surface-container dark:bg-white/5 text-outline dark:text-gray-300 border-outline-variant/20 dark:border-white/10 hover:border-[#e2bd6c]/40'
                             }`}
                           >
-                            <span className="material-symbols-outlined text-sm">store</span>
+                            {idx === 0 ? <span title="Proveedor Principal">👑</span> : <span className="material-symbols-outlined text-sm">store</span>}
                             <span>{lote.proveedor || `Proveedor ${idx + 1}`}</span>
                             <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-black/10 dark:bg-white/10 font-mono">
                               {lote.stock} u.
@@ -3246,6 +3247,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                       ...prev,
                                       lotesProveedores: updatedLotes,
                                       proveedor: targetLot?.proveedor || '',
+                                      precio: targetLot?.precioVenta !== undefined ? targetLot.precioVenta : (targetLot?.precio !== undefined ? targetLot.precio : prev.precio),
                                       precioCosto: targetLot?.precioCosto !== undefined ? targetLot.precioCosto : prev.precioCosto,
                                       stock: targetLot?.stock !== undefined ? targetLot.stock : prev.stock,
                                       fechaIngreso: targetLot?.fechaIngreso || prev.fechaIngreso
@@ -3288,13 +3290,14 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
-                              Nombre del Producto
+                              Nombre del Producto {isSecondarySupplier && <span className="text-amber-500 font-normal">(Bloqueado por Proveedor Principal)</span>}
                             </label>
                             <input 
                               type="text" 
                               value={form.nombre} 
+                              disabled={isSecondarySupplier}
                               onChange={e => setForm({...form, nombre: e.target.value})}
-                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white"
+                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
                               placeholder="Ej. Crema Collagen"
                             />
                           </div>
@@ -3373,7 +3376,16 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             <input 
                               type="text" 
                               value={form.proveedor} 
-                              onChange={e => setForm({...form, proveedor: e.target.value})}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setForm(prev => {
+                                  const nextLotes = [...(prev.lotesProveedores || [])];
+                                  if (nextLotes[activeLotIndex]) {
+                                    nextLotes[activeLotIndex] = { ...nextLotes[activeLotIndex], proveedor: val };
+                                  }
+                                  return { ...prev, proveedor: val, lotesProveedores: nextLotes };
+                                });
+                              }}
                               onFocus={() => setShowProvDropdown(true)}
                               className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
                               placeholder="BUSCAR PROVEEDOR..."
@@ -3400,7 +3412,16 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                       <button
                                         key={p}
                                         type="button"
-                                        onClick={() => { setForm({...form, proveedor: p}); setShowProvDropdown(false); }}
+                                        onClick={() => {
+                                          setForm(prev => {
+                                            const nextLotes = [...(prev.lotesProveedores || [])];
+                                            if (nextLotes[activeLotIndex]) {
+                                              nextLotes[activeLotIndex] = { ...nextLotes[activeLotIndex], proveedor: p };
+                                            }
+                                            return { ...prev, proveedor: p, lotesProveedores: nextLotes };
+                                          });
+                                          setShowProvDropdown(false);
+                                        }}
                                         className="w-full text-left px-5 py-4 text-[13px] font-bold uppercase italic text-[#4A4A4A] dark:text-white/80 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/10 dark:border-white/5"
                                       >
                                         {p}
@@ -3413,16 +3434,19 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                           </div>
 
                           <div className="relative">
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">Categoría</label>
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
+                              Categoría {isSecondarySupplier && <span className="text-amber-500 font-normal">(Bloqueada por Proveedor Principal)</span>}
+                            </label>
                             <input 
                               type="text" 
                               value={form.coleccion} 
+                              disabled={isSecondarySupplier}
                               onChange={e => setForm({...form, coleccion: e.target.value})}
-                              onFocus={() => setShowCatDropdown(true)}
-                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white"
+                              onFocus={() => { if (!isSecondarySupplier) setShowCatDropdown(true); }}
+                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm uppercase dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
                               placeholder="BUSCAR CATEGORÍA..."
                             />
-                            {showCatDropdown && (
+                            {showCatDropdown && !isSecondarySupplier && (
                               <>
                                 <div className="fixed inset-0 z-[110]" onClick={() => setShowCatDropdown(false)} />
                                 <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
@@ -3463,7 +3487,24 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       <input 
                         type="number" 
                         value={form.precio} 
-                        onChange={e => setForm({...form, precio: e.target.value})}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setForm(prev => {
+                            const nextLotes = [...(prev.lotesProveedores || [])];
+                            if (nextLotes[activeLotIndex]) {
+                              nextLotes[activeLotIndex] = {
+                                ...nextLotes[activeLotIndex],
+                                precio: val,
+                                precioVenta: val
+                              };
+                            }
+                            return {
+                              ...prev,
+                              precio: val,
+                              lotesProveedores: nextLotes
+                            };
+                          });
+                        }}
                         className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                         placeholder="0"
                       />
@@ -3710,7 +3751,23 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       <input 
                         type="number" 
                         value={form.precioCosto} 
-                        onChange={e => setForm(prev => ({ ...prev, precioCosto: e.target.value }))}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setForm(prev => {
+                            const nextLotes = [...(prev.lotesProveedores || [])];
+                            if (nextLotes[activeLotIndex]) {
+                              nextLotes[activeLotIndex] = {
+                                ...nextLotes[activeLotIndex],
+                                precioCosto: val
+                              };
+                            }
+                            return {
+                              ...prev,
+                              precioCosto: val,
+                              lotesProveedores: nextLotes
+                            };
+                          });
+                        }}
                         className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
                         placeholder="0"
                       />
