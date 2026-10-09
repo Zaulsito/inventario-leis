@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs, getDoc, writeBatch } from 'firebase/firestore'
+import { collection, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs, getDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -1692,7 +1692,36 @@ REGLAS DE FORMATO ESTRICTAS:
       });
     }
 
+    const isMerma = cantNum < 0 && (
+      selectedMotivo.toLowerCase().includes('merma') ||
+      selectedMotivo.toLowerCase().includes('dañad') ||
+      selectedMotivo.toLowerCase().includes('danad') ||
+      selectedMotivo.toLowerCase().includes('rotura') ||
+      selectedMotivo.toLowerCase().includes('pérdida') ||
+      selectedMotivo.toLowerCase().includes('perdida')
+    );
+
     try {
+      let mermaId = null;
+      if (isMerma) {
+        const mermaRef = doc(collection(db, 'mermas'));
+        mermaId = mermaRef.id;
+        await setDoc(mermaRef, {
+          motivo: selectedMotivo,
+          nota: form.notaAjuste || '',
+          fechaEntrega: getLocalDateString(),
+          fecha: new Date().toISOString(),
+          fechaCreacion: new Date().toISOString(),
+          _tipo: 'merma',
+          productos: [{
+            productoId: editingId,
+            nombre: form.nombre || prodTarget?.nombre || 'Producto',
+            cantidad: Math.abs(cantNum),
+            variante: targetVariantName || null
+          }]
+        });
+      }
+
       const logData = {
         productoId: editingId,
         fecha: new Date().toISOString(),
@@ -1705,7 +1734,12 @@ REGLAS DE FORMATO ESTRICTAS:
         proveedor: currentProvName,
         motivo: motivoText,
         nota: form.notaAjuste || '',
-        varianteNombre: targetVariantName || ''
+        varianteNombre: targetVariantName || '',
+        ...(isMerma ? {
+          esMermaReal: true,
+          mermaId: mermaId,
+          motivoMerma: selectedMotivo
+        } : {})
       };
 
       const docRef = await addDoc(collection(db, 'historial_inventario'), logData);

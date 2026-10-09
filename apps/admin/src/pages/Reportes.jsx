@@ -177,6 +177,7 @@ export default function Reportes() {
   const [pedidos, setPedidos] = useState([])
   const [mermas, setMermas] = useState([])
   const [gastos, setGastos] = useState([])
+  const [historialInventario, setHistorialInventario] = useState([])
   
   // Para el módulo de Gastos Operativos
   const [showGastoModal, setShowGastoModal] = useState(false)
@@ -261,7 +262,12 @@ export default function Reportes() {
       setGastos(data)
     })
 
-    return () => { unsubProd(); unsubPed(); unsubMerma(); unsubGasto(); }
+    const unsubHist = onSnapshot(collection(db, 'historial_inventario'), snap => {
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setHistorialInventario(data)
+    })
+
+    return () => { unsubProd(); unsubPed(); unsubMerma(); unsubGasto(); unsubHist(); }
   }, [])
 
   // Guardar nuevo gasto operativo
@@ -308,9 +314,59 @@ export default function Reportes() {
 
   // Filtrado de pedidos, mermas y gastos combinados
   const registrosFiltrados = useMemo(() => {
+    // Mermas registradas directamente en historial_inventario que no estén en la colección 'mermas'
+    const mermasFromHistorial = historialInventario.filter(log => {
+      if (log.mermaId && mermas.some(m => m.id === log.mermaId)) return false
+
+      const cambioNum = Number(log.cambio) || 0
+      const motivoStr = (log.motivo || '').toLowerCase()
+      const accionStr = (log.accion || '').toLowerCase()
+
+      const esMerma = log.esMermaReal || (
+        cambioNum < 0 && (
+          motivoStr.includes('merma') ||
+          motivoStr.includes('dañad') ||
+          motivoStr.includes('danad') ||
+          motivoStr.includes('rotura') ||
+          motivoStr.includes('pérdida') ||
+          motivoStr.includes('perdida') ||
+          accionStr.includes('merma')
+        )
+      )
+      return esMerma
+    }).map(log => {
+      const prod = productos.find(p => p.id === log.productoId)
+      const cant = Math.abs(Number(log.cambio) || 1)
+      const costUnit = Number(log.precioCosto) || Number(prod?.precioCosto) || Number(prod?.precio) || 0
+      const fechaDoc = log.fecha || getLocalDateString()
+      const fechaEntrega = fechaDoc.includes('T') ? fechaDoc.split('T')[0] : (fechaDoc.includes(' ') ? fechaDoc.split(' ')[0] : fechaDoc)
+
+      return {
+        id: log.id,
+        _tipo: 'merma',
+        _fromHistorial: true,
+        historialDocId: log.id,
+        mermaId: log.mermaId || null,
+        motivo: log.motivoMerma || log.motivo || 'Merma / Producto Dañado',
+        fecha: fechaDoc,
+        fechaCreacion: fechaDoc,
+        fechaEntrega: fechaEntrega,
+        productos: [
+          {
+            productoId: log.productoId,
+            nombre: prod?.nombre || 'Producto',
+            cantidad: cant,
+            variante: log.varianteNombre || null,
+            precioCosto: costUnit
+          }
+        ]
+      }
+    })
+
     const combinados = [
       ...pedidos.map(p => ({ ...p, _tipo: 'venta' })),
       ...mermas.map(m => ({ ...m, _tipo: 'merma' })),
+      ...mermasFromHistorial,
       ...gastos.map(g => ({ ...g, _tipo: 'gasto' }))
     ]
 
@@ -357,7 +413,7 @@ export default function Reportes() {
       const fB = parseLocalDate(b.fechaEntrega || b.fecha || b.fechaCreacion) || new Date(0)
       return fB - fA // Más recientes primero
     })
-  }, [pedidos, mermas, gastos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
+  }, [pedidos, mermas, gastos, historialInventario, productos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
 
   // Cálculo del gráfico
   const chartData = useMemo(() => {
@@ -423,11 +479,9 @@ export default function Reportes() {
       if (p.productos && Array.isArray(p.productos)) {
         p.productos.forEach(item => {
           const prod = productos.find(x => x.id === item.productoId)
-          if (prod) {
-            const precio = Number(prod.precio) || 0;
-            const cant = Number(item.cantidad) || 1;
-            sum += precio * cant;
-          }
+          const precio = prod ? (Number(prod.precio) || Number(prod.precioCosto) || 0) : (Number(item.precioCosto) || Number(item.precio) || 0);
+          const cant = Number(item.cantidad) || 1;
+          sum += precio * cant;
         })
       }
       if (map[targetKey] === undefined) {
@@ -777,17 +831,24 @@ export default function Reportes() {
         batch.update(prodRef, payload);
       }
 
-      const colName = registro._tipo === 'merma' ? 'mermas' : 'pedidos'
-      const docRef = doc(db, colName, registro.id)
-      batch.delete(docRef)
+      if (registro._fromHistorial) {
+        batch.delete(doc(db, 'historial_inventario', registro.id));
+        if (registro.mermaId) {
+          batch.delete(doc(db, 'mermas', registro.mermaId));
+        }
+      } else {
+        const colName = registro._tipo === 'merma' ? 'mermas' : 'pedidos'
+        const docRef = doc(db, colName, registro.id)
+        batch.delete(docRef)
 
-      // Eliminar también cualquier registro vinculado en historial_inventario
-      const fieldId = registro._tipo === 'merma' ? 'mermaId' : 'pedidoId'
-      const qHist = query(collection(db, 'historial_inventario'), where(fieldId, '==', registro.id))
-      const snapHist = await getDocs(qHist)
-      snapHist.docs.forEach(hDoc => {
-        batch.delete(hDoc.ref)
-      })
+        // Eliminar también cualquier registro vinculado en historial_inventario
+        const fieldId = registro._tipo === 'merma' ? 'mermaId' : 'pedidoId'
+        const qHist = query(collection(db, 'historial_inventario'), where(fieldId, '==', registro.id))
+        const snapHist = await getDocs(qHist)
+        snapHist.docs.forEach(hDoc => {
+          batch.delete(hDoc.ref)
+        })
+      }
 
       await batch.commit()
       setRegistroADeshacer(null)
@@ -915,7 +976,8 @@ export default function Reportes() {
       if (p.productos && Array.isArray(p.productos)) {
         p.productos.forEach(item => {
           const pr = productos.find(xd => xd.id === item.productoId)
-          if (pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+          const precioUnit = pr ? (Number(pr.precio) || Number(pr.precioCosto) || 0) : (Number(item.precioCosto) || Number(item.precio) || 0)
+          gananciaVenta += precioUnit * Number(item.cantidad || 1)
         })
       }
       const isMerma = p._tipo === 'merma'
@@ -1036,7 +1098,8 @@ export default function Reportes() {
         if (p.productos && Array.isArray(p.productos)) {
           p.productos.forEach(item => {
             const pr = productos.find(xd => xd.id === item.productoId)
-            if (pr) gananciaVenta += (pr.precio || 0) * item.cantidad
+            const precioUnit = pr ? (Number(pr.precio) || Number(pr.precioCosto) || 0) : (Number(item.precioCosto) || Number(item.precio) || 0)
+            gananciaVenta += precioUnit * Number(item.cantidad || 1)
           })
         }
         const isMerma = p._tipo === 'merma'
@@ -1907,11 +1970,9 @@ export default function Reportes() {
             } else if (v.productos && Array.isArray(v.productos)) {
               v.productos.forEach(item => {
                 const prod = productos.find(xd => xd.id === item.productoId)
-                if(prod) {
-                  const precio = Number(prod.precio) || 0;
-                  const cant = Number(item.cantidad) || 1;
-                  flujoMonetario += precio * cant;
-                }
+                const precio = prod ? (Number(prod.precio) || Number(prod.precioCosto) || 0) : (Number(item.precioCosto) || Number(item.precio) || 0);
+                const cant = Number(item.cantidad) || 1;
+                flujoMonetario += precio * cant;
               })
             }
 
@@ -1964,10 +2025,10 @@ export default function Reportes() {
                   <ul className="text-xs space-y-1 pl-6 mt-1 mb-2">
                     {v.productos && v.productos.map((prodItem, idx) => {
                       const baseProd = productos.find(xd => xd.id === prodItem.productoId)
-                      const unitPrice = baseProd ? (Number(baseProd.precio) || 0) : 0
+                      const unitPrice = baseProd ? (Number(baseProd.precio) || Number(baseProd.precioCosto) || 0) : (Number(prodItem.precioCosto) || Number(prodItem.precio) || 0)
                       return (
                         <li key={idx} className={`${isMerma ? 'text-[#82322e] dark:text-red-300/80' : 'text-on-surface/80 dark:text-white/70'}`}>
-                          <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre} 
+                          <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre || baseProd?.nombre || 'Producto'} 
                           {prodItem.variante && (
                             <div className="inline-flex items-center gap-1 ml-1.5 bg-primary/5 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10">
                               <div 

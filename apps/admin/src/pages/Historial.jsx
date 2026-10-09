@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useOutletContext, useNavigate, useLocation } from 'react-router-dom'
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, getDocs } from 'firebase/firestore'
+import { collection, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, doc, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { getLocalDateString, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
@@ -531,8 +531,8 @@ export default function Historial() {
   }, [historyLogs, historyFilter, searchTerm, supplierFilter, selectedProduct])
 
   async function handleDeleteLog(log) {
-    if (log.esPedidoReal || log.esMermaReal) {
-      alert("Los registros de Ventas o Mermas reales están vinculados a su módulo de origen.")
+    if (log.esPedidoReal) {
+      alert("Los registros de Ventas están vinculados al módulo de Pedidos.")
       return
     }
 
@@ -562,6 +562,14 @@ export default function Historial() {
     if (!window.confirm(`¿Deseas eliminar este registro del historial (${cambioNum > 0 ? '+' : ''}${cambioNum} un.${varInfoMsg}) y ajustar el stock actual de ${stockActual} a ${stockRevertido} un.?`)) return
 
     try {
+      if (log.mermaId) {
+        try {
+          await deleteDoc(doc(db, 'mermas', log.mermaId))
+        } catch (mErr) {
+          console.warn("No se pudo eliminar el doc de mermas vinculado:", mErr)
+        }
+      }
+
       await deleteDoc(doc(db, 'historial_inventario', log.id))
       setHistoryLogs(prev => prev.filter(l => l.id !== log.id))
 
@@ -665,7 +673,36 @@ export default function Historial() {
     const selectedMotivo = formAjuste.motivoAjuste || (cantNum > 0 ? "Reposición de Stock" : "Merma / Producto Dañado");
     const motivoText = formAjuste.notaAjuste ? `${selectedMotivo} • ${formAjuste.notaAjuste}` : selectedMotivo;
 
+    const isMerma = cantNum < 0 && (
+      selectedMotivo.toLowerCase().includes('merma') ||
+      selectedMotivo.toLowerCase().includes('dañad') ||
+      selectedMotivo.toLowerCase().includes('danad') ||
+      selectedMotivo.toLowerCase().includes('rotura') ||
+      selectedMotivo.toLowerCase().includes('pérdida') ||
+      selectedMotivo.toLowerCase().includes('perdida')
+    );
+
     try {
+      let mermaId = null;
+      if (isMerma) {
+        const mermaRef = doc(collection(db, 'mermas'));
+        mermaId = mermaRef.id;
+        await setDoc(mermaRef, {
+          motivo: selectedMotivo,
+          nota: formAjuste.notaAjuste || '',
+          fechaEntrega: getLocalDateString(),
+          fecha: new Date().toISOString(),
+          fechaCreacion: new Date().toISOString(),
+          _tipo: 'merma',
+          productos: [{
+            productoId: selectedProduct.id,
+            nombre: selectedProduct.nombre,
+            cantidad: Math.abs(cantNum),
+            variante: targetVariantName || null
+          }]
+        });
+      }
+
       const logData = {
         productoId: selectedProduct.id,
         fecha: new Date().toISOString(),
@@ -678,7 +715,12 @@ export default function Historial() {
         proveedor: targetSupplier,
         motivo: motivoText,
         nota: formAjuste.notaAjuste || '',
-        varianteNombre: targetVariantName || ''
+        varianteNombre: targetVariantName || '',
+        ...(isMerma ? {
+          esMermaReal: true,
+          mermaId: mermaId,
+          motivoMerma: selectedMotivo
+        } : {})
       };
 
       const docRef = await addDoc(collection(db, 'historial_inventario'), logData);
