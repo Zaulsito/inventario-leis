@@ -561,6 +561,9 @@ REGLAS DE FORMATO ESTRICTAS:
   const [isUpdatingVisibilidad, setIsUpdatingVisibilidad] = useState(false)
   const [showVisibilidadDropdown, setShowVisibilidadDropdown] = useState(false)
   const [visibilidadModal, setVisibilidadModal] = useState(null)
+  const [priceConfirmModal, setPriceConfirmModal] = useState(null)
+  const [pendingStockModal, setPendingStockModal] = useState(null)
+  const loteJustAddedSessionRef = useRef(false)
 
   // Modal estético para nuevo proveedor
   const [showAddProveedorModal, setShowAddProveedorModal] = useState(false)
@@ -575,14 +578,42 @@ REGLAS DE FORMATO ESTRICTAS:
       ? [...form.lotesProveedores]
       : [];
 
-    if (existingLotes.length === 0 && (form.proveedor || form.nombre)) {
-      existingLotes.push({
-        idLote: 'lote-base',
-        proveedor: (form.proveedor || 'PRINCIPAL').trim().toUpperCase(),
-        stock: Number(form.stock) || 0,
-        precioCosto: Number(form.precioCosto) || 0,
-        fechaIngreso: form.fechaIngreso || getLocalDateString()
-      });
+    // Si ya existe un lote con ese mismo nombre de proveedor, simplemente seleccionarlo
+    const existingIdx = existingLotes.findIndex(l => (l.proveedor || '').trim().toUpperCase() === newProvName);
+    if (existingIdx !== -1) {
+      setActiveLotIndex(existingIdx);
+      const targetLot = existingLotes[existingIdx];
+      setForm(prev => ({
+        ...prev,
+        proveedor: targetLot.proveedor,
+        precio: targetLot.precioVenta !== undefined ? targetLot.precioVenta : (targetLot.precio !== undefined ? targetLot.precio : prev.precio),
+        precioCosto: targetLot.precioCosto !== undefined ? targetLot.precioCosto : prev.precioCosto,
+        stock: targetLot.stock !== undefined ? targetLot.stock : prev.stock,
+        fechaIngreso: targetLot.fechaIngreso || prev.fechaIngreso
+      }));
+      setShowAddProveedorModal(false);
+      setNuevoProveedorInputModal('');
+      return;
+    }
+
+    // Si solo hay 1 lote y no tiene nombre o se llamaba 'PRINCIPAL', renombrarlo en vez de duplicar
+    if (existingLotes.length === 1) {
+      const pName = (existingLotes[0].proveedor || '').trim().toUpperCase();
+      if (!pName || pName === 'PRINCIPAL' || pName === 'PROVEEDOR GENERAL') {
+        existingLotes[0] = {
+          ...existingLotes[0],
+          proveedor: newProvName
+        };
+        setActiveLotIndex(0);
+        setForm(prev => ({
+          ...prev,
+          lotesProveedores: existingLotes,
+          proveedor: newProvName
+        }));
+        setShowAddProveedorModal(false);
+        setNuevoProveedorInputModal('');
+        return;
+      }
     }
 
     const newLot = {
@@ -590,6 +621,7 @@ REGLAS DE FORMATO ESTRICTAS:
       proveedor: newProvName,
       stock: 0,
       precioCosto: Number(form.precioCosto) || 0,
+      precioVenta: Number(form.precio) || 0,
       fechaIngreso: getLocalDateString()
     };
 
@@ -1017,34 +1049,48 @@ REGLAS DE FORMATO ESTRICTAS:
     setActiveTabModal('editar')
     setPreviewImageIndex(0)
     setEditProductHistory([])
+    loteJustAddedSessionRef.current = false
     setShowModal(true)
   }
 
   async function openEdit(p) {
+    loteJustAddedSessionRef.current = false
     const costNum = Number(p.precioCosto) || 0
     const stockNum = Number(p.stock) || 0
     const fechaIng = p.fechaIngreso || getLocalDateString()
 
     const vars = p.variantes ? p.variantes.map(v => ({...v})) : []
-    let lotes = Array.isArray(p.lotesProveedores) && p.lotesProveedores.length > 0
-      ? [...p.lotesProveedores]
-      : [{
-          idLote: 'lote-base',
-          proveedor: (p.proveedor || 'PRINCIPAL').trim().toUpperCase(),
-          stock: stockNum,
-          precioCosto: costNum,
-          fechaIngreso: fechaIng
-        }];
-
     const mainProvName = (p.proveedor || '').trim().toUpperCase();
-    if (mainProvName && !lotes.some(l => (l.proveedor || '').trim().toUpperCase() === mainProvName)) {
-      lotes.unshift({
-        idLote: 'lote-base-' + Date.now(),
+
+    let lotes = Array.isArray(p.lotesProveedores) && p.lotesProveedores.length > 0
+      ? p.lotesProveedores.map(l => ({...l}))
+      : [];
+
+    if (lotes.length === 0) {
+      lotes = [{
+        idLote: 'lote-base',
         proveedor: mainProvName,
         stock: stockNum,
         precioCosto: costNum,
+        precioVenta: Number(p.precio) || 0,
         fechaIngreso: fechaIng
-      });
+      }];
+    } else {
+      // Si hay más de un lote y existe un lote huérfano 'PRINCIPAL', limpiarlo si el proveedor ya tiene nombre real
+      if (lotes.length > 1 && mainProvName && mainProvName !== 'PRINCIPAL') {
+        const principalIdx = lotes.findIndex(l => (l.proveedor || '').trim().toUpperCase() === 'PRINCIPAL');
+        if (principalIdx !== -1) {
+          lotes.splice(principalIdx, 1);
+        }
+      }
+
+      // Si solo hay 1 lote y mainProvName tiene valor, sincronizar el nombre del lote
+      const firstProv = (lotes[0]?.proveedor || '').trim().toUpperCase();
+      if (mainProvName && (firstProv === 'PRINCIPAL' || firstProv === '' || lotes.length === 1)) {
+        lotes[0].proveedor = mainProvName;
+      } else if (!mainProvName && firstProv === 'PRINCIPAL') {
+        lotes[0].proveedor = '';
+      }
     }
 
     setForm({ 
@@ -1170,7 +1216,25 @@ REGLAS DE FORMATO ESTRICTAS:
 
       const combined = Array.from(logsMap.values())
       combined.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-      setEditProductHistory(combined)
+
+      // Limpiar y deduplicar registros gemelos accidentales creados con diferencia menor a 4 segundos
+      const sanitizedLogs = [];
+      for (const log of combined) {
+        const isTwinGhost = sanitizedLogs.some(prev => 
+          prev.id !== log.id &&
+          Number(prev.cambio) === Number(log.cambio) &&
+          Math.abs(new Date(prev.fecha).getTime() - new Date(log.fecha).getTime()) < 4000
+        );
+        if (isTwinGhost) {
+          if (log.id && !log.esPedidoReal && !log.esMermaReal) {
+            deleteDoc(doc(db, 'historial_inventario', log.id)).catch(err => console.warn('Cleaned twin log:', err));
+          }
+        } else {
+          sanitizedLogs.push(log);
+        }
+      }
+
+      setEditProductHistory(sanitizedLogs)
     } catch (e) {
       console.error("Error cargando historial de edición", e)
       setEditProductHistory([])
@@ -1535,16 +1599,16 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
-  async function handleAddNewLoteDirectly() {
+  async function executeAddNewLoteDirectly(costUnitParam) {
     const cantNum = Number(form.ajusteStock) || 0;
     if (!cantNum) {
       alert("Por favor ingresa una cantidad a ajustar (ej. 3 o -2)");
-      return;
+      return null;
     }
 
     if (!editingId) {
       alert("Por favor guarda el nuevo producto antes de registrar ingresos de stock por fecha.");
-      return;
+      return null;
     }
 
     const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0;
@@ -1580,7 +1644,7 @@ REGLAS DE FORMATO ESTRICTAS:
       ? updatedVariantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
       : Math.max(0, stockBase + cantNum);
 
-    const costUnit = Math.floor(Number(form.precioCosto)) || 0;
+    const costUnit = costUnitParam !== undefined ? costUnitParam : (Math.floor(Number(form.precioCosto)) || 0);
 
     const varSuffix = targetVariantName ? ` [${targetVariantName}]` : '';
     const accionText = cantNum > 0 ? `Se sumaron ${cantNum}${varSuffix}` : `Se restaron ${Math.abs(cantNum)}${varSuffix}`;
@@ -1637,6 +1701,14 @@ REGLAS DE FORMATO ESTRICTAS:
       };
 
       setEditProductHistory(prev => [...prev, newLog]);
+      loteJustAddedSessionRef.current = true;
+      setProductos(prev => prev.map(p => p.id === editingId ? {
+        ...p,
+        stock: stockNuevo,
+        lotesProveedores: updatedLotesProveedores,
+        ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
+      } : p));
+      setInitialProductData(prev => ({ ...prev, stock: stockNuevo }));
       setForm(prev => ({
         ...prev,
         stock: stockNuevo,
@@ -1647,10 +1719,54 @@ REGLAS DE FORMATO ESTRICTAS:
         notaAjuste: ''
       }));
 
+      return { updatedLotesProveedores, stockNuevo, updatedVariantes };
+
     } catch (err) {
       console.error("Error al registrar lote:", err);
       alert("Error al registrar lote: " + err.message);
+      return null;
     }
+  }
+
+  async function handleAddNewLoteDirectly() {
+    const cantNum = Number(form.ajusteStock) || 0;
+    if (!cantNum) {
+      alert("Por favor ingresa una cantidad a ajustar (ej. 3 o -2)");
+      return;
+    }
+
+    if (!editingId) {
+      alert("Por favor guarda el nuevo producto antes de registrar ingresos de stock por fecha.");
+      return;
+    }
+
+    const costUnit = Math.floor(Number(form.precioCosto)) || 0;
+    const prodTarget = productos.find(p => p.id === editingId);
+    const activeLot = form.lotesProveedores?.[activeLotIndex];
+    const prevCost = activeLot?.precioCosto !== undefined && activeLot.precioCosto !== ''
+      ? Math.floor(Number(activeLot.precioCosto))
+      : (initialProductData.precioCosto ? Math.floor(Number(initialProductData.precioCosto)) : (prodTarget?.precioCosto ? Math.floor(Number(prodTarget.precioCosto)) : 0));
+
+    if (prevCost > 0 && costUnit !== prevCost) {
+      const provName = (form.proveedor || '').trim().toUpperCase() || 'el proveedor activo';
+      setPriceConfirmModal({
+        title: 'Confirmar Precio de Costo para Ingreso',
+        subtitle: `Proveedor: ${provName}`,
+        items: [
+          {
+            label: 'Precio de Costo',
+            prev: prevCost,
+            next: costUnit,
+            type: 'costo'
+          }
+        ],
+        onConfirm: () => executeAddNewLoteDirectly(costUnit),
+        onCancel: () => setPriceConfirmModal(null)
+      });
+      return;
+    }
+
+    return await executeAddNewLoteDirectly(costUnit);
   }
 
   async function handleDeleteLotInModal(lote) {
@@ -1678,24 +1794,26 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
-  async function handleSave() {
-    setErrorMsg('')
-    if (!form.nombre || !form.sku || !form.coleccion) {
-      return setErrorMsg('Nombre, Cód. Barra y Categoría son obligatorios.')
-    }
-
+  async function executeSaveProduct(passedLotes, passedVariantes, options = {}) {
     const prodAnterior = editingId ? productos.find(p => p.id === editingId) : null;
     const stockAnterior = prodAnterior ? Number(prodAnterior.stock) : 0;
+    const skipStockHistory = options?.skipStockHistory || loteJustAddedSessionRef.current;
+
+    let currentLotesProveedores = passedLotes || form.lotesProveedores;
+    let currentVariantes = passedVariantes || form.variantes;
 
     let stockCalculado = 0;
-    if (form.variantes && form.variantes.length > 0) {
-      stockCalculado = form.variantes.reduce((sum, v) => sum + Number(v.stock), 0);
+    if (currentVariantes && currentVariantes.length > 0) {
+      stockCalculado = currentVariantes.reduce((sum, v) => sum + Number(v.stock), 0);
     } else if (editingId) {
-      stockCalculado = Math.max(0, Number(form.stock || 0) + Number(form.ajusteStock || 0));
+      const sumLotes = Array.isArray(currentLotesProveedores) && currentLotesProveedores.length > 0
+        ? currentLotesProveedores.reduce((sum, l) => sum + Number(l.stock || 0), 0)
+        : Number(form.stock || 0);
+      stockCalculado = sumLotes;
     } else {
       stockCalculado = Math.floor(Number(form.stock)) || 0;
     }
-    
+
     if (!editingId && registrationMode === 'nuevo_proveedor') {
       if (!form.idExistente) {
         return setErrorMsg('Por favor selecciona un producto existente de la lista.');
@@ -1786,6 +1904,15 @@ REGLAS DE FORMATO ESTRICTAS:
 
     const estadoFinal = calcularEstado(stockCalculado)
     
+    // Sincronizar lote 0 con el proveedor principal si activeLotIndex === 0
+    if (currentLotesProveedores && currentLotesProveedores.length > 0 && activeLotIndex === 0) {
+      currentLotesProveedores = currentLotesProveedores.map((l, i) => i === 0 ? { ...l, proveedor: (form.proveedor || '').trim().toUpperCase() } : l);
+    }
+    // Si el producto tiene un proveedor real y existe un lote fantasma 'PRINCIPAL', eliminar el fantasma
+    if (currentLotesProveedores && currentLotesProveedores.length > 1 && form.proveedor && form.proveedor.trim().toUpperCase() !== 'PRINCIPAL') {
+      currentLotesProveedores = currentLotesProveedores.filter(l => (l.proveedor || '').trim().toUpperCase() !== 'PRINCIPAL');
+    }
+
     const payload = {
       nombre: toTitleCase(form.nombre),
       sku: form.sku,
@@ -1795,20 +1922,21 @@ REGLAS DE FORMATO ESTRICTAS:
       precio: Math.floor(Number(form.precio)) || 0,
       precioCosto: Math.floor(Number(form.precioCosto)) || 0,
       stock: stockCalculado,
-      lotesProveedores: (form.lotesProveedores && form.lotesProveedores.length > 0)
-        ? form.lotesProveedores
+      lotesProveedores: (currentLotesProveedores && currentLotesProveedores.length > 0)
+        ? currentLotesProveedores
         : (editingId && prodAnterior?.lotesProveedores 
           ? prodAnterior.lotesProveedores 
           : [
               {
                 idLote: 'lote-base',
-                proveedor: (form.proveedor || 'PRINCIPAL').trim().toUpperCase(),
+                proveedor: (form.proveedor || '').trim().toUpperCase(),
                 stock: stockCalculado,
                 precioCosto: Math.floor(Number(form.precioCosto)) || 0,
+                precioVenta: Math.floor(Number(form.precio)) || 0,
                 fechaIngreso: form.fechaIngreso || getLocalDateString()
               }
             ]),
-      variantes: (form.variantes || []).map((v, index) => {
+      variantes: (currentVariantes || []).map((v, index) => {
         const baseSku = (form.sku || '').trim().toUpperCase();
         const autoSku = baseSku ? `${baseSku}-${index + 1}` : `VAR-${index + 1}`;
         return {
@@ -1892,30 +2020,32 @@ REGLAS DE FORMATO ESTRICTAS:
         }
         
         if (form.variantes && form.variantes.length > 0) {
-          for (const vNuevo of form.variantes) {
-            const vAnterior = variantesAnteriores.find(v => v.nombre === vNuevo.nombre);
-            const stockVAnterior = vAnterior ? Number(vAnterior.stock) : 0;
-            const stockVNuevo = Number(vNuevo.stock);
-            
-            if (stockVNuevo !== stockVAnterior) {
-              const dif = stockVNuevo - stockVAnterior;
-              const accion = dif > 0 ? `Se sumaron ${dif} (${vNuevo.nombre})` : `Se restaron ${Math.abs(dif)} (${vNuevo.nombre})`;
-              const costUnit = Math.floor(Number(form.precioCosto)) || 0;
-              await addDoc(collection(db, 'historial_inventario'), {
-                productoId: editingId,
-                fecha: new Date().toISOString(),
-                accion: accion,
-                cambio: dif,
-                stockAnterior: stockVAnterior,
-                stockNuevo: stockVNuevo,
-                precioCosto: costUnit,
-                costoTotalLote: dif > 0 ? (dif * costUnit) : 0,
-                motivo: "Edición manual de variante"
-              });
+          if (!skipStockHistory) {
+            for (const vNuevo of form.variantes) {
+              const vAnterior = variantesAnteriores.find(v => v.nombre === vNuevo.nombre);
+              const stockVAnterior = vAnterior ? Number(vAnterior.stock) : 0;
+              const stockVNuevo = Number(vNuevo.stock);
+              
+              if (stockVNuevo !== stockVAnterior) {
+                const dif = stockVNuevo - stockVAnterior;
+                const accion = dif > 0 ? `Se sumaron ${dif} (${vNuevo.nombre})` : `Se restaron ${Math.abs(dif)} (${vNuevo.nombre})`;
+                const costUnit = Math.floor(Number(form.precioCosto)) || 0;
+                await addDoc(collection(db, 'historial_inventario'), {
+                  productoId: editingId,
+                  fecha: new Date().toISOString(),
+                  accion: accion,
+                  cambio: dif,
+                  stockAnterior: stockVAnterior,
+                  stockNuevo: stockVNuevo,
+                  precioCosto: costUnit,
+                  costoTotalLote: dif > 0 ? (dif * costUnit) : 0,
+                  motivo: "Edición manual de variante"
+                });
+              }
             }
           }
         } else {
-          if (stockCalculado !== stockAnterior) {
+          if (!skipStockHistory && stockCalculado !== stockAnterior) {
             const diferencia = stockCalculado - stockAnterior;
             const accion = diferencia > 0 ? `Se sumaron ${diferencia}` : `Se restaron ${Math.abs(diferencia)}`;
             const costUnit = Math.floor(Number(form.precioCosto)) || 0;
@@ -1971,10 +2101,109 @@ REGLAS DE FORMATO ESTRICTAS:
           });
         }
       }
-      setShowModal(false)
+      setShowModal(false);
+      setPriceConfirmModal(null);
+      setPendingStockModal(null);
     } catch (e) {
-      setErrorMsg('Error al guardar: ' + e.message)
+      setErrorMsg('Error al guardar: ' + e.message);
     }
+  }
+
+  async function handleSave() {
+    setErrorMsg('');
+    if (!form.nombre || !form.sku || !form.coleccion) {
+      return setErrorMsg('Nombre, Cód. Barra y Categoría son obligatorios.');
+    }
+
+    const prodAnterior = editingId ? productos.find(p => p.id === editingId) : null;
+
+    // Función auxiliar para verificar si hubo cambios de precio y solicitar confirmación modal
+    function checkPriceChangesAndSave(lotesToUse, variantesToUse, saveOptions = {}) {
+      if (editingId && prodAnterior) {
+        const prevLot = prodAnterior.lotesProveedores?.[activeLotIndex];
+        const prevCost = prevLot?.precioCosto !== undefined && prevLot.precioCosto !== ''
+          ? Math.floor(Number(prevLot.precioCosto))
+          : Math.floor(Number(prodAnterior.precioCosto || 0));
+
+        const newCost = Math.floor(Number(form.precioCosto || 0));
+
+        const prevPrecio = prevLot?.precioVenta !== undefined && prevLot.precioVenta !== ''
+          ? Math.floor(Number(prevLot.precioVenta))
+          : Math.floor(Number(prodAnterior.precio || 0));
+
+        const newPrecio = Math.floor(Number(form.precio || 0));
+
+        const costoModificado = prevCost > 0 && newCost !== prevCost;
+        const precioModificado = prevPrecio > 0 && newPrecio !== prevPrecio;
+
+        if (costoModificado || precioModificado) {
+          const provName = (form.proveedor || '').trim().toUpperCase() || 'el proveedor activo';
+          const itemsToConfirm = [];
+          if (costoModificado) {
+            itemsToConfirm.push({
+              label: 'Precio de Costo',
+              prev: prevCost,
+              next: newCost,
+              type: 'costo'
+            });
+          }
+          if (precioModificado) {
+            itemsToConfirm.push({
+              label: 'Precio de Venta',
+              prev: prevPrecio,
+              next: newPrecio,
+              type: 'venta'
+            });
+          }
+
+          setPriceConfirmModal({
+            title: 'Confirmar Modificación de Precios',
+            subtitle: `Proveedor: ${provName}`,
+            items: itemsToConfirm,
+            onConfirm: () => executeSaveProduct(lotesToUse, variantesToUse, saveOptions),
+            onCancel: () => setPriceConfirmModal(null)
+          });
+          return;
+        }
+      }
+
+      // Si no hubo cambios de precio, guardar directamente
+      executeSaveProduct(lotesToUse, variantesToUse, saveOptions);
+    }
+
+    // 1. Verificar si hay stock pendiente en el control de stock
+    if (editingId && form.ajusteStock && Number(form.ajusteStock) !== 0) {
+      const cantAdj = Number(form.ajusteStock);
+      const provLabel = (form.proveedor || '').trim().toUpperCase() || 'Proveedor Principal';
+      const prodTarget = prodAnterior || productos.find(p => p.id === editingId);
+      const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0;
+      const stockBase = hasVariants
+        ? form.variantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+        : ((form.stock !== undefined && form.stock !== null && form.stock !== '')
+            ? Number(form.stock)
+            : (Number(prodTarget?.stock) || 0));
+      const stockNuevo = Math.max(0, stockBase + cantAdj);
+      const targetVarName = hasVariants ? (varianteAjuste || form.variantes[0]?.nombre || '') : '';
+
+      setPendingStockModal({
+        proveedor: provLabel,
+        cantidad: cantAdj,
+        stockActual: stockBase,
+        stockNuevo: stockNuevo,
+        variante: targetVarName,
+        onConfirm: async () => {
+          const resLote = await executeAddNewLoteDirectly();
+          const nextLotes = resLote?.updatedLotesProveedores || form.lotesProveedores;
+          const nextVars = resLote?.updatedVariantes || form.variantes;
+          checkPriceChangesAndSave(nextLotes, nextVars, { skipStockHistory: true });
+        },
+        onCancel: () => setPendingStockModal(null)
+      });
+      return;
+    }
+
+    // 2. Si no hay stock pendiente, verificar cambios de precio y guardar
+    checkPriceChangesAndSave(form.lotesProveedores, form.variantes);
   }
 
 function compressImage(file, maxWidth = 1000, quality = 0.8) {
@@ -3200,7 +3429,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             }`}
                           >
                             {idx === 0 ? <span title="Proveedor Principal">👑</span> : <span className="material-symbols-outlined text-sm">store</span>}
-                            <span>{lote.proveedor || `Proveedor ${idx + 1}`}</span>
+                            <span>{lote.proveedor || (idx === 0 ? 'Sin Proveedor' : `Proveedor ${idx + 1}`)}</span>
                             <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-black/10 dark:bg-white/10 font-mono">
                               {lote.stock} u.
                             </span>
@@ -3396,14 +3625,10 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 <div className="absolute left-0 top-full mt-1 w-full bg-[#E5E0D3] dark:bg-[#2a2a2a] rounded-2xl shadow-2xl z-[120] py-2 border border-outline-variant/10 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                                   <button 
                                     type="button"
-                                    onClick={() => {
-                                      setShowProvDropdown(false);
-                                      setNuevoProveedorInputModal('');
-                                      setShowAddProveedorModal(true);
-                                    }}
+                                    onClick={() => setShowProvDropdown(false)}
                                     className="w-full text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[#8B7355] dark:text-[#e2bd6c] flex items-center gap-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
                                   >
-                                    <span className="text-lg font-bold">+</span> AÑADIR NUEVO
+                                    <span className="text-lg font-bold">+</span> AÑADIR NUEVO / ESCRIBIR
                                   </button>
                                   {proveedoresUnicos
                                     .filter(p => p.toLowerCase().includes((form.proveedor || '').toLowerCase()))
@@ -3803,7 +4028,23 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         <input 
                           type="number" 
                           value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
-                          onChange={e => setForm({...form, stock: e.target.value})}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setForm(prev => {
+                              const nextLotes = [...(prev.lotesProveedores || [])];
+                              if (nextLotes[activeLotIndex]) {
+                                nextLotes[activeLotIndex] = {
+                                  ...nextLotes[activeLotIndex],
+                                  stock: Number(val) || 0
+                                };
+                              }
+                              return {
+                                ...prev,
+                                stock: val,
+                                lotesProveedores: nextLotes
+                              };
+                            });
+                          }}
                           readOnly={form.variantes?.length > 0}
                           className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-[#181818]'}`}
                           placeholder="0"
@@ -3985,9 +4226,22 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-xl">analytics</span>
                         <div>
-                          <p className="text-[11px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c]">
-                            Historial de Inversión y Compras por Fecha
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-[11px] font-black uppercase tracking-widest text-primary dark:text-[#e2bd6c]">
+                              Historial de Inversión y Compras por Fecha
+                            </p>
+                            {editingId && (
+                              <button
+                                type="button"
+                                onClick={() => openHistory(editingId)}
+                                title="Ir al Historial General de Stock (Kardex)"
+                                className="px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-primary/20 dark:border-[#e2bd6c]/30 hover:bg-primary/20 dark:hover:bg-[#e2bd6c]/30 text-[9px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1 shrink-0 active:scale-95 shadow-sm cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-[12px]">history</span>
+                                <span>Historial General</span>
+                              </button>
+                            )}
+                          </div>
                           <p className="text-[9px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider">
                             Gasto en este producto por fecha y suma acumulada total
                           </p>
@@ -5090,6 +5344,200 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                   Entendido
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE CAMBIO DE PRECIO (IN-APP / ANTES Y DESPUÉS) */}
+      {priceConfirmModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#161616] border border-[#e2bd6c]/40 rounded-3xl p-6 shadow-2xl shadow-black/90 space-y-5 animate-in zoom-in-95 duration-200 text-white">
+            {/* Encabezado */}
+            <div className="flex items-start gap-4 pb-4 border-b border-white/10">
+              <div className="w-12 h-12 rounded-2xl bg-[#e2bd6c]/15 text-[#e2bd6c] border border-[#e2bd6c]/30 flex items-center justify-center shrink-0 shadow-inner">
+                <span className="material-symbols-outlined text-2xl font-bold">price_change</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-headline font-black text-lg text-white leading-tight">
+                  {priceConfirmModal.title || '¿Confirmar Cambio de Precio?'}
+                </h3>
+                <p className="text-xs text-[#e2bd6c]/90 font-semibold mt-0.5 flex items-center gap-1.5 truncate">
+                  <span className="material-symbols-outlined text-sm shrink-0">storefront</span>
+                  {priceConfirmModal.subtitle || 'Proveedor Activo'}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Se ha detectado una modificación en los precios. Revisa la comparación del <span className="text-gray-400 font-bold">antes</span> y <span className="text-[#e2bd6c] font-bold">después</span> para evitar errores accidentales:
+            </p>
+
+            {/* Lista de comparativas (Antes vs Después) */}
+            <div className="space-y-3">
+              {priceConfirmModal.items?.map((item, idx) => {
+                const diff = Number(item.next || 0) - Number(item.prev || 0);
+                const isUp = diff > 0;
+                return (
+                  <div key={idx} className="bg-[#1f1f1f] border border-white/10 rounded-2xl p-3.5 space-y-2 shadow-sm">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-gray-400">
+                      <span className="uppercase tracking-wider text-[#e2bd6c] font-black">{item.label}</span>
+                      {diff !== 0 && (
+                        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          isUp ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        }`}>
+                          <span className="material-symbols-outlined text-xs">{isUp ? 'trending_up' : 'trending_down'}</span>
+                          {isUp ? `+ Subió $${Math.abs(diff).toLocaleString('es-CL')}` : `- Bajó $${Math.abs(diff).toLocaleString('es-CL')}`}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 items-center">
+                      {/* Anterior */}
+                      <div className="bg-black/40 rounded-xl p-2.5 border border-white/5">
+                        <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                          Anterior
+                        </span>
+                        <div className="font-mono text-sm font-bold text-gray-400 line-through">
+                          ${Number(item.prev || 0).toLocaleString('es-CL')}
+                        </div>
+                      </div>
+
+                      {/* Nuevo */}
+                      <div className="bg-[#e2bd6c]/10 rounded-xl p-2.5 border border-[#e2bd6c]/30 shadow-inner">
+                        <span className="block text-[9px] font-black text-[#e2bd6c] uppercase tracking-widest mb-1 flex items-center justify-between">
+                          <span>Nuevo</span>
+                          <span className="material-symbols-outlined text-xs">check_circle</span>
+                        </span>
+                        <div className="font-mono text-base font-black text-[#e2bd6c]">
+                          ${Number(item.next || 0).toLocaleString('es-CL')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Botones de acción */}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  if (priceConfirmModal.onCancel) priceConfirmModal.onCancel();
+                  setPriceConfirmModal(null);
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer"
+              >
+                No, Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const cb = priceConfirmModal.onConfirm;
+                  setPriceConfirmModal(null);
+                  if (cb) await cb();
+                }}
+                className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">check</span>
+                Sí, Confirmar Cambio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE STOCK PENDIENTE (IN-APP) */}
+      {pendingStockModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#161616] border border-[#e2bd6c]/40 rounded-3xl p-6 shadow-2xl shadow-black/90 space-y-5 animate-in zoom-in-95 duration-200 text-white">
+            {/* Encabezado */}
+            <div className="flex items-start gap-4 pb-4 border-b border-white/10">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                <span className="material-symbols-outlined text-2xl font-bold">pending_actions</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-headline font-black text-lg text-white leading-tight">
+                  Ajuste de Stock Pendiente
+                </h3>
+                <p className="text-xs text-amber-400 font-semibold mt-0.5 flex items-center gap-1.5 truncate">
+                  <span className="material-symbols-outlined text-sm shrink-0">inventory_2</span>
+                  Proveedor: {pendingStockModal.proveedor || 'Proveedor Principal'}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Tienes un valor ingresado en el campo <span className="font-bold text-[#e2bd6c]">"Control de Stock"</span> ({pendingStockModal.cantidad > 0 ? `+${pendingStockModal.cantidad}` : pendingStockModal.cantidad} un.) sin aplicar a los lotes.
+            </p>
+
+            {/* Tarjeta de Comparativa de Stock */}
+            <div className="bg-[#1f1f1f] border border-white/10 rounded-2xl p-3.5 space-y-2 shadow-sm">
+              <div className="flex items-center justify-between text-[11px] font-bold text-gray-400">
+                <span className="uppercase tracking-wider text-[#e2bd6c] font-black">
+                  {pendingStockModal.variante ? `Variante: ${pendingStockModal.variante}` : 'Stock Total'}
+                </span>
+                <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  pendingStockModal.cantidad > 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                }`}>
+                  <span className="material-symbols-outlined text-xs">{pendingStockModal.cantidad > 0 ? 'add' : 'remove'}</span>
+                  {pendingStockModal.cantidad > 0 ? `+${pendingStockModal.cantidad} un.` : `${pendingStockModal.cantidad} un.`}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 items-center">
+                {/* Stock Anterior */}
+                <div className="bg-black/40 rounded-xl p-2.5 border border-white/5">
+                  <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    Stock Actual
+                  </span>
+                  <div className="font-mono text-sm font-bold text-gray-400 line-through">
+                    {pendingStockModal.stockActual} unidades
+                  </div>
+                </div>
+
+                {/* Nuevo Stock */}
+                <div className="bg-[#e2bd6c]/10 rounded-xl p-2.5 border border-[#e2bd6c]/30 shadow-inner">
+                  <span className="block text-[9px] font-black text-[#e2bd6c] uppercase tracking-widest mb-1 flex items-center justify-between">
+                    <span>Nuevo Stock</span>
+                    <span className="material-symbols-outlined text-xs">check_circle</span>
+                  </span>
+                  <div className="font-mono text-base font-black text-[#e2bd6c]">
+                    {pendingStockModal.stockNuevo} unidades
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-400 italic">
+              ¿Deseas confirmar e ingresar este stock a la ficha antes de guardar los cambios generales?
+            </p>
+
+            {/* Botones de acción */}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  if (pendingStockModal.onCancel) pendingStockModal.onCancel();
+                  setPendingStockModal(null);
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer"
+              >
+                No, Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const cb = pendingStockModal.onConfirm;
+                  setPendingStockModal(null);
+                  if (cb) await cb();
+                }}
+                className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-[#e2bd6c] to-[#c4a484] text-black shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">input</span>
+                Sí, Ingresar y Guardar
+              </button>
             </div>
           </div>
         </div>
