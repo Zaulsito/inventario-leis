@@ -808,8 +808,15 @@ REGLAS DE FORMATO ESTRICTAS:
     }
 
     const entradas = validLogs.filter(l => Number(l.cambio) > 0)
+    const sumaEntradas = entradas.reduce((acc, l) => acc + (Number(l.cambio) || 0), 0)
+    const salidasTotal = validLogs.filter(l => Number(l.cambio) < 0).reduce((acc, l) => acc + Math.abs(Number(l.cambio) || 0), 0)
+    const stockNetoLogs = Math.max(0, sumaEntradas - salidasTotal)
 
-    // Verificar si el historial ya incluye un registro de creación inicial (stockAnterior === 0)
+    const stockActualForm = Number(form.stock) || 0
+    // El stock previo no contabilizado es la diferencia real entre el stock actual y lo que justifican los logs existentes
+    const stockNoContabilizado = Math.max(0, stockActualForm - stockNetoLogs)
+
+    // Verificar si el historial ya incluye un registro de creación inicial
     const tieneCreacionInicialEnLogs = validLogs.some(l => 
       Number(l.stockAnterior) === 0 || 
       (l.motivo && l.motivo.toLowerCase().includes('nuevo producto')) ||
@@ -818,19 +825,11 @@ REGLAS DE FORMATO ESTRICTAS:
 
     // Determinar stock inicial base previo a los registros de Firestore
     let cantInicialBase = 0
-    const stockActualForm = Number(form.stock) || 0
-    if (!tieneCreacionInicialEnLogs && stockInicial > 0 && stockActualForm > 0) {
+    if (!tieneCreacionInicialEnLogs && stockActualForm > 0 && stockNoContabilizado > 0) {
       if (hasMultipleSuppliers && activeProv && firstProv && activeProv !== firstProv) {
         cantInicialBase = 0
-      } else if (validLogs.length > 0) {
-        const primerLog = validLogs[0]
-        if (primerLog.stockAnterior !== undefined && primerLog.stockAnterior !== null) {
-          cantInicialBase = Math.min(stockActualForm, Number(primerLog.stockAnterior) || 0)
-        } else {
-          cantInicialBase = 0
-        }
       } else {
-        cantInicialBase = Math.min(stockInicial, stockActualForm)
+        cantInicialBase = stockNoContabilizado
       }
     }
 
@@ -874,8 +873,6 @@ REGLAS DE FORMATO ESTRICTAS:
     })
 
     const costoPromedio = unidadesTotales > 0 ? (sumaAcumulada / unidadesTotales) : costoInicial
-
-    const salidasTotal = validLogs.filter(l => Number(l.cambio) < 0).reduce((acc, l) => acc + Math.abs(Number(l.cambio) || 0), 0)
     const stockCalculado = Math.max(0, unidadesTotales - salidasTotal)
 
     return {
@@ -1467,6 +1464,9 @@ REGLAS DE FORMATO ESTRICTAS:
         setHistoryLogs(prev => prev.filter(l => 
           l.pedidoId ? l.pedidoId !== log.pedidoId : (l.mermaId ? l.mermaId !== log.mermaId : l.id !== log.id)
         ))
+        setEditProductHistory(prev => prev.filter(l => 
+          l.pedidoId ? l.pedidoId !== log.pedidoId : (l.mermaId ? l.mermaId !== log.mermaId : l.id !== log.id)
+        ))
       } catch (err) {
         console.error("Error al eliminar registro de historial:", err)
         alert("Hubo un error al eliminar el registro: " + err.message)
@@ -1830,17 +1830,20 @@ REGLAS DE FORMATO ESTRICTAS:
 
   async function handleDeleteLotInModal(lote) {
     if (lote.id === 'initial-base-lot') {
-      if (window.confirm("¿Deseas eliminar el registro de Stock Inicial del historial de este producto?")) {
-        setInitialProductData(prev => ({ ...prev, stock: 0 }));
-        const nextLotes = (form.lotesProveedores || []).map((l, i) => i === activeLotIndex ? { ...l, stock: 0 } : l);
-        setForm(prev => ({ ...prev, stock: 0, lotesProveedores: nextLotes }));
+      const cantToDelete = Number(lote.cantidad || 0);
+      const stockActual = Number(form.stock || 0);
+      const nuevoStock = Math.max(0, stockActual - cantToDelete);
+      if (window.confirm(`¿Deseas eliminar el registro de Stock Inicial (${cantToDelete} un.) y ajustar el stock actual de ${stockActual} a ${nuevoStock} un.?`)) {
+        setInitialProductData(prev => ({ ...prev, stock: nuevoStock }));
+        const nextLotes = (form.lotesProveedores || []).map((l, i) => i === activeLotIndex ? { ...l, stock: Math.max(0, Number(l.stock || 0) - cantToDelete) } : l);
+        setForm(prev => ({ ...prev, stock: nuevoStock, lotesProveedores: nextLotes }));
         if (editingId) {
           try {
             await updateDoc(doc(db, 'productos', editingId), { 
-              stock: 0,
+              stock: nuevoStock,
               lotesProveedores: nextLotes
             });
-            setProductos(prev => prev.map(p => p.id === editingId ? { ...p, stock: 0, lotesProveedores: nextLotes } : p));
+            setProductos(prev => prev.map(p => p.id === editingId ? { ...p, stock: nuevoStock, lotesProveedores: nextLotes } : p));
           } catch (e) {
             console.error("Error al actualizar stock inicial:", e);
           }
