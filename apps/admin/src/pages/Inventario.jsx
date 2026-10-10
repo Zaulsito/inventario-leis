@@ -642,6 +642,24 @@ REGLAS DE FORMATO ESTRICTAS:
     setNuevoProveedorInputModal('');
   }
 
+  function handleSkuChange(newSku) {
+    const cleanBaseSku = (newSku || '').trim().toUpperCase();
+    setForm(prev => {
+      const updatedVariantes = Array.isArray(prev.variantes) && prev.variantes.length > 0
+        ? prev.variantes.map((v, i) => ({
+            ...v,
+            sku: cleanBaseSku ? `${cleanBaseSku}-${i + 1}` : `VAR-${i + 1}`
+          }))
+        : prev.variantes;
+
+      return {
+        ...prev,
+        sku: newSku,
+        variantes: updatedVariantes
+      };
+    });
+  }
+
   const executeVisibilidadBatch = async (targetProducts, setVisibleBool, successMsg) => {
     setIsUpdatingVisibilidad(true)
     setVisibilidadModal(null)
@@ -1078,7 +1096,11 @@ REGLAS DE FORMATO ESTRICTAS:
     const stockNum = Number(p.stock) || 0
     const fechaIng = p.fechaIngreso || getLocalDateString()
 
-    const vars = p.variantes ? p.variantes.map(v => ({...v})) : []
+    const baseSku = (p.sku || '').trim().toUpperCase();
+    const vars = p.variantes ? p.variantes.map((v, i) => ({
+      ...v,
+      sku: baseSku ? `${baseSku}-${i + 1}` : (v.sku || `VAR-${i + 1}`)
+    })) : []
     const mainProvName = (p.proveedor || '').trim().toUpperCase();
 
     let lotes = Array.isArray(p.lotesProveedores) && p.lotesProveedores.length > 0
@@ -1516,25 +1538,71 @@ REGLAS DE FORMATO ESTRICTAS:
 
     try {
       if (editingLot.id === 'initial-base-lot') {
+        let createdLogId = null;
+        if (editingId) {
+          const logData = {
+            productoId: editingId,
+            fecha: newDate,
+            accion: newMotivo || 'Stock Inicial Registrado',
+            cambio: newCant,
+            stockAnterior: 0,
+            stockNuevo: newCant,
+            precioCosto: newCost,
+            costoTotalLote: newCant * newCost,
+            proveedor: (form.proveedor || '').trim().toUpperCase(),
+            motivo: newMotivo
+          };
+          const docRef = await addDoc(collection(db, 'historial_inventario'), logData);
+          createdLogId = docRef.id;
+
+          let updatedLotes = form.lotesProveedores;
+          if (Array.isArray(updatedLotes) && updatedLotes.length > 0) {
+            const targetIdx = (activeLotIndex >= 0 && activeLotIndex < updatedLotes.length) ? activeLotIndex : 0;
+            updatedLotes = updatedLotes.map((l, i) => i === targetIdx ? { ...l, stock: newCant, precioCosto: newCost } : l);
+          }
+
+          const prodUpdate = {
+            stock: newCant,
+            precioCosto: newCost,
+            fechaIngreso: newDate,
+            ...(updatedLotes ? { lotesProveedores: updatedLotes } : {})
+          };
+
+          await updateDoc(doc(db, 'productos', editingId), prodUpdate);
+
+          setEditProductHistory(prev => [
+            { id: createdLogId, ...logData },
+            ...prev.filter(l => l.id !== 'initial-base-lot')
+          ]);
+
+          setProductos(prev => prev.map(p => 
+            p.id === editingId 
+              ? { ...p, stock: newCant, precioCosto: newCost, fechaIngreso: newDate, ...(updatedLotes ? { lotesProveedores: updatedLotes } : {}) }
+              : p
+          ));
+        }
+
         setInitialProductData(prev => ({
           ...prev,
           stock: newCant,
           precioCosto: newCost,
           fechaIngreso: newDate
         }));
-        setForm(prev => ({
-          ...prev,
-          stock: newCant,
-          precioCosto: newCost,
-          fechaIngreso: newDate
-        }));
-        if (editingId) {
-          await updateDoc(doc(db, 'productos', editingId), {
+
+        setForm(prev => {
+          let nextLotes = prev.lotesProveedores;
+          if (Array.isArray(nextLotes) && nextLotes.length > 0) {
+            const targetIdx = (activeLotIndex >= 0 && activeLotIndex < nextLotes.length) ? activeLotIndex : 0;
+            nextLotes = nextLotes.map((l, i) => i === targetIdx ? { ...l, stock: newCant, precioCosto: newCost } : l);
+          }
+          return {
+            ...prev,
             stock: newCant,
             precioCosto: newCost,
-            fechaIngreso: newDate
-          });
-        }
+            fechaIngreso: newDate,
+            ...(nextLotes ? { lotesProveedores: nextLotes } : {})
+          };
+        });
       } else {
         const oldLog = editProductHistory.find(l => l.id === editingLot.id);
         const oldCant = Number(oldLog?.cambio || oldLog?.cantidad || 0);
@@ -2025,7 +2093,7 @@ REGLAS DE FORMATO ESTRICTAS:
         return {
           ...v,
           stock: Number(v.stock),
-          sku: (v.sku || autoSku).trim().toUpperCase()
+          sku: (baseSku ? autoSku : (v.sku || autoSku)).trim().toUpperCase()
         };
       }),
       estado: estadoFinal,
@@ -2980,8 +3048,8 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       <h4 className="font-headline font-bold text-base text-on-surface dark:text-white/90 truncate leading-tight mb-0.5 flex items-center gap-2">
                         <span>{toTitleCase(p.nombre)}</span>
                         {p.visibleEnCatalogo === false && (
-                          <span className="inline-flex items-center gap-1 text-[8px] bg-error-container/20 text-error px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-error/10 shrink-0">
-                            <span className="material-symbols-outlined text-[10px]">visibility_off</span>
+                          <span className="inline-flex items-center gap-1 text-[9px] bg-rose-500/10 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-rose-500/20 dark:border-rose-500/30 shadow-xs shrink-0">
+                            <span className="material-symbols-outlined text-[11px]">visibility_off</span>
                             Oculto
                           </span>
                         )}
@@ -3182,8 +3250,8 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             <p className="font-headline font-bold text-base text-on-surface dark:text-white/90 group-hover:text-primary dark:group-hover:text-[#e2bd6c] transition-colors flex items-center gap-2">
                               <span>{toTitleCase(p.nombre)}</span>
                               {p.visibleEnCatalogo === false && (
-                                <span className="inline-flex items-center gap-1 text-[8px] bg-error-container/20 text-error px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-error/10">
-                                  <span className="material-symbols-outlined text-[10px]">visibility_off</span>
+                                <span className="inline-flex items-center gap-1 text-[9px] bg-rose-500/10 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-rose-500/20 dark:border-rose-500/30 shadow-xs">
+                                  <span className="material-symbols-outlined text-[11px]">visibility_off</span>
                                   Oculto
                                 </span>
                               )}
@@ -3528,11 +3596,13 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               <button
                                 type="button"
                                 title={`Eliminar proveedor ${lote.proveedor}`}
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.stopPropagation();
                                   const targetProv = (lote.proveedor || '').trim().toUpperCase();
+                                  const mainProv = (form.lotesProveedores[0]?.proveedor || '').trim().toUpperCase();
+                                  const nombreProveedor = lote.proveedor || `Proveedor ${idx + 1}`;
 
-                                  // Verificar si este proveedor tiene un historial de compra/venta registrado con clientes
+                                  // 1. Verificar si este proveedor tiene historial vinculado a clientes (pedidos reales)
                                   const tieneHistorialCliente = (editProductHistory || []).some(log => {
                                     const logProv = (log.proveedor || '').trim().toUpperCase();
                                     const esPedidoCliente = log.esPedidoReal ||
@@ -3548,20 +3618,117 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                       return logProv === targetProv;
                                     }
 
-                                    // Si el log de pedido no tiene proveedor explícito, se atribuye al proveedor inicial/lote 0
-                                    const mainProv = (form.lotesProveedores[0]?.proveedor || '').trim().toUpperCase();
                                     return idx === 0 || targetProv === mainProv;
                                   });
 
                                   if (tieneHistorialCliente) {
-                                    alert(`No se puede eliminar el proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}" porque tiene un historial de compra/pedido registrado con algún cliente.`);
+                                    alert(`No se puede eliminar el proveedor "${nombreProveedor}" porque tiene un historial de pedidos/ventas registrado con clientes.`);
                                     return;
                                   }
 
-                                  if (window.confirm(`¿Deseas eliminar la ficha del proveedor "${lote.proveedor || `Proveedor ${idx + 1}`}"?`)) {
+                                  // 2. Identificar registros de stock / compras en el historial para este proveedor
+                                  const logsDelProveedor = (editProductHistory || []).filter(log => {
+                                    if (log.esPedidoReal || Boolean(log.pedidoId)) return false;
+                                    const logProv = (log.proveedor || '').trim().toUpperCase();
+                                    if (logProv) {
+                                      return logProv === targetProv;
+                                    }
+                                    return idx === 0 || targetProv === mainProv;
+                                  });
+
+                                  const stockDelLote = Number(lote.stock || 0);
+                                  const cantLogsStock = logsDelProveedor.length;
+                                  const tieneStockOHistorial = stockDelLote > 0 || cantLogsStock > 0;
+
+                                  // 3. PASO 1: Si hay stock o registros en historial, confirmar y eliminar PRIMERO los registros de stock
+                                  if (tieneStockOHistorial) {
+                                    const confirmStock = window.confirm(
+                                      `PASO 1 DE 2: Eliminar Stock del Historial\n\n` +
+                                      `El proveedor "${nombreProveedor}" cuenta con ${stockDelLote} u. de stock actual y ${cantLogsStock} registro(s) en el historial de compras.\n\n` +
+                                      `¿Deseas confirmar la eliminación PRIMERO de todo el stock e historial de "${nombreProveedor}"?`
+                                    );
+                                    if (!confirmStock) return;
+
+                                    try {
+                                      if (editingId) {
+                                        // Eliminar de Firestore todos los documentos de historial_inventario para este producto y proveedor
+                                        const qHist = query(
+                                          collection(db, 'historial_inventario'),
+                                          where('productoId', '==', editingId)
+                                        );
+                                        const snapHist = await getDocs(qHist);
+                                        const batch = writeBatch(db);
+                                        let countToDelete = 0;
+
+                                        snapHist.docs.forEach(docSnap => {
+                                          const d = docSnap.data();
+                                          const dProv = (d.proveedor || '').trim().toUpperCase();
+                                          const matchProv = dProv ? dProv === targetProv : (idx === 0 || targetProv === mainProv);
+                                          if (matchProv && !d.pedidoId && !d.esPedidoReal) {
+                                            batch.delete(docSnap.ref);
+                                            countToDelete++;
+                                          }
+                                        });
+
+                                        if (countToDelete > 0) {
+                                          await batch.commit();
+                                        }
+                                      }
+
+                                      // Eliminar del estado local editProductHistory
+                                      const logIdsAEliminar = new Set(logsDelProveedor.map(l => l.id));
+                                      setEditProductHistory(prev => prev.filter(l => !logIdsAEliminar.has(l.id)));
+
+                                      // Dejar en 0 el stock del lote antes de removerlo
+                                      lote.stock = 0;
+                                    } catch (err) {
+                                      console.error("Error al eliminar registros de historial de stock:", err);
+                                      alert("Error al eliminar los registros de stock del proveedor: " + err.message);
+                                      return;
+                                    }
+                                  }
+
+                                  // 4. PASO 2: Confirmar y eliminar definitivamente el proveedor
+                                  const confirmProv = window.confirm(
+                                    tieneStockOHistorial
+                                      ? `PASO 2 DE 2: Eliminar Proveedor\n\n` +
+                                        `Los registros de stock del historial fueron eliminados con éxito.\n\n` +
+                                        `¿Deseas ahora eliminar definitivamente la ficha del proveedor "${nombreProveedor}"?`
+                                      : `¿Deseas eliminar la ficha del proveedor "${nombreProveedor}"?`
+                                  );
+                                  if (!confirmProv) return;
+
+                                  try {
                                     const updatedLotes = form.lotesProveedores.filter((_, i) => i !== idx);
-                                    const nextActiveIdx = Math.min(idx, updatedLotes.length - 1);
+                                    const nextActiveIdx = Math.max(0, Math.min(idx, updatedLotes.length - 1));
                                     const targetLot = updatedLotes[nextActiveIdx];
+
+                                    const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0;
+                                    const nuevoStockTotal = hasVariants
+                                      ? form.variantes.reduce((sum, v) => sum + Number(v.stock || 0), 0)
+                                      : updatedLotes.reduce((sum, l) => sum + Number(l.stock || 0), 0);
+                                    const nuevoEstado = calcularEstado(nuevoStockTotal);
+
+                                    if (editingId) {
+                                      await updateDoc(doc(db, 'productos', editingId), {
+                                        stock: nuevoStockTotal,
+                                        lotesProveedores: updatedLotes,
+                                        estado: nuevoEstado
+                                      });
+
+                                      setProductos(prev => prev.map(p => 
+                                        p.id === editingId 
+                                          ? { ...p, stock: nuevoStockTotal, lotesProveedores: updatedLotes, estado: nuevoEstado }
+                                          : p
+                                      ));
+
+                                      setInitialProductData(prev => ({
+                                        ...prev,
+                                        stock: nuevoStockTotal,
+                                        lotesProveedores: updatedLotes
+                                      }));
+                                    }
+
                                     setActiveLotIndex(nextActiveIdx);
                                     setForm(prev => ({
                                       ...prev,
@@ -3569,9 +3736,12 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                       proveedor: targetLot?.proveedor || '',
                                       precio: targetLot?.precioVenta !== undefined ? targetLot.precioVenta : (targetLot?.precio !== undefined ? targetLot.precio : prev.precio),
                                       precioCosto: targetLot?.precioCosto !== undefined ? targetLot.precioCosto : prev.precioCosto,
-                                      stock: targetLot?.stock !== undefined ? targetLot.stock : prev.stock,
+                                      stock: Number(targetLot?.stock || 0),
                                       fechaIngreso: targetLot?.fechaIngreso || prev.fechaIngreso
                                     }));
+                                  } catch (err) {
+                                    console.error("Error al eliminar el proveedor:", err);
+                                    alert("Error al eliminar el proveedor: " + err.message);
                                   }
                                 }}
                                 className="w-4 h-4 rounded-full bg-black/20 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all ml-1 cursor-pointer"
@@ -3630,7 +3800,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 type="text" 
                                 value={form.sku} 
                                 disabled={isSecondarySupplier}
-                                onChange={e => setForm({...form, sku: e.target.value})}
+                                onChange={e => handleSkuChange(e.target.value)}
                                 className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
                                 placeholder="Escribe o escanea..."
                               />
@@ -3860,8 +4030,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     <div className="space-y-2">
                       {(form.variantes || []).map((variant, index) => {
                         const baseSku = (form.sku || '').trim().toUpperCase();
-                        const autoSku = baseSku ? `${baseSku}-${index + 1}` : `VAR-${index + 1}`;
-                        const displaySku = variant.sku || autoSku;
+                        const displaySku = baseSku ? `${baseSku}-${index + 1}` : (variant.sku || `VAR-${index + 1}`);
 
                         return (
                           <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
@@ -3899,7 +4068,16 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 
                             <button 
                               type="button"
-                              onClick={() => setForm({ ...form, variantes: form.variantes.filter((_, i) => i !== index) })}
+                              onClick={() => {
+                                const bSku = (form.sku || '').trim().toUpperCase();
+                                const reIndexed = form.variantes
+                                  .filter((_, i) => i !== index)
+                                  .map((v, i) => ({
+                                    ...v,
+                                    sku: bSku ? `${bSku}-${i + 1}` : `VAR-${i + 1}`
+                                  }));
+                                setForm({ ...form, variantes: reIndexed });
+                              }}
                               className="w-9 h-9 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all shrink-0 cursor-pointer"
                               title="Eliminar variante"
                             >
@@ -5054,7 +5232,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
       {isScanning && (
         <BarcodeScanner 
           onScan={(decodedText) => {
-            setForm({ ...form, sku: decodedText })
+            handleSkuChange(decodedText)
             setIsScanning(false)
             // Pequeña notificación web nativa si soporta vibración
             if (window.navigator?.vibrate) window.navigator.vibrate(200)

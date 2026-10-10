@@ -86,16 +86,22 @@ export default function Historial() {
     return productos.find(p => p.id === selectedProductId) || null
   }, [productos, selectedProductId])
 
-  // Actualizar precio de costo referencial y variante por defecto en el formulario de ajuste
+  // Al cambiar de producto seleccionado, resetear automáticamente el filtro de proveedor a 'TODOS'
   useEffect(() => {
+    setSupplierFilter('TODOS')
+    setShowSupplierFilterDropdown(false)
+    setProveedorAjuste('DEFAULT')
     if (selectedProduct) {
       setFormAjuste(prev => ({
         ...prev,
-        precioCosto: selectedProduct.precioCosto || ''
+        precioCosto: selectedProduct.precioCosto || '',
+        ajusteStock: '',
+        notaAjuste: ''
       }))
       setVarianteAjuste(selectedProduct.variantes?.[0]?.nombre || '')
     }
-  }, [selectedProduct])
+  }, [selectedProductId])
+
 
   // 3. Cargar Historial Completo del Producto Seleccionado
   useEffect(() => {
@@ -403,6 +409,13 @@ export default function Historial() {
     });
     return Array.from(setProvs);
   }, [selectedProduct, historyLogs]);
+
+  // Respaldo de seguridad: si el proveedor filtrado no pertenece a la lista de proveedores del producto actual, volver a 'TODOS'
+  useEffect(() => {
+    if (supplierFilter !== 'TODOS' && proveedoresDisponibles.length > 0 && !proveedoresDisponibles.includes(supplierFilter)) {
+      setSupplierFilter('TODOS')
+    }
+  }, [proveedoresDisponibles, supplierFilter]);
 
   // Lotes de compra filtrados
   const lotesDeCompra = useMemo(() => {
@@ -949,6 +962,8 @@ export default function Historial() {
                         type="button"
                         onClick={() => {
                           setSelectedProductId(p.id)
+                          setSupplierFilter('TODOS')
+                          setShowSupplierFilterDropdown(false)
                           setShowProductDropdown(false)
                           setProductSearchInput('')
                         }}
