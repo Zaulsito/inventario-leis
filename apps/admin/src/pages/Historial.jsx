@@ -86,6 +86,32 @@ export default function Historial() {
     return productos.find(p => p.id === selectedProductId) || null
   }, [productos, selectedProductId])
 
+  // Precio de costo dinámico según el proveedor seleccionado o el lote con stock activo (FIFO)
+  const precioCostoEfectivo = useMemo(() => {
+    if (!selectedProduct) return 0;
+    const targetProvNorm = (supplierFilter || 'TODOS').trim().toUpperCase();
+    if (targetProvNorm !== 'TODOS') {
+      const lotMatch = Array.isArray(selectedProduct.lotesProveedores)
+        ? selectedProduct.lotesProveedores.find(l => (l.proveedor || '').trim().toUpperCase() === targetProvNorm)
+        : null;
+      if (lotMatch && lotMatch.precioCosto !== undefined) {
+        return Number(lotMatch.precioCosto) || 0;
+      }
+      const logMatch = historyLogs.find(l => Number(l.cambio) > 0 && (l.proveedor || '').trim().toUpperCase() === targetProvNorm);
+      if (logMatch && logMatch.precioCosto !== undefined) {
+        return Number(logMatch.precioCosto) || 0;
+      }
+    }
+    if (Array.isArray(selectedProduct.lotesProveedores) && selectedProduct.lotesProveedores.length > 0) {
+      const sortedLotes = [...selectedProduct.lotesProveedores].sort((a, b) => new Date(a.fechaIngreso || '2000-01-01') - new Date(b.fechaIngreso || '2000-01-01'));
+      const activeLot = sortedLotes.find(l => Number(l.stock) > 0) || sortedLotes[sortedLotes.length - 1];
+      if (activeLot && activeLot.precioCosto !== undefined) {
+        return Number(activeLot.precioCosto) || 0;
+      }
+    }
+    return Number(selectedProduct.precioCosto) || 0;
+  }, [selectedProduct, supplierFilter, historyLogs]);
+
   // Al cambiar de producto seleccionado, resetear automáticamente el filtro de proveedor a 'TODOS'
   useEffect(() => {
     setSupplierFilter('TODOS')
@@ -94,7 +120,7 @@ export default function Historial() {
     if (selectedProduct) {
       setFormAjuste(prev => ({
         ...prev,
-        precioCosto: selectedProduct.precioCosto || '',
+        precioCosto: precioCostoEfectivo || selectedProduct.precioCosto || '',
         ajusteStock: '',
         notaAjuste: ''
       }))
@@ -102,6 +128,15 @@ export default function Historial() {
     }
   }, [selectedProductId])
 
+  // Actualizar precio de costo referencial si cambia el precio de costo efectivo
+  useEffect(() => {
+    if (selectedProduct && precioCostoEfectivo) {
+      setFormAjuste(prev => ({
+        ...prev,
+        precioCosto: precioCostoEfectivo || selectedProduct.precioCosto || ''
+      }))
+    }
+  }, [precioCostoEfectivo])
 
   // 3. Cargar Historial Completo del Producto Seleccionado
   useEffect(() => {
@@ -137,7 +172,7 @@ export default function Historial() {
 
               if (isMatch) {
                 const cant = Number(prod.cantidad) || 1
-                const fechaIso = ped.fechaEntrega || ped.fechaCreacion || ped.createdAt || getLocalDateString()
+                const fechaIso = ped.fechaCreacion || ped.createdAt || ped.fechaEntrega || getLocalDateString()
                 const pEst = (ped.estadoPago || ped.estado || '').toLowerCase()
                 const totalPed = Number(ped.total) || 0
                 const abonoPed = Number(ped.abono) || 0
@@ -184,7 +219,7 @@ export default function Historial() {
 
               if (isMatch) {
                 const cant = Number(prod.cantidad) || 1
-                const fechaIso = mer.fechaEntrega || mer.fecha || mer.fechaCreacion || getLocalDateString()
+                const fechaIso = mer.fechaCreacion || mer.createdAt || mer.fechaEntrega || mer.fecha || getLocalDateString()
                 const motivoText = mer.motivo ? `Pérdida por ${mer.motivo}` : 'Merma de inventario'
                 const varName = prod.varianteNombre || prod.variante || prod.color || ''
 
@@ -227,7 +262,17 @@ export default function Historial() {
         const combined = Array.from(logsMap.values())
         
         // Ordenar cronológicamente ascendente (del más antiguo al más reciente) para calcular desglose de lotes FIFO
-        const sortedAsc = [...combined].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+        // A igualdad de fecha/hora, colocar las Entradas (+cambio) ANTES que las Salidas (-cambio)
+        const sortedAsc = [...combined].sort((a, b) => {
+          const timeA = new Date(a.fecha).getTime()
+          const timeB = new Date(b.fecha).getTime()
+          if (timeA !== timeB) return timeA - timeB
+          const cantA = Number(a.cambio) || 0
+          const cantB = Number(b.cambio) || 0
+          if (cantA > 0 && cantB < 0) return -1
+          if (cantA < 0 && cantB > 0) return 1
+          return 0
+        })
         const firstProv = (Array.isArray(targetProd?.lotesProveedores) && targetProd.lotesProveedores[0]?.proveedor || targetProd?.proveedor || '').trim().toUpperCase()
 
         const supplierLots = []
@@ -266,8 +311,12 @@ export default function Historial() {
               }
             }
             if (req > 0) {
-              const fallbackProv = (log.proveedor || firstProv || 'S/P').trim().toUpperCase()
+              const activeLot = supplierLots.find(l => l.rem > 0) || supplierLots[supplierLots.length - 1]
+              const fallbackProv = (activeLot?.proveedor || log.proveedor || firstProv || 'S/P').trim().toUpperCase()
               desglose[fallbackProv] = (desglose[fallbackProv] || 0) + req
+              if (activeLot) {
+                activeLot.rem = Math.max(0, activeLot.rem - req)
+              }
             }
             log.proveedoresDesglose = desglose
             const topProv = Object.keys(desglose)[0] || firstProv
@@ -819,10 +868,10 @@ export default function Historial() {
                     P. Venta: ${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')}
                   </span>
                   <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-500/20">
-                    P. Costo (Actual): ${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}
+                    P. Costo (Actual): ${precioCostoEfectivo.toLocaleString('es-CL')}
                   </span>
                   <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-800 dark:bg-[#e2bd6c]/15 dark:text-[#e2bd6c] border border-amber-500/20">
-                    Margen: ${((Number(selectedProduct.precio) || 0) - (Number(selectedProduct.precioCosto) || 0)).toLocaleString('es-CL')}
+                    Margen: ${((Number(selectedProduct.precio) || 0) - precioCostoEfectivo).toLocaleString('es-CL')}
                   </span>
                 </div>
               ) : (
@@ -928,7 +977,7 @@ export default function Historial() {
                     </p>
                     <p className="text-[9px] font-semibold text-outline dark:text-gray-400 uppercase tracking-wider truncate">
                       {selectedProduct 
-                        ? `SKU: ${selectedProduct.sku} • Venta: $${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')} • Costo: $${(Number(selectedProduct.precioCosto) || 0).toLocaleString('es-CL')}` 
+                        ? `SKU: ${selectedProduct.sku} • Venta: $${(Number(selectedProduct.precio) || 0).toLocaleString('es-CL')} • Costo: $${precioCostoEfectivo.toLocaleString('es-CL')}` 
                         : 'Elige para ver su historial'}
                     </p>
                   </div>
