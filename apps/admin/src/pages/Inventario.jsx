@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useOutletContext, useNavigate } from 'react-router-dom'
+import { useOutletContext, useNavigate, useLocation } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs, getDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
@@ -123,6 +123,8 @@ const normalizeText = (text) => {
 export default function Inventario() {
   const { isDark = false } = useOutletContext() || {}
   const navigate = useNavigate()
+  const location = useLocation()
+  const lastHandledNavTargetRef = useRef(null)
   const [activeTabModal, setActiveTabModal] = useState('editar') // 'editar' | 'catalogo'
   const [previewImageIndex, setPreviewImageIndex] = useState(0)
   const [duplicatePrompt, setDuplicatePrompt] = useState(null)
@@ -1265,6 +1267,20 @@ REGLAS DE FORMATO ESTRICTAS:
   function openHistory(pId) {
     navigate('/historial', { state: { productoId: pId } })
   }
+
+  // Navegación entrante desde Historial u otras vistas para editar o ver un producto específico
+  useEffect(() => {
+    const targetId = location.state?.productoId || location.state?.editProductId
+    if (targetId && productos.length > 0 && lastHandledNavTargetRef.current !== targetId) {
+      const prod = productos.find(p => p.id === targetId)
+      if (prod) {
+        lastHandledNavTargetRef.current = targetId
+        setBusqueda(prod.nombre || '')
+        openEdit(prod)
+        navigate(location.pathname, { replace: true, state: null })
+      }
+    }
+  }, [location.state, productos, navigate])
 
   async function handleDeleteHistoryLog(log) {
     if (!log || !log.id) return

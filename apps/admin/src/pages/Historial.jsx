@@ -781,9 +781,21 @@ export default function Historial() {
         {/* ── Selector de Producto ── */}
         <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-low/40 dark:bg-white/[0.03] p-5 rounded-[28px] border border-outline-variant/20 dark:border-white/10 shadow-sm backdrop-blur-md relative ${showProductDropdown ? 'z-[100]' : 'z-20'}`}>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-secondary/10 dark:bg-[#e2bd6c]/15 text-secondary dark:text-[#e2bd6c] border border-secondary/20 dark:border-[#e2bd6c]/30 flex items-center justify-center shrink-0 shadow-inner">
-              <span className="material-symbols-outlined text-xl">inventory_2</span>
-            </div>
+            <button
+              type="button"
+              disabled={!selectedProduct}
+              onClick={() => selectedProduct && navigate('/inventario', { state: { productoId: selectedProduct.id, editProductId: selectedProduct.id } })}
+              className={`w-10 h-10 rounded-2xl bg-secondary/10 dark:bg-[#e2bd6c]/15 text-secondary dark:text-[#e2bd6c] border border-secondary/20 dark:border-[#e2bd6c]/30 flex items-center justify-center shrink-0 shadow-inner transition-all group ${
+                selectedProduct
+                  ? 'hover:bg-secondary/25 dark:hover:bg-[#e2bd6c]/30 hover:border-[#e2bd6c]/60 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-md hover:shadow-[#e2bd6c]/20'
+                  : 'opacity-60 cursor-default'
+              }`}
+              title={selectedProduct ? `Ir al inventario de "${selectedProduct.nombre}"` : 'Seleccione un producto'}
+            >
+              <span className={`material-symbols-outlined text-xl ${selectedProduct ? 'group-hover:scale-110 transition-transform' : ''}`}>
+                inventory_2
+              </span>
+            </button>
             <div>
               <h2 className="font-headline text-lg italic text-on-surface dark:text-white font-bold leading-tight">
                 Seleccionar Producto a Auditar
