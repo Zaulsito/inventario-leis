@@ -1160,7 +1160,13 @@ REGLAS DE FORMATO ESTRICTAS:
     })
     setActiveLotIndex(0)
     setVarianteAjuste(vars[0]?.nombre || '')
-    setInitialProductData({ stock: stockNum, precioCosto: costNum, fechaIngreso: fechaIng })
+    setInitialProductData({ 
+      stock: stockNum, 
+      precioCosto: costNum, 
+      fechaIngreso: fechaIng,
+      proveedor: (p.proveedor || '').trim().toUpperCase(),
+      lotesProveedores: lotes.map(l => ({ ...l }))
+    })
     setEditingId(p.id)
     setErrorMsg('')
     setEsNuevaCategoria(false)
@@ -2174,6 +2180,57 @@ REGLAS DE FORMATO ESTRICTAS:
             }
           } catch (errCascade) {
             console.error("Error en actualización en cascada de nombre:", errCascade);
+          }
+        }
+
+        // Si cambió el nombre del proveedor o de algún lote del producto, actualizar en cascada historial_inventario
+        const prevMainProv = (initialProductData?.proveedor || prodAnterior?.proveedor || '').trim().toUpperCase();
+        const newMainProv = (payload.proveedor || '').trim().toUpperCase();
+
+        const renamedProvsMap = new Map();
+        if (prevMainProv && newMainProv && prevMainProv !== newMainProv) {
+          renamedProvsMap.set(prevMainProv, newMainProv);
+        }
+
+        const prevLotes = initialProductData?.lotesProveedores || prodAnterior?.lotesProveedores || [];
+        const newLotes = payload.lotesProveedores || [];
+        prevLotes.forEach((pl, idx) => {
+          const pName = (pl.proveedor || '').trim().toUpperCase();
+          const nName = (newLotes[idx]?.proveedor || '').trim().toUpperCase();
+          if (pName && nName && pName !== nName) {
+            renamedProvsMap.set(pName, nName);
+          }
+        });
+
+        if (renamedProvsMap.size > 0) {
+          try {
+            const qHistProv = query(collection(db, 'historial_inventario'), where('productoId', '==', editingId));
+            const snapHistProv = await getDocs(qHistProv);
+            const batchHistProv = writeBatch(db);
+            let updatedHistCount = 0;
+
+            snapHistProv.docs.forEach(hDoc => {
+              const hData = hDoc.data();
+              const hProv = (hData.proveedor || '').trim().toUpperCase();
+              if (renamedProvsMap.has(hProv)) {
+                const targetNewProv = renamedProvsMap.get(hProv);
+                const updates = { proveedor: targetNewProv };
+                if (hData.accion && hData.accion.toUpperCase().includes(hProv)) {
+                  updates.accion = hData.accion.replace(new RegExp(hProv, 'gi'), targetNewProv);
+                }
+                if (hData.motivo && hData.motivo.toUpperCase().includes(hProv)) {
+                  updates.motivo = hData.motivo.replace(new RegExp(hProv, 'gi'), targetNewProv);
+                }
+                batchHistProv.update(hDoc.ref, updates);
+                updatedHistCount++;
+              }
+            });
+
+            if (updatedHistCount > 0) {
+              await batchHistProv.commit();
+            }
+          } catch (errProvCascade) {
+            console.error("Error en actualización en cascada de proveedor:", errProvCascade);
           }
         }
         
