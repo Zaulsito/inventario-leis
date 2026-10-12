@@ -1191,7 +1191,7 @@ REGLAS DE FORMATO ESTRICTAS:
             
             if (isMatch) {
               const cant = Number(prod.cantidad) || 1
-              const fechaIso = ped.fechaEntrega || ped.fechaCreacion || ped.createdAt || getLocalDateString()
+              const fechaIso = ped.fechaCreacion || ped.createdAt || ped.fechaEntrega || getLocalDateString()
               const varName = prod.varianteNombre || prod.variante || prod.color || ''
 
               logsPedidos.push({
@@ -1223,7 +1223,7 @@ REGLAS DE FORMATO ESTRICTAS:
             
             if (isMatch) {
               const cant = Number(prod.cantidad) || 1
-              const fechaIso = mer.fechaEntrega || mer.fecha || mer.fechaCreacion || getLocalDateString()
+              const fechaIso = mer.fechaCreacion || mer.createdAt || mer.fechaEntrega || mer.fecha || getLocalDateString()
               const varName = prod.varianteNombre || prod.variante || prod.color || ''
 
               logsMermas.push({
@@ -1262,16 +1262,23 @@ REGLAS DE FORMATO ESTRICTAS:
       const combined = Array.from(logsMap.values())
       combined.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
 
-      // Limpiar y deduplicar registros gemelos accidentales creados con diferencia menor a 4 segundos
+      // Limpiar y deduplicar registros gemelos accidentales creados con diferencia menor a 4 segundos (solo en historial_inventario)
       const sanitizedLogs = [];
       for (const log of combined) {
+        if (log.esPedidoReal || log.esMermaReal) {
+          sanitizedLogs.push(log);
+          continue;
+        }
+
         const isTwinGhost = sanitizedLogs.some(prev => 
+          !prev.esPedidoReal &&
+          !prev.esMermaReal &&
           prev.id !== log.id &&
           Number(prev.cambio) === Number(log.cambio) &&
           Math.abs(new Date(prev.fecha).getTime() - new Date(log.fecha).getTime()) < 4000
         );
         if (isTwinGhost) {
-          if (log.id && !log.esPedidoReal && !log.esMermaReal) {
+          if (log.id) {
             deleteDoc(doc(db, 'historial_inventario', log.id)).catch(err => console.warn('Cleaned twin log:', err));
           }
         } else {
