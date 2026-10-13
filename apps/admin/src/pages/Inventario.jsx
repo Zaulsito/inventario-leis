@@ -2469,10 +2469,10 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
     if (!files || files.length === 0) return;
 
     const currentPhotos = form.fotos || [];
-    const spaceLeft = 5 - currentPhotos.length;
+    const spaceLeft = 15 - currentPhotos.length;
     
     if (spaceLeft <= 0) {
-      setErrorMsg('Máximo 5 imágenes permitidas.');
+      setErrorMsg('Máximo 15 imágenes permitidas.');
       return;
     }
 
@@ -4163,9 +4163,9 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">imagesmode</span>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 5)</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface dark:text-white/80">Imágenes del Producto (Max 15)</p>
                       </div>
-                      {(!form.fotos || form.fotos.length < 5) && (
+                      {(!form.fotos || form.fotos.length < 15) && (
                         <div className="flex gap-2">
                           <label className="bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-primary/20 dark:border-[#e2bd6c]/20 hover:bg-primary/20 transition-all cursor-pointer flex items-center gap-1">
                             {isUploadingImage ? (
@@ -4291,7 +4291,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       {(!form.fotos || form.fotos.length === 0) && (
                         <div className="text-center py-6">
                           <p className="text-[10px] text-outline italic font-bold dark:text-neutral-300 opacity-80">
-                            Puedes subir o arrastrar hasta 5 imágenes.
+                            Puedes subir o arrastrar hasta 15 imágenes.
                           </p>
                         </div>
                       )}
@@ -4949,7 +4949,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 
                             {/* Thumbnail carousel */}
                             {form.fotos && form.fotos.length > 1 && (
-                              <div className="flex gap-1.5 mt-3 justify-center overflow-x-auto max-w-full py-1.5 shrink-0 select-none custom-scrollbar">
+                              <div className={`flex gap-1.5 mt-3 ${form.fotos.length > 6 ? 'justify-start' : 'justify-center'} overflow-x-auto max-w-full py-1.5 px-1 shrink-0 select-none custom-scrollbar`}>
                                 {form.fotos.map((f, i) => (
                                   <button
                                     key={i}

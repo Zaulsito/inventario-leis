@@ -3626,7 +3626,7 @@ export default function CatalogoPublico() {
 
                 {/* MINIATURAS EN ESCRITORIO */}
                 {fotosProducto.length > 1 && (
-                  <div className={`hidden md:flex gap-2 p-4 justify-center border-t overflow-x-auto ${isDark ? 'border-white/5' : 'border-outline-variant/5'}`}>
+                  <div className={`hidden md:flex gap-2 p-4 ${fotosProducto.length > 5 ? 'justify-start' : 'justify-center'} border-t overflow-x-auto custom-scrollbar ${isDark ? 'border-white/5' : 'border-outline-variant/5'}`}>
                     {fotosProducto.map((f, i) => (
                       <button 
                         key={i}
