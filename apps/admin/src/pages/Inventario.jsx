@@ -3506,19 +3506,23 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
       </div>
 
       {expandedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setExpandedImage(null)}>
-          <div className="relative max-w-2xl w-full flex items-center justify-center">
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200" 
+          onClick={() => setExpandedImage(null)}
+        >
+          <div className="relative max-w-4xl w-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
             <button 
+              type="button"
               onClick={() => setExpandedImage(null)} 
-              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors p-2"
+              className="absolute -top-12 right-0 text-white/80 hover:text-white transition-colors p-2 flex items-center gap-1 font-bold text-sm bg-black/40 hover:bg-black/60 rounded-full px-3 py-1.5"
             >
-              <span className="material-symbols-outlined text-3xl">close</span>
+              <span>Cerrar</span>
+              <span className="material-symbols-outlined text-xl">close</span>
             </button>
             <img 
               src={expandedImage} 
-              alt="Vista ampliada" 
-              className="max-h-[80vh] w-auto object-contain rounded-2xl shadow-2xl"
-              onClick={e => e.stopPropagation()} 
+              alt="Vista previa ampliada" 
+              className="max-h-[85vh] max-w-full w-auto object-contain rounded-2xl shadow-2xl border border-white/10 bg-black/40"
             />
           </div>
         </div>
@@ -4247,7 +4251,15 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             </div>
                             <button 
                               type="button" 
-                              onClick={() => url && setPreviewImage(url)} 
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (url) {
+                                  setPreviewImageIndex(index)
+                                  setExpandedImage(url)
+                                }
+                              }} 
+                              title="Ver imagen en tamaño completo"
                               className="w-10 h-10 shrink-0 rounded-lg overflow-hidden border border-outline-variant/20 dark:border-white/10 hover:border-primary dark:hover:border-[#e2bd6c] transition-colors bg-surface-variant/30 flex items-center justify-center group relative cursor-zoom-in"
                             >
                               {url ? (
@@ -4913,7 +4925,12 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 <img 
                                   src={form.fotos[previewImageIndex < (form.fotos?.length || 0) ? previewImageIndex : 0]} 
                                   alt={form.nombre}
-                                  className="max-w-full max-h-full object-contain rounded-xl shadow-md p-2 hover:scale-105 transition-transform duration-500"
+                                  className="max-w-full max-h-full object-contain rounded-xl shadow-md p-2 hover:scale-105 transition-transform duration-500 cursor-zoom-in"
+                                  onClick={() => {
+                                    const currentUrl = form.fotos[previewImageIndex < (form.fotos?.length || 0) ? previewImageIndex : 0]
+                                    if (currentUrl) setExpandedImage(currentUrl)
+                                  }}
+                                  title="Clic para ampliar imagen"
                                 />
                               ) : (
                                 <div className="flex flex-col items-center justify-center p-6 text-center text-outline/40 dark:text-white/20">

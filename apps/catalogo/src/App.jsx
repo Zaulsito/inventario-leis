@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore'
 import { db, auth } from './config/firebase'
 import { getOptimizedImageUrl } from './utils/image'
@@ -213,13 +213,47 @@ export default function CatalogoPublico() {
   // Estado para la rotación automática de productos destacados en el Hero Banner
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroBannerConfig, setHeroBannerConfig] = useState(null)
+  const heroTimerRef = useRef(null)
+  const heroTouchStartXRef = useRef(null)
 
-  useEffect(() => {
-    const timer = setInterval(() => {
+  const resetHeroTimer = useCallback(() => {
+    if (heroTimerRef.current) {
+      clearInterval(heroTimerRef.current)
+    }
+    heroTimerRef.current = setInterval(() => {
       setHeroIndex(prev => prev + 1)
     }, 5000)
-    return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    resetHeroTimer()
+    return () => {
+      if (heroTimerRef.current) clearInterval(heroTimerRef.current)
+    }
+  }, [resetHeroTimer])
+
+  const handlePrevHero = useCallback((mobileItemsCount) => {
+    resetHeroTimer()
+    setHeroIndex(prev => {
+      const count = mobileItemsCount || 1
+      const cur = ((prev % count) + count) % count
+      return (cur - 1 + count) % count
+    })
+  }, [resetHeroTimer])
+
+  const handleNextHero = useCallback((mobileItemsCount) => {
+    resetHeroTimer()
+    setHeroIndex(prev => {
+      const count = mobileItemsCount || 1
+      const cur = ((prev % count) + count) % count
+      return (cur + 1) % count
+    })
+  }, [resetHeroTimer])
+
+  const handleSelectHero = useCallback((idx) => {
+    resetHeroTimer()
+    setHeroIndex(idx)
+  }, [resetHeroTimer])
 
   useEffect(() => {
     const unsubHero = onSnapshot(doc(db, 'configuracion', 'heroBanner'), (docSnap) => {
@@ -2643,6 +2677,19 @@ export default function CatalogoPublico() {
                         <div className="md:hidden mt-4 w-full flex flex-col items-center justify-center animate-in fade-in duration-500">
                           <div 
                             onClick={() => currentMobileItem.prod && setProductoParaVer(currentMobileItem.prod)}
+                            onTouchStart={(e) => {
+                              heroTouchStartXRef.current = e.touches[0].clientX
+                            }}
+                            onTouchEnd={(e) => {
+                              if (heroTouchStartXRef.current === null) return
+                              const diff = heroTouchStartXRef.current - e.changedTouches[0].clientX
+                              if (diff > 45) {
+                                handleNextHero(mobileItems.length)
+                              } else if (diff < -45) {
+                                handlePrevHero(mobileItems.length)
+                              }
+                              heroTouchStartXRef.current = null
+                            }}
                             className={`relative w-64 h-64 sm:w-72 sm:h-72 rounded-3xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out cursor-pointer transform active:scale-95 ${
                               isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
                             }`}
@@ -2666,17 +2713,52 @@ export default function CatalogoPublico() {
                                 )}
                               </div>
                             )}
+
+                            {/* Flechas de navegación para la ruleta móvil */}
+                            {mobileItems.length > 1 && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handlePrevHero(mobileItems.length)
+                                  }}
+                                  aria-label="Anterior destacado"
+                                  className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/55 hover:bg-black/80 active:scale-90 text-white backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg transition-all"
+                                >
+                                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleNextHero(mobileItems.length)
+                                  }}
+                                  aria-label="Siguiente destacado"
+                                  className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/55 hover:bg-black/80 active:scale-90 text-white backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg transition-all"
+                                >
+                                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
                           </div>
 
                           {mobileItems.length > 1 && (
-                            <div className="flex items-center gap-1.5 mt-3">
+                            <div className="flex items-center gap-1.5 mt-3 select-none">
                               {mobileItems.map((_, idx) => (
-                                <div 
+                                <button 
                                   key={idx}
-                                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                                  type="button"
+                                  onClick={() => handleSelectHero(idx)}
+                                  aria-label={`Ir a destacado ${idx + 1}`}
+                                  className={`h-2 rounded-full transition-all duration-300 p-0 border-0 ${
                                     (heroIndex % mobileItems.length) === idx 
-                                      ? 'w-5 bg-[#e2bd6c]' 
-                                      : (isDark ? 'w-1.5 bg-white/20' : 'w-1.5 bg-black/20')
+                                      ? 'w-6 bg-[#e2bd6c] shadow-sm' 
+                                      : (isDark ? 'w-2 bg-white/25 hover:bg-white/50' : 'w-2 bg-black/25 hover:bg-black/50')
                                   }`}
                                 />
                               ))}
