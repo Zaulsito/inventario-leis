@@ -552,6 +552,7 @@ REGLAS DE FORMATO ESTRICTAS:
   const [expandedProduct, setExpandedProduct] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadingVariantIndex, setUploadingVariantIndex] = useState(null)
   const [uploadProgress, setUploadProgress] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const [isOptimizingBatch, setIsOptimizingBatch] = useState(false)
@@ -1097,10 +1098,15 @@ REGLAS DE FORMATO ESTRICTAS:
     const fechaIng = p.fechaIngreso || getLocalDateString()
 
     const baseSku = (p.sku || '').trim().toUpperCase();
-    const vars = p.variantes ? p.variantes.map((v, i) => ({
-      ...v,
-      sku: baseSku ? `${baseSku}-${i + 1}` : (v.sku || `VAR-${i + 1}`)
-    })) : []
+    const vars = p.variantes ? p.variantes.map((v, i) => {
+      const vFotos = Array.isArray(v.fotos) ? v.fotos.filter(Boolean) : (v.fotoUrl ? [v.fotoUrl] : []);
+      return {
+        ...v,
+        fotos: vFotos,
+        fotoUrl: vFotos[0] || v.fotoUrl || '',
+        sku: baseSku ? `${baseSku}-${i + 1}` : (v.sku || `VAR-${i + 1}`)
+      };
+    }) : []
     const mainProvName = (p.proveedor || '').trim().toUpperCase();
 
     let lotes = Array.isArray(p.lotesProveedores) && p.lotesProveedores.length > 0
@@ -2103,10 +2109,13 @@ REGLAS DE FORMATO ESTRICTAS:
       variantes: (currentVariantes || []).map((v, index) => {
         const baseSku = (form.sku || '').trim().toUpperCase();
         const autoSku = baseSku ? `${baseSku}-${index + 1}` : `VAR-${index + 1}`;
+        const vFotos = Array.isArray(v.fotos) ? v.fotos.filter(Boolean) : (v.fotoUrl ? [v.fotoUrl] : []);
         return {
           ...v,
           stock: Number(v.stock),
-          sku: (baseSku ? autoSku : (v.sku || autoSku)).trim().toUpperCase()
+          sku: (baseSku ? autoSku : (v.sku || autoSku)).trim().toUpperCase(),
+          fotos: vFotos,
+          fotoUrl: vFotos[0] || ''
         };
       }),
       estado: estadoFinal,
@@ -2519,6 +2528,108 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
       setIsUploadingImage(false);
       setUploadProgress('');
     }
+  }
+
+  async function handleVariantImageUpload(variantIndex, files) {
+    if (!files || files.length === 0) return;
+    const currentVariant = form.variantes?.[variantIndex];
+    if (!currentVariant) return;
+
+    const currentPhotos = Array.isArray(currentVariant.fotos) ? currentVariant.fotos : (currentVariant.fotoUrl ? [currentVariant.fotoUrl] : []);
+    const spaceLeft = 3 - currentPhotos.length;
+    if (spaceLeft <= 0) {
+      alert("Máximo 3 imágenes permitidas por variante o color.");
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, spaceLeft);
+    setUploadingVariantIndex(variantIndex);
+
+    try {
+      const newUrls = [];
+      await Promise.all(filesToUpload.map(async (file) => {
+        const compressedFile = await compressImage(file, 1000, 0.8);
+        const formData = new FormData();
+        formData.append('image', compressedFile);
+
+        try {
+          const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await response.json();
+          if (data.success) {
+            const optUrl = data.data.medium?.url || data.data.display_url || data.data.url;
+            newUrls.push(optUrl);
+          }
+        } catch (err) {
+          console.error("Error subiendo foto de variante:", err);
+        }
+      }));
+
+      if (newUrls.length > 0) {
+        setForm(prev => {
+          const newV = [...(prev.variantes || [])];
+          if (newV[variantIndex]) {
+            const prevFotos = Array.isArray(newV[variantIndex].fotos) ? newV[variantIndex].fotos : (newV[variantIndex].fotoUrl ? [newV[variantIndex].fotoUrl] : []);
+            const merged = [...prevFotos, ...newUrls].slice(0, 3);
+            newV[variantIndex] = {
+              ...newV[variantIndex],
+              fotos: merged,
+              fotoUrl: merged[0] || ''
+            };
+          }
+          return { ...prev, variantes: newV };
+        });
+      }
+    } catch (e) {
+      console.error("Error en subida de variante:", e);
+      alert("Error al subir la imagen del color.");
+    } finally {
+      setUploadingVariantIndex(null);
+    }
+  }
+
+  function handleAddVariantPhotoByUrl(variantIndex) {
+    const currentVariant = form.variantes?.[variantIndex];
+    if (!currentVariant) return;
+    const currentPhotos = Array.isArray(currentVariant.fotos) ? currentVariant.fotos : (currentVariant.fotoUrl ? [currentVariant.fotoUrl] : []);
+    if (currentPhotos.length >= 3) {
+      alert("Este color ya tiene el máximo de 3 imágenes permitidas.");
+      return;
+    }
+    const url = prompt(`Ingresa la URL de la imagen para el color "${currentVariant.nombre || 'este color'}":`);
+    if (url && url.trim()) {
+      setForm(prev => {
+        const newV = [...(prev.variantes || [])];
+        if (newV[variantIndex]) {
+          const prevFotos = Array.isArray(newV[variantIndex].fotos) ? newV[variantIndex].fotos : (newV[variantIndex].fotoUrl ? [newV[variantIndex].fotoUrl] : []);
+          const merged = [...prevFotos, url.trim()].slice(0, 3);
+          newV[variantIndex] = {
+            ...newV[variantIndex],
+            fotos: merged,
+            fotoUrl: merged[0] || ''
+          };
+        }
+        return { ...prev, variantes: newV };
+      });
+    }
+  }
+
+  function handleRemoveVariantPhoto(variantIndex, photoIndex) {
+    setForm(prev => {
+      const newV = [...(prev.variantes || [])];
+      if (newV[variantIndex]) {
+        const prevFotos = Array.isArray(newV[variantIndex].fotos) ? newV[variantIndex].fotos : (newV[variantIndex].fotoUrl ? [newV[variantIndex].fotoUrl] : []);
+        const filtered = prevFotos.filter((_, i) => i !== photoIndex);
+        newV[variantIndex] = {
+          ...newV[variantIndex],
+          fotos: filtered,
+          fotoUrl: filtered[0] || ''
+        };
+      }
+      return { ...prev, variantes: newV };
+    });
   }
 
   async function handleBatchOptimizeImages() {
@@ -4086,71 +4197,157 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                           const nextNum = (form.variantes || []).length + 1;
                           const baseSku = (form.sku || '').trim().toUpperCase();
                           const autoSku = baseSku ? `${baseSku}-${nextNum}` : `VAR-${nextNum}`;
-                          setForm({ ...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0, sku: autoSku }] });
+                          setForm({ ...form, variantes: [...(form.variantes || []), { nombre: '', stock: 0, sku: autoSku, fotos: [] }] });
                         }}
                         className="bg-secondary/10 dark:bg-white/10 text-secondary dark:text-[#e2bd6c] text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg border border-secondary/20 dark:border-white/10 hover:bg-secondary/20 transition-all cursor-pointer flex items-center gap-1"
                       >
                         <span className="material-symbols-outlined text-xs">add</span>
-                        <span>+ Añadir</span>
+                        <span>+ Añadir Color</span>
                       </button>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {(form.variantes || []).map((variant, index) => {
                         const baseSku = (form.sku || '').trim().toUpperCase();
                         const displaySku = baseSku ? `${baseSku}-${index + 1}` : (variant.sku || `VAR-${index + 1}`);
+                        const variantFotos = Array.isArray(variant.fotos) ? variant.fotos.filter(Boolean) : (variant.fotoUrl ? [variant.fotoUrl] : []);
+                        const detectedHex = getHexColor(variant.nombre);
 
                         return (
-                          <div key={index} className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
-                            {/* Badge con el Cód. SKU asignado a la Variante */}
-                            <div 
-                              className="px-2.5 py-2.5 bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30 rounded-xl text-[10px] font-mono font-black text-primary dark:text-[#e2bd6c] shrink-0 flex items-center gap-1 shadow-sm select-none"
-                              title={`SKU Asignado: ${displaySku}`}
-                            >
-                              <span className="material-symbols-outlined text-[12px] opacity-70">barcode</span>
-                              <span>{displaySku}</span>
-                            </div>
+                          <div key={index} className="bg-surface-container-low/70 dark:bg-[#181818] p-3.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                            {/* Fila principal: Color preview, SKU, Nombre, Stock, Eliminar */}
+                            <div className="flex items-center gap-2">
+                              {/* Círculo indicador si el nombre es un color conocido */}
+                              {detectedHex && (
+                                <span 
+                                  className="w-4 h-4 rounded-full border border-black/20 dark:border-white/20 shrink-0 shadow-sm"
+                                  style={{ backgroundColor: detectedHex }}
+                                  title={`Color: ${variant.nombre}`}
+                                />
+                              )}
 
-                            <input 
-                              type="text" 
-                              value={variant.nombre}
-                              onChange={e => {
-                                const newV = [...form.variantes]
-                                newV[index] = { ...newV[index], nombre: e.target.value, sku: displaySku }
-                                setForm({ ...form, variantes: newV })
-                              }}
-                              className="flex-1 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                              placeholder="Ej. Rojo, Azul, Rosa..."
-                            />
+                              {/* Badge con el Cód. SKU asignado a la Variante */}
+                              <div 
+                                className="px-2.5 py-2 bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30 rounded-xl text-[10px] font-mono font-black text-primary dark:text-[#e2bd6c] shrink-0 flex items-center gap-1 shadow-sm select-none"
+                                title={`SKU Asignado: ${displaySku}`}
+                              >
+                                <span className="material-symbols-outlined text-[12px] opacity-70">barcode</span>
+                                <span>{displaySku}</span>
+                              </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
-                              <span className="text-[9px] font-bold text-outline dark:text-gray-400 uppercase">Stock:</span>
                               <input 
-                                type="number" 
-                                value={variant.stock || 0}
-                                readOnly
-                                title="El stock de cada color se agrega y gestiona en la pestaña 'Stock y Costos'"
-                                className="w-14 bg-surface-variant/30 dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2.5 text-xs font-bold text-center text-outline dark:text-gray-400 cursor-not-allowed select-none"
+                                type="text" 
+                                value={variant.nombre}
+                                onChange={e => {
+                                  const newV = [...form.variantes]
+                                  newV[index] = { ...newV[index], nombre: e.target.value, sku: displaySku }
+                                  setForm({ ...form, variantes: newV })
+                                }}
+                                className="flex-1 bg-surface-container-lowest dark:bg-[#202020] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                                placeholder="Color (Ej. Azul, Verde, Rosa, Dorado...)"
                               />
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className="text-[9px] font-bold text-outline dark:text-gray-400 uppercase">Stock:</span>
+                                <input 
+                                  type="number" 
+                                  value={variant.stock || 0}
+                                  readOnly
+                                  title="El stock de cada color se agrega y gestiona en la pestaña 'Stock y Costos'"
+                                  className="w-14 bg-surface-variant/30 dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2 text-xs font-bold text-center text-outline dark:text-gray-400 cursor-not-allowed select-none"
+                                />
+                              </div>
+
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const bSku = (form.sku || '').trim().toUpperCase();
+                                  const reIndexed = form.variantes
+                                    .filter((_, i) => i !== index)
+                                    .map((v, i) => ({
+                                      ...v,
+                                      sku: bSku ? `${bSku}-${i + 1}` : `VAR-${i + 1}`
+                                    }));
+                                  setForm({ ...form, variantes: reIndexed });
+                                }}
+                                className="w-8 h-8 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/10 rounded-xl transition-all shrink-0 cursor-pointer"
+                                title="Eliminar este color"
+                              >
+                                <span className="material-symbols-outlined text-lg">delete</span>
+                              </button>
                             </div>
 
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                const bSku = (form.sku || '').trim().toUpperCase();
-                                const reIndexed = form.variantes
-                                  .filter((_, i) => i !== index)
-                                  .map((v, i) => ({
-                                    ...v,
-                                    sku: bSku ? `${bSku}-${i + 1}` : `VAR-${i + 1}`
-                                  }));
-                                setForm({ ...form, variantes: reIndexed });
-                              }}
-                              className="w-9 h-9 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all shrink-0 cursor-pointer"
-                              title="Eliminar variante"
-                            >
-                              <span className="material-symbols-outlined text-lg">delete</span>
-                            </button>
+                            {/* Fila de Fotos dedicadas para este Color (Máximo 3) */}
+                            <div className="pt-2 border-t border-outline-variant/15 dark:border-white/5 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-[13px] text-primary dark:text-[#e2bd6c]">photo_camera</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-outline dark:text-white/70">
+                                  Fotos de {variant.nombre || 'este color'} ({variantFotos.length}/3 máx):
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {/* Miniaturas de fotos cargadas */}
+                                {variantFotos.map((fUrl, fIdx) => (
+                                  <div key={fIdx} className="relative group w-12 h-12 rounded-xl border border-outline-variant/30 dark:border-white/10 overflow-hidden bg-surface-container dark:bg-black/40 shadow-sm shrink-0">
+                                    <img src={fUrl} alt={`Foto ${fIdx + 1} de ${variant.nombre}`} className="w-full h-full object-cover" />
+                                    <button 
+                                      type="button"
+                                      onClick={() => handleRemoveVariantPhoto(index, fIdx)}
+                                      className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                      title="Quitar esta foto"
+                                    >
+                                      <span className="material-symbols-outlined text-sm text-red-400">delete</span>
+                                    </button>
+                                    {fIdx === 0 && (
+                                      <span className="absolute bottom-0 inset-x-0 bg-primary/90 text-[7px] text-white font-black text-center uppercase tracking-tighter py-0.5 leading-none">
+                                        Portada
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+
+                                {/* Botón Subir Foto si faltan fotos para llegar a 3 */}
+                                {variantFotos.length < 3 && (
+                                  <label className={`h-12 px-2.5 rounded-xl border-2 border-dashed border-primary/40 dark:border-[#e2bd6c]/40 hover:border-primary dark:hover:border-[#e2bd6c] hover:bg-primary/5 dark:hover:bg-[#e2bd6c]/5 flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${uploadingVariantIndex === index ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    {uploadingVariantIndex === index ? (
+                                      <>
+                                        <span className="material-symbols-outlined text-xs text-primary dark:text-[#e2bd6c] animate-spin">progress_activity</span>
+                                        <span className="text-[9px] font-bold text-primary dark:text-[#e2bd6c]">Subiendo...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">add_photo_alternate</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-primary dark:text-[#e2bd6c]">+ Foto</span>
+                                      </>
+                                    )}
+                                    <input 
+                                      type="file" 
+                                      accept="image/*" 
+                                      multiple
+                                      className="hidden" 
+                                      disabled={uploadingVariantIndex === index}
+                                      onChange={(e) => {
+                                        handleVariantImageUpload(index, e.target.files);
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                  </label>
+                                )}
+
+                                {/* Botón Link URL */}
+                                {variantFotos.length < 3 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddVariantPhotoByUrl(index)}
+                                    className="w-7 h-7 rounded-lg border border-outline-variant/30 dark:border-white/10 text-outline hover:text-primary dark:hover:text-[#e2bd6c] flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/5 transition-all text-xs cursor-pointer"
+                                    title="Añadir por enlace URL"
+                                  >
+                                    <span className="material-symbols-outlined text-xs">link</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}

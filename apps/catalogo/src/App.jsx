@@ -30,6 +30,46 @@ const PulsingRing = ({ className, style }) => (
   </div>
 );
 
+const getHexColor = (name) => {
+  if (!name || typeof name !== 'string') return null;
+  const colors = {
+    'azul': '#3b82f6',
+    'rosado': '#ec4899',
+    'rosa': '#ec4899',
+    'burdeo': '#800020',
+    'burdeos': '#800020',
+    'verde': '#22c55e',
+    'amarillo': '#eab308',
+    'morado': '#a855f7',
+    'púrpura': '#a855f7',
+    'rojo': '#ef4444',
+    'negro': '#000000',
+    'blanco': '#ffffff',
+    'gris': '#6b7280',
+    'naranja': '#f97316',
+    'celeste': '#0ea5e9',
+    'café': '#78350f',
+    'marrón': '#78350f',
+    'beige': '#f5f5dc',
+    'fucsia': '#d946ef',
+    'cian': '#06b6d4',
+    'esmeralda': '#10b981',
+    'turquesa': '#14b8a6',
+    'lila': '#d8b4fe',
+    'lavanda': '#e9d5ff',
+    'crema': '#fffdd0',
+    'dorado': '#ffd700',
+    'oro': '#ffd700',
+    'plata': '#c0c0c0',
+    'bronce': '#cd7f32'
+  };
+  const clean = name.trim().toLowerCase();
+  for (const [key, val] of Object.entries(colors)) {
+    if (clean.includes(key)) return val;
+  }
+  return null;
+};
+
 const GlowingHighlight = ({ className, style }) => (
   <div className={`absolute pointer-events-none z-30 rounded-lg bg-current/10 border-2 border-current/40 animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.5)] ${className || ''}`} style={style} />
 );
@@ -50,6 +90,109 @@ const FloatingArrow = ({ className, style, direction = 'down' }) => {
     </div>
   );
 };
+
+function BeforeAfterSlider({ imgBefore, imgAfter, isDark, nombreProducto }) {
+  const [sliderPos, setSliderPos] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
+
+  const handleMove = useCallback((clientX) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    setSliderPos(pct);
+  }, []);
+
+  const handleTouchMove = (e) => {
+    if (e.touches && e.touches[0]) {
+      handleMove(e.touches[0].clientX);
+    }
+  };
+
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (isDragging) handleMove(e.clientX);
+    };
+    const onMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isDragging, handleMove]);
+
+  return (
+    <div 
+      ref={containerRef}
+      className={`relative z-10 w-full max-w-full h-[55vh] md:h-[65vh] rounded-[40px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.15)] border-8 select-none cursor-ew-resize flex items-center justify-center animate-in fade-in zoom-in-95 duration-300 ${
+        isDark ? 'border-[#1e1e1e] bg-black/40' : 'border-white bg-white'
+      }`}
+      onMouseDown={(e) => {
+        setIsDragging(true);
+        handleMove(e.clientX);
+      }}
+      onTouchStart={(e) => {
+        setIsDragging(true);
+        if (e.touches && e.touches[0]) handleMove(e.touches[0].clientX);
+      }}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={() => setIsDragging(false)}
+    >
+      {/* IMAGEN BASE: DESPUÉS (DERECHA) */}
+      <img 
+        src={getOptimizedImageUrl(imgAfter, 900)} 
+        alt={`${nombreProducto} - Después`} 
+        className="w-full h-full object-contain pointer-events-none select-none"
+      />
+
+      {/* IMAGEN RECORTADA: ANTES (IZQUIERDA) */}
+      <div 
+        className="absolute inset-0 overflow-hidden pointer-events-none"
+        style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+      >
+        <img 
+          src={getOptimizedImageUrl(imgBefore, 900)} 
+          alt={`${nombreProducto} - Antes`} 
+          className="w-full h-full object-contain pointer-events-none select-none"
+        />
+      </div>
+
+      {/* LÍNEA DIVISORIA Y CONTROL DESLIZABLE */}
+      <div 
+        className="absolute top-0 bottom-0 z-20 w-1 bg-white/90 shadow-[0_0_15px_rgba(0,0,0,0.7)] pointer-events-none"
+        style={{ left: `${sliderPos}%` }}
+      >
+        <div className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-11 h-11 rounded-full shadow-2xl flex items-center justify-center transition-transform active:scale-110 border-2 ${
+          isDark ? 'bg-[#1e1e1e] border-[#e2bd6c] text-[#e2bd6c]' : 'bg-white border-primary text-primary'
+        }`}>
+          <div className="flex items-center gap-0.5 text-xs font-black">
+            <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ETIQUETAS ANTES Y DESPUÉS */}
+      <div className="absolute top-4 left-4 z-20 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-black/70 text-white backdrop-blur-md shadow-md border border-white/20 pointer-events-none">
+        Antes
+      </div>
+      <div className="absolute top-4 right-4 z-20 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#e2bd6c] text-black backdrop-blur-md shadow-md font-black pointer-events-none">
+        Después
+      </div>
+
+      {/* SUGERENCIA INFERIOR */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-black/60 text-white/90 backdrop-blur-md shadow pointer-events-none flex items-center gap-1.5 border border-white/10">
+        <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">drag_indicator</span>
+        <span>Desliza para comparar</span>
+      </div>
+    </div>
+  );
+}
 
 const getCategoriaIcon = (catName) => {
   const name = catName.toUpperCase().trim();
@@ -264,9 +407,6 @@ export default function CatalogoPublico() {
     return () => unsubHero()
   }, [])
 
-  // Estado para la vista ampliada (hover zoom)
-  const [hoveredZoomProduct, setHoveredZoomProduct] = useState(null)
-  const hoverZoomTimeoutRef = useRef(null)
 
 
 
@@ -1036,40 +1176,15 @@ export default function CatalogoPublico() {
   const [mostrarIndicador, setMostrarIndicador] = useState(false)
   const [mostrarControlesZoom, setMostrarControlesZoom] = useState(true)
   const [expandedImage, setExpandedImage] = useState(null)
+  const [isModalImgLoading, setIsModalImgLoading] = useState(false)
+  const [modoAntesDespues, setModoAntesDespues] = useState(false)
+  const [indexFotoAntes, setIndexFotoAntes] = useState(0)
+  const [indexFotoDespues, setIndexFotoDespues] = useState(1)
+  const [selectedColorByProduct, setSelectedColorByProduct] = useState({})
+  const [openColorDropdownId, setOpenColorDropdownId] = useState(null)
+  const [varianteDetalle, setVarianteDetalle] = useState(null)
 
-  // Limpiar el temporizador de hover zoom al desmontar
-  useEffect(() => {
-    return () => {
-      if (hoverZoomTimeoutRef.current) {
-        clearTimeout(hoverZoomTimeoutRef.current);
-      }
-    };
-  }, []);
 
-  // Cancelar la vista ampliada si se abre el modal de detalles
-  useEffect(() => {
-    if (productoParaVer) {
-      if (hoverZoomTimeoutRef.current) {
-        clearTimeout(hoverZoomTimeoutRef.current);
-      }
-      setHoveredZoomProduct(null);
-    }
-  }, [productoParaVer]);
-
-  // Cancelar la vista ampliada en caso de scroll en la ventana
-  useEffect(() => {
-    const handleScroll = () => {
-      if (hoverZoomTimeoutRef.current) {
-        clearTimeout(hoverZoomTimeoutRef.current);
-      }
-      setHoveredZoomProduct(null);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
 
   // --- Back button closing for mobile/browser history ---
   useEffect(() => {
@@ -1696,32 +1811,82 @@ export default function CatalogoPublico() {
     }
   }
 
-  const fotosProducto = productoParaVer?.fotos || (productoParaVer?.fotoUrl ? [productoParaVer.fotoUrl] : []);
+  const fotosProducto = useMemo(() => {
+    if (!productoParaVer) return [];
+    if (varianteDetalle) {
+      const vFotos = Array.isArray(varianteDetalle.fotos) ? varianteDetalle.fotos.filter(Boolean) : (varianteDetalle.fotoUrl ? [varianteDetalle.fotoUrl] : []);
+      if (vFotos.length > 0) return vFotos;
+    }
+    return productoParaVer.fotos && productoParaVer.fotos.length > 0
+      ? productoParaVer.fotos
+      : (productoParaVer.fotoUrl ? [productoParaVer.fotoUrl] : []);
+  }, [productoParaVer, varianteDetalle]);
 
   function anteriorImagen() {
     if (fotosProducto.length <= 1 || animacion) return;
-    setAnimacion('salir-derecha');
+    setAnimacion('hoja-pasar-atras-salir');
     setTimeout(() => {
+      setIsModalImgLoading(true);
       setIndexImagenActual(prev => (prev === 0 ? fotosProducto.length - 1 : prev - 1));
-      setAnimacion('entrar-izquierda');
-      setTimeout(() => setAnimacion(''), 300);
-    }, 300);
+      setAnimacion('hoja-pasar-atras-entrar');
+      setTimeout(() => setAnimacion(''), 320);
+    }, 280);
   }
 
   function siguienteImagen() {
     if (fotosProducto.length <= 1 || animacion) return;
-    setAnimacion('salir-izquierda');
+    setAnimacion('hoja-pasar-adelante-salir');
     setTimeout(() => {
+      setIsModalImgLoading(true);
       setIndexImagenActual(prev => (prev === fotosProducto.length - 1 ? 0 : prev + 1));
-      setAnimacion('entrar-derecha');
-      setTimeout(() => setAnimacion(''), 300);
-    }, 300);
+      setAnimacion('hoja-pasar-adelante-entrar');
+      setTimeout(() => setAnimacion(''), 320);
+    }, 280);
+  }
+
+  function irAImagen(targetIndex) {
+    if (targetIndex === indexImagenActual || animacion || targetIndex < 0 || targetIndex >= fotosProducto.length) return;
+    const esAdelante = targetIndex > indexImagenActual;
+    setAnimacion(esAdelante ? 'hoja-pasar-adelante-salir' : 'hoja-pasar-atras-salir');
+    setTimeout(() => {
+      setIsModalImgLoading(true);
+      setIndexImagenActual(targetIndex);
+      setAnimacion(esAdelante ? 'hoja-pasar-adelante-entrar' : 'hoja-pasar-atras-entrar');
+      setTimeout(() => setAnimacion(''), 320);
+    }, 280);
   }
 
   useEffect(() => {
+    if (productoParaVer) {
+      if (productoParaVer.variantes && productoParaVer.variantes.length > 0) {
+        const preselectedName = selectedColorByProduct[productoParaVer.id];
+        const initial = productoParaVer.variantes.find(v => v.nombre === preselectedName) || productoParaVer.variantes[0];
+        setVarianteDetalle(initial);
+      } else {
+        setVarianteDetalle(null);
+      }
+    } else {
+      setVarianteDetalle(null);
+    }
     setIndexImagenActual(0);
     setAnimacion('');
+    setIsModalImgLoading(false);
+    setModoAntesDespues(false);
+    setIndexFotoAntes(0);
+    setIndexFotoDespues(1);
   }, [productoParaVer]);
+
+  useEffect(() => {
+    // Precarga automática e instantánea de todas las fotos en memoria
+    if (fotosProducto && fotosProducto.length > 0) {
+      fotosProducto.forEach(url => {
+        if (url) {
+          const img = new Image();
+          img.src = getOptimizedImageUrl(url, 900);
+        }
+      });
+    }
+  }, [fotosProducto]);
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -1929,7 +2094,11 @@ export default function CatalogoPublico() {
   function abrirModalAñadir(p) {
     if (p.variantes && p.variantes.length > 0) {
       setProductParaAñadir(p)
-      setVarianteSeleccionada('')
+      const preselectedName = selectedColorByProduct[p.id];
+      const match = p.variantes.find(v => v.nombre === preselectedName && Number(v.stock) > 0)
+        || p.variantes.find(v => Number(v.stock) > 0)
+        || p.variantes[0];
+      setVarianteSeleccionada(match || '')
     } else {
       añadirAlCarrito(p, null)
     }
@@ -1942,6 +2111,7 @@ export default function CatalogoPublico() {
     const maxStock = variante ? variante.stock : producto.stock
     const nombreItem = variante ? `${producto.nombre} (${variante.nombre})` : producto.nombre
     const idCart = variante ? `${producto.id}-${variante.nombre}` : producto.id
+    const itemFoto = (variante?.fotos && variante.fotos[0]) || variante?.fotoUrl || producto.fotoUrl || ''
 
     setCarrito(prev => {
       const existente = prev.find(item => item.idCart === idCart)
@@ -1963,7 +2133,7 @@ export default function CatalogoPublico() {
           precio: producto.precio || 0,
           cantidad: 1,
           maxStock: Number(maxStock),
-          fotoUrl: producto.fotoUrl || '',
+          fotoUrl: itemFoto,
           marca: producto.marca || ''
         }]
       }
@@ -3010,50 +3180,136 @@ export default function CatalogoPublico() {
                 (autoDemoStep === 6 && (p.id === demoProd1?.id || p.id === demoProd2?.id))
               );
 
+              const activeVarName = selectedColorByProduct[p.id];
+              const activeVar = tieneVariantes
+                ? (p.variantes.find(v => v.nombre === activeVarName) || p.variantes[0])
+                : null;
+              const cardFoto = (activeVar?.fotos && activeVar.fotos[0]) || activeVar?.fotoUrl || p.fotoUrl;
+              const activeVarCover = (activeVar?.fotos && activeVar.fotos[0]) || activeVar?.fotoUrl;
+              const activeVarHex = activeVar ? getHexColor(activeVar.nombre) : null;
+
               return (
                 <div 
                   key={p.id} 
                   className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'} ${!tieneStock ? 'grayscale opacity-70' : ''} ${isGrayscaleTour ? 'grayscale opacity-30 hover:grayscale-0 hover:opacity-90 duration-500 shadow-none border-dashed' : ''} ${isDemoHighlightedProduct ? 'demo-highlight' : ''}`}
-                  onMouseEnter={() => {
-                    if (!p.fotoUrl) return;
-                    if (hoverZoomTimeoutRef.current) {
-                      clearTimeout(hoverZoomTimeoutRef.current);
-                    }
-                    hoverZoomTimeoutRef.current = setTimeout(() => {
-                      setHoveredZoomProduct(p);
-                    }, 1500);
-                  }}
-                  onMouseLeave={() => {
-                    if (hoverZoomTimeoutRef.current) {
-                      clearTimeout(hoverZoomTimeoutRef.current);
-                    }
-                    setHoveredZoomProduct(null);
-                  }}
-                  onClick={() => {
-                    if (hoverZoomTimeoutRef.current) {
-                      clearTimeout(hoverZoomTimeoutRef.current);
-                    }
-                    setHoveredZoomProduct(null);
-                  }}
                 >
                   {/* Imagen con Aspect Ratio Uniforme (Square 1:1) */}
                   <div 
                     className={`w-full aspect-square shrink-0 relative overflow-hidden flex items-center justify-center cursor-pointer ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
                     onClick={() => setProductoParaVer(p)}
                   >
-                    {p.fotoUrl ? (
+                    {cardFoto ? (
                        <img 
-                         src={getOptimizedImageUrl(p.fotoUrl, 600)} 
-                         onError={(e) => { if (e.target.src !== p.fotoUrl) e.target.src = p.fotoUrl; }}
+                         key={cardFoto}
+                         src={getOptimizedImageUrl(cardFoto, 600)} 
+                         onError={(e) => { if (e.target.src !== cardFoto) e.target.src = cardFoto; }}
                          alt={p.nombre} 
                          loading="lazy" 
                          decoding="async" 
-                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                         className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500" 
                        />
                     ) : (
                        <ProductImagePlaceholder isDark={isDark} iconSize="text-3xl" text="LEIS" />
                     )}
                   </div>
+
+                  {/* DESPLEGABLE REDONDEADO DE COLOR (NO CUADRADO, ESTILO BOUTIQUE) */}
+                  {tieneVariantes && (
+                    <div className="relative px-3 pt-2.5 pb-0 z-20">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenColorDropdownId(openColorDropdownId === p.id ? null : p.id);
+                        }}
+                        className={`w-full flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold tracking-wide transition-all shadow-sm cursor-pointer select-none active:scale-95 ${
+                          isDark 
+                            ? 'bg-[#181818] border-white/10 hover:border-[#e2bd6c]/50 text-white/90 shadow-black/30' 
+                            : 'bg-white border-outline-variant/30 hover:border-primary/50 text-on-surface shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          {activeVarCover ? (
+                            <img src={getOptimizedImageUrl(activeVarCover, 100)} alt={activeVar?.nombre} className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
+                          ) : activeVarHex ? (
+                            <span className="w-3 h-3 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: activeVarHex }} />
+                          ) : (
+                            <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">palette</span>
+                          )}
+                          <span className="truncate">
+                            Color: <span className={isDark ? 'text-[#e2bd6c] font-black' : 'text-primary font-black'}>{activeVar?.nombre || 'Elegir'}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0 text-outline">
+                          <span className={`text-[10px] font-bold ${activeVar && Number(activeVar.stock) <= 0 ? 'text-rose-400' : 'opacity-70'}`}>
+                            ({activeVar ? Number(activeVar.stock) : 0})
+                          </span>
+                          <span className={`material-symbols-outlined text-base transition-transform duration-200 ${openColorDropdownId === p.id ? 'rotate-180' : ''}`}>
+                            expand_more
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* MENÚ FLOTANTE CON CADA COLOR */}
+                      {openColorDropdownId === p.id && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-30" 
+                            onClick={(e) => { e.stopPropagation(); setOpenColorDropdownId(null); }} 
+                          />
+                          <div 
+                            className={`absolute left-3 right-3 top-full mt-1.5 z-40 rounded-2xl p-1.5 shadow-2xl border backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 max-h-52 overflow-y-auto custom-scrollbar ${
+                              isDark ? 'bg-[#181818]/95 border-white/15 shadow-black/80' : 'bg-white/95 border-outline-variant/30 shadow-black/15'
+                            }`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="px-2 py-1 text-[9px] font-black uppercase tracking-wider text-outline/80 border-b border-outline-variant/10 mb-1">
+                              Colores Disponibles
+                            </div>
+                            {p.variantes.map((v, vIdx) => {
+                              const isSelected = activeVar?.nombre === v.nombre;
+                              const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
+                              const vHex = getHexColor(v.nombre);
+                              const hasStock = Number(v.stock) > 0;
+
+                              return (
+                                <button
+                                  key={vIdx}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedColorByProduct(prev => ({ ...prev, [p.id]: v.nombre }));
+                                    setOpenColorDropdownId(null);
+                                  }}
+                                  className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                                    isSelected 
+                                      ? (isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 text-primary font-black') 
+                                      : (isDark ? 'hover:bg-white/5 text-white/80' : 'hover:bg-black/5 text-on-surface')
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    {vCover ? (
+                                      <img src={getOptimizedImageUrl(vCover, 100)} alt={v.nombre} className="w-5 h-5 rounded-full object-cover border border-white/20 shrink-0" />
+                                    ) : vHex ? (
+                                      <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: vHex }} />
+                                    ) : null}
+                                    <span className="truncate">{v.nombre}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${hasStock ? (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700') : (isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600')}`}>
+                                      {hasStock ? `${v.stock} un.` : 'Agotado'}
+                                    </span>
+                                    {isSelected && (
+                                      <span className="material-symbols-outlined text-sm font-black">check</span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Info */}
                   <div className="p-4 flex flex-col flex-1">
@@ -3112,7 +3368,7 @@ export default function CatalogoPublico() {
                               : (isDark 
                                   ? 'border border-[#e2bd6c]/70 text-[#e2bd6c] bg-transparent hover:bg-[#e2bd6c]/10 hover:border-[#e2bd6c]' 
                                   : 'border border-primary/60 text-primary bg-transparent hover:bg-primary/10 hover:border-primary')
-                          } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-105') : ''}`}
+                          } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(142,109,60,0.8)] scale-105') : ''}`}
                         >
                           <span className="material-symbols-outlined text-sm md:text-base">tune</span>
                           <span>Opciones</span>
@@ -3170,7 +3426,7 @@ export default function CatalogoPublico() {
                             isDark 
                               ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90 shadow-[#e2bd6c]/20' 
                               : 'bg-primary text-on-primary hover:bg-primary/90 shadow-primary/20'
-                          } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-105') : ''}`}
+                          } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(142,109,60,0.8)] scale-105') : ''}`}
                         >
                           <span className="material-symbols-outlined text-sm md:text-base">add_shopping_cart</span>
                           <span>Agregar</span>
@@ -3572,12 +3828,27 @@ export default function CatalogoPublico() {
             </div>
             <div className="p-6 overflow-y-auto space-y-3 custom-scrollbar">
               <div className={`flex items-center gap-4 mb-4 pb-4 border-b ${isDark ? 'border-white/5' : 'border-outline-variant/10'}`}>
-                {productParaAñadir.fotoUrl && (
-                  <img src={productParaAñadir.fotoUrl} alt={productParaAñadir.nombre} className={`w-16 h-16 rounded-xl object-cover border ${isDark ? 'bg-white/5 border-white/5' : 'bg-surface-variant border-outline-variant/20'}`} />
-                )}
+                {(() => {
+                  const modalFoto = (varianteSeleccionada?.fotos && varianteSeleccionada.fotos[0]) 
+                    || varianteSeleccionada?.fotoUrl 
+                    || productParaAñadir.fotoUrl;
+                  return modalFoto ? (
+                    <img 
+                      key={modalFoto}
+                      src={getOptimizedImageUrl(modalFoto, 200)} 
+                      alt={productParaAñadir.nombre} 
+                      className={`w-16 h-16 rounded-2xl object-cover border transition-all duration-300 shadow-md ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-variant border-outline-variant/20'}`} 
+                    />
+                  ) : null;
+                })()}
                 <div>
                   <p className={`font-bold text-sm leading-tight mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>{productParaAñadir.nombre}</p>
                   <p className={`font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>${(productParaAñadir.precio || 0).toLocaleString('es-CL')}</p>
+                  {varianteSeleccionada && (
+                    <p className={`text-[11px] font-bold mt-0.5 ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
+                      Color: {varianteSeleccionada.nombre}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -3585,17 +3856,34 @@ export default function CatalogoPublico() {
                 // Checar si ya está en carrito para esta variante específica
                 const idCartVariante = `${productParaAñadir.id}-${v.nombre}`;
                 const inCart = carrito.find(item => item.idCart === idCartVariante);
+                const isSelected = varianteSeleccionada?.nombre === v.nombre;
+                const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
+                const vHex = getHexColor(v.nombre);
                 
                 return (
                   <button
                     key={i}
-                    onClick={() => setVarianteSeleccionada(v)}
-                    className={`w-full flex justify-between items-center p-4 rounded-[20px] border-2 transition-all ${varianteSeleccionada === v ? (isDark ? 'border-[#e2bd6c] bg-[#e2bd6c]/5' : 'border-primary bg-primary/5') : (isDark ? 'border-white/10 bg-[#151515] hover:border-[#e2bd6c]/30' : 'border-outline-variant/10 bg-surface hover:border-primary/30')}`}
+                    onClick={() => {
+                      setVarianteSeleccionada(v);
+                      setSelectedColorByProduct(prev => ({ ...prev, [productParaAñadir.id]: v.nombre }));
+                    }}
+                    className={`w-full flex justify-between items-center p-3 sm:p-4 rounded-[20px] border-2 transition-all cursor-pointer ${
+                      isSelected 
+                        ? (isDark ? 'border-[#e2bd6c] bg-[#e2bd6c]/10 shadow-md' : 'border-primary bg-primary/10 shadow-md') 
+                        : (isDark ? 'border-white/10 bg-[#151515] hover:border-[#e2bd6c]/30' : 'border-outline-variant/10 bg-surface hover:border-primary/30')
+                    }`}
                   >
-                    <span className={`font-bold text-sm uppercase flex items-center gap-2 ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                      {v.nombre}
-                      {inCart && <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/20 text-primary'}`}>{inCart.cantidad} en pedido</span>}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {vCover ? (
+                        <img src={getOptimizedImageUrl(vCover, 100)} alt={v.nombre} className="w-8 h-8 rounded-full object-cover border border-white/20 shadow-sm shrink-0" />
+                      ) : vHex ? (
+                        <span className="w-5 h-5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: vHex }} />
+                      ) : null}
+                      <span className={`font-bold text-sm uppercase flex items-center gap-2 ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                        {v.nombre}
+                        {inCart && <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/20 text-primary'}`}>{inCart.cantidad} en pedido</span>}
+                      </span>
+                    </div>
                     <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${isDark ? 'text-[#e2bd6c] bg-[#e2bd6c]/10' : 'text-secondary bg-secondary/10'}`}>{v.stock} disp.</span>
                   </button>
                 )
@@ -3609,7 +3897,10 @@ export default function CatalogoPublico() {
               <button 
                 disabled={!varianteSeleccionada}
                 onClick={(e) => {
-                  animateFlyToCart(e, productParaAñadir.fotoUrl);
+                  const photoToFly = (varianteSeleccionada?.fotos && varianteSeleccionada.fotos[0]) 
+                    || varianteSeleccionada?.fotoUrl 
+                    || productParaAñadir.fotoUrl;
+                  animateFlyToCart(e, photoToFly);
                   añadirAlCarrito(productParaAñadir, varianteSeleccionada);
                 }}
                 className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs transition-all ${varianteSeleccionada ? (isDark ? 'bg-[#e2bd6c] text-black shadow-lg hover:scale-[1.02]' : 'bg-primary text-on-primary shadow-lg hover:scale-[1.02]') : (isDark ? 'bg-white/5 text-gray-500 opacity-50 cursor-not-allowed' : 'bg-surface-variant text-outline opacity-50 cursor-not-allowed')}`}
@@ -3641,16 +3932,18 @@ export default function CatalogoPublico() {
             </button>
             
             <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden custom-scrollbar">
-              {/* COLUMNA IZQUIERDA: GALERÍA */}
+              {/* COLUMNA IZQUIERDA: GALERÍA CON EFECTO HOJA / LÁMINA */}
               <div className={`w-full md:w-[60%] flex flex-col border-b md:border-b-0 md:border-r shrink-0 ${isDark ? 'bg-[#0c0c0c] border-white/5' : 'bg-white border-outline-variant/10'}`}>
-                <div className={`flex-1 relative group/gallery overflow-hidden flex items-center justify-center p-6 md:p-12 ${isDark ? 'bg-[#0c0c0c]' : 'bg-[#fcfcfc]'}`}>
+                <div className={`flex-1 relative group/gallery overflow-hidden flex items-center justify-center p-6 md:p-12 perspective-gallery ${isDark ? 'bg-[#0c0c0c]' : 'bg-[#fcfcfc]'}`}>
+
                   <div className={`absolute inset-4 md:inset-8 rounded-[48px] overflow-hidden z-0 backdrop-blur-sm shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] ${isDark ? 'bg-black/40' : 'bg-white/50'}`}>
                     {/* FONDO DIFUMINADO DINÁMICO */}
                     {fotosProducto[indexImagenActual] && (
                       <div className="absolute inset-0">
                         <img 
+                          key={`bg-${indexImagenActual}-${fotosProducto[indexImagenActual]}`}
                           src={getOptimizedImageUrl(fotosProducto[indexImagenActual], 100)} 
-                          className="w-full h-full object-cover blur-3xl scale-150 opacity-40 transition-all duration-1000 ease-in-out" 
+                          className="w-full h-full object-cover blur-3xl scale-150 opacity-40 transition-all duration-700 ease-in-out" 
                           alt="Dynamic background"
                         />
                         <div className={`absolute inset-0 ${isDark ? 'bg-black/20' : 'bg-white/10'}`} />
@@ -3660,14 +3953,27 @@ export default function CatalogoPublico() {
 
                   {fotosProducto[indexImagenActual] ? (
                     <div 
-                      className={`relative z-10 max-w-full max-h-full transition-all duration-500 cursor-zoom-in active:scale-95 ${animacion}`}
+                      className={`relative z-10 max-w-full max-h-full cursor-zoom-in active:scale-95 flex items-center justify-center ${animacion}`}
                       onClick={() => setExpandedImage(fotosProducto[indexImagenActual])}
                     >
+                      {/* Estado de carga si la nueva foto aún no se descargó */}
+                      {isModalImgLoading && (
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-[40px] bg-black/10 dark:bg-black/40 backdrop-blur-sm animate-pulse min-h-[220px] min-w-[220px]">
+                          <span className="material-symbols-outlined text-4xl text-[#e2bd6c] animate-spin mb-2">progress_activity</span>
+                          <span className="text-[10px] font-black tracking-widest text-[#e2bd6c] uppercase">Cargando...</span>
+                        </div>
+                      )}
+
                       <img 
+                        key={fotosProducto[indexImagenActual]}
                         src={getOptimizedImageUrl(fotosProducto[indexImagenActual], 900)} 
-                        onError={(e) => { if (e.target.src !== fotosProducto[indexImagenActual]) e.target.src = fotosProducto[indexImagenActual]; }}
+                        onLoad={() => setIsModalImgLoading(false)}
+                        onError={(e) => { 
+                          setIsModalImgLoading(false);
+                          if (e.target.src !== fotosProducto[indexImagenActual]) e.target.src = fotosProducto[indexImagenActual]; 
+                        }}
                         alt={productoParaVer.nombre} 
-                        className={`max-w-full max-h-[70vh] w-auto h-auto object-contain rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border-8 ${isDark ? 'border-[#1e1e1e]' : 'border-white'}`} 
+                        className={`max-w-full max-h-[70vh] w-auto h-auto object-contain rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border-8 transition-opacity duration-200 ${isModalImgLoading ? 'opacity-0' : 'opacity-100'} ${isDark ? 'border-[#1e1e1e]' : 'border-white'}`} 
                       />
                       <div className={`absolute inset-0 rounded-[40px] transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`} />
                     </div>
@@ -3683,12 +3989,14 @@ export default function CatalogoPublico() {
                       <button 
                         onClick={(e) => { e.stopPropagation(); anteriorImagen(); }}
                         className={`absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full transition-all opacity-0 group-hover/gallery:opacity-100 ${isDark ? 'bg-white/10 text-[#e2bd6c] hover:bg-white/20' : 'bg-white text-secondary hover:bg-surface-variant hover:scale-110 shadow-xl'}`}
+                        title="Foto anterior"
                       >
                         <span className="material-symbols-outlined text-2xl">chevron_left</span>
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); siguienteImagen(); }}
                         className={`absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full transition-all opacity-0 group-hover/gallery:opacity-100 ${isDark ? 'bg-white/10 text-[#e2bd6c] hover:bg-white/20' : 'bg-white text-secondary hover:bg-surface-variant hover:scale-110 shadow-xl'}`}
+                        title="Foto siguiente"
                       >
                         <span className="material-symbols-outlined text-2xl">chevron_right</span>
                       </button>
@@ -3712,8 +4020,9 @@ export default function CatalogoPublico() {
                     {fotosProducto.map((f, i) => (
                       <button 
                         key={i}
-                        onClick={() => setIndexImagenActual(i)}
+                        onClick={() => irAImagen(i)}
                         className={`w-20 h-20 rounded-2xl border-2 overflow-hidden transition-all shrink-0 p-1 ${isDark ? 'bg-[#1e1e1e]' : 'bg-white'} ${indexImagenActual === i ? (isDark ? 'border-[#e2bd6c] shadow-lg scale-110' : 'border-primary shadow-lg scale-110') : (isDark ? 'border-white/10 opacity-60 hover:opacity-100 hover:border-[#e2bd6c]/30' : 'border-outline-variant/10 opacity-60 hover:opacity-100 hover:border-primary/30')}`}
+                        title={`Ver foto ${i + 1}`}
                       >
                         <img src={getOptimizedImageUrl(f, 200)} className="w-full h-full object-cover rounded-xl" />
                       </button>
@@ -3737,6 +4046,61 @@ export default function CatalogoPublico() {
                     </div>
                   </div>
 
+                  {/* SELECTOR INTERACTIVO DE COLOR / VARIANTE */}
+                  {productoParaVer.variantes && productoParaVer.variantes.length > 0 && (
+                    <div className="space-y-3 p-5 rounded-3xl border backdrop-blur-sm animate-in fade-in slide-in-from-right duration-500 delay-200 border-outline-variant/15 dark:border-white/5 bg-surface-container-lowest/50 dark:bg-white/[0.02]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`material-symbols-outlined text-lg ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>palette</span>
+                          <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                            Color: <span className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>{varianteDetalle?.nombre || 'Seleccionar'}</span>
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold text-outline opacity-75">
+                          {productoParaVer.variantes.length} colores disponibles
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {productoParaVer.variantes.map((v, i) => {
+                          const isSelected = (varianteDetalle?.nombre || productoParaVer.variantes[0]?.nombre) === v.nombre;
+                          const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
+                          const vHex = getHexColor(v.nombre);
+                          const hasStock = Number(v.stock) > 0;
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                if (varianteDetalle?.nombre !== v.nombre) {
+                                  setAnimacion('hoja-pasar-adelante-salir');
+                                  setTimeout(() => {
+                                    setVarianteDetalle(v);
+                                    setSelectedColorByProduct(prev => ({ ...prev, [productoParaVer.id]: v.nombre }));
+                                    setIndexImagenActual(0);
+                                    setAnimacion('hoja-pasar-adelante-entrar');
+                                    setTimeout(() => setAnimacion(''), 320);
+                                  }, 280);
+                                }
+                              }}
+                              className={`flex items-center gap-2 px-3.5 py-2 rounded-full border-2 transition-all cursor-pointer ${
+                                isSelected 
+                                  ? (isDark ? 'border-[#e2bd6c] bg-[#e2bd6c]/15 text-[#e2bd6c] shadow-lg scale-105' : 'border-primary bg-primary/10 text-primary shadow-md scale-105') 
+                                  : (isDark ? 'border-white/10 hover:border-white/20 bg-white/5 text-white/80' : 'border-outline-variant/30 hover:border-primary/40 bg-white text-on-surface')
+                              } ${!hasStock ? 'opacity-40' : ''}`}
+                            >
+                              {vCover ? (
+                                <img src={getOptimizedImageUrl(vCover, 100)} alt={v.nombre} className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
+                              ) : vHex ? (
+                                <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: vHex }} />
+                              ) : null}
+                              <span className="text-xs font-bold uppercase">{v.nombre}</span>
+                              <span className="text-[10px] opacity-60">({v.stock} un.)</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* DESCRIPCIÓN REFINADA */}
                   <div className="space-y-5 animate-in fade-in slide-in-from-right duration-500 delay-300">
@@ -3951,16 +4315,29 @@ export default function CatalogoPublico() {
                     <button 
                       onClick={(e) => {
                         const hasVariants = productoParaVer.variantes && productoParaVer.variantes.length > 0;
-                        if (!hasVariants) {
+                        if (hasVariants) {
+                          const chosenVariant = varianteDetalle || productoParaVer.variantes.find(v => v.nombre === selectedColorByProduct[productoParaVer.id]) || productoParaVer.variantes[0];
+                          if (chosenVariant && Number(chosenVariant.stock) <= 0) {
+                            alert('La variante seleccionada no tiene stock disponible.');
+                            return;
+                          }
+                          const photoToFly = (chosenVariant?.fotos && chosenVariant.fotos[0]) || chosenVariant?.fotoUrl || productoParaVer.fotoUrl;
+                          animateFlyToCart(e, photoToFly);
+                          añadirAlCarrito(productoParaVer, chosenVariant);
+                        } else {
+                          if (Number(productoParaVer.stock) <= 0) {
+                            alert('Este producto no tiene stock disponible.');
+                            return;
+                          }
                           animateFlyToCart(e, productoParaVer.fotoUrl);
+                          añadirAlCarrito(productoParaVer, null);
                         }
-                        abrirModalAñadir(productoParaVer);
                         setProductoParaVer(null);
                       }}
                       className={`group relative flex-1 w-full py-5 md:py-6 rounded-[28px] font-black uppercase tracking-[0.2em] text-xs md:text-sm shadow-xl transition-all duration-300 active:scale-[0.98] cursor-pointer ${
                         isDark 
                           ? 'bg-gradient-to-r from-[#d4af37] via-[#e2bd6c] to-[#f0d088] text-black shadow-[#e2bd6c]/20 hover:shadow-[0_10px_35px_rgba(226,189,108,0.45)] hover:scale-[1.02] hover:brightness-105' 
-                          : 'bg-gradient-to-r from-primary via-indigo-600 to-primary text-on-primary shadow-primary/20 hover:shadow-[0_10px_35px_rgba(67,56,202,0.35)] hover:scale-[1.02]'
+                          : 'bg-gradient-to-r from-[#8e6d3c] via-[#b88e4f] to-[#8e6d3c] text-white shadow-[#8e6d3c]/25 hover:shadow-[0_10px_35px_rgba(142,109,60,0.45)] hover:scale-[1.02] hover:brightness-105'
                       } ${isAutoDemo && (autoDemoStep === 4 || autoDemoStep === 5) ? 'demo-highlight' : ''}`}
                     >
                       <div className="relative flex justify-center items-center gap-3">
@@ -4076,6 +4453,7 @@ export default function CatalogoPublico() {
             onDoubleClick={() => scale > 1 ? resetZoom() : setScale(2.5)}
           >
             <img 
+              key={fotosProducto[indexImagenActual]}
               src={fotosProducto[indexImagenActual]} 
               className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl select-none pointer-events-none" 
               alt="Imagen ampliada"
@@ -5101,58 +5479,7 @@ export default function CatalogoPublico() {
         </div>
       )}
 
-      {/* ── HOVER ZOOM FLOATING PREVIEW ── */}
-      {hoveredZoomProduct && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center pointer-events-none p-4">
-          {/* Backdrop blur/dim layer - pointer-events-none so it doesn't block interactions */}
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[3px] transition-opacity duration-300 animate-in fade-in" />
-          
-          {/* Preview Card */}
-          <div className={`relative max-w-md md:max-w-xl lg:max-w-2xl w-full rounded-[32px] overflow-hidden border shadow-2xl p-4 transition-all duration-300 scale-95 animate-in zoom-in-95 fade-in ${
-            isDark 
-              ? 'bg-[#151515]/95 border-[#e2bd6c]/30 text-white shadow-black/95' 
-              : 'bg-white/95 border-outline-variant/30 text-on-surface shadow-black/25'
-          }`}>
-            {/* Elegant luxury top accent */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-[#e2bd6c] to-transparent opacity-60" />
-            
-            {/* Enlarged Image container */}
-            <div className="w-full h-[50vh] sm:h-[60vh] rounded-[24px] overflow-hidden relative bg-black/5 flex items-center justify-center">
-              <img 
-                src={hoveredZoomProduct.fotoUrl} 
-                alt={hoveredZoomProduct.nombre} 
-                className="w-full h-full object-contain p-2" 
-              />
-              {/* Gold border accent inside the image */}
-              <div className="absolute inset-0 border border-[#e2bd6c]/15 rounded-[24px] pointer-events-none" />
-            </div>
-            
-            {/* Product description and price details */}
-            <div className="mt-4 text-center">
-              <div className="flex justify-center items-center gap-1.5 mb-1">
-                <span className="material-symbols-outlined text-[14px] text-[#e2bd6c] animate-pulse">zoom_in</span>
-                <span className={`text-[10px] uppercase tracking-[0.2em] font-black ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
-                  Vista Detallada 🐾
-                </span>
-              </div>
-              <h4 className="font-headline font-black text-lg md:text-xl line-clamp-2 leading-tight">
-                {hoveredZoomProduct.nombre}
-              </h4>
-              <p className={`text-[10px] md:text-xs uppercase tracking-widest mt-1 opacity-60`}>
-                {hoveredZoomProduct.coleccion || hoveredZoomProduct.categoria || ''}
-              </p>
-              <div className="mt-3 inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-gradient-to-r from-[#e2bd6c]/10 via-[#e2bd6c]/20 to-[#e2bd6c]/10 border border-[#e2bd6c]/30">
-                <span className={`font-headline font-black text-base md:text-lg ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
-                  ${(hoveredZoomProduct.precio || 0).toLocaleString('es-CL')}
-                </span>
-              </div>
-              <p className="text-[9px] opacity-40 mt-3 font-semibold">
-                Mueve el cursor o haz scroll para cerrar esta vista
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
