@@ -1,7 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
-import { db } from './config/firebase'
-import { toTitleCase } from './utils/formatters'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import CheckoutModal from './components/cart/CheckoutModal'
 import CartDrawerModal from './components/cart/CartDrawerModal'
 import { VideoTutorialModal, OrderStepsTutorial, InteractiveMascotTour } from './components/tutorial'
@@ -10,14 +7,21 @@ import { ProductCard, ProductDetailModal, QuickVariantModal, ImageViewerModal, C
 import { FilterSidebar, Header, Footer } from './components/layout'
 import { HeroBanner } from './components/hero'
 import { AutoDemoScreens } from './components/demo'
-import { useAutoDemo, useAuth, useCart, useProductGallery, useCatalogFilters } from './hooks'
+import {
+  useAutoDemo,
+  useAuth,
+  useCart,
+  useProductGallery,
+  useCatalogFilters,
+  useProducts,
+  useModalHistory
+} from './hooks'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
 const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
 
 export default function CatalogoPublico() {
-  const [productos, setProductos] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { productos, loading } = useProducts()
 
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme')
@@ -293,104 +297,43 @@ export default function CatalogoPublico() {
 
 
 
-  // --- Back button closing for mobile/browser history ---
-  useEffect(() => {
-    const handlePopState = (event) => {
-      if (
-        isCartOpen ||
-        productParaAñadir ||
-        productoParaVer ||
-        showCheckout ||
-        showAuthModal ||
-        showEditProfileModal ||
-        showDeleteAccountModal ||
-        showResetPasswordModal ||
-        expandedImage
-      ) {
-        setIsCartOpen(false);
-        setProductParaAñadir(null);
-        setProductoParaVer(null);
-        setShowCheckout(false);
-        setShowAuthModal(false);
-        setShowEditProfileModal(false);
-        setShowDeleteAccountModal(false);
-        setShowResetPasswordModal(false);
-        setExpandedImage(null);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+  const closeAllModals = useCallback(() => {
+    setIsCartOpen(false)
+    setProductParaAñadir(null)
+    setProductoParaVer(null)
+    setShowCheckout(false)
+    setShowAuthModal(false)
+    setShowEditProfileModal(false)
+    setShowDeleteAccountModal(false)
+    setShowResetPasswordModal(false)
+    setExpandedImage(null)
   }, [
-    isCartOpen,
-    productParaAñadir,
-    productoParaVer,
-    showCheckout,
-    showAuthModal,
-    showEditProfileModal,
-    showDeleteAccountModal,
-    showResetPasswordModal,
-    expandedImage
-  ]);
+    setIsCartOpen,
+    setProductParaAñadir,
+    setProductoParaVer,
+    setShowCheckout,
+    setShowAuthModal,
+    setShowEditProfileModal,
+    setShowDeleteAccountModal,
+    setShowResetPasswordModal,
+    setExpandedImage
+  ])
 
-
-
-  const wasModalOpenRef = useRef(false);
-
-  useEffect(() => {
-    const anyOpen = !!(
-      isCartOpen ||
-      productParaAñadir ||
-      productoParaVer ||
-      showCheckout ||
-      showAuthModal ||
-      showEditProfileModal ||
-      showDeleteAccountModal ||
-      showResetPasswordModal ||
+  // Hook para sincronizar botón Atrás con modales abiertos
+  useModalHistory({
+    activeModals: [
+      isCartOpen,
+      productParaAñadir,
+      productoParaVer,
+      showCheckout,
+      showAuthModal,
+      showEditProfileModal,
+      showDeleteAccountModal,
+      showResetPasswordModal,
       expandedImage
-    );
-
-    if (anyOpen && !wasModalOpenRef.current) {
-      window.history.pushState({ modalOpen: true }, '');
-      wasModalOpenRef.current = true;
-    } else if (!anyOpen && wasModalOpenRef.current) {
-      if (window.history.state?.modalOpen) {
-        window.history.back();
-      }
-      wasModalOpenRef.current = false;
-    }
-  }, [
-    isCartOpen,
-    productParaAñadir,
-    productoParaVer,
-    showCheckout,
-    showAuthModal,
-    showEditProfileModal,
-    showDeleteAccountModal,
-    showResetPasswordModal,
-    expandedImage
-  ]);
-
-
-
-
-
-
-
-  useEffect(() => {
-    // Escuchar productos en tiempo real
-    const unsub = onSnapshot(collection(db, 'productos'), (snapshot) => {
-      const data = snapshot.docs.map(dDoc => {
-        const dData = dDoc.data()
-        return { id: dDoc.id, ...dData, nombre: toTitleCase(dData.nombre) }
-      })
-      // Ordenar alfabéticamente
-      data.sort((a, b) => a.nombre.localeCompare(b.nombre))
-      setProductos(data)
-      setLoading(false)
-    })
-    return unsub
-  }, [])
+    ],
+    closeAllModals
+  })
 
   // --- RENDER ---
 
