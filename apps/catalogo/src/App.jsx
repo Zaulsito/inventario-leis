@@ -10,10 +10,10 @@ import { PulsingRing, GlowingHighlight, FloatingArrow, ProductImagePlaceholder }
 import BeforeAfterSlider from './components/common/BeforeAfterSlider'
 import CheckoutModal from './components/cart/CheckoutModal'
 import CartDrawerModal from './components/cart/CartDrawerModal'
-import VideoTutorialModal from './components/tutorial/VideoTutorialModal'
+import { VideoTutorialModal, OrderStepsTutorial } from './components/tutorial'
 import { AuthModal, EditProfileModal, DeleteAccountModal, ResetPasswordModal } from './components/auth'
-import { ProductCard, ProductDetailModal, QuickVariantModal, ImageViewerModal } from './components/product'
-import { FilterSidebar, Header } from './components/layout'
+import { ProductCard, ProductDetailModal, QuickVariantModal, ImageViewerModal, CatalogHeaderControls, ProductPagination } from './components/product'
+import { FilterSidebar, Header, Footer } from './components/layout'
 import { HeroBanner } from './components/hero'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
 
@@ -1675,215 +1675,24 @@ export default function CatalogoPublico() {
             />
 
             {/* ── ENCABEZADO DE CATEGORÍA / PRODUCTOS (DEBAJO DEL HERO BANNER) ── */}
-            <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 animate-in fade-in slide-in-from-top-2 duration-300 border-b pb-5 border-white/5">
-              <div>
-                <h2 className={`font-headline text-2xl md:text-3xl font-bold italic leading-tight ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
-                  {filtroCategoria === 'TODAS' ? 'Todos los Productos' : filtroCategoria}
-                </h2>
-                <p className={`text-xs font-medium mt-1 ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                  {filtroCategoria === 'TODAS' 
-                    ? 'Explora nuestra colección completa de joyería y cuidado personal.' 
-                    : `Mostrando productos de la categoría ${filtroCategoria}`}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto shrink-0">
-                {/* Contador de Productos */}
-                <span className={`text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-2xl border shadow-sm flex items-center gap-2 ${
-                  isDark ? 'bg-white/5 border-white/10 text-[#e2bd6c]' : 'bg-surface-container-high border-outline-variant/30 text-primary'
-                }`}>
-                  <span className="material-symbols-outlined text-base">inventory_2</span>
-                  {productosFiltrados.length} {productosFiltrados.length === 1 ? 'PRODUCTO' : 'PRODUCTOS'}
-                </span>
-
-                {/* SELECTOR DE ORDENAMIENTO PERSONALIZADO LUXE (CUSTOM DROPDOWN) */}
-                {(() => {
-                  const opcionesOrden = [
-                    { id: 'destacados', label: 'Ordenar por: Destacados', icon: 'auto_awesome' },
-                    { id: 'precio_asc', label: 'Precio: Menor a Mayor', icon: 'arrow_upward' },
-                    { id: 'precio_desc', label: 'Precio: Mayor a Menor', icon: 'arrow_downward' },
-                    { id: 'recientes', label: 'Más recientes', icon: 'schedule' },
-                    { id: 'mas_vendidos', label: 'Más vendidos', icon: 'local_fire_department' },
-                  ];
-                  const opcionActual = opcionesOrden.find(o => o.id === ordenamiento) || opcionesOrden[0];
-
-                  return (
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setIsSortOpen(!isSortOpen)}
-                        className={`px-4 py-2.5 rounded-2xl border text-xs font-bold uppercase tracking-wider cursor-pointer transition-all shadow-sm flex items-center gap-2.5 backdrop-blur-md select-none ${
-                          isDark 
-                            ? 'bg-[#151515] border-[#e2bd6c]/30 text-white hover:border-[#e2bd6c] hover:bg-white/5' 
-                            : 'bg-white border-outline-variant/30 text-on-surface hover:border-primary hover:bg-surface-container-low'
-                        }`}
-                      >
-                        <span className={`material-symbols-outlined text-base ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
-                          swap_vert
-                        </span>
-                        <span>{opcionActual.label}</span>
-                        <span className={`material-symbols-outlined text-base transition-transform duration-300 ${isDark ? 'text-gray-400' : 'text-outline'} ${isSortOpen ? 'rotate-180' : ''}`}>
-                          expand_more
-                        </span>
-                      </button>
-
-                      {/* MENÚ DESPLEGABLE CON DISEÑO REDONDEADO Y GLASSMORPHISM (POPOVER) */}
-                      {isSortOpen && (
-                        <>
-                          <div 
-                            className="fixed inset-0 z-40" 
-                            onClick={() => setIsSortOpen(false)} 
-                          />
-                          <div className={`absolute right-0 top-full mt-2.5 w-64 rounded-2xl border shadow-2xl z-50 p-2 space-y-1 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 ${
-                            isDark 
-                              ? 'bg-[#1e1e1e]/95 border-[#e2bd6c]/30 text-white shadow-black/80' 
-                              : 'bg-white/95 border-outline-variant/20 text-on-surface shadow-black/10'
-                          }`}>
-                            {opcionesOrden.map(op => {
-                              const isSelected = ordenamiento === op.id;
-                              return (
-                                <button
-                                  key={op.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setOrdenamiento(op.id);
-                                    setIsSortOpen(false);
-                                  }}
-                                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-between cursor-pointer ${
-                                    isSelected
-                                      ? (isDark 
-                                          ? 'bg-gradient-to-r from-[#e2bd6c]/25 to-[#e2bd6c]/10 border border-[#e2bd6c]/40 text-[#e2bd6c] shadow-sm' 
-                                          : 'bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/30 text-primary shadow-sm')
-                                      : (isDark 
-                                          ? 'text-gray-300 hover:bg-white/5 hover:text-white' 
-                                          : 'text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface')
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2.5">
-                                    <span className={`material-symbols-outlined text-base ${isSelected ? (isDark ? 'text-[#e2bd6c]' : 'text-primary') : 'text-gray-500'}`}>
-                                      {op.icon}
-                                    </span>
-                                    <span>{op.label}</span>
-                                  </div>
-                                  {isSelected && (
-                                    <span className={`material-symbols-outlined text-base font-bold ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
-                                      check
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
+            <CatalogHeaderControls
+              filtroCategoria={filtroCategoria}
+              isDark={isDark}
+              totalProductos={productosFiltrados.length}
+              ordenamiento={ordenamiento}
+              setOrdenamiento={setOrdenamiento}
+              isSortOpen={isSortOpen}
+              setIsSortOpen={setIsSortOpen}
+            />
 
             {/* ── TUTORIAL INTERACTIVO DE PASOS PARA PEDIDOS ── */}
             {showTutorial && (
-              <div className={`mb-8 p-6 md:p-8 rounded-[2rem] border relative overflow-hidden transition-all duration-500 animate-in fade-in slide-in-from-top-4 duration-700 ${isDark ? 'bg-[#151515]/90 border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]' : 'bg-white/70 border-outline-variant/30 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]'} backdrop-blur-md`}>
-                {/* Brillos decorativos */}
-                <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#e2bd6c]/10 blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-                
-                {/* Header del tutorial */}
-                <div className="flex items-start justify-between gap-4 mb-6">
-                  <div>
-                    <h2 className={`font-headline text-lg md:text-2xl font-bold flex items-center gap-2 mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                      <span className="material-symbols-outlined text-[#e2bd6c] animate-bounce">auto_awesome</span>
-                      ¿Cómo realizar tu pedido?
-                    </h2>
-                    <p className={`text-xs md:text-sm ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                      Sigue esta sencilla guía de 3 pasos para asegurar tus productos favoritos al instante.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setShowTutorial(false);
-                      localStorage.setItem('hide_catalogo_tutorial', 'true');
-                    }}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-surface-variant text-outline hover:text-on-surface'}`}
-                    title="Ocultar Guía"
-                  >
-                    <span className="material-symbols-outlined text-lg">close</span>
-                  </button>
-                </div>
-
-                {/* Grid de 3 pasos */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                  {/* Paso 1 */}
-                  <div className={`p-5 rounded-2xl border transition-all hover:scale-[1.02] flex gap-4 ${isDark ? 'bg-white/5 border-white/5 hover:border-[#e2bd6c]/30' : 'bg-surface-container-lowest border-outline-variant/20 hover:border-primary/30'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${isDark ? 'bg-[#e2bd6c]/10 border-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 border-primary/20 text-primary'}`}>
-                      <span className="material-symbols-outlined font-bold">add_shopping_cart</span>
-                    </div>
-                    <div>
-                      <h3 className={`font-bold text-xs md:text-sm uppercase tracking-wider mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                        1. Agrega al Carrito
-                      </h3>
-                      <p className={`text-[11px] md:text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                        Explora el catálogo, elige tus productos o variantes ideales y haz clic en **Añadir al Carrito**.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Paso 2 */}
-                  <div className={`p-5 rounded-2xl border transition-all hover:scale-[1.02] flex gap-4 ${isDark ? 'bg-white/5 border-white/5 hover:border-[#e2bd6c]/30' : 'bg-surface-container-lowest border-outline-variant/20 hover:border-primary/30'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${isDark ? 'bg-[#e2bd6c]/10 border-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 border-primary/20 text-primary'}`}>
-                      <span className="material-symbols-outlined font-bold">receipt_long</span>
-                    </div>
-                    <div>
-                      <h3 className={`font-bold text-xs md:text-sm uppercase tracking-wider mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                        2. Confirma tu Carro
-                      </h3>
-                      <p className={`text-[11px] md:text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                        Abre tu bolsa de compras arriba a la derecha, revisa tus cantidades y pulsa **Confirmar Pedido**.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Paso 3 */}
-                  <div className={`p-5 rounded-2xl border transition-all hover:scale-[1.02] flex gap-4 ${isDark ? 'bg-white/5 border-white/5 hover:border-[#e2bd6c]/30' : 'bg-surface-container-lowest border-outline-variant/20 hover:border-primary/30'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm ${isDark ? 'bg-[#e2bd6c]/10 border-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 border-primary/20 text-primary'}`}>
-                      <span className="material-symbols-outlined font-bold">chat</span>
-                    </div>
-                    <div>
-                      <h3 className={`font-bold text-xs md:text-sm uppercase tracking-wider mb-1 ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                        3. Envía por WhatsApp
-                      </h3>
-                      <p className={`text-[11px] md:text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                        Se generará un mensaje automático. Envíalo a la asesora para **confirmar stock al instante** y coordinar el pago.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Botones de acción del tutorial */}
-                <div className="mt-6 flex flex-col sm:flex-row justify-center items-center gap-3">
-                  <button
-                    onClick={() => setShowVideoModal(true)}
-                    className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 shadow-lg cursor-pointer ${isDark ? 'bg-[#e2bd6c] text-black shadow-[#e2bd6c]/20' : 'bg-primary text-on-primary shadow-primary/20'}`}
-                  >
-                    <span className="material-symbols-outlined text-sm">smart_display</span>
-                    Ver Video Tutorial 🎬
-                  </button>
-
-                  <button
-                    onClick={() => setTourStep(1)}
-                    className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 border cursor-pointer ${
-                      isDark 
-                        ? 'border-[#e2bd6c]/30 text-[#e2bd6c] hover:bg-[#e2bd6c]/10 bg-[#e2bd6c]/10 shadow-md shadow-[#e2bd6c]/10' 
-                        : 'border-primary/30 text-primary hover:bg-primary/5 bg-primary/10 shadow-sm'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-sm animate-pulse">play_circle</span>
-                    Iniciar viaje de prueba 🐾
-                  </button>
-                </div>
-
-              </div>
+              <OrderStepsTutorial
+                isDark={isDark}
+                setShowTutorial={setShowTutorial}
+                setShowVideoModal={setShowVideoModal}
+                setTourStep={setTourStep}
+              />
             )}
         {productosFiltrados.length === 0 ? (
           <div className="text-center py-20 text-on-surface-variant">
@@ -1922,104 +1731,26 @@ export default function CatalogoPublico() {
               ))}
             </div>
             
-            {isTodas ? (
-              /* MODO 'VER MÁS' PARA CATEGORÍA 'TODAS' */
-              <div className="mt-12 flex flex-col items-center justify-center gap-3">
-                {itemsVisiblesTodas < productosFiltrados.length ? (
-                  <>
-                    <p className={`text-xs uppercase font-bold tracking-wider ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                      Viendo <span className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>{productosPaginados.length}</span> de <span className={isDark ? 'text-white' : 'text-on-surface'}>{productosFiltrados.length}</span> productos
-                    </p>
-                    <button
-                      onClick={() => setItemsVisiblesTodas(prev => prev + ITEMS_POR_PAGINA)}
-                      className={`px-8 py-3.5 rounded-2xl font-headline font-bold text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95 hover:scale-105 ${
-                        isDark 
-                          ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90 shadow-[#e2bd6c]/20' 
-                          : 'bg-primary text-on-primary hover:bg-primary/90 shadow-primary/20'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-lg font-bold">expand_more</span>
-                      <span>Ver más productos</span>
-                    </button>
-                  </>
-                ) : (
-                  productosFiltrados.length > 0 && (
-                    <div className={`py-3 px-6 rounded-2xl border text-xs font-bold uppercase tracking-wider ${
-                      isDark ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-surface-variant/40 border-outline-variant/20 text-outline'
-                    }`}>
-                      ✨ Has visto todos los {productosFiltrados.length} productos
-                    </div>
-                  )
-                )}
-              </div>
-            ) : (
-              /* PAGINACIÓN NUMÉRICA (1, 2, 3...) PARA CATEGORÍAS ESPECÍFICAS */
-              totalPaginas > 1 && (
-                <div className="mt-10 flex justify-center items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => {
-                      setPaginaActual(prev => Math.max(prev - 1, 1))
-                      if (mainScrollRef.current) {
-                        mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
-                      }
-                    }}
-                    disabled={paginaActual === 1}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl border disabled:opacity-30 disabled:hover:bg-transparent transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant'}`}
-                  >
-                    <span className="material-symbols-outlined text-sm">chevron_left</span>
-                  </button>
-
-                  {paginasVisibles.map(pag => (
-                    <button
-                      key={pag}
-                      onClick={() => {
-                        setPaginaActual(pag)
-                        if (mainScrollRef.current) {
-                          mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
-                        }
-                      }}
-                      className={`w-10 h-10 flex items-center justify-center rounded-xl font-bold text-sm transition-all ${
-                        paginaActual === pag
-                          ? (isDark ? 'bg-[#e2bd6c] text-black shadow-md' : 'bg-secondary text-white shadow-md')
-                          : (isDark ? 'border border-white/10 text-gray-300 hover:bg-white/5' : 'border border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant')
-                      }`}
-                    >
-                      {pag}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => {
-                      setPaginaActual(prev => Math.min(prev + 1, totalPaginas))
-                      if (mainScrollRef.current) {
-                        mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
-                      }
-                    }}
-                    disabled={paginaActual === totalPaginas}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl border disabled:opacity-30 disabled:hover:bg-transparent transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant'}`}
-                  >
-                    <span className="material-symbols-outlined text-sm">chevron_right</span>
-                  </button>
-                </div>
-              )
-            )}
+            {/* ── PAGINACIÓN DEL CATÁLOGO ── */}
+            <ProductPagination
+              isDark={isDark}
+              isTodas={isTodas}
+              itemsVisiblesTodas={itemsVisiblesTodas}
+              setItemsVisiblesTodas={setItemsVisiblesTodas}
+              ITEMS_POR_PAGINA={ITEMS_POR_PAGINA}
+              totalProductos={productosFiltrados.length}
+              productosPaginadosCount={productosPaginados.length}
+              totalPaginas={totalPaginas}
+              paginaActual={paginaActual}
+              setPaginaActual={setPaginaActual}
+              paginasVisibles={paginasVisibles}
+              mainScrollRef={mainScrollRef}
+            />
           </>
         )}
 
             {/* FOOTER DEL CATALOGO */}
-            <footer className="mt-16 pt-16 pb-12 border-t border-outline-variant/10 dark:border-white/5 flex flex-col items-center gap-4 opacity-50">
-              <div className="flex items-center gap-3">
-                <span className={`font-headline font-bold text-sm tracking-tight ${isDark ? 'text-white/80' : 'text-on-surface/80'}`}>Leis Catálogo V1.5</span>
-              </div>
-              <p className={`text-[10px] font-bold uppercase tracking-[0.3em] text-center ${isDark ? 'text-gray-500' : 'text-outline'}`}>
-                "Tu éxito está en nuestros productos"
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-[#e2bd6c]/40' : 'bg-primary/40'}`} />
-                <span className={`text-[8px] font-extrabold uppercase tracking-widest text-center ${isDark ? 'text-gray-600' : 'text-outline'}`}>© 2026 Todos los derechos reservados</span>
-                <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-[#e2bd6c]/40' : 'bg-primary/40'}`} />
-              </div>
-            </footer>
+            <Footer isDark={isDark} />
           </div>
         </main>
       </div>
