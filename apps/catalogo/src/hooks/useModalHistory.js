@@ -10,18 +10,25 @@ export function useModalHistory({
 } = {}) {
   const anyOpen = activeModals.some(Boolean)
   const wasModalOpenRef = useRef(false)
+  const anyOpenRef = useRef(anyOpen)
+  const closeAllModalsRef = useRef(closeAllModals)
+
+  useEffect(() => {
+    anyOpenRef.current = anyOpen
+    closeAllModalsRef.current = closeAllModals
+  })
 
   // Cerrar modales cuando se dispara popstate (botón atrás del navegador)
   useEffect(() => {
     const handlePopState = () => {
-      if (anyOpen) {
-        closeAllModals()
+      if (anyOpenRef.current) {
+        closeAllModalsRef.current?.()
       }
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [anyOpen, closeAllModals])
+  }, []) // Listener registrado una sola vez
 
   // Empujar o retroceder el historial al abrir/cerrar cualquier modal
   useEffect(() => {

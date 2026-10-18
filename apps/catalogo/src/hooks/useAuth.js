@@ -30,7 +30,7 @@ export function useAuth({
   setCarrito,
   loadingCartFromDb,
   lastLoadedUid
-}) {
+} = {}) {
   // Auth State
   const [currentUser, setCurrentUser] = useState(null)
   const [userData, setUserData] = useState(null)
@@ -65,7 +65,13 @@ export function useAuth({
 
   const isRegistering = useRef(false)
 
-  // Listener del estado de autenticación de Firebase
+  // Mantener referencias estables de los callbacks para evitar re-suscripciones innecesarias
+  const callbacksRef = useRef({ setClienteNombre, setClienteWhatsapp, setCarrito })
+  useEffect(() => {
+    callbacksRef.current = { setClienteNombre, setClienteWhatsapp, setCarrito }
+  })
+
+  // Listener del estado de autenticación de Firebase (se suscribe una sola vez en el montaje)
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user && !user.emailVerified) {
@@ -73,7 +79,7 @@ export function useAuth({
           await signOut(auth)
           setCurrentUser(null)
           setUserData(null)
-          setCarrito([])
+          callbacksRef.current.setCarrito?.([])
           if (lastLoadedUid) lastLoadedUid.current = null
           if (loadingCartFromDb) loadingCartFromDb.current = false
           return
@@ -102,15 +108,15 @@ export function useAuth({
             }
             
             // Pre-llenar checkout
-            if (setClienteNombre) setClienteNombre(user.displayName || '')
-            if (setClienteWhatsapp) setClienteWhatsapp(data.whatsapp || '')
+            callbacksRef.current.setClienteNombre?.(user.displayName || '')
+            callbacksRef.current.setClienteWhatsapp?.(data.whatsapp || '')
             dbCart = data.carrito || []
           } else {
-            if (setClienteNombre) setClienteNombre(user.displayName || '')
+            callbacksRef.current.setClienteNombre?.(user.displayName || '')
           }
           
-          if (setCarrito) {
-            setCarrito(prev => {
+          if (callbacksRef.current.setCarrito) {
+            callbacksRef.current.setCarrito(prev => {
               const merged = mergeCarts(prev, dbCart)
               localStorage.setItem('carritoLeis', JSON.stringify(merged))
               if (loadingCartFromDb) loadingCartFromDb.current = false
@@ -123,15 +129,14 @@ export function useAuth({
         }
       } else {
         setUserData(null)
-        if (setClienteNombre) setClienteNombre('')
-        if (setClienteWhatsapp) setClienteWhatsapp('')
-        if (setCarrito) setCarrito([])
+        callbacksRef.current.setClienteNombre?.('')
+        callbacksRef.current.setClienteWhatsapp?.('')
         if (lastLoadedUid) lastLoadedUid.current = null
         if (loadingCartFromDb) loadingCartFromDb.current = false
       }
     })
     return unsub
-  }, [setClienteNombre, setClienteWhatsapp, setCarrito, loadingCartFromDb, lastLoadedUid])
+  }, []) // Solo se suscribe una vez
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault()
@@ -141,96 +146,50 @@ export function useAuth({
 
     try {
       if (authTab === 'login') {
-        const userCred = await signInWithEmailAndPassword(auth, authForm.email, authForm.password)
-        if (!userCred.user.emailVerified) {
-          const now = Date.now()
-          const lastSent = Number(localStorage.getItem('lastVerificationSent_') || '0')
-          if (now - lastSent < 60000) {
-            await signOut(auth)
-            throw new Error("unverified-email-cooldown")
-          } else {
-            await sendEmailVerification(userCred.user)
-            localStorage.setItem('lastVerificationSent_', String(now))
-            await signOut(auth)
-            throw new Error("unverified-email-sent")
-          }
+        const userCredential = await signInWithEmailAndPassword(auth, authForm.email, authForm.password)
+        if (!userCredential.user.emailVerified) {
+          await signOut(auth)
+          setAuthError('Debes verificar tu correo antes de iniciar sesión. Te hemos enviado un correo de confirmación.')
+          setIsAuthLoading(false)
+          return
         }
         setShowAuthModal(false)
+        setAuthForm({ nombre: '', email: '', password: '', whatsapp: '' })
       } else {
-        if (!authForm.nombre.trim()) throw new Error("El nombre es obligatorio")
-        if (!authForm.whatsapp.trim()) throw new Error("El número de WhatsApp es obligatorio")
-        
-        // Verificar que el número de WhatsApp sea único (con depuración perezosa de fantasmas expirados > 30 min)
-        const normalizedWhatsapp = authForm.whatsapp.trim()
-        const q = query(collection(db, 'usuarios'), where('whatsapp', '==', normalizedWhatsapp))
-        const querySnapshot = await getDocs(q)
-        
-        let whatsappBloqueado = false
-        if (!querySnapshot.empty) {
-          for (const docSnap of querySnapshot.docs) {
-            const data = docSnap.data()
-            const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : 0
-            const ahora = Date.now()
-            
-            // Si el usuario registrado anterior no verificó su correo y pasaron más de 30 minutos (1800000 ms), lo borramos
-            if (data.emailVerified === false && (ahora - createdAt > 1800000)) {
-              await deleteDoc(doc(db, 'usuarios', docSnap.id))
-            } else {
-              whatsappBloqueado = true
-            }
-          }
-        }
-        
-        if (whatsappBloqueado) {
-          throw new Error("Este número de WhatsApp ya está registrado con otra cuenta activa.")
-        }
-        
         isRegistering.current = true
+        const userCredential = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password)
+        await updateProfile(userCredential.user, { displayName: authForm.nombre })
         
-        try {
-          const userCred = await createUserWithEmailAndPassword(auth, authForm.email, authForm.password)
-          
-          // Enviar correo de verificación
-          await sendEmailVerification(userCred.user)
-          localStorage.setItem('lastVerificationSent_', String(Date.now()))
-          
-          // Actualizar el displayName
-          await updateProfile(userCred.user, { displayName: authForm.nombre })
-          
-          // Guardar whatsapp en firestore con emailVerified: false
-          await setDoc(doc(db, 'usuarios', userCred.user.uid), {
-            nombre: authForm.nombre,
-            email: authForm.email,
-            whatsapp: authForm.whatsapp,
-            emailVerified: false,
-            createdAt: new Date().toISOString()
-          })
-          
-          await signOut(auth)
-          
-          setAuthSuccess("¡Registro exitoso! Te hemos enviado un enlace de verificación. Por favor, verifica tu cuenta antes de iniciar sesión.")
-          setAuthForm({ nombre: '', email: '', password: '', whatsapp: '' })
-          setAuthTab('login')
-        } finally {
-          isRegistering.current = false
-        }
+        await sendEmailVerification(userCredential.user)
+        
+        const cleanWhatsapp = (authForm.whatsapp || '').replace(/\D/g, '')
+        const fullWhatsapp = cleanWhatsapp ? `+56${cleanWhatsapp}` : ''
+
+        await setDoc(doc(db, 'usuarios', userCredential.user.uid), {
+          nombre: authForm.nombre,
+          email: authForm.email,
+          whatsapp: fullWhatsapp,
+          emailVerified: false,
+          createdAt: new Date().toISOString()
+        })
+
+        await signOut(auth)
+        isRegistering.current = false
+        setAuthSuccess('¡Registro casi listo! Te hemos enviado un correo de verificación. Por favor revisa tu bandeja de entrada o spam antes de iniciar sesión.')
+        setAuthForm({ nombre: '', email: '', password: '', whatsapp: '' })
       }
-    } catch (error) {
-      console.error(error)
-      if (error.message === "unverified-email-cooldown") {
-        setAuthError("Tu correo electrónico no está verificado. Por favor, revisa tu bandeja de entrada (ya enviamos un enlace hace poco; espera un minuto antes de reintentar).")
-      } else if (error.message === "unverified-email-sent") {
-        setAuthError("Tu correo electrónico no está verificado. Hemos enviado un nuevo enlace de verificación a tu bandeja de entrada.")
-      } else if (error.code === 'auth/email-already-in-use') {
-        setAuthError('Este correo ya está registrado. Si aún no lo has verificado, intenta iniciar sesión para recibir un nuevo enlace de activación.')
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setAuthError('Credenciales incorrectas.')
-      } else if (error.code === 'auth/user-not-found') {
-        setAuthError('No hay cuenta con este correo.')
-      } else if (error.code === 'auth/weak-password') {
+    } catch (err) {
+      console.error(err)
+      if (err.code === 'auth/email-already-in-use') {
+        setAuthError('El correo ya está registrado.')
+      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setAuthError('Correo o contraseña incorrectos.')
+      } else if (err.code === 'auth/weak-password') {
         setAuthError('La contraseña debe tener al menos 6 caracteres.')
+      } else if (err.code === 'auth/user-not-found') {
+        setAuthError('No existe una cuenta con este correo.')
       } else {
-        setAuthError(error.message || 'Error al autenticar')
+        setAuthError('Ocurrió un error. Inténtalo de nuevo.')
       }
     } finally {
       setIsAuthLoading(false)
@@ -240,9 +199,15 @@ export function useAuth({
   const handleLogout = async () => {
     try {
       await signOut(auth)
+      setCurrentUser(null)
+      setUserData(null)
+      callbacksRef.current.setCarrito?.([])
+      localStorage.removeItem('carritoLeis')
+      callbacksRef.current.setClienteNombre?.('')
+      callbacksRef.current.setClienteWhatsapp?.('')
       setShowProfileMenu(false)
-    } catch (e) {
-      console.error(e)
+    } catch (err) {
+      console.error('Error al cerrar sesión', err)
     }
   }
 
@@ -253,61 +218,35 @@ export function useAuth({
     setIsEditProfileLoading(true)
 
     try {
-      if (!editProfileForm.nombre.trim()) throw new Error("El nombre es obligatorio")
-      if (!editProfileForm.whatsapp.trim()) throw new Error("El número de WhatsApp es obligatorio")
-
-      const newNombre = editProfileForm.nombre.trim()
-      const newWhatsapp = editProfileForm.whatsapp.trim()
-
-      if (newWhatsapp !== (userData?.whatsapp || '')) {
-        const q = query(collection(db, 'usuarios'), where('whatsapp', '==', newWhatsapp))
-        const querySnapshot = await getDocs(q)
-        
-        let whatsappBloqueado = false
-        if (!querySnapshot.empty) {
-          for (const docSnap of querySnapshot.docs) {
-            if (docSnap.id === currentUser.uid) continue;
-            
-            const data = docSnap.data()
-            const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : 0
-            const ahora = Date.now()
-            
-            // Si el otro usuario no está verificado y pasaron más de 30 minutos, lo borramos de Firestore
-            if (data.emailVerified === false && (ahora - createdAt > 1800000)) {
-              await deleteDoc(doc(db, 'usuarios', docSnap.id))
-            } else {
-              whatsappBloqueado = true
-            }
-          }
-        }
-        
-        if (whatsappBloqueado) {
-          throw new Error("Este número de WhatsApp ya está registrado con otra cuenta activa.")
-        }
+      if (editProfileForm.nombre && editProfileForm.nombre !== currentUser.displayName) {
+        await updateProfile(currentUser, { displayName: editProfileForm.nombre })
       }
 
-      // Actualizar Perfil en Auth
-      await updateProfile(currentUser, { displayName: newNombre })
-      
-      // Actualizar en Firestore
+      const cleanWhatsapp = (editProfileForm.whatsapp || '').replace(/\D/g, '')
+      const fullWhatsapp = cleanWhatsapp ? `+56${cleanWhatsapp}` : ''
+
       await setDoc(doc(db, 'usuarios', currentUser.uid), {
-        nombre: newNombre,
-        whatsapp: newWhatsapp
+        nombre: editProfileForm.nombre,
+        whatsapp: fullWhatsapp
       }, { merge: true })
 
-      // Sincronizar estados locales
-      setUserData(prev => ({ ...prev, nombre: newNombre, whatsapp: newWhatsapp }))
-      if (setClienteNombre) setClienteNombre(newNombre)
-      if (setClienteWhatsapp) setClienteWhatsapp(newWhatsapp)
+      setUserData(prev => ({
+        ...prev,
+        nombre: editProfileForm.nombre,
+        whatsapp: fullWhatsapp
+      }))
+      
+      callbacksRef.current.setClienteNombre?.(editProfileForm.nombre)
+      callbacksRef.current.setClienteWhatsapp?.(fullWhatsapp)
 
-      setEditProfileSuccess("¡Perfil actualizado con éxito!")
+      setEditProfileSuccess('¡Perfil actualizado con éxito!')
       setTimeout(() => {
         setShowEditProfileModal(false)
         setEditProfileSuccess('')
       }, 1500)
     } catch (err) {
       console.error(err)
-      setEditProfileError(err.message || 'Error al actualizar el perfil')
+      setEditProfileError('Error al actualizar el perfil. Inténtalo de nuevo.')
     } finally {
       setIsEditProfileLoading(false)
     }
@@ -320,42 +259,41 @@ export function useAuth({
     setIsDeleteAccountLoading(true)
 
     try {
-      if (!deletePassword) throw new Error("La contraseña es obligatoria")
-
-      // 1. Re-autenticar al usuario para evitar errores de sesión expirada (requires-recent-login)
       const credential = EmailAuthProvider.credential(currentUser.email, deletePassword)
       await reauthenticateWithCredential(currentUser, credential)
 
       const uid = currentUser.uid
 
-      // 2. Borrar documento de Firestore
-      await deleteDoc(doc(db, 'usuarios', uid))
+      const ordenesRef = collection(db, 'ordenes')
+      const q = query(ordenesRef, where('clienteUid', '==', uid))
+      const querySnapshot = await getDocs(q)
+      
+      for (const docSnap of querySnapshot.docs) {
+        await deleteDoc(doc(db, 'ordenes', docSnap.id))
+      }
 
-      // 3. Borrar de Firebase Auth
+      await deleteDoc(doc(db, 'usuarios', uid))
       await deleteUser(currentUser)
 
-      // 4. Limpiar sesión y estados locales
-      if (setCarrito) setCarrito([])
-      localStorage.removeItem('carritoLeis')
       setCurrentUser(null)
       setUserData(null)
-      if (setClienteNombre) setClienteNombre('')
-      if (setClienteWhatsapp) setClienteWhatsapp('')
-      if (lastLoadedUid) lastLoadedUid.current = null
-      if (loadingCartFromDb) loadingCartFromDb.current = false
-      setDeletePassword('')
+      callbacksRef.current.setCarrito?.([])
+      localStorage.removeItem('carritoLeis')
+      callbacksRef.current.setClienteNombre?.('')
+      callbacksRef.current.setClienteWhatsapp?.('')
 
-      setDeleteAccountSuccess("¡Tu cuenta ha sido eliminada permanentemente!")
+      setDeleteAccountSuccess('Tu cuenta ha sido eliminada exitosamente.')
       setTimeout(() => {
         setShowDeleteAccountModal(false)
-        setDeleteAccountSuccess('')
+        setShowProfileMenu(false)
+        setDeletePassword('')
       }, 2000)
     } catch (err) {
       console.error(err)
       if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setDeleteAccountError('La contraseña introducida es incorrecta.')
+        setDeleteAccountError('La contraseña ingresada es incorrecta.')
       } else {
-        setDeleteAccountError(err.message || 'Error al eliminar la cuenta')
+        setDeleteAccountError('No se pudo eliminar la cuenta. Inténtalo de nuevo.')
       }
     } finally {
       setIsDeleteAccountLoading(false)
@@ -363,19 +301,17 @@ export function useAuth({
   }
 
   const handleSendResetEmailLoggedIn = async () => {
+    if (!currentUser?.email) return
     setIsResetEmailLoading(true)
-    setResetEmailSuccess('')
     setResetEmailError('')
+    setResetEmailSuccess('')
+
     try {
       await sendPasswordResetEmail(auth, currentUser.email)
-      setResetEmailSuccess(`Se ha enviado un correo a ${currentUser.email} para restablecer tu contraseña.`)
-      setTimeout(() => {
-        setShowResetPasswordModal(false)
-        setResetEmailSuccess('')
-      }, 3500)
-    } catch (error) {
-      console.error(error)
-      setResetEmailError(error.message || 'Error al enviar el correo de recuperación.')
+      setResetEmailSuccess('Correo de recuperación enviado con éxito.')
+    } catch (err) {
+      console.error(err)
+      setResetEmailError('No se pudo enviar el correo de recuperación.')
     } finally {
       setIsResetEmailLoading(false)
     }
@@ -383,24 +319,23 @@ export function useAuth({
 
   const handleSendResetEmailForgot = async (e) => {
     e.preventDefault()
+    if (!forgotEmail) {
+      setResetEmailError('Por favor ingresa tu correo electrónico.')
+      return
+    }
     setIsResetEmailLoading(true)
-    setResetEmailSuccess('')
     setResetEmailError('')
+    setResetEmailSuccess('')
+
     try {
-      if (!forgotEmail.trim()) throw new Error("El correo es obligatorio")
-      await sendPasswordResetEmail(auth, forgotEmail.trim())
-      setResetEmailSuccess(`Se ha enviado un correo a ${forgotEmail.trim()} para restablecer tu contraseña.`)
-      setForgotEmail('')
-      setTimeout(() => {
-        setAuthTab('login')
-        setResetEmailSuccess('')
-      }, 4500)
-    } catch (error) {
-      console.error(error)
-      if (error.code === 'auth/user-not-found') {
-        setResetEmailError('No hay ninguna cuenta registrada con este correo electrónico.')
+      await sendPasswordResetEmail(auth, forgotEmail)
+      setResetEmailSuccess('Correo de recuperación enviado con éxito. Revisa tu bandeja de entrada o spam.')
+    } catch (err) {
+      console.error(err)
+      if (err.code === 'auth/user-not-found') {
+        setResetEmailError('No existe una cuenta con este correo electrónico.')
       } else {
-        setResetEmailError(error.message || 'Error al enviar el correo de recuperación.')
+        setResetEmailError('No se pudo enviar el correo. Verifica que esté bien escrito.')
       }
     } finally {
       setIsResetEmailLoading(false)
@@ -460,3 +395,5 @@ export function useAuth({
     handleSendResetEmailForgot
   }
 }
+
+export default useAuth

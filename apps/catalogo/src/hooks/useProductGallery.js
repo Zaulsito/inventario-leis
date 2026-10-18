@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { getOptimizedImageUrl } from '../utils/image'
 
 export function useProductGallery({ selectedColorByProduct = {} } = {}) {
@@ -80,11 +80,16 @@ export function useProductGallery({ selectedColorByProduct = {} } = {}) {
     setPosition({ x: 0, y: 0 })
   }
 
+  const selectedColorRef = useRef(selectedColorByProduct)
+  useEffect(() => {
+    selectedColorRef.current = selectedColorByProduct
+  }, [selectedColorByProduct])
+
   // Al abrir o cambiar productoParaVer
   useEffect(() => {
     if (productoParaVer) {
       if (productoParaVer.variantes && productoParaVer.variantes.length > 0) {
-        const preselectedName = selectedColorByProduct[productoParaVer.id]
+        const preselectedName = selectedColorRef.current[productoParaVer.id]
         const initial = productoParaVer.variantes.find(v => v.nombre === preselectedName) || productoParaVer.variantes[0]
         setVarianteDetalle(initial)
       } else {
@@ -99,7 +104,7 @@ export function useProductGallery({ selectedColorByProduct = {} } = {}) {
     setModoAntesDespues(false)
     setIndexFotoAntes(0)
     setIndexFotoDespues(1)
-  }, [productoParaVer, selectedColorByProduct])
+  }, [productoParaVer])
 
   // Precarga automática en memoria
   useEffect(() => {
