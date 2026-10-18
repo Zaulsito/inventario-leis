@@ -10,11 +10,12 @@ import { PulsingRing, GlowingHighlight, FloatingArrow, ProductImagePlaceholder }
 import BeforeAfterSlider from './components/common/BeforeAfterSlider'
 import CheckoutModal from './components/cart/CheckoutModal'
 import CartDrawerModal from './components/cart/CartDrawerModal'
-import { VideoTutorialModal, OrderStepsTutorial } from './components/tutorial'
+import { VideoTutorialModal, OrderStepsTutorial, InteractiveMascotTour } from './components/tutorial'
 import { AuthModal, EditProfileModal, DeleteAccountModal, ResetPasswordModal } from './components/auth'
 import { ProductCard, ProductDetailModal, QuickVariantModal, ImageViewerModal, CatalogHeaderControls, ProductPagination } from './components/product'
 import { FilterSidebar, Header, Footer } from './components/layout'
 import { HeroBanner } from './components/hero'
+import { AutoDemoScreens } from './components/demo'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, sendEmailVerification, deleteUser, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
@@ -1949,291 +1950,28 @@ export default function CatalogoPublico() {
       />
 
 
-      {/* ── DEMO INTRO SCREEN OVERLAY (ESTRELLA FUGAZ - MODO CLARO) ── */}
-      {showDemoIntro && (
-        <div className="fixed inset-0 z-[250] bg-gradient-to-br from-[#fdfaf5] via-[#fdfbfa] to-[#ebdcb9] flex flex-col items-center justify-center overflow-hidden animate-out fade-out zoom-out-95 duration-700 delay-[2800ms]">
-          {/* Subtle sparkling background */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.12)_0%,transparent_70%)] pointer-events-none" />
-          
-          <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-transform duration-[3s] scale-95 animate-in zoom-in-95 duration-500">
-            {/* Logo Container with star-sweep effect - perfectly circular and larger */}
-            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/50 shadow-[0_10px_40px_rgba(226,189,108,0.2)] relative bg-white/95 flex items-center justify-center star-sweep-effect animate-slow-breath">
-              <img 
-                src="/logo.jpeg" 
-                alt="Logo Leis" 
-                className="w-full h-full object-cover rounded-full"
-              />
-            </div>
-            
-            {/* Glowing Aura under the logo */}
-            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-[#ebdcb9] opacity-40 blur-3xl -z-10 animate-pulse" />
+      {/* ── AUTO-DEMO OVERLAYS Y SUBTÍTULOS ── */}
+      <AutoDemoScreens
+        isDark={isDark}
+        isAutoDemo={isAutoDemo}
+        showDemoIntro={showDemoIntro}
+        showDemoOutro={showDemoOutro}
+        outroText={outroText}
+        showOutroLeis={showOutroLeis}
+        pointerStyle={pointerStyle}
+        pointerType={pointerType}
+        autoDemoCaption={autoDemoCaption}
+        autoDemoProgress={autoDemoProgress}
+      />
 
-            {/* Premium Slogan */}
-            <div className="mt-8 space-y-2 animate-in slide-in-from-bottom-5 duration-700 delay-300">
-              <h1 className="font-headline text-2xl sm:text-3xl font-black tracking-[0.3em] uppercase select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.3)] flex items-center justify-center pl-[0.3em] min-h-[36px] sm:min-h-[44px]">
-                {"LEIS".split("").map((letter, idx) => (
-                  <span 
-                    key={idx}
-                    className="text-transparent bg-clip-text bg-gradient-to-r from-[#be9440] via-[#e2bd6c] to-[#be9440] inline-block animate-intro-letter text-glow-shine"
-                    style={{ animationDelay: `${idx * 0.08}s` }}
-                  >
-                    {letter}
-                  </span>
-                ))}
-              </h1>
-              <p className="text-[9px] sm:text-[11px] font-bold tracking-[0.25em] text-[#5d3a28]/70 uppercase">
-                Tu éxito está en nuestros productos
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── DEMO OUTRO SCREEN OVERLAY (FINAL DE LUJO - MODO CLARO) ── */}
-      {showDemoOutro && (
-        <div className="fixed inset-0 z-[250] bg-gradient-to-br from-[#fdfaf5] via-[#fdfbfa] to-[#ebdcb9] flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-700">
-          {/* Subtle sparkling background */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,189,108,0.12)_0%,transparent_70%)] pointer-events-none" />
-
-          <div className="relative flex flex-col items-center justify-center p-6 text-center select-none transform transition-all duration-[3s] scale-100 animate-in zoom-in-95 duration-500">
-            {/* Logo Container with star-sweep effect */}
-            <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden border border-[#e2bd6c]/50 shadow-[0_10px_40px_rgba(226,189,108,0.2)] relative bg-white/95 flex items-center justify-center star-sweep-effect animate-slow-breath">
-              <img 
-                src="/logo.jpeg" 
-                alt="Logo Leis" 
-                className="w-full h-full object-cover rounded-full"
-              />
-            </div>
-            
-            {/* Glowing Aura under the logo */}
-            <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-r from-[#e2bd6c] to-[#ebdcb9] opacity-40 blur-3xl -z-10 animate-pulse" />
-
-            {/* Slogan with Shiny, Typewriter and Glowing Effect */}
-            <div className="mt-10 space-y-4">
-              <p className="min-h-[24px] text-xs sm:text-sm font-bold tracking-[0.25em] uppercase text-[#5d3a28]/70 drop-shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-300">
-                {outroText}
-                <span className="animate-ping duration-300 text-[#e2bd6c]">|</span>
-              </p>
-              
-              {showOutroLeis && (
-                <h1 className="font-headline text-3xl sm:text-5xl font-black tracking-[0.3em] uppercase select-none drop-shadow-[0_0_20px_rgba(226,189,108,0.4)] flex items-center justify-center pl-[0.3em]">
-                  {"LEIS".split("").map((letter, idx) => (
-                    <span 
-                      key={idx}
-                      className="text-transparent bg-clip-text bg-gradient-to-r from-[#be9440] via-[#e2bd6c] to-[#be9440] inline-block animate-outro-letter text-glow-shine"
-                      style={{ animationDelay: `${idx * 0.18}s` }}
-                    >
-                      {letter}
-                    </span>
-                  ))}
-                </h1>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── DYNAMIC DEMO POINTER ARROW ── */}
-      {isAutoDemo && pointerStyle.display !== 'none' && (
-        <div style={pointerStyle}>
-          {pointerType === 'left' ? (
-            <svg width="55" height="24" viewBox="0 0 55 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-left drop-shadow-[0_0_12px_rgba(226,189,108,0.7)]">
-              <defs>
-                <linearGradient id="gold-grad-left" x1="100%" y1="50%" x2="0%" y2="50%">
-                  <stop offset="0%" stopColor="#9a7629" />
-                  <stop offset="50%" stopColor="#e2bd6c" />
-                  <stop offset="100%" stopColor="#fff2cc" />
-                </linearGradient>
-              </defs>
-              <circle cx="50" cy="12" r="3" fill="url(#gold-grad-left)" />
-              <path d="M47 12H5" stroke="url(#gold-grad-left)" strokeWidth="3.5" strokeLinecap="round" />
-              <path d="M13 4L4.5 12.5L13 21" stroke="url(#gold-grad-left)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <svg width="55" height="24" viewBox="0 0 55 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-point-right drop-shadow-[0_0_12px_rgba(226,189,108,0.7)]">
-              <defs>
-                <linearGradient id="gold-grad-right" x1="0%" y1="50%" x2="100%" y2="50%">
-                  <stop offset="0%" stopColor="#9a7629" />
-                  <stop offset="50%" stopColor="#e2bd6c" />
-                  <stop offset="100%" stopColor="#fff2cc" />
-                </linearGradient>
-              </defs>
-              <circle cx="5" cy="12" r="3" fill="url(#gold-grad-right)" />
-              <path d="M8 12H50" stroke="url(#gold-grad-right)" strokeWidth="3.5" strokeLinecap="round" />
-              <path d="M42 4L50.5 12.5L42 21" stroke="url(#gold-grad-right)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </div>
-      )}
-
-      {/* ── AUTOMATED DEMO FLOATING SUBTITLES BANNER ── */}
-      {isAutoDemo && !showDemoIntro && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-full max-w-xl px-4 animate-in slide-in-from-top-5 duration-300 pointer-events-none">
-          {/* Mascot Leis (Gatita Yoshita) floating to the left, outside the card (desktop only) */}
-          <div className="absolute -left-24 top-1/2 -translate-y-1/2 pointer-events-auto select-none hidden sm:block">
-            <div className="relative group">
-              <div className="absolute inset-0 rounded-full blur-md opacity-40 bg-[#e2bd6c]/30 scale-75 group-hover:scale-100 transition-transform duration-500 animate-pulse animate-duration-1000" />
-              <img 
-                src="/gatita.png" 
-                alt="Mascota Leis" 
-                className="w-20 h-20 object-contain relative z-10 drop-shadow-[0_4px_12px_rgba(0,0,0,0.4)] animate-smooth-float"
-                title="Leis 🐾"
-              />
-            </div>
-          </div>
-
-          <div className={`p-4 rounded-[24px] border shadow-2xl backdrop-blur-md flex flex-col gap-3 relative overflow-hidden pointer-events-auto ${
-            isDark 
-              ? 'bg-[#151515]/95 border-[#e2bd6c]/30 text-white shadow-black/85' 
-              : 'bg-white/95 border-primary/20 text-on-surface shadow-black/20'
-          }`}>
-            {/* Mascot and Subtitle Caption */}
-            <div className="flex items-center gap-3">
-              {/* Mascot Leis (Gatita Yoshita) inside ONLY for mobile */}
-              <div className="relative shrink-0 select-none sm:hidden">
-                <div className={`absolute inset-0 rounded-full blur-sm opacity-50 bg-[#e2bd6c]/20`} />
-                <img 
-                  src="/gatita.png" 
-                  alt="Mascota Leis" 
-                  className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.3)] animate-smooth-float"
-                  title="Leis 🐾"
-                />
-              </div>
-              <div className="flex-1">
-                <p className="text-[10px] font-black tracking-widest uppercase mb-0.5 opacity-60 text-[#e2bd6c]">
-                  Leis 🐾
-                </p>
-                <p className="text-[11px] sm:text-xs leading-relaxed font-bold italic">
-                  "{autoDemoCaption}"
-                </p>
-              </div>
-            </div>
-
-            {/* Progress Bar (Hidden Detener button, stop with key P) */}
-            <div className="flex items-center justify-between gap-4 mt-1">
-              <div className="flex-1 h-1 bg-outline-variant/20 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-100 ease-linear ${isDark ? 'bg-[#e2bd6c]' : 'bg-primary'}`}
-                  style={{ width: `${autoDemoProgress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── INTERACTIVE ONBOARDING MASCOT (LA GATITA YOSHITA) ── */}
-      {tourStep > 0 && (
-        <div className="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-3 pointer-events-none max-w-[280px] md:max-w-sm">
-          
-          {isDialogMinimized ? (
-            <button 
-              onClick={() => setIsDialogMinimized(false)}
-              className={`pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-full border shadow-lg text-[10px] font-black uppercase tracking-wider animate-pulse transition-all hover:scale-105 active:scale-95 ${
-                isDark 
-                  ? 'bg-[#e2bd6c] text-black border-[#e2bd6c] shadow-[#e2bd6c]/20' 
-                  : 'bg-primary text-white border-primary shadow-primary/20'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[14px]">visibility</span>
-              Mostrar Guía 🐾
-            </button>
-          ) : (
-            /* Globo de diálogo / Speech Bubble */
-            <div className={`pointer-events-auto p-5 rounded-[2rem] border shadow-2xl relative animate-in slide-in-from-bottom-5 duration-500 ${isDark ? 'bg-[#151515] border-white/10 text-white shadow-black/80' : 'bg-white border-outline-variant/30 text-on-surface shadow-black/10'}`}>
-              {/* Pequeño indicador del triángulo del globo */}
-              <div className={`absolute bottom-[-8px] right-8 w-4 h-4 rotate-45 border-r border-b ${isDark ? 'bg-[#151515] border-white/10' : 'bg-white border-outline-variant/30'}`} />
-              
-              <div className="flex items-center justify-between gap-3 mb-2 pb-2 border-b border-outline-variant/10">
-                <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>
-                  Guía Yoshita 🐾
-                </span>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => setIsDialogMinimized(true)}
-                    className={`text-[10px] font-bold flex items-center gap-1 hover:underline ${isDark ? 'text-gray-400 hover:text-white' : 'text-outline hover:text-on-surface'}`}
-                    title="Ocultar globo de texto"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">visibility_off</span>
-                    Ocultar
-                  </button>
-                  <span className="opacity-30">|</span>
-                  <button 
-                    onClick={() => setTourStep(0)}
-                    className={`text-[10px] font-bold hover:underline ${isDark ? 'text-gray-400 hover:text-white' : 'text-outline hover:text-on-surface'}`}
-                  >
-                    Salir
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-[11px] md:text-xs leading-relaxed font-semibold">
-                {tourStep === 1 && "🐾 ¡Hola! Miau~ Soy Yoshita 🐾 y te guiaré en este tutorial interactivo para realizar tu pedido. ¡Es súper fácil y rápido! Haz clic en Siguiente para empezar."}
-                {tourStep === 2 && "🔍 ¡Paso 2! Aquí a la izquierda tienes la barra de búsqueda y filtros. Puedes escribir nombres (ej. 'Aceite') o filtrar por categoría. También, arriba a la derecha puedes pulsar el icono de usuario 👤 para crear una cuenta o iniciar sesión y guardar tus datos automáticamente."}
-                {tourStep === 3 && "🛒 ¡Paso 3! Miau~ Ahora busquemos tu producto favorito (como el 'Aceite Collagen' de abajo) y haz clic en su botón Añadir al Carrito 🛒 para agregarlo."}
-                {tourStep === 4 && "🛍️ ¡Paso 4! ¡Miau-tástico! Ya tienes el producto en tu bolso. Ahora, mira arriba a la derecha y haz clic en el botón del Carrito de Compras 🛒."}
-                {tourStep === 5 && "📋 ¡Paso 5! Revisa que las cantidades y productos estén perfectos en tu bolsa. Luego, haz clic en el botón dorado Hacer Pedido 🚀 al final."}
-                {tourStep === 6 && "📲 ¡Último paso! Escribe tu nombre para el pedido y haz clic en Enviar a WhatsApp 💬. ¡La asesora te confirmará stock al instante!"}
-                {tourStep === 7 && "💖 ¡Miau! ¡Completaste el tutorial con éxito! Tu pedido está en camino a WhatsApp. Gracias por preferirnos. 🐾"}
-              </p>
-
-              {/* Acciones del Tour */}
-              {tourStep < 7 && (
-                <div className="mt-3 flex justify-between items-center gap-2">
-                  {/* Botón Atrás */}
-                  <button
-                    disabled={tourStep === 1}
-                    onClick={() => setTourStep(prev => Math.max(1, prev - 1))}
-                    className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors disabled:opacity-30 ${isDark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'}`}
-                  >
-                    Atrás
-                  </button>
-
-                  {/* Indicador de pasos (6 pasos interactivos) */}
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5, 6].map(stepNum => (
-                      <div 
-                        key={stepNum} 
-                        className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${tourStep === stepNum ? (isDark ? 'bg-[#e2bd6c] w-3.5' : 'bg-[#e2bd6c] w-3.5') : (isDark ? 'bg-white/10' : 'bg-outline-variant/30')}`}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Botón Siguiente */}
-                  <button
-                    onClick={() => {
-                      if (tourStep < 6) {
-                        setTourStep(prev => prev + 1);
-                      } else {
-                        setTourStep(0);
-                      }
-                    }}
-                    className={`px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-[#e2bd6c]' : 'bg-primary/10 hover:bg-primary/20 text-primary'}`}
-                  >
-                    {tourStep === 6 ? "Finalizar" : "Siguiente"}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Imagen de la Gatita Flotante */}
-          <div className="relative pointer-events-auto group">
-            {/* Efecto de halo brillante */}
-            <div className={`absolute inset-0 rounded-full blur-xl opacity-60 scale-95 group-hover:scale-105 transition-transform duration-500 animate-pulse ${isDark ? 'bg-[#e2bd6c]/20' : 'bg-primary/20'}`} />
-            
-            <img 
-              src="/gatita.png" 
-              alt="Gatita Yoshita Mascota" 
-              className="w-40 h-40 md:w-56 md:h-56 object-contain relative z-10 drop-shadow-2xl animate-in slide-in-from-right-10 duration-500 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-              onClick={() => {
-                alert("🐾 ¡Miau! Soy Yoshita y estoy lista para guiarte en tu compra.");
-              }}
-            />
-          </div>
-
-        </div>
-      )}
+      {/* ── TOUR GUIADO DE COMPRA CON LA GATITA YOSHITA ── */}
+      <InteractiveMascotTour
+        tourStep={tourStep}
+        setTourStep={setTourStep}
+        isDialogMinimized={isDialogMinimized}
+        setIsDialogMinimized={setIsDialogMinimized}
+        isDark={isDark}
+      />
 
 
     </div>
