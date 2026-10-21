@@ -4,6 +4,7 @@ import { collection, onSnapshot, addDoc, doc, writeBatch, deleteDoc, updateDoc }
 import { db } from '../config/firebase'
 import { calcularEstado, formatDateDMA, getLocalDateString, getLocalTimeString } from '../utils/date'
 import Footer from '../components/Footer'
+import { useAuth } from '../context/AuthContext'
 
 const formInicial = { 
   cliente: '', 
@@ -143,6 +144,8 @@ const getCompleteHistorialAbonos = (pedido) => {
 }
 
 export default function Pedidos() {
+  const { currentUser, operatorName } = useAuth() || {}
+  const currentOperator = operatorName || 'Por sistema'
   const [pedidos, setPedidos] = useState([])
   const [productos, setProductos] = useState([])
   const [showModal, setShowModal] = useState(false)
@@ -755,12 +758,17 @@ export default function Pedidos() {
 
       if (editingId) {
         const pedidoRef = doc(db, 'pedidos', editingId);
-        batch.update(pedidoRef, pedidoData);
+        batch.update(pedidoRef, {
+          ...pedidoData,
+          modificadoPor: currentOperator
+        });
       } else {
         const pedidoRef = doc(collection(db, 'pedidos'));
         batch.set(pedidoRef, {
           ...pedidoData,
-          historialAbonos: abonoNum > 0 ? [{ fecha: getLocalDateString(), monto: abonoNum }] : [],
+          usuario: form.esVentaOnline ? 'Catálogo Web' : currentOperator,
+          usuarioEmail: currentUser?.email || null,
+          historialAbonos: abonoNum > 0 ? [{ fecha: getLocalDateString(), monto: abonoNum, usuario: currentOperator }] : [],
           fechaCreacion: getLocalDateString()
         });
       }

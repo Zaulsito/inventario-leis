@@ -375,6 +375,12 @@ export default function CatalogoPublico() {
         tourStep={tourStep}
         isAutoDemo={isAutoDemo}
         autoDemoStep={autoDemoStep}
+        onSearchSubmit={() => {
+          setPaginaActual(1);
+          if (mainScrollRef.current) {
+            mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
       />
 
       {/* ── CONTENIDO PRINCIPAL ── */}

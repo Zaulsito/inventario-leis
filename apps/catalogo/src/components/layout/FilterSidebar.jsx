@@ -24,11 +24,25 @@ export default function FilterSidebar({
   totalResultados,
   tourStep,
   isAutoDemo,
-  autoDemoStep
+  autoDemoStep,
+  onSearchSubmit
 }) {
   const [isBusquedaExpanded, setIsBusquedaExpanded] = useState(true)
   const [isPrecioExpanded, setIsPrecioExpanded] = useState(true)
   const [isCategoriasExpanded, setIsCategoriasExpanded] = useState(true)
+
+    const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    } else {
+      setIsSidebarCollapsed(true);
+    }
+    onSearchSubmit?.();
+  };
 
   const handleLimpiarFiltros = () => {
     setFiltroCategoria('TODAS')
@@ -102,26 +116,57 @@ export default function FilterSidebar({
               </button>
               
               {isBusquedaExpanded && (
-                <div className="relative animate-in fade-in slide-in-from-top-1 duration-200">
-                  <span className={`material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                <form 
+                  onSubmit={handleSearchSubmit}
+                  action="#"
+                  className="relative animate-in fade-in slide-in-from-top-1 duration-200"
+                >
+                  <button
+                    type="submit"
+                    className={`material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-base transition-colors p-1 rounded-lg ${
+                      searchTerm ? (isDark ? 'text-[#e2bd6c] hover:bg-white/10' : 'text-primary hover:bg-black/5') : (isDark ? 'text-gray-400' : 'text-outline')
+                    }`}
+                    title="Buscar e ir a los resultados"
+                  >
                     search
-                  </span>
+                  </button>
                   <input 
-                    type="text" 
+                    type="search" 
+                    enterKeyHint="search"
                     placeholder="Buscar producto..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full border rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSearchSubmit(e);
+                      }
+                    }}
+                    className={`w-full border rounded-xl pl-9 pr-14 py-2.5 text-xs font-medium focus:outline-none focus:ring-4 transition-all [&::-webkit-search-cancel-button]:hidden ${isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50 focus:ring-[#e2bd6c]/5' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50 focus:ring-primary/5'} ${tourStep === 2 ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-[1.02]' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(67,56,202,0.8)] scale-[1.02]') : ''} ${isAutoDemo && (autoDemoStep === 2 || autoDemoStep === 3 || autoDemoStep === 6) ? 'demo-highlight' : ''}`}
                   />
                   {searchTerm && (
-                    <button 
-                      onClick={() => setSearchTerm('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-outline-variant/30 text-outline hover:bg-outline-variant/50 transition-all"
-                    >
-                      <span className="material-symbols-outlined text-[12px]">close</span>
-                    </button>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <button 
+                        type="button"
+                        onClick={() => setSearchTerm('')}
+                        className="w-5 h-5 flex items-center justify-center rounded-full bg-outline-variant/30 text-outline hover:bg-outline-variant/50 transition-all"
+                        title="Borrar texto"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">close</span>
+                      </button>
+                      <button
+                        type="submit"
+                        className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all ${
+                          isDark 
+                            ? 'bg-[#e2bd6c] text-black hover:bg-[#c9a75d]' 
+                            : 'bg-primary text-white hover:bg-primary/90'
+                        }`}
+                        title="Buscar"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </button>
+                    </div>
                   )}
-                </div>
+                </form>
               )}
             </div>
 

@@ -5,9 +5,12 @@ import { db } from '../config/firebase'
 import { getLocalDateString, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
 import { getOptimizedImageUrl } from '../utils/image'
+import { useAuth } from '../context/AuthContext'
 
 export default function Historial() {
   const { isDark = false } = useOutletContext() || {}
+  const { currentUser, operatorName } = useAuth() || {}
+  const currentOperator = operatorName || 'Por sistema'
   const navigate = useNavigate()
   const location = useLocation()
   const initializedFromStateRef = useRef(false)
@@ -198,7 +201,8 @@ export default function Historial() {
                   pedidoId: ped.id,
                   cliente: ped.cliente,
                   precio: prod.precio || 0,
-                  varianteNombre: varName
+                  varianteNombre: varName,
+                  usuario: ped.usuario || (ped.esVentaOnline ? 'Catálogo Web' : 'Por sistema')
                 })
               }
             })
@@ -233,6 +237,7 @@ export default function Historial() {
                   esMermaReal: true,
                   mermaId: mer.id,
                   motivoMerma: mer.motivo || 'Dañado',
+                  usuario: mer.usuario || 'Por sistema',
                   varianteNombre: varName
                 })
               }
@@ -601,6 +606,34 @@ export default function Historial() {
     const stockActual = selectedProduct ? (Number(selectedProduct.stock) || 0) : 0
     const cambioNum = Number(log.cambio || 0)
 
+    // VALIDACIÓN DE INTEGRIDAD CON PEDIDOS:
+    if (cambioNum > 0) {
+      if (stockActual <= 0) {
+        alert(`No es posible eliminar este registro (${cambioNum} un.) porque todas las unidades de este producto ya han sido vendidas en pedidos existentes.`);
+        return;
+      }
+
+      if (cambioNum > stockActual) {
+        const cantAEliminar = stockActual;
+        const cantQuePermanece = cambioNum - stockActual;
+        const confirmMsg = `Este registro tiene ${cambioNum} un., pero ya existen ${cantQuePermanece} un. vendidas en pedidos.\n\nSolo se pueden eliminar las ${cantAEliminar} un. disponibles no vendidas.\nEl registro conservará ${cantQuePermanece} un. para respaldar las ventas existentes y el stock actual quedará en 0 un.\n\n¿Deseas continuar?`;
+        
+        if (!window.confirm(confirmMsg)) return;
+
+        const costUnit = Number(log.precioCosto) || 0;
+        await updateDoc(doc(db, 'historial_inventario', log.id), {
+          cambio: cantQuePermanece,
+          cantidad: cantQuePermanece,
+          costoTotalLote: cantQuePermanece * costUnit,
+          motivo: `${log.motivo || log.accion || 'Ingreso de stock'} (${cantQuePermanece} un. respaldando pedidos)`
+        });
+
+        await updateDoc(doc(db, 'productos', selectedProduct.id), { stock: 0 });
+        setHistoryLogs(prev => prev.map(l => l.id === log.id ? { ...l, cambio: cantQuePermanece, cantidad: cantQuePermanece } : l));
+        return;
+      }
+    }
+
     const hasVariants = Array.isArray(selectedProduct?.variantes) && selectedProduct.variantes.length > 0;
     const targetVarName = log.varianteNombre || log.variante || '';
     let updatedVariantes = null;
@@ -778,6 +811,8 @@ export default function Historial() {
         motivo: motivoText,
         nota: formAjuste.notaAjuste || '',
         varianteNombre: targetVariantName || '',
+        usuario: currentOperator,
+        usuarioEmail: currentUser?.email || null,
         ...(isMerma ? {
           esMermaReal: true,
           mermaId: mermaId,
@@ -1445,7 +1480,7 @@ export default function Historial() {
                       textColor: 'text-amber-600 dark:text-amber-400'
                     }
 
-                    if (log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')) {
+                    if (!isPositive && (log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta'))) {
                       badge = { 
                         label: motivoStr.includes('no registrada') ? 'VENTA RÁPIDA' : 'VENTA EN PEDIDO', 
                         color: 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-500/30', 
@@ -1517,6 +1552,26 @@ export default function Historial() {
                               <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
                                 {formatDateDMA(log.fecha, log)}
                               </span>
+                              {(() => {
+                                const op = (log.usuario || '').trim() || 'Por sistema';
+                                const isSys = op.toLowerCase() === 'por sistema';
+                                const isWeb = op.toLowerCase().includes('catálogo') || op.toLowerCase().includes('catalogo') || op.toLowerCase().includes('online');
+                                return (
+                                  <span 
+                                    className={`text-[8.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1 shadow-sm ${
+                                      isSys 
+                                        ? 'bg-outline-variant/15 text-outline dark:text-gray-400 border-outline-variant/30 dark:border-white/10'
+                                        : isWeb
+                                        ? 'bg-sky-500/15 text-sky-700 dark:bg-sky-500/25 dark:text-sky-300 border-sky-500/30'
+                                        : 'bg-primary/15 text-primary dark:bg-primary/25 dark:text-amber-300 border-primary/30'
+                                    }`}
+                                    title={isSys ? 'Movimiento registrado por el sistema' : isWeb ? 'Venta generada desde el catálogo online' : `Operado por ${op}`}
+                                  >
+                                    <span className="text-[10px] leading-none">{isSys ? '⚙️' : isWeb ? '🛒' : '👤'}</span>
+                                    <span>{op}</span>
+                                  </span>
+                                );
+                              })()}
                               {log.proveedoresDesglose && Object.keys(log.proveedoresDesglose).length > 0 ? (
                                 Object.entries(log.proveedoresDesglose).map(([provName, provQty]) => (
                                   (supplierFilter === 'TODOS' || provName === supplierFilter) && (

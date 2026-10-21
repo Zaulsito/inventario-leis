@@ -7,6 +7,7 @@ import autoTable from 'jspdf-autotable'
 import { getLocalDateString } from '../utils/date'
 import { calcularEstado } from '../utils/date'
 import Footer from '../components/Footer'
+import { useAuth } from '../context/AuthContext'
 
 const PERIODOS = ['Semana Actual', 'Mes Actual', 'Seleccionar Mes', 'Histórico Anual', 'Personalizado']
 
@@ -151,6 +152,8 @@ const normalizeText = (text) => {
 };
 
 export default function Reportes() {
+  const { currentUser, operatorName } = useAuth() || {}
+  const currentOperator = operatorName || 'Por sistema'
   const [periodo, setPeriodo] = useState(1) // Por defecto: Mes Actual
   const [chartMode, setChartMode] = useState('ambas')
   const [mesSeleccionado, setMesSeleccionado] = useState(() => {
@@ -285,7 +288,9 @@ export default function Reportes() {
         monto: montoNum,
         descripcion: gastoForm.descripcion.trim() || 'Gasto operativo',
         fecha: gastoForm.fecha || getLocalDateString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        usuario: currentOperator,
+        usuarioEmail: currentUser?.email || null
       });
       setGastoForm({
         categoria: 'transporte',
@@ -619,7 +624,9 @@ export default function Reportes() {
         fechaEntrega: getLocalDateString(),
         productos: payloadProductos,
         fechaCreacion: new Date().toISOString(),
-        estado: 'completado'
+        estado: 'completado',
+        usuario: currentOperator,
+        usuarioEmail: currentUser?.email || null
       })
 
       await batch.commit()
@@ -749,7 +756,9 @@ export default function Reportes() {
         fechaEntrega: fechaMerma,
         productos: payloadProductos,
         fechaCreacion: new Date().toISOString(),
-        _tipo: 'merma'
+        _tipo: 'merma',
+        usuario: currentOperator,
+        usuarioEmail: currentUser?.email || null
       })
 
       // Registrar eventos individuales en historial_inventario para sincronización en Kardex
@@ -763,7 +772,9 @@ export default function Reportes() {
           fecha: fechaMerma || getLocalDateString(),
           esMermaReal: true,
           mermaId: mermaRef.id,
-          motivoMerma: motivoMerma
+          motivoMerma: motivoMerma,
+          usuario: currentOperator,
+          usuarioEmail: currentUser?.email || null
         })
       })
 

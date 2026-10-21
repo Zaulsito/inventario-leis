@@ -8,6 +8,7 @@ import BarcodeScanner from '../components/BarcodeScanner'
 import { getLocalDateString, calcularEstado, formatDateDMA } from '../utils/date'
 import Footer from '../components/Footer'
 import { getOptimizedImageUrl } from '../utils/image'
+import { useAuth } from '../context/AuthContext'
 
 const estadoConfig = {
   disponible: { label: 'Disponible', cls: 'bg-[#8b6b3e]/10 text-[#8b6b3e] dark:bg-[#8b6b3e]/20 dark:text-[#c4a484] border border-[#8b6b3e]/20 backdrop-blur-sm font-bold shadow-sm' },
@@ -122,6 +123,8 @@ const normalizeText = (text) => {
 
 export default function Inventario() {
   const { isDark = false } = useOutletContext() || {}
+  const { currentUser, operatorName } = useAuth() || {}
+  const currentOperator = operatorName || 'Por sistema'
   const navigate = useNavigate()
   const location = useLocation()
   const lastHandledNavTargetRef = useRef(null)
@@ -176,7 +179,9 @@ export default function Inventario() {
         precioCosto: newLotData.precioCosto,
         costoTotalLote: newLotData.stock * newLotData.precioCosto,
         proveedor: newLotData.proveedor,
-        motivo: `Combinación de producto por duplicado Cód. Barra (${duplicateProduct.sku})`
+        motivo: `Combinación de producto por duplicado Cód. Barra (${duplicateProduct.sku})`,
+        usuario: currentOperator,
+        usuarioEmail: currentUser?.email || null
       });
 
       setDuplicatePrompt(null);
@@ -819,13 +824,13 @@ REGLAS DE FORMATO ESTRICTAS:
     let validLogs = (editProductHistory || []).slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
 
     if (hasMultipleSuppliers && activeProv) {
-      validLogs = validLogs.filter(l => {
-        const logProv = (l.proveedor || '').trim().toUpperCase()
-        if (logProv) {
-          return logProv === activeProv
-        }
-        return firstProv ? activeProv === firstProv : true
-      })
+      const logsProv = validLogs.filter(l => {
+        const lp = (l.proveedor || '').trim().toUpperCase();
+        return lp && (lp === activeProv || lp.includes(activeProv) || activeProv.includes(lp));
+      });
+      if (logsProv.length > 0) {
+        validLogs = logsProv;
+      }
     }
 
     const entradas = validLogs.filter(l => Number(l.cambio) > 0)
@@ -1215,7 +1220,8 @@ REGLAS DE FORMATO ESTRICTAS:
                 stockNuevo: 'Venta',
                 esPedidoReal: true,
                 pedidoId: ped.id,
-                varianteNombre: varName
+                varianteNombre: varName,
+                usuario: ped.usuario || (ped.esVentaOnline ? 'Catálogo Web' : 'Por sistema')
               })
             }
           })
@@ -1247,7 +1253,8 @@ REGLAS DE FORMATO ESTRICTAS:
                 stockNuevo: 'Merma',
                 esMermaReal: true,
                 mermaId: mer.id,
-                varianteNombre: varName
+                varianteNombre: varName,
+                usuario: mer.usuario || 'Por sistema'
               })
             }
           })
@@ -1333,6 +1340,8 @@ REGLAS DE FORMATO ESTRICTAS:
 
     try {
       if (!log.esPedidoReal && !log.esMermaReal) {
+        const isEntrada = Number(log.cambio) > 0 || (log.cantidad && !log.esPedidoReal && !log.esMermaReal);
+
         const hasVariants = Array.isArray(form.variantes) && form.variantes.length > 0
           ? true
           : (Array.isArray(pTarget?.variantes) && pTarget.variantes.length > 0);
@@ -1353,6 +1362,58 @@ REGLAS DE FORMATO ESTRICTAS:
         if (!targetVarName && log.motivo) {
           const matchParen = log.motivo.match(/\(([^)]+)\)/);
           if (matchParen) targetVarName = matchParen[1];
+        }
+
+        // VALIDACIÓN DE INTEGRIDAD CON PEDIDOS:
+        if (isEntrada) {
+          if (stockBaseNum <= 0) {
+            alert(`No es posible eliminar este registro de stock (${cambioNum} un.) porque todas las unidades de este producto ya han sido vendidas en pedidos de clientes.`);
+            return;
+          }
+
+          if (cambioNum > stockBaseNum) {
+            const cantAEliminar = stockBaseNum;
+            const cantQuePermanece = cambioNum - stockBaseNum;
+            const varInfo = targetVarName ? ` (Variante: ${targetVarName})` : '';
+            const confirmMsg = `Este registro de ingreso tiene ${cambioNum} un.${varInfo}, pero ya existen ${cantQuePermanece} un. vendidas en pedidos.\n\nSolo se pueden eliminar las ${cantAEliminar} un. disponibles no vendidas.\nEl registro conservará ${cantQuePermanece} un. para respaldar las ventas existentes y el stock actual quedará en 0 un.\n\n¿Deseas continuar?`;
+            
+            if (!window.confirm(confirmMsg)) return;
+
+            const costUnit = Number(log.precioCosto) || 0;
+            await updateDoc(doc(db, 'historial_inventario', log.id), {
+              cambio: cantQuePermanece,
+              cantidad: cantQuePermanece,
+              costoTotalLote: cantQuePermanece * costUnit,
+              motivo: `${log.motivo || log.accion || 'Ingreso de stock'} (${cantQuePermanece} un. respaldando pedidos)`
+            });
+
+            if (pTarget || editingId) {
+              const pIdToUpdate = pTarget ? pTarget.id : editingId;
+              let updatedVars = null;
+              if (hasVariants && targetVarName) {
+                updatedVars = currentVars.map(v => {
+                  if (String(v.nombre || '').trim().toLowerCase() === String(targetVarName).trim().toLowerCase()) {
+                    return { ...v, stock: 0 };
+                  }
+                  return v;
+                });
+              }
+              const updateObj = { stock: 0, ...(updatedVars ? { variantes: updatedVars } : {}) };
+              await updateDoc(doc(db, 'productos', pIdToUpdate), updateObj);
+
+              if (editingId && pIdToUpdate === editingId) {
+                setForm(prev => ({
+                  ...prev,
+                  stock: 0,
+                  ...(updatedVars ? { variantes: updatedVars } : {})
+                }));
+              }
+
+              setProductos(prev => prev.map(p => p.id === pIdToUpdate ? { ...p, stock: 0, ...(updatedVars ? { variantes: updatedVars } : {}) } : p));
+              setEditProductHistory(prev => prev.map(l => l.id === log.id ? { ...l, cambio: cantQuePermanece, cantidad: cantQuePermanece } : l));
+            }
+            return;
+          }
         }
 
         let updatedVariantes = null;
@@ -1569,7 +1630,9 @@ REGLAS DE FORMATO ESTRICTAS:
             precioCosto: newCost,
             costoTotalLote: newCant * newCost,
             proveedor: (form.proveedor || '').trim().toUpperCase(),
-            motivo: newMotivo
+            motivo: newMotivo,
+            usuario: currentOperator,
+            usuarioEmail: currentUser?.email || null
           };
           const docRef = await addDoc(collection(db, 'historial_inventario'), logData);
           createdLogId = docRef.id;
@@ -1838,6 +1901,8 @@ REGLAS DE FORMATO ESTRICTAS:
         motivo: motivoText,
         nota: form.notaAjuste || '',
         varianteNombre: targetVariantName || '',
+        usuario: currentOperator,
+        usuarioEmail: currentUser?.email || null,
         ...(isMerma ? {
           esMermaReal: true,
           mermaId: mermaId,
@@ -1935,26 +2000,41 @@ REGLAS DE FORMATO ESTRICTAS:
     if (lote.id === 'initial-base-lot') {
       const cantToDelete = Number(lote.cantidad || 0);
       const stockActual = Number(form.stock || 0);
-      const nuevoStock = Math.max(0, stockActual - cantToDelete);
-      if (window.confirm(`¿Deseas eliminar el registro de Stock Inicial (${cantToDelete} un.) y ajustar el stock actual de ${stockActual} a ${nuevoStock} un.?`)) {
-        setInitialProductData(prev => ({ ...prev, stock: nuevoStock }));
-        const nextLotes = (form.lotesProveedores || []).map((l, i) => i === activeLotIndex ? { ...l, stock: Math.max(0, Number(l.stock || 0) - cantToDelete) } : l);
-        setForm(prev => ({ ...prev, stock: nuevoStock, lotesProveedores: nextLotes }));
-        if (editingId) {
-          try {
-            await updateDoc(doc(db, 'productos', editingId), { 
-              stock: nuevoStock,
-              lotesProveedores: nextLotes
-            });
-            setProductos(prev => prev.map(p => p.id === editingId ? { ...p, stock: nuevoStock, lotesProveedores: nextLotes } : p));
-          } catch (e) {
-            console.error("Error al actualizar stock inicial:", e);
-          }
+
+      if (stockActual <= 0) {
+        alert(`No es posible eliminar este registro de Stock Inicial (${cantToDelete} un.) porque todas las unidades de este producto ya han sido vendidas en pedidos existentes.`);
+        return;
+      }
+
+      let cantAEliminar = cantToDelete;
+      let nuevoStock = Math.max(0, stockActual - cantToDelete);
+      let confirmMsg = `¿Deseas eliminar el registro de Stock Inicial (${cantToDelete} un.) y ajustar el stock actual de ${stockActual} a ${nuevoStock} un.?`;
+
+      if (cantToDelete > stockActual) {
+        cantAEliminar = stockActual;
+        const cantQuePermanece = cantToDelete - stockActual;
+        confirmMsg = `Este registro de Stock Inicial tiene ${cantToDelete} un., pero ya existen ${cantQuePermanece} un. vendidas en pedidos.\n\nSolo se pueden eliminar las ${cantAEliminar} un. disponibles no vendidas.\nEl registro conservará ${cantQuePermanece} un. para respaldar las ventas existentes y el stock actual quedará en 0 un.\n\n¿Deseas continuar?`;
+      }
+
+      if (!window.confirm(confirmMsg)) return;
+
+      const cantPreservada = cantToDelete > stockActual ? (cantToDelete - stockActual) : 0;
+      setInitialProductData(prev => ({ ...prev, stock: cantPreservada }));
+      const nextLotes = (form.lotesProveedores || []).map((l, i) => i === activeLotIndex ? { ...l, stock: Math.max(0, Number(l.stock || 0) - cantAEliminar) } : l);
+      setForm(prev => ({ ...prev, stock: nuevoStock, lotesProveedores: nextLotes }));
+      if (editingId) {
+        try {
+          await updateDoc(doc(db, 'productos', editingId), { 
+            stock: nuevoStock,
+            lotesProveedores: nextLotes
+          });
+          setProductos(prev => prev.map(p => p.id === editingId ? { ...p, stock: nuevoStock, lotesProveedores: nextLotes } : p));
+        } catch (e) {
+          console.error("Error al actualizar stock inicial:", e);
         }
       }
     } else {
       await handleDeleteHistoryLog(lote);
-      setEditProductHistory(prev => prev.filter(l => l.id !== lote.id));
     }
   }
 
@@ -2040,7 +2120,9 @@ REGLAS DE FORMATO ESTRICTAS:
           stockNuevo: nuevoStockTotal,
           precioCosto: costUnit,
           costoTotalLote: stockCalculado * costUnit,
-          motivo: `Nuevo lote del proveedor: ${newLot.proveedor}`
+          motivo: `Nuevo lote del proveedor: ${newLot.proveedor}`,
+          usuario: currentOperator,
+          usuarioEmail: currentUser?.email || null
         });
 
         setShowModal(false);
@@ -2263,7 +2345,9 @@ REGLAS DE FORMATO ESTRICTAS:
                   stockNuevo: stockVNuevo,
                   precioCosto: costUnit,
                   costoTotalLote: dif > 0 ? (dif * costUnit) : 0,
-                  motivo: "Edición manual de variante"
+                  motivo: "Edición manual de variante",
+                  usuario: currentOperator,
+                  usuarioEmail: currentUser?.email || null
                 });
               }
             }
@@ -2286,7 +2370,9 @@ REGLAS DE FORMATO ESTRICTAS:
               precioCosto: costUnit,
               costoTotalLote: diferencia > 0 ? (diferencia * costUnit) : 0,
               motivo: motivoText,
-              nota: form.notaAjuste || ''
+              nota: form.notaAjuste || '',
+              usuario: currentOperator,
+              usuarioEmail: currentUser?.email || null
             });
           }
         }
@@ -2308,7 +2394,9 @@ REGLAS DE FORMATO ESTRICTAS:
               stockNuevo: cantV,
               precioCosto: costUnit,
               costoTotalLote: cantV * costUnit,
-              motivo: "Nuevo producto (Variante)"
+              motivo: "Nuevo producto (Variante)",
+              usuario: currentOperator,
+              usuarioEmail: currentUser?.email || null
             });
           }
         } else {
@@ -2321,7 +2409,9 @@ REGLAS DE FORMATO ESTRICTAS:
             stockNuevo: stockCalculado,
             precioCosto: costUnit,
             costoTotalLote: stockCalculado * costUnit,
-            motivo: "Nuevo producto"
+            motivo: "Nuevo producto",
+            usuario: currentOperator,
+            usuarioEmail: currentUser?.email || null
           });
         }
       }
@@ -5644,7 +5734,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       textColor: 'text-amber-600 dark:text-amber-400'
                     }
 
-                    if (log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta')) {
+                    if (!isPositive && (log.esPedidoReal || accionStr.includes('pedido') || motivoStr.includes('pedido') || accionStr.includes('venta') || motivoStr.includes('venta'))) {
                       badge = { 
                         label: 'VENTA EN PEDIDO', 
                         color: 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-500/30', 
@@ -5707,6 +5797,26 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
                                 {formatDateDMA(log.fecha, log)}
                               </span>
+                              {(() => {
+                                const op = (log.usuario || '').trim() || 'Por sistema';
+                                const isSys = op.toLowerCase() === 'por sistema';
+                                const isWeb = op.toLowerCase().includes('catálogo') || op.toLowerCase().includes('catalogo') || op.toLowerCase().includes('online');
+                                return (
+                                  <span 
+                                    className={`text-[8.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1 shadow-sm ${
+                                      isSys 
+                                        ? 'bg-outline-variant/15 text-outline dark:text-gray-400 border-outline-variant/30 dark:border-white/10'
+                                        : isWeb
+                                        ? 'bg-sky-500/15 text-sky-700 dark:bg-sky-500/25 dark:text-sky-300 border-sky-500/30'
+                                        : 'bg-primary/15 text-primary dark:bg-primary/25 dark:text-amber-300 border-primary/30'
+                                    }`}
+                                    title={isSys ? 'Movimiento registrado por el sistema' : isWeb ? 'Venta generada desde el catálogo online' : `Operado por ${op}`}
+                                  >
+                                    <span className="text-[10px] leading-none">{isSys ? '⚙️' : isWeb ? '🛒' : '👤'}</span>
+                                    <span>{op}</span>
+                                  </span>
+                                );
+                              })()}
                             </div>
 
                             {/* Motivo o Detalle */}
