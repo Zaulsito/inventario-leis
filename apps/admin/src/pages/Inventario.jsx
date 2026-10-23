@@ -807,6 +807,18 @@ REGLAS DE FORMATO ESTRICTAS:
     );
   }
 
+  const conflictingSkuProduct = useMemo(() => {
+    const cleanSku = (form.sku || '').trim().toLowerCase();
+    if (!cleanSku) return null;
+    return productos.find(p => p.id !== editingId && (p.sku || '').trim().toLowerCase() === cleanSku);
+  }, [form.sku, productos, editingId]);
+
+  const conflictingNameProduct = useMemo(() => {
+    const cleanName = (form.nombre || '').trim().toLowerCase();
+    if (!cleanName) return null;
+    return productos.find(p => p.id !== editingId && (p.nombre || '').trim().toLowerCase() === cleanName);
+  }, [form.nombre, productos, editingId]);
+
   const editProductLotesStats = useMemo(() => {
     const isEditing = Boolean(editingId)
     const activeProv = (form.proveedor || '').trim().toUpperCase()
@@ -2133,25 +2145,35 @@ REGLAS DE FORMATO ESTRICTAS:
     }
 
     // Validar duplicados
-    const duplicate = productos.find(p => 
-      p.id !== editingId && 
-      (p.sku.toLowerCase() === form.sku.toLowerCase() || p.nombre.toLowerCase() === form.nombre.toLowerCase())
-    )
+    // Validar duplicados de SKU y Nombre de forma precisa e independiente
+    const cleanFormSku = (form.sku || '').trim().toLowerCase();
+    const cleanFormName = (form.nombre || '').trim().toLowerCase();
 
-    if (duplicate && !editingId) {
-      setDuplicatePrompt({
-        duplicateProduct: duplicate,
-        newLotData: {
-          proveedor: (form.proveedor || '').trim().toUpperCase() || 'PROVEEDOR GENERAL',
-          stock: stockCalculado,
-          precioCosto: Math.floor(Number(form.precioCosto)) || 0,
-          precioVenta: Math.floor(Number(form.precio)) || 0,
-          fechaIngreso: form.fechaIngreso || getLocalDateString()
-        }
-      });
-      return;
-    } else if (duplicate && editingId) {
-      return setErrorMsg('Ya existe otro producto con el mismo Nombre o Cód. Barra.')
+    const duplicateSku = cleanFormSku ? productos.find(p => p.id !== editingId && (p.sku || '').trim().toLowerCase() === cleanFormSku) : null;
+    const duplicateName = cleanFormName ? productos.find(p => p.id !== editingId && (p.nombre || '').trim().toLowerCase() === cleanFormName) : null;
+
+    if (!editingId) {
+      const dup = duplicateSku || duplicateName;
+      if (dup) {
+        setDuplicatePrompt({
+          duplicateProduct: dup,
+          newLotData: {
+            proveedor: (form.proveedor || '').trim().toUpperCase() || 'PROVEEDOR GENERAL',
+            stock: stockCalculado,
+            precioCosto: Math.floor(Number(form.precioCosto)) || 0,
+            precioVenta: Math.floor(Number(form.precio)) || 0,
+            fechaIngreso: form.fechaIngreso || getLocalDateString()
+          }
+        });
+        return;
+      }
+    } else {
+      if (duplicateSku) {
+        return setErrorMsg(`No se puede guardar: El Código de Barra "${form.sku}" ya está registrado en el producto "${duplicateSku.nombre}"${duplicateSku.marca ? ` (Marca: ${duplicateSku.marca})` : ''}. El código de barra debe ser único.`);
+      }
+      if (duplicateName) {
+        return setErrorMsg(`No se puede guardar: Ya existe otro producto registrado con el nombre "${duplicateName.nombre}" (SKU: ${duplicateName.sku || 'S/N'}).`);
+      }
     }
 
     const estadoFinal = calcularEstado(stockCalculado)
@@ -3734,72 +3756,56 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className={`bg-surface dark:bg-[#1e1e1e] w-full ${activeTabModal === 'catalogo' ? 'max-w-6xl' : 'max-w-4xl'} rounded-[40px] shadow-2xl border border-outline-variant/20 dark:border-white/5 flex flex-col max-h-[90vh] overflow-hidden text-on-surface dark:text-white/90 animate-in fade-in zoom-in-95 duration-300`}>
             {/* Header del Modal */}
-            <div className="bg-surface-container-low dark:bg-white/5 px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-outline-variant/20 dark:border-white/5 shrink-0">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-                <h3 className="font-headline font-bold text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2 shrink-0">
-                  <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
-                  {editingId ? 'Editar Producto' : 'Nuevo Producto'}
-                </h3>
-                
-                {/* Selector de pestañas deslizable premium / Luxe */}
-                <div className="relative flex bg-surface-variant/30 dark:bg-white/5 p-1 rounded-2xl border border-outline-variant/10 dark:border-white/5 overflow-x-auto">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabModal('editar')}
-                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
-                      activeTabModal === 'editar' 
-                        ? 'text-primary dark:text-[#e2bd6c]' 
-                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-base">edit_note</span>
-                    Editar Producto
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabModal('lotes')}
-                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
-                      activeTabModal === 'lotes' 
-                        ? 'text-primary dark:text-[#e2bd6c]' 
-                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-base">inventory_2</span>
-                    Stock y Costos
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabModal('catalogo')}
-                    className={`relative z-10 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
-                      activeTabModal === 'catalogo' 
-                        ? 'text-primary dark:text-[#e2bd6c]' 
-                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-base">visibility</span>
-                    Editar en Catálogo
-                  </button>
-                  {/* Sliding pill background */}
-                  <div 
-                    className="absolute top-1 bottom-1 left-1 rounded-xl bg-[#E5E0D3]/80 dark:bg-white/10 transition-all duration-300 ease-out"
-                    style={{
-                      width: 'calc(33.333% - 4px)',
-                      transform: activeTabModal === 'catalogo' ? 'translateX(200%)' : (activeTabModal === 'lotes' ? 'translateX(100%)' : 'translateX(0%)'),
-                      border: '1px solid rgba(226, 189, 108, 0.2)'
-                    }}
-                  />
-                </div>
-              </div>
+            <div className="bg-surface-container-low dark:bg-white/5 px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 border-b border-outline-variant/20 dark:border-white/5 shrink-0">
+              <h3 className="font-headline font-bold text-lg sm:text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2 shrink-0">
+                <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
+                <span>{editingId ? 'Editar Producto' : 'Nuevo Producto'}</span>
+              </h3>
               
-              <button 
-                type="button"
-                onClick={() => setShowModal(false)} 
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-outline shrink-0 ml-auto sm:ml-0"
+              {/* Selector de pestañas deslizable premium / Luxe (100% swipe/táctil en móvil) */}
+              <div 
+                className="w-full sm:w-auto overflow-x-auto touch-pan-x flex items-center gap-1.5 p-1 bg-surface-variant/30 dark:bg-white/5 rounded-2xl border border-outline-variant/10 dark:border-white/5 shrink-0"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                <span className="material-symbols-outlined">close</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTabModal('editar')}
+                  className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                    activeTabModal === 'editar' 
+                      ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                      : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">edit_note</span>
+                  Editar Producto
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTabModal('lotes')}
+                  className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                    activeTabModal === 'lotes' 
+                      ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                      : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">inventory_2</span>
+                  Stock y Costos
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTabModal('catalogo')}
+                  className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                    activeTabModal === 'catalogo' 
+                      ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                      : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">visibility</span>
+                  Editar en Catálogo
+                </button>
+              </div>
             </div>
             
             {/* Cuerpo del Formulario (Scrollable) */}
@@ -4056,9 +4062,22 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               value={form.nombre} 
                               disabled={isSecondarySupplier}
                               onChange={e => setForm({...form, nombre: e.target.value})}
-                              className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
+                              className={`w-full bg-surface-container-lowest dark:bg-white/5 border rounded-xl px-4 py-3 text-sm focus:outline-none font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5 ${
+                                conflictingNameProduct
+                                  ? 'border-amber-500/60 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                                  : 'border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c]'
+                              }`}
                               placeholder="Ej. Crema Collagen"
                             />
+                            {conflictingNameProduct && (
+                              <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 font-medium animate-in fade-in slide-in-from-top-1">
+                                <span className="material-symbols-outlined text-base shrink-0 text-amber-500">info</span>
+                                <div>
+                                  <span className="font-bold block">Nombre ya existente en catálogo:</span>
+                                  <span>Producto: "{conflictingNameProduct.nombre}" (SKU: {conflictingNameProduct.sku || 'S/N'}{conflictingNameProduct.marca ? ` • Marca: ${conflictingNameProduct.marca}` : ''})</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold uppercase tracking-widest text-secondary dark:text-[#e2bd6c]/80 mb-1.5 ml-1">
@@ -4070,7 +4089,11 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 value={form.sku} 
                                 disabled={isSecondarySupplier}
                                 onChange={e => handleSkuChange(e.target.value)}
-                                className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5"
+                                className={`w-full bg-surface-container-lowest dark:bg-white/5 border rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none font-bold shadow-sm transition-all dark:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-variant/30 dark:disabled:bg-white/5 ${
+                                  conflictingSkuProduct
+                                    ? 'border-error/80 focus:border-error focus:ring-2 focus:ring-error/20 bg-error/5'
+                                    : 'border-outline-variant/30 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c]'
+                                }`}
                                 placeholder="Escribe o escanea..."
                               />
                               <button 
@@ -4082,6 +4105,15 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 <span className="material-symbols-outlined text-[20px]">photo_camera</span>
                               </button>
                             </div>
+                            {conflictingSkuProduct && (
+                              <div className="mt-2 p-2.5 rounded-xl bg-error/10 border border-error/30 flex items-start gap-2 text-xs text-error font-medium animate-in fade-in slide-in-from-top-1">
+                                <span className="material-symbols-outlined text-base shrink-0 text-error">warning</span>
+                                <div>
+                                  <span className="font-bold block">Código de barra ya asignado a otro producto:</span>
+                                  <span>Producto: "{conflictingSkuProduct.nombre}"{conflictingSkuProduct.marca ? ` (Marca: ${conflictingSkuProduct.marca})` : ''} • Stock actual: {conflictingSkuProduct.stock} u.</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
