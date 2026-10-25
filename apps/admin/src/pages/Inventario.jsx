@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useOutletContext, useNavigate, useLocation } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs, getDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../config/firebase'
@@ -576,6 +576,45 @@ REGLAS DE FORMATO ESTRICTAS:
   const loteJustAddedSessionRef = useRef(false)
 
   // Modal estético para nuevo proveedor
+  // Estado para el botón flotante (FAB) inteligente en móvil
+  const [showFab, setShowFab] = useState(true)
+  const fabTimeoutRef = useRef(null)
+
+  // Al hacer scroll o tocar la pantalla, activa el FAB y programa su ocultamiento tras 2.5s de inactividad
+  const triggerFabOnActivity = useCallback(() => {
+    setShowFab(true)
+    if (fabTimeoutRef.current) {
+      clearTimeout(fabTimeoutRef.current)
+    }
+    fabTimeoutRef.current = setTimeout(() => {
+      setShowFab(false)
+    }, 2500)
+  }, [])
+
+  useEffect(() => {
+    // Al entrar a la página permanece visible
+    setShowFab(true)
+
+    const handleScrollOrTouch = () => {
+      triggerFabOnActivity()
+    }
+
+    window.addEventListener('scroll', handleScrollOrTouch, { passive: true, capture: true })
+    window.addEventListener('touchmove', handleScrollOrTouch, { passive: true, capture: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrTouch, { capture: true })
+      window.removeEventListener('touchmove', handleScrollOrTouch, { capture: true })
+      if (fabTimeoutRef.current) clearTimeout(fabTimeoutRef.current)
+    }
+  }, [triggerFabOnActivity])
+
+  const handleFabClick = () => {
+    setShowFab(false)
+    if (fabTimeoutRef.current) clearTimeout(fabTimeoutRef.current)
+    openNew()
+  }
+
   const [showAddProveedorModal, setShowAddProveedorModal] = useState(false)
   const [nuevoProveedorInputModal, setNuevoProveedorInputModal] = useState('')
 
@@ -3150,16 +3189,16 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
             <div className="flex flex-col xl:flex-row gap-4 pt-2 border-t border-outline-variant/10">
               <div className="flex flex-col md:flex-row gap-3 flex-1">
                 <div className="flex items-center gap-2 flex-1 max-w-2xl">
-                  <div className="relative flex-1">
+                  <div className="relative flex-1 min-w-0">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline dark:text-gray-400 text-sm">search</span>
                     <input
                       value={busqueda}
                       onChange={e => setBusqueda(e.target.value)}
                       placeholder="Buscar por nombre o código..."
-                      className="w-full bg-surface-container-low dark:bg-[#121212] rounded-xl pl-10 pr-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container dark:focus:ring-[#e2bd6c]/20 border border-outline-variant/20 dark:border-white/10 transition-all font-bold placeholder:font-normal dark:text-white dark:placeholder:text-gray-500"
+                      className="w-full bg-surface-container-low dark:bg-[#121212] rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-container dark:focus:ring-[#e2bd6c]/20 border border-outline-variant/20 dark:border-white/10 transition-all font-bold placeholder:font-normal dark:text-white dark:placeholder:text-gray-500"
                     />
                   </div>
-                  
+
                   <div className="relative shrink-0">
                     <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2.5 bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-xl hover:bg-surface dark:hover:bg-white/5 transition-colors flex items-center justify-center text-on-surface-variant dark:text-white/70 shadow-sm h-[42px] px-3">
                       <span className="material-symbols-outlined text-lg">more_horiz</span>
@@ -3187,10 +3226,10 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                 </div>
 
                 <div className="flex items-center gap-2 flex-1 md:flex-none h-[42px]">
-                  <div className="relative flex-1 md:flex-none h-full">
+                  <div className="relative flex-1 md:flex-none h-full min-w-0">
                     <button 
                       onClick={() => setShowOrdenDropdown(!showOrdenDropdown)}
-                      className="flex items-center bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-3 md:px-4 gap-2 md:gap-3 hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-all shadow-sm min-w-[120px] md:min-w-[150px] justify-between h-full"
+                      className="w-full flex items-center bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-3 md:px-4 gap-1.5 md:gap-3 hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-all shadow-sm md:min-w-[150px] justify-between h-full"
                     >
                       <div className="flex items-center gap-1.5 md:gap-2">
                         <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">sort</span>
@@ -3239,12 +3278,12 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     )}
                   </div>
                   
-                  <div className="relative h-full">
+                  <div className="relative flex-1 md:flex-none h-full min-w-0">
                     <button 
                       onClick={() => setShowVisibilidadDropdown(prev => !prev)}
                       disabled={isUpdatingVisibilidad}
                       title="Gestionar visibilidad del catálogo"
-                      className="flex items-center bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-3 md:px-4 gap-2 md:gap-3 hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-all shadow-sm justify-between h-full whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center bg-surface-container-low dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-3 md:px-4 gap-1.5 md:gap-3 hover:bg-surface-variant/30 dark:hover:bg-white/5 transition-all shadow-sm justify-between h-full whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="flex items-center gap-1.5 md:gap-2">
                         <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">visibility</span>
@@ -3298,10 +3337,9 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     )}
                   </div>
 
-                  <button onClick={openNew} className="flex-1 md:flex-none h-full flex items-center justify-center gap-1.5 md:gap-2 bg-secondary text-white px-3 md:px-5 rounded-xl font-label font-bold uppercase text-[9px] md:text-[10px] tracking-tight md:tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all tour-inv-nuevo whitespace-nowrap">
+                  <button onClick={openNew} className="hidden md:flex h-full items-center justify-center gap-2 bg-secondary text-white px-5 rounded-xl font-label font-bold uppercase text-[10px] tracking-widest shadow-md hover:shadow-lg hover:scale-105 transition-all tour-inv-nuevo whitespace-nowrap shrink-0">
                     <span className="material-symbols-outlined text-sm">add</span>
-                    <span className="hidden sm:inline">Nuevo Producto</span>
-                    <span className="sm:hidden">Nuevo</span>
+                    <span>Nuevo Producto</span>
                   </button>
                 </div>
               </div>
@@ -6388,6 +6426,23 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Botón Flotante Inteligente para Móvil (Smart FAB) */}
+      {!showModal && (
+        <button
+          type="button"
+          onClick={handleFabClick}
+          className={`md:hidden fixed bottom-28 right-5 z-[110] w-14 h-14 rounded-full bg-secondary text-white dark:bg-[#e2bd6c] dark:text-black shadow-[0_10px_25px_rgba(0,0,0,0.4)] flex items-center justify-center transition-all duration-300 ease-out active:scale-90 border-2 border-white/30 dark:border-black/20 select-none cursor-pointer ${
+            showFab 
+              ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' 
+              : 'opacity-0 scale-75 translate-y-6 pointer-events-none'
+          }`}
+          title="Nuevo Producto"
+          aria-label="Nuevo Producto"
+        >
+          <span className="material-symbols-outlined text-3xl font-bold">add</span>
+        </button>
       )}
 
       <Footer />
