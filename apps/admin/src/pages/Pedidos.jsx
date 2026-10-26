@@ -3276,9 +3276,9 @@ END:VCALENDAR`
 
             {/* CUERPO PASO 2: AGREGAR PRODUCTOS Y RESUMEN */}
             {modalStep === 2 && (
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar flex flex-col animate-in fade-in duration-200">
-                {/* Pastilla resumen del cliente */}
-                <div className="bg-surface-container-low dark:bg-white/5 p-3 rounded-2xl border border-outline-variant/10 dark:border-white/10 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar flex flex-col pb-28 sm:pb-6 animate-in fade-in duration-200">
+                {/* Pastilla resumen del cliente (se contrae en móvil al buscar para que el buscador suba y gane espacio) */}
+                <div className={`${showProdDropdown ? 'hidden sm:flex' : 'flex'} bg-surface-container-low dark:bg-white/5 p-3 rounded-2xl border border-outline-variant/10 dark:border-white/10 items-center justify-between gap-3 shrink-0 transition-all duration-200`}>
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined text-base">person</span>
@@ -3327,7 +3327,7 @@ END:VCALENDAR`
                       <>
                         <div className="fixed inset-0 z-[60]" onClick={() => { setShowProdDropdown(false); setBusquedaProd(''); }} />
                         <div className="absolute left-0 top-full mt-2 w-full bg-surface dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/10 rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                          <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                          <div className="max-h-[55vh] sm:max-h-80 overflow-y-auto custom-scrollbar">
                             {productos
                               .filter(p => {
                                 const yaAgregados = form.productosSeleccionados.filter(ps => ps.productoId === p.id);
@@ -3343,10 +3343,16 @@ END:VCALENDAR`
                               .sort((a, b) => new Date(b.fechaIngreso || 0) - new Date(a.fechaIngreso || 0))
                               .slice(0, 10)
                               .map((p, idx, arr) => (
-                                <div key={p.id} className={`${idx !== arr.length - 1 ? 'border-b border-outline-variant/5 dark:border-white/5' : ''}`}>
+                                <div key={p.id} className={`${idx !== arr.length - 1 ? 'border-b border-outline-variant/10 dark:border-white/5' : ''}`}>
                                   <button 
                                     type="button"
-                                    onClick={() => { handleAddProduct(p.id); setShowProdDropdown(false); setBusquedaProd(''); }}
+                                    onClick={() => { 
+                                      if (!p.variantes?.length) {
+                                        handleAddProduct(p.id); 
+                                        setShowProdDropdown(false); 
+                                        setBusquedaProd(''); 
+                                      }
+                                    }}
                                     disabled={p.stock <= 0}
                                     className={`w-full flex items-center justify-between px-4 py-3 text-xs transition-colors text-left ${
                                       p.stock <= 0 ? 'opacity-40 cursor-not-allowed' : 'text-on-surface dark:text-white hover:bg-primary/5 dark:hover:bg-white/5'
@@ -3375,28 +3381,43 @@ END:VCALENDAR`
                                     )}
                                   </button>
                                   
+                                  {/* Chips Horizontales de Variantes (ultra compactos, visibles y táctiles en móvil) */}
                                   {p.variantes?.length > 0 && (
-                                    <div className="bg-surface-container-low/50 dark:bg-black/20 py-1 space-y-0.5 border-t border-outline-variant/5 dark:border-white/5">
-                                      {p.variantes.map((v, vIdx) => (
-                                        <button
-                                          key={vIdx}
-                                          type="button"
-                                          disabled={v.stock <= 0}
-                                          onClick={() => { handleAddProduct(p.id, v.nombre); setShowProdDropdown(false); setBusquedaProd(''); }}
-                                          className={`w-full flex items-center justify-between pl-8 pr-4 py-1.5 text-[11px] font-medium transition-colors text-left ${
-                                            v.stock <= 0 ? 'opacity-40 cursor-not-allowed' : 'text-on-surface-variant dark:text-gray-300 hover:bg-primary/5 hover:text-primary'
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <div 
-                                              className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0" 
-                                              style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
-                                            />
-                                            <span className="truncate">{v.nombre}</span>
-                                          </div>
-                                          <span className={`text-[10px] font-bold shrink-0 ${v.stock <= 0 ? 'text-error/60' : 'opacity-60'}`}>{v.stock} u.</span>
-                                        </button>
-                                      ))}
+                                    <div className="bg-surface-container-low/70 dark:bg-black/30 p-2.5 border-t border-outline-variant/10 dark:border-white/5">
+                                      <p className="text-[9px] font-extrabold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/80 mb-2 ml-1">
+                                        Toca un color para agregarlo:
+                                      </p>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {p.variantes.map((v, vIdx) => {
+                                          const sinStock = Number(v.stock) <= 0;
+                                          return (
+                                            <button
+                                              key={vIdx}
+                                              type="button"
+                                              disabled={sinStock}
+                                              onClick={() => { 
+                                                handleAddProduct(p.id, v.nombre); 
+                                                setShowProdDropdown(false); 
+                                                setBusquedaProd(''); 
+                                              }}
+                                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shrink-0 cursor-pointer ${
+                                                sinStock 
+                                                  ? 'opacity-35 cursor-not-allowed border-outline-variant/10 bg-transparent text-outline line-through' 
+                                                  : 'bg-surface dark:bg-white/10 hover:bg-primary/10 dark:hover:bg-[#e2bd6c]/20 border-outline-variant/20 dark:border-white/15 text-on-surface dark:text-white active:scale-95 shadow-sm'
+                                              }`}
+                                            >
+                                              <div 
+                                                className="w-2.5 h-2.5 rounded-full border border-black/15 dark:border-white/20 shrink-0" 
+                                                style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
+                                              />
+                                              <span>{v.nombre}</span>
+                                              <span className={`text-[10px] font-mono px-1 rounded ${sinStock ? 'text-error' : 'text-primary dark:text-[#e2bd6c] font-black'}`}>
+                                                {v.stock} u.
+                                              </span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   )}
                                 </div>

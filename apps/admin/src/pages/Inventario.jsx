@@ -577,6 +577,9 @@ REGLAS DE FORMATO ESTRICTAS:
   const [visibilidadModal, setVisibilidadModal] = useState(null)
   const [priceConfirmModal, setPriceConfirmModal] = useState(null)
   const [pendingStockModal, setPendingStockModal] = useState(null)
+  const [blockedDeleteModal, setBlockedDeleteModal] = useState(null)
+  const [highlightedVariantIndex, setHighlightedVariantIndex] = useState(null)
+  const highlightVariantTimerRef = useRef(null)
   const loteJustAddedSessionRef = useRef(false)
 
   // Modal estético para nuevo proveedor
@@ -914,21 +917,46 @@ REGLAS DE FORMATO ESTRICTAS:
       }
     }
 
-    // Si hay un lote inicial base previo, incluirlo como primer registro acumulado
+    // Si hay un lote inicial base previo, incluirlo desglosando por variante si aplica
     if (cantInicialBase > 0) {
-      const gastoInicialBase = cantInicialBase * costoInicial
-      sumaAcumulada += gastoInicialBase
-      unidadesTotales += cantInicialBase
+      const varsConStock = (form.variantes && form.variantes.length > 0)
+        ? form.variantes.filter(v => Number(v.stock) > 0)
+        : [];
 
-      lotes.push({
-        id: 'initial-base-lot',
-        fecha: fechaInicial,
-        cantidad: cantInicialBase,
-        precioCosto: costoInicial,
-        gastoFecha: gastoInicialBase,
-        sumaAcumulada: sumaAcumulada,
-        motivo: 'Stock Inicial Registrado'
-      })
+      if (varsConStock.length > 0) {
+        // Desglosar exclusivamente las variantes con unidades ingresadas
+        varsConStock.forEach((v, idx) => {
+          const vCant = Number(v.stock);
+          const gastoV = vCant * costoInicial;
+          sumaAcumulada += gastoV;
+          unidadesTotales += vCant;
+
+          lotes.push({
+            id: `initial-base-lot-${idx}-${v.nombre}`,
+            fecha: fechaInicial,
+            cantidad: vCant,
+            precioCosto: costoInicial,
+            gastoFecha: gastoV,
+            sumaAcumulada: sumaAcumulada,
+            motivo: 'Stock Inicial Registrado',
+            varianteNombre: v.nombre
+          });
+        });
+      } else {
+        const gastoInicialBase = cantInicialBase * costoInicial;
+        sumaAcumulada += gastoInicialBase;
+        unidadesTotales += cantInicialBase;
+
+        lotes.push({
+          id: 'initial-base-lot',
+          fecha: fechaInicial,
+          cantidad: cantInicialBase,
+          precioCosto: costoInicial,
+          gastoFecha: gastoInicialBase,
+          sumaAcumulada: sumaAcumulada,
+          motivo: 'Stock Inicial Registrado'
+        });
+      }
     }
 
     // Procesar las entradas de compras / ediciones de stock posteriores
@@ -963,7 +991,7 @@ REGLAS DE FORMATO ESTRICTAS:
       stockCalculado,
       costoPromedio
     }
-  }, [editProductHistory, initialProductData, editingId, form.stock, form.precioCosto, form.fechaIngreso, form.proveedor, form.lotesProveedores])
+  }, [editProductHistory, initialProductData, editingId, form.stock, form.precioCosto, form.fechaIngreso, form.proveedor, form.lotesProveedores, form.variantes])
 
   useEffect(() => {
     if (editingId && editProductLotesStats && editProductLotesStats.stockCalculado !== undefined && !form.ajusteStock) {
@@ -2093,9 +2121,154 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
+  function triggerVariantHighlight(index, msg) {
+    if (highlightVariantTimerRef.current) clearTimeout(highlightVariantTimerRef.current);
+    setHighlightedVariantIndex(index);
+    if (msg) setErrorMsg(msg);
+
+    // Auto-redirección suave hacia la casilla que falta y auto-foco
+    setTimeout(() => {
+      const el = document.getElementById(`variant-input-${index}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+    }, 60);
+
+    highlightVariantTimerRef.current = setTimeout(() => {
+      setHighlightedVariantIndex(null);
+    }, 3000);
+  }
+
+  function validateVariants(variantes) {
+    if (!variantes || variantes.length === 0) return { valid: true };
+    
+    // Validar campos vacíos
+    for (let i = 0; i < variantes.length; i++) {
+      const vName = (variantes[i].nombre || '').trim();
+      if (!vName) {
+        triggerVariantHighlight(i, `Por favor escribe el nombre de este color antes de continuar.`);
+        return { valid: false, emptyIndex: i };
+      }
+    }
+
+    // Validar nombres duplicados
+    const seen = {};
+    for (let i = 0; i < variantes.length; i++) {
+      const lower = (variantes[i].nombre || '').trim().toLowerCase();
+      if (seen[lower] !== undefined) {
+        triggerVariantHighlight(i, `Ya existe otra variante con el nombre "${variantes[i].nombre.trim()}". Cada color debe tener un nombre único.`);
+        return { valid: false, duplicateIndex: i };
+      }
+      seen[lower] = i;
+    }
+
+    return { valid: true };
+  }
+
+  async function checkItemHasSales(productOrId, variantName = null) {
+    try {
+      const prodObj = typeof productOrId === 'object' && productOrId !== null
+        ? productOrId 
+        : productos.find(p => p.id === productOrId);
+      const targetId = prodObj?.id || productOrId;
+      const targetSku = (prodObj?.sku || form?.sku || '').trim().toLowerCase();
+      const targetName = (prodObj?.nombre || form?.nombre || '').trim().toLowerCase();
+
+      const snapPedidos = await getDocs(collection(db, 'pedidos'));
+      for (const pDoc of snapPedidos.docs) {
+        const ped = { id: pDoc.id, ...pDoc.data() };
+        if (ped.estado === 'cancelado') continue;
+        if (Array.isArray(ped.productos)) {
+          for (const prod of ped.productos) {
+            const prodId = prod.productoId || prod.id;
+            const prodSku = (prod.sku || '').trim().toLowerCase();
+            const prodName = (prod.nombre || '').trim().toLowerCase();
+
+            const matchProd = (targetId && prodId && prodId === targetId) ||
+              (targetSku && prodSku && targetSku === prodSku) ||
+              (targetName && prodName && targetName === prodName);
+
+            if (matchProd) {
+              const prodVarName = String(prod.varianteNombre || prod.variante || prod.color || '').trim().toLowerCase();
+              if (!variantName) {
+                return {
+                  hasSales: true,
+                  pedidoId: ped.id,
+                  cliente: ped.cliente || 'Cliente',
+                  variante: prodVarName || null
+                };
+              } else {
+                const targetVarName = String(variantName).trim().toLowerCase();
+                if (prodVarName && prodVarName === targetVarName) {
+                  return {
+                    hasSales: true,
+                    pedidoId: ped.id,
+                    cliente: ped.cliente || 'Cliente',
+                    variante: variantName
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error comprobando ventas del producto/variante:", err);
+    }
+    return { hasSales: false };
+  }
+
+  async function handleAttemptDeleteVariant(variantIndex) {
+    const targetVar = form.variantes?.[variantIndex];
+    if (!targetVar) return;
+
+    if (editingId && targetVar.nombre) {
+      const check = await checkItemHasSales(editingId, targetVar.nombre);
+      if (check.hasSales) {
+        setBlockedDeleteModal({
+          tipo: 'variante',
+          nombre: form.nombre || 'Producto',
+          varianteNombre: targetVar.nombre,
+          variantIndex: variantIndex,
+          productId: editingId,
+          pedidoId: check.pedidoId,
+          cliente: check.cliente
+        });
+        return;
+      }
+    }
+
+    const bSku = (form.sku || '').trim().toUpperCase();
+    const reIndexed = form.variantes
+      .filter((_, i) => i !== variantIndex)
+      .map((v, i) => ({
+        ...v,
+        sku: bSku ? `${bSku}-${i + 1}` : `VAR-${i + 1}`
+      }));
+    setForm(prev => ({ ...prev, variantes: reIndexed }));
+  }
+
   async function handleDelete(id) {
-    if (window.confirm("¿Estás seguro de eliminar este producto de la base de datos?")) {
-      await deleteDoc(doc(db, 'productos', id))
+    const prod = productos.find(p => p.id === id);
+    if (!prod) return;
+
+    // Verificar si el producto tiene ventas en pedidos por ID, SKU o Nombre
+    const check = await checkItemHasSales(prod, null);
+    if (check.hasSales) {
+      setBlockedDeleteModal({
+        tipo: 'producto',
+        nombre: prod.nombre,
+        productId: id,
+        pedidoId: check.pedidoId,
+        cliente: check.cliente,
+        varianteNombre: check.variante
+      });
+      return;
+    }
+
+    if (window.confirm(`¿Estás seguro de eliminar "${prod.nombre}" de la base de datos?`)) {
+      await deleteDoc(doc(db, 'productos', id));
     }
   }
 
@@ -2411,6 +2584,7 @@ REGLAS DE FORMATO ESTRICTAS:
                   precioCosto: costUnit,
                   costoTotalLote: dif > 0 ? (dif * costUnit) : 0,
                   motivo: "Edición manual de variante",
+                  varianteNombre: vNuevo.nombre,
                   usuario: currentOperator,
                   usuarioEmail: currentUser?.email || null
                 });
@@ -2450,21 +2624,25 @@ REGLAS DE FORMATO ESTRICTAS:
         if (form.variantes && form.variantes.length > 0) {
           for (const v of form.variantes) {
             const cantV = Number(v.stock) || 0;
-            await addDoc(collection(db, 'historial_inventario'), {
-              productoId: savedId,
-              fecha: new Date().toISOString(),
-              accion: `Creación inicial (${v.nombre})`,
-              cambio: cantV,
-              stockAnterior: 0,
-              stockNuevo: cantV,
-              precioCosto: costUnit,
-              costoTotalLote: cantV * costUnit,
-              motivo: "Nuevo producto (Variante)",
-              usuario: currentOperator,
-              usuarioEmail: currentUser?.email || null
-            });
+            // Registrar exclusivamente las variantes que ingresaron stock (> 0)
+            if (cantV > 0) {
+              await addDoc(collection(db, 'historial_inventario'), {
+                productoId: savedId,
+                fecha: new Date().toISOString(),
+                accion: `Creación inicial (${v.nombre})`,
+                cambio: cantV,
+                stockAnterior: 0,
+                stockNuevo: cantV,
+                precioCosto: costUnit,
+                costoTotalLote: cantV * costUnit,
+                motivo: "Nuevo producto (Variante)",
+                varianteNombre: v.nombre,
+                usuario: currentOperator,
+                usuarioEmail: currentUser?.email || null
+              });
+            }
           }
-        } else {
+        } else if (stockCalculado > 0) {
           await addDoc(collection(db, 'historial_inventario'), {
             productoId: savedId,
             fecha: new Date().toISOString(),
@@ -2512,10 +2690,8 @@ REGLAS DE FORMATO ESTRICTAS:
     }
 
     if (form.variantes && form.variantes.length > 0) {
-      const emptyVar = form.variantes.find(v => !(v.nombre || '').trim());
-      if (emptyVar) {
-        return setErrorMsg('Todos los colores o variantes añadidos deben tener un nombre.');
-      }
+      const varCheck = validateVariants(form.variantes);
+      if (!varCheck.valid) return;
     }
 
     setActiveTabModal('lotes');
@@ -2525,6 +2701,11 @@ REGLAS DE FORMATO ESTRICTAS:
     setErrorMsg('');
     if (!form.nombre || !form.sku || !form.coleccion) {
       return setErrorMsg('Nombre, Cód. Barra y Categoría son obligatorios.');
+    }
+
+    if (form.variantes && form.variantes.length > 0) {
+      const varCheck = validateVariants(form.variantes);
+      if (!varCheck.valid) return;
     }
 
     const prodAnterior = editingId ? productos.find(p => p.id === editingId) : null;
@@ -3884,6 +4065,103 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
         )}
       </div>
 
+      {/* Modal de Acción Bloqueada por Ventas Existentes (Protección Contable) */}
+      {blockedDeleteModal && (
+        <div 
+          className="fixed inset-0 z-[250] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setBlockedDeleteModal(null)}
+        >
+          <div 
+            className="bg-surface dark:bg-[#1e1e1e] w-full max-w-md rounded-[32px] shadow-2xl border border-error/30 dark:border-error/40 p-6 text-on-surface dark:text-white animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-error/15 text-error flex items-center justify-center shrink-0 border border-error/20">
+                <span className="material-symbols-outlined text-3xl">shield_lock</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-error block mb-0.5">
+                  Protección de Integridad
+                </span>
+                <h4 className="font-headline font-bold text-lg leading-tight dark:text-white">
+                  {blockedDeleteModal.tipo === 'variante' ? 'No se puede eliminar este color' : 'No se puede eliminar este producto'}
+                </h4>
+              </div>
+            </div>
+
+            <div className="bg-surface-container-low dark:bg-white/5 rounded-2xl p-4 border border-outline-variant/15 dark:border-white/5 space-y-2 mb-4 text-xs">
+              <p className="text-on-surface-variant dark:text-gray-300">
+                {blockedDeleteModal.tipo === 'variante' ? (
+                  <>
+                    La variante <strong className="text-primary dark:text-[#e2bd6c] font-black">"{blockedDeleteModal.varianteNombre}"</strong> del producto <strong className="dark:text-white">{blockedDeleteModal.nombre}</strong> ya registra ventas o pedidos en el sistema.
+                  </>
+                ) : (
+                  <>
+                    El producto <strong className="text-primary dark:text-[#e2bd6c] font-black">"{blockedDeleteModal.nombre}"</strong> tiene pedidos o ventas registradas en el sistema.
+                  </>
+                )}
+              </p>
+              {blockedDeleteModal.pedidoId && (
+                <div className="flex items-center gap-2 pt-1 border-t border-outline-variant/10 dark:border-white/5 text-[11px] text-outline dark:text-gray-400">
+                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#e2bd6c]">receipt_long</span>
+                  <span>
+                    Asignado en <strong className="text-on-surface dark:text-white">Pedido #{blockedDeleteModal.pedidoId.slice(-5)}</strong> de {blockedDeleteModal.cliente || 'Cliente'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-outline/80 dark:text-white/70 mb-5 leading-relaxed">
+              Es imposible eliminarlo mientras esté vinculado a pedidos o ventas para no dañar el stock, las ventas ni el historial de compras de tus clientes.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (blockedDeleteModal.tipo === 'variante') {
+                    // Ocultar variante en catalogo
+                    setForm(prev => {
+                      const newV = [...(prev.variantes || [])];
+                      if (newV[blockedDeleteModal.variantIndex]) {
+                        newV[blockedDeleteModal.variantIndex] = {
+                          ...newV[blockedDeleteModal.variantIndex],
+                          visible: false
+                        };
+                      }
+                      return { ...prev, variantes: newV };
+                    });
+                  } else {
+                    // Ocultar producto en catalogo
+                    try {
+                      await updateDoc(doc(db, 'productos', blockedDeleteModal.productId), {
+                        visibleEnCatalogo: false,
+                        estado: 'pausado'
+                      });
+                    } catch (e) {
+                      console.error("Error al pausar producto:", e);
+                    }
+                  }
+                  setBlockedDeleteModal(null);
+                }}
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-primary/10 dark:bg-[#e2bd6c]/15 text-primary dark:text-[#e2bd6c] hover:bg-primary/20 dark:hover:bg-[#e2bd6c]/25 border border-primary/20 dark:border-[#e2bd6c]/30 transition-all active:scale-95 cursor-pointer text-center flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-base">visibility_off</span>
+                <span>Ocultar del Catálogo</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setBlockedDeleteModal(null)}
+                className="py-3 px-5 rounded-xl font-bold text-xs uppercase tracking-wider bg-surface-container-high dark:bg-white/10 hover:bg-surface-container-highest dark:hover:bg-white/15 text-on-surface dark:text-white transition-all border border-outline-variant/20 dark:border-white/10 active:scale-95 cursor-pointer text-center"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Confirmación para Eliminar Foto (Anti-errores y Long-Press) */}
       {photoToDelete && (
         <div 
@@ -4058,7 +4336,13 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 
                   <button
                     type="button"
-                    onClick={() => setActiveTabModal('lotes')}
+                    onClick={() => {
+                      if (activeTabModal === 'editar' && form.variantes && form.variantes.length > 0) {
+                        const varCheck = validateVariants(form.variantes);
+                        if (!varCheck.valid) return;
+                      }
+                      setActiveTabModal('lotes');
+                    }}
                     className={`px-3 sm:px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                       activeTabModal === 'lotes' 
                         ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
@@ -4072,7 +4356,13 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 
                   <button
                     type="button"
-                    onClick={() => setActiveTabModal('catalogo')}
+                    onClick={() => {
+                      if (activeTabModal === 'editar' && form.variantes && form.variantes.length > 0) {
+                        const varCheck = validateVariants(form.variantes);
+                        if (!varCheck.valid) return;
+                      }
+                      setActiveTabModal('catalogo');
+                    }}
                     className={`px-3 sm:px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                       activeTabModal === 'catalogo' 
                         ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
@@ -4595,6 +4885,14 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       <button 
                         type="button"
                         onClick={() => {
+                          if (form.variantes && form.variantes.length > 0) {
+                            const lastIdx = form.variantes.length - 1;
+                            const lastVarName = (form.variantes[lastIdx]?.nombre || '').trim();
+                            if (!lastVarName) {
+                              triggerVariantHighlight(lastIdx, 'Escribe el nombre del color actual antes de añadir otro.');
+                              return;
+                            }
+                          }
                           const nextNum = (form.variantes || []).length + 1;
                           const baseSku = (form.sku || '').trim().toUpperCase();
                           const autoSku = baseSku ? `${baseSku}-${nextNum}` : `VAR-${nextNum}`;
@@ -4635,29 +4933,26 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               </div>
 
                               <input 
+                                id={`variant-input-${index}`}
                                 type="text" 
                                 value={variant.nombre}
                                 onChange={e => {
                                   const newV = [...form.variantes];
                                   newV[index] = { ...newV[index], nombre: e.target.value, sku: displaySku };
                                   setForm({ ...form, variantes: newV });
+                                  if (highlightedVariantIndex === index) setHighlightedVariantIndex(null);
                                 }}
-                                className="flex-1 min-w-0 bg-surface-container-lowest dark:bg-[#202020] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                                className={`flex-1 min-w-0 bg-surface-container-lowest dark:bg-[#202020] border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none dark:text-white transition-all duration-300 ${
+                                  highlightedVariantIndex === index 
+                                    ? 'border-error ring-4 ring-error/40 bg-error/15 text-error animate-pulse placeholder:text-error/70 font-black' 
+                                    : 'border-outline-variant/20 dark:border-white/10 focus:border-primary dark:focus:border-[#e2bd6c]'
+                                }`}
                                 placeholder="Color (Ej. Azul, Verde...)"
                               />
 
                               <button 
                                 type="button"
-                                onClick={() => {
-                                  const bSku = (form.sku || '').trim().toUpperCase();
-                                  const reIndexed = form.variantes
-                                    .filter((_, i) => i !== index)
-                                    .map((v, i) => ({
-                                      ...v,
-                                      sku: bSku ? `${bSku}-${i + 1}` : `VAR-${i + 1}`
-                                    }));
-                                  setForm({ ...form, variantes: reIndexed });
-                                }}
+                                onClick={() => handleAttemptDeleteVariant(index)}
                                 className="w-8 h-8 flex items-center justify-center text-error/60 hover:text-error hover:bg-error/10 rounded-xl transition-all shrink-0 cursor-pointer"
                                 title="Eliminar este color"
                               >
@@ -6044,6 +6339,24 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                   </div>
                 </button>
               </div>
+
+              {/* Alerta Flotante de Error / Validación (Siempre visible sin importar el scroll) */}
+              {errorMsg && (
+                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[80] w-[92%] sm:w-auto max-w-lg bg-error text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-md flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="material-symbols-outlined text-lg shrink-0">warning</span>
+                    <span className="leading-snug">{errorMsg}</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setErrorMsg('')}
+                    className="w-6 h-6 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center shrink-0 cursor-pointer"
+                    title="Cerrar alerta"
+                  >
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </div>
+              )}
 
               {/* Botones de Acción adaptados a flujo de 2 Pasos al Crear y Normal al Editar */}
               <div className="flex gap-3 w-full sm:w-auto sm:min-w-[300px]">
