@@ -73,7 +73,7 @@ export default function QuickVariantModal({
             </div>
           </div>
 
-          {productParaAñadir.variantes.filter(v => Number(v.stock) > 0).map((v, i) => {
+          {productParaAñadir.variantes.filter(v => v.visible !== false && Number(v.stock) > 0).map((v, i) => {
             const idCartVariante = `${productParaAñadir.id}-${v.nombre}`;
             const inCart = carrito.find(item => item.idCart === idCartVariante);
             const isSelected = varianteSeleccionada?.nombre === v.nombre;

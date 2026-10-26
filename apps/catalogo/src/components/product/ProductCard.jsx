@@ -130,7 +130,7 @@ export default function ProductCard({
                 <div className="px-2 py-1 text-[9px] font-black uppercase tracking-wider text-outline/80 border-b border-outline-variant/10 mb-1">
                   Colores Disponibles
                 </div>
-                {p.variantes.map((v, vIdx) => {
+                {p.variantes.filter(v => v.visible !== false).map((v, vIdx) => {
                   const isSelected = activeVar?.nombre === v.nombre;
                   const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
                   const vHex = getHexColor(v.nombre);

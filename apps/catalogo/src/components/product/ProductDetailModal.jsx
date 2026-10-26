@@ -213,11 +213,11 @@ export default function ProductDetailModal({
                       </p>
                     </div>
                     <span className="text-[10px] font-bold text-outline opacity-75">
-                      {productoParaVer.variantes.length} colores disponibles
+                      {productoParaVer.variantes.filter(v => v.visible !== false).length} colores disponibles
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {productoParaVer.variantes.map((v, i) => {
+                    {productoParaVer.variantes.filter(v => v.visible !== false).map((v, i) => {
                       const isSelected = (varianteDetalle?.nombre || productoParaVer.variantes[0]?.nombre) === v.nombre;
                       const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
                       const vHex = getHexColor(v.nombre);

@@ -537,6 +537,9 @@ REGLAS DE FORMATO ESTRICTAS:
   const [esNuevoProveedor, setEsNuevoProveedor] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [expandedImage, setExpandedImage] = useState(null)
+  const [photoToDelete, setPhotoToDelete] = useState(null)
+  const longPressTimerRef = useRef(null)
+  const isLongPressTriggeredRef = useRef(false)
   const [showCatDropdown, setShowCatDropdown] = useState(false)
   const [showProvDropdown, setShowProvDropdown] = useState(false)
   const [showMarcaDropdown, setShowMarcaDropdown] = useState(false)
@@ -544,6 +547,7 @@ REGLAS DE FORMATO ESTRICTAS:
   const [busquedaCat, setBusquedaCat] = useState('')
   const [busquedaProv, setBusquedaProv] = useState('')
   const [busquedaMarca, setBusquedaMarca] = useState('')
+  const [showMobileKPIs, setShowMobileKPIs] = useState(false)
   const categoryContainerRef = useRef(null)
 
   // Estados del CRUD
@@ -2484,6 +2488,39 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
+  function handleGoToStep2Product() {
+    setErrorMsg('');
+    const cleanNombre = (form.nombre || '').trim();
+    const cleanSku = (form.sku || '').trim();
+    const cleanColeccion = (form.coleccion || '').trim();
+    const precioNum = Number(form.precio);
+
+    if (!cleanNombre) {
+      return setErrorMsg('El Nombre del producto es obligatorio.');
+    }
+    if (!cleanSku) {
+      return setErrorMsg('El Código de Barra / SKU es obligatorio.');
+    }
+    if (conflictingSkuProduct) {
+      return setErrorMsg(`No se puede continuar: El Código de Barra "${form.sku}" ya está registrado en el producto "${conflictingSkuProduct.nombre}".`);
+    }
+    if (!cleanColeccion) {
+      return setErrorMsg('La Categoría es obligatoria.');
+    }
+    if (!precioNum || precioNum <= 0) {
+      return setErrorMsg('El Precio de Venta es obligatorio y debe ser mayor a 0.');
+    }
+
+    if (form.variantes && form.variantes.length > 0) {
+      const emptyVar = form.variantes.find(v => !(v.nombre || '').trim());
+      if (emptyVar) {
+        return setErrorMsg('Todos los colores o variantes añadidos deben tener un nombre.');
+      }
+    }
+
+    setActiveTabModal('lotes');
+  }
+
   async function handleSave() {
     setErrorMsg('');
     if (!form.nombre || !form.sku || !form.coleccion) {
@@ -2764,6 +2801,58 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
         }
         return { ...prev, variantes: newV };
       });
+    }
+  }
+
+  function handleMoveVariantPhoto(variantIndex, fromIndex, toIndex) {
+    setForm(prev => {
+      const newV = [...(prev.variantes || [])];
+      if (newV[variantIndex]) {
+        const prevFotos = Array.isArray(newV[variantIndex].fotos) ? [...newV[variantIndex].fotos] : (newV[variantIndex].fotoUrl ? [newV[variantIndex].fotoUrl] : []);
+        if (toIndex >= 0 && toIndex < prevFotos.length) {
+          const item = prevFotos.splice(fromIndex, 1)[0];
+          prevFotos.splice(toIndex, 0, item);
+          newV[variantIndex] = {
+            ...newV[variantIndex],
+            fotos: prevFotos,
+            fotoUrl: prevFotos[0] || ''
+          };
+        }
+      }
+      return { ...prev, variantes: newV };
+    });
+  }
+
+  function handleToggleVariantVisibility(variantIndex) {
+    setForm(prev => {
+      const newV = [...(prev.variantes || [])];
+      if (newV[variantIndex]) {
+        const currentVis = newV[variantIndex].visible !== false;
+        newV[variantIndex] = {
+          ...newV[variantIndex],
+          visible: !currentVis
+        };
+      }
+      return { ...prev, variantes: newV };
+    });
+  }
+
+  function handlePhotoTouchStart(variantIndex, photoIndex, variantNombre, fUrl) {
+    isLongPressTriggeredRef.current = false;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressTriggeredRef.current = true;
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+        try { window.navigator.vibrate(50); } catch (_) {}
+      }
+      setPhotoToDelete({ variantIndex, photoIndex, variantNombre, fUrl });
+    }, 550);
+  }
+
+  function handlePhotoTouchEnd() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
   }
 
@@ -3084,7 +3173,32 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 tour-inv-metricas">
+        {/* Selector / Botón para Ocultar o Mostrar Métricas (Solo en Móvil) */}
+        <div className="md:hidden flex items-center justify-between gap-3 px-1 -mb-4">
+          <button
+            type="button"
+            onClick={() => setShowMobileKPIs(prev => !prev)}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-surface-container-high/60 dark:bg-white/5 hover:bg-surface-container-high dark:hover:bg-white/10 text-outline dark:text-[#e2bd6c] border border-outline-variant/30 dark:border-white/10 shadow-xs transition-all active:scale-95 cursor-pointer select-none"
+            title={showMobileKPIs ? 'Ocultar panel de métricas' : 'Mostrar panel de métricas'}
+          >
+            <span className="material-symbols-outlined text-sm">
+              {showMobileKPIs ? 'analytics' : 'insights'}
+            </span>
+            <span>
+              {showMobileKPIs 
+                ? 'Ocultar Métricas' 
+                : `Ver Métricas (${totalSKUs} prods · $${(valorTotal / 1000000).toFixed(1)}M)`
+              }
+            </span>
+            <span className="material-symbols-outlined text-sm">
+              {showMobileKPIs ? 'expand_less' : 'expand_more'}
+            </span>
+          </button>
+        </div>
+
+        {/* Cuadrícula de Métricas: Por defecto oculta en móvil (se abre con el botón) y SIEMPRE visible en PC */}
+        <div className={`grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 tour-inv-metricas ${showMobileKPIs ? 'grid' : 'hidden md:grid'} animate-in fade-in zoom-in-95 duration-200`}>
+          {/* 1. Total Productos */}
           <div className="bg-surface-container-low dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-outline-variant/10 dark:border-white/5 shadow-sm hover:border-primary/20 transition-all">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-xl">deployed_code</span>
@@ -3093,33 +3207,16 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
             <p className="text-2xl md:text-3xl font-headline italic font-bold dark:text-white mt-1">{totalSKUs.toLocaleString()}</p>
           </div>
 
-          <div className="bg-surface-container-highest dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-outline-variant/10 dark:border-white/5 shadow-sm hover:border-primary/20 transition-all">
+          {/* 2. Unidades Totales */}
+          <div className="bg-secondary-container/20 dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-secondary-container/30 dark:border-white/5 shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">payments</span>
-              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Valor Inventario</p>
+              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">inventory_2</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades totales</p>
             </div>
-            <div className="flex flex-col gap-0.5 text-[11px] text-on-surface-variant dark:text-white/70 mt-1">
-              <div className="flex justify-between font-bold leading-tight">
-                <span>Venta:</span>
-                <span className="dark:text-white">${valorTotal.toLocaleString('es-CL')}</span>
-              </div>
-              <div className="flex justify-between leading-tight text-[10px] opacity-80">
-                <span>Costo Stock:</span>
-                <span className="dark:text-white">${valorTotalCosto.toLocaleString('es-CL')}</span>
-              </div>
-              {totalInversionHistorica > 0 && (
-                <div className="flex justify-between leading-tight text-[9px] opacity-75 text-amber-600 dark:text-[#e2bd6c]">
-                  <span>Inv. Compras Total:</span>
-                  <span>${totalInversionHistorica.toLocaleString('es-CL')}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-[#22c55e] dark:text-[#10b981] font-bold border-t border-outline-variant/10 dark:border-white/10 pt-0.5 mt-0.5 text-[10px]">
-                <span>Ganancia:</span>
-                <span>+${(valorTotal - valorTotalCosto).toLocaleString('es-CL')}</span>
-              </div>
-            </div>
+            <p className="text-2xl md:text-3xl font-headline italic font-bold text-secondary dark:text-white mt-1">{stockTotal.toLocaleString()}</p>
           </div>
 
+          {/* 3. Gastos Operativos */}
           <div className="bg-amber-500/10 dark:bg-amber-500/10 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-amber-500/20 dark:border-amber-500/30 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-amber-500 text-xl">account_balance_wallet</span>
@@ -3131,20 +3228,41 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
             </div>
           </div>
 
-          <div className="bg-secondary-container/20 dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-secondary-container/30 dark:border-white/5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">inventory_2</span>
-              <p className="text-[9px] uppercase tracking-widest font-extrabold text-secondary dark:text-[#e2bd6c]/80 leading-none">Unidades totales</p>
-            </div>
-            <p className="text-2xl md:text-3xl font-headline italic font-bold text-secondary dark:text-white mt-1">{stockTotal.toLocaleString()}</p>
-          </div>
-
+          {/* 4. Stock Bajo */}
           <div className={`p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border transition-all shadow-sm ${bajosDeStock > 0 ? 'bg-error/10 border-error/30 dark:bg-error/20 dark:border-error/40 backdrop-blur-md shadow-error/5' : 'bg-primary-container dark:bg-white/5 border-primary/10 dark:border-white/5'}`}>
             <div className="flex items-center gap-2">
               <span className={`material-symbols-outlined text-xl ${bajosDeStock > 0 ? 'text-error animate-pulse' : 'text-on-primary-container dark:text-white/60'}`}>priority_high</span>
               <p className={`text-[9px] uppercase tracking-widest font-extrabold leading-none ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white/60'}`}>Stock Bajo</p>
             </div>
             <p className={`text-2xl md:text-3xl font-headline italic font-bold mt-1 ${bajosDeStock > 0 ? 'text-error' : 'text-on-primary-container dark:text-white'}`}>{bajosDeStock}</p>
+          </div>
+
+          {/* 5. Valor Inventario: Ocupa las 2 columnas completas en móvil rellenando todo el espacio inferior */}
+          <div className="col-span-2 md:col-span-1 lg:col-span-1 bg-surface-container-highest dark:bg-white/5 p-3.5 md:p-4 rounded-2xl flex flex-col justify-between min-h-[105px] border border-outline-variant/10 dark:border-white/5 shadow-sm hover:border-primary/20 transition-all">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary dark:text-[#e2bd6c] text-xl">payments</span>
+              <p className="text-[9px] uppercase tracking-widest font-extrabold text-outline dark:text-[#e2bd6c]/80 leading-none">Valor Inventario</p>
+            </div>
+            <div className="grid grid-cols-3 sm:flex sm:flex-col gap-2 sm:gap-0.5 text-[11px] text-on-surface-variant dark:text-white/70 mt-1">
+              <div className="flex flex-col sm:flex-row sm:justify-between font-bold leading-tight">
+                <span className="text-[10px] opacity-75">Venta:</span>
+                <span className="dark:text-white text-xs sm:text-[11px]">${valorTotal.toLocaleString('es-CL')}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between leading-tight text-[10px] opacity-80">
+                <span className="text-[10px] opacity-75">Costo Stock:</span>
+                <span className="dark:text-white text-xs sm:text-[10px]">${valorTotalCosto.toLocaleString('es-CL')}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between text-[#22c55e] dark:text-[#10b981] font-bold border-l sm:border-l-0 sm:border-t border-outline-variant/10 dark:border-white/10 pl-2 sm:pl-0 pt-0 sm:pt-0.5 text-[10px]">
+                <span className="text-[10px]">Ganancia:</span>
+                <span className="text-xs sm:text-[10px]">+${(valorTotal - valorTotalCosto).toLocaleString('es-CL')}</span>
+              </div>
+            </div>
+            {totalInversionHistorica > 0 && (
+              <div className="flex justify-between leading-tight text-[9px] opacity-75 text-amber-600 dark:text-[#e2bd6c] mt-1 pt-1 border-t border-outline-variant/10 dark:border-white/5">
+                <span>Inv. Compras Total:</span>
+                <span>${totalInversionHistorica.toLocaleString('es-CL')}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -3484,14 +3602,14 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         <div className="flex gap-2 mt-4">
                           <button 
                             onClick={(e) => { e.stopPropagation(); openEdit(p); }}
-                            className="flex-1 flex items-center justify-center gap-2 bg-surface-container-high border border-outline-variant/20 text-primary py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                            className="flex-1 flex items-center justify-center gap-2 bg-surface-container-high/60 dark:bg-white/5 hover:bg-surface-container-high dark:hover:bg-[#e2bd6c]/15 border border-outline-variant/30 dark:border-[#e2bd6c]/30 text-primary dark:text-[#e2bd6c] py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-sm">edit</span>
                             Editar
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                            className="flex-1 flex items-center justify-center gap-2 bg-error-container/20 border border-error/10 text-error py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                            className="flex-1 flex items-center justify-center gap-2 bg-error/10 dark:bg-red-500/10 hover:bg-error/20 dark:hover:bg-red-500/20 border border-error/20 dark:border-red-500/30 text-error dark:text-red-400 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-sm">delete</span>
                             Borrar
@@ -3499,7 +3617,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         </div>
                         <button 
                           onClick={(e) => { e.stopPropagation(); openHistory(p.id); }}
-                          className="w-full flex items-center justify-center gap-2 bg-secondary/10 border border-secondary/20 text-secondary dark:text-[#e2bd6c] py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all mt-2"
+                          className="w-full flex items-center justify-center gap-2 bg-secondary/10 dark:bg-white/5 hover:bg-secondary/20 dark:hover:bg-white/10 border border-secondary/20 dark:border-white/10 text-secondary dark:text-[#e2bd6c] py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all mt-2 cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-sm">history</span>
                           Historial de Stock
@@ -3766,25 +3884,93 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
         )}
       </div>
 
+      {/* Modal de Confirmación para Eliminar Foto (Anti-errores y Long-Press) */}
+      {photoToDelete && (
+        <div 
+          className="fixed inset-0 z-[220] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setPhotoToDelete(null)}
+        >
+          <div 
+            className="bg-surface dark:bg-[#1e1e1e] w-full max-w-sm rounded-[32px] shadow-2xl border border-outline-variant/30 dark:border-white/10 p-5 text-on-surface dark:text-white animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-2xl bg-error/15 text-error flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-2xl">delete_forever</span>
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-bold text-base leading-tight">¿Eliminar esta foto?</h4>
+                <p className="text-xs text-outline dark:text-white/60 truncate">
+                  Variante: <span className="font-bold text-primary dark:text-[#e2bd6c]">{photoToDelete.variantNombre || 'Color'}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Vista previa miniatura de la foto a borrar */}
+            <div className="w-full h-40 rounded-2xl overflow-hidden bg-black/10 dark:bg-black/40 border border-outline-variant/20 dark:border-white/10 mb-4 flex items-center justify-center">
+              <img 
+                src={photoToDelete.fUrl} 
+                alt="Foto a eliminar" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            <p className="text-xs text-outline/80 dark:text-white/70 mb-5 text-center px-1">
+              ¿Confirmas que deseas quitar esta foto? No se guardará en la variante.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPhotoToDelete(null)}
+                className="py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-on-surface-variant dark:text-white/70 hover:bg-surface-variant dark:hover:bg-white/5 transition-all border border-outline-variant/20 dark:border-white/10 active:scale-95 cursor-pointer text-center"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRemoveVariantPhoto(photoToDelete.variantIndex, photoToDelete.photoIndex);
+                  setPhotoToDelete(null);
+                }}
+                className="py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-error text-white hover:bg-error/90 shadow-lg shadow-error/25 transition-all active:scale-95 cursor-pointer text-center flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-sm">delete</span>
+                <span>Sí, Eliminar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {expandedImage && (
         <div 
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200" 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-200" 
           onClick={() => setExpandedImage(null)}
         >
-          <div className="relative max-w-4xl w-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
-            <button 
-              type="button"
-              onClick={() => setExpandedImage(null)} 
-              className="absolute -top-12 right-0 text-white/80 hover:text-white transition-colors p-2 flex items-center gap-1 font-bold text-sm bg-black/40 hover:bg-black/60 rounded-full px-3 py-1.5"
-            >
-              <span>Cerrar</span>
-              <span className="material-symbols-outlined text-xl">close</span>
-            </button>
+          {/* Boton X Flotante Fijo y siempre accesible en celular y PC */}
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedImage(null);
+            }} 
+            className="fixed top-4 right-4 z-[210] flex items-center gap-1.5 px-3.5 py-2 bg-black/80 hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-2xl border border-white/20 backdrop-blur-md active:scale-95 transition-all cursor-pointer"
+            title="Cerrar imagen (Esc o toque en pantalla)"
+          >
+            <span>Cerrar</span>
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+
+          <div className="relative max-w-4xl w-full flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
             <img 
               src={expandedImage} 
               alt="Vista previa ampliada" 
-              className="max-h-[85vh] max-w-full w-auto object-contain rounded-2xl shadow-2xl border border-white/10 bg-black/40"
+              className="max-h-[80vh] sm:max-h-[85vh] max-w-full w-auto object-contain rounded-2xl shadow-2xl border border-white/10 bg-black/40"
             />
+            <p className="mt-3 text-[11px] font-medium text-white/60 tracking-wider">
+              Toca fuera de la foto para cerrar
+            </p>
           </div>
         </div>
       )}
@@ -3794,56 +3980,111 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className={`bg-surface dark:bg-[#1e1e1e] w-full ${activeTabModal === 'catalogo' ? 'max-w-6xl' : 'max-w-4xl'} rounded-[40px] shadow-2xl border border-outline-variant/20 dark:border-white/5 flex flex-col max-h-[90vh] overflow-hidden text-on-surface dark:text-white/90 animate-in fade-in zoom-in-95 duration-300`}>
             {/* Header del Modal */}
-            <div className="bg-surface-container-low dark:bg-white/5 px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 border-b border-outline-variant/20 dark:border-white/5 shrink-0">
-              <h3 className="font-headline font-bold text-lg sm:text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2 shrink-0">
-                <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
-                <span>{editingId ? 'Editar Producto' : 'Nuevo Producto'}</span>
-              </h3>
-              
-              {/* Selector de pestañas deslizable premium / Luxe (100% swipe/táctil en móvil) */}
-              <div 
-                className="w-full sm:w-auto overflow-x-auto touch-pan-x flex items-center gap-1.5 p-1 bg-surface-variant/30 dark:bg-white/5 rounded-2xl border border-outline-variant/10 dark:border-white/5 shrink-0"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
+            <div className="bg-surface-container-low dark:bg-white/5 px-4 py-3.5 sm:px-6 sm:py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-outline-variant/20 dark:border-white/5 shrink-0">
+              <div className="w-full sm:w-auto flex items-center justify-between gap-3">
+                <h3 className="font-headline font-bold text-lg sm:text-xl text-primary dark:text-[#e2bd6c] flex items-center gap-2 shrink-0">
+                  <span className="material-symbols-outlined">{editingId ? 'edit_square' : 'add_box'}</span>
+                  <span>{editingId ? 'Editar Producto' : 'Nuevo Producto'}</span>
+                </h3>
+                {/* Botón X de cerrar rápido en la barra superior para celular */}
                 <button
                   type="button"
-                  onClick={() => setActiveTabModal('editar')}
-                  className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
-                    activeTabModal === 'editar' 
-                      ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
-                      : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
-                  }`}
+                  onClick={() => setShowModal(false)}
+                  className="sm:hidden w-8 h-8 rounded-full flex items-center justify-center bg-surface-variant/40 hover:bg-surface-variant text-outline/80 hover:text-outline dark:text-white/70 dark:hover:text-white transition-colors active:scale-90 shrink-0"
+                  title="Cerrar modal"
                 >
-                  <span className="material-symbols-outlined text-base">edit_note</span>
-                  Editar Producto
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTabModal('lotes')}
-                  className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
-                    activeTabModal === 'lotes' 
-                      ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
-                      : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-base">inventory_2</span>
-                  Stock y Costos
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTabModal('catalogo')}
-                  className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
-                    activeTabModal === 'catalogo' 
-                      ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
-                      : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-base">visibility</span>
-                  Editar en Catálogo
+                  <span className="material-symbols-outlined text-lg">close</span>
                 </button>
               </div>
+              
+              {/* Selector de pestañas adaptativo y estético para Móvil / Desktop */}
+              {!editingId ? (
+                /* Stepper de 2 Pasos al Crear Nuevo Producto */
+                <div 
+                  className="w-full sm:w-auto overflow-x-auto touch-pan-x flex items-center gap-2 p-1 bg-surface-variant/30 dark:bg-white/5 rounded-2xl border border-outline-variant/10 dark:border-white/5 shrink-0"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabModal('editar')}
+                    className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                      activeTabModal === 'editar' 
+                        ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                      activeTabModal === 'editar' ? 'bg-primary dark:bg-[#e2bd6c] text-white dark:text-black shadow-sm' : 'bg-outline-variant/30 text-outline'
+                    }`}>1</span>
+                    <span>1. Datos</span>
+                  </button>
+
+                  <span className="text-outline/30 text-xs shrink-0 select-none">→</span>
+
+                  <button
+                    type="button"
+                    onClick={handleGoToStep2Product}
+                    className={`px-3.5 sm:px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                      activeTabModal === 'lotes' 
+                        ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                      activeTabModal === 'lotes' ? 'bg-primary dark:bg-[#e2bd6c] text-white dark:text-black shadow-sm' : 'bg-outline-variant/30 text-outline'
+                    }`}>2</span>
+                    <span>2. Stock y Costos</span>
+                  </button>
+                </div>
+              ) : (
+                /* Pestañas compactas y refinadas tipo App móvil al Editar */
+                <div 
+                  className="w-full sm:w-auto overflow-x-auto touch-pan-x flex items-center gap-1.5 p-1 bg-surface-variant/30 dark:bg-white/5 rounded-2xl border border-outline-variant/10 dark:border-white/5 shrink-0"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabModal('editar')}
+                    className={`px-3 sm:px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                      activeTabModal === 'editar' 
+                        ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">edit_note</span>
+                    <span className="hidden sm:inline">Datos del Producto</span>
+                    <span className="sm:hidden">Datos</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabModal('lotes')}
+                    className={`px-3 sm:px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                      activeTabModal === 'lotes' 
+                        ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">inventory_2</span>
+                    <span className="hidden sm:inline">Stock y Costos</span>
+                    <span className="sm:hidden">Stock</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabModal('catalogo')}
+                    className={`px-3 sm:px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                      activeTabModal === 'catalogo' 
+                        ? 'bg-[#E5E0D3] dark:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] shadow-sm font-black border border-[#e2bd6c]/30' 
+                        : 'text-outline/70 dark:text-white/50 hover:text-outline dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">visibility</span>
+                    <span className="hidden sm:inline">Editar en Catálogo</span>
+                    <span className="sm:hidden">Catálogo</span>
+                  </button>
+                </div>
+              )}
             </div>
             
             {/* Cuerpo del Formulario (Scrollable) */}
@@ -4374,10 +4615,9 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         const detectedHex = getHexColor(variant.nombre);
 
                         return (
-                          <div key={index} className="bg-surface-container-low/70 dark:bg-[#181818] p-3.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                            {/* Fila principal: Color preview, SKU, Nombre, Stock, Eliminar */}
-                            <div className="flex items-center gap-2">
-                              {/* Círculo indicador si el nombre es un color conocido */}
+                          <div key={index} className="bg-surface-container-low/70 dark:bg-[#181818] p-3 sm:p-3.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 space-y-2.5 animate-in fade-in zoom-in-95 duration-200">
+                            {/* Fila 1: Identificación (Color, SKU, Nombre proporcional sin desborde y Eliminar) */}
+                            <div className="flex items-center gap-2 w-full">
                               {detectedHex && (
                                 <span 
                                   className="w-4 h-4 rounded-full border border-black/20 dark:border-white/20 shrink-0 shadow-sm"
@@ -4386,37 +4626,25 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 />
                               )}
 
-                              {/* Badge con el Cód. SKU asignado a la Variante */}
                               <div 
-                                className="px-2.5 py-2 bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30 rounded-xl text-[10px] font-mono font-black text-primary dark:text-[#e2bd6c] shrink-0 flex items-center gap-1 shadow-sm select-none"
+                                className="px-2 py-1.5 bg-primary/10 dark:bg-[#e2bd6c]/15 border border-primary/20 dark:border-[#e2bd6c]/30 rounded-xl text-[10px] font-mono font-black text-primary dark:text-[#e2bd6c] shrink-0 flex items-center gap-1 shadow-sm select-none"
                                 title={`SKU Asignado: ${displaySku}`}
                               >
                                 <span className="material-symbols-outlined text-[12px] opacity-70">barcode</span>
-                                <span>{displaySku}</span>
+                                <span className="truncate max-w-[85px] sm:max-w-none">{displaySku}</span>
                               </div>
 
                               <input 
                                 type="text" 
                                 value={variant.nombre}
                                 onChange={e => {
-                                  const newV = [...form.variantes]
-                                  newV[index] = { ...newV[index], nombre: e.target.value, sku: displaySku }
-                                  setForm({ ...form, variantes: newV })
+                                  const newV = [...form.variantes];
+                                  newV[index] = { ...newV[index], nombre: e.target.value, sku: displaySku };
+                                  setForm({ ...form, variantes: newV });
                                 }}
-                                className="flex-1 bg-surface-container-lowest dark:bg-[#202020] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
-                                placeholder="Color (Ej. Azul, Verde, Rosa, Dorado...)"
+                                className="flex-1 min-w-0 bg-surface-container-lowest dark:bg-[#202020] border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white"
+                                placeholder="Color (Ej. Azul, Verde...)"
                               />
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                <span className="text-[9px] font-bold text-outline dark:text-gray-400 uppercase">Stock:</span>
-                                <input 
-                                  type="number" 
-                                  value={variant.stock || 0}
-                                  readOnly
-                                  title="El stock de cada color se agrega y gestiona en la pestaña 'Stock y Costos'"
-                                  className="w-14 bg-surface-variant/30 dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-2 py-2 text-xs font-bold text-center text-outline dark:text-gray-400 cursor-not-allowed select-none"
-                                />
-                              </div>
 
                               <button 
                                 type="button"
@@ -4437,7 +4665,42 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               </button>
                             </div>
 
-                            {/* Fila de Fotos dedicadas para este Color (Máximo 3) */}
+                            {/* Fila 2: Visibilidad individual en Catálogo y Stock Actual */}
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-outline-variant/10 dark:border-white/5">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleVariantVisibility(index)}
+                                className="flex items-center gap-2 group cursor-pointer select-none"
+                                title={variant.visible !== false ? 'Visible en catálogo web' : 'Oculto en catálogo web'}
+                              >
+                                <div className={`relative w-8 h-4.5 rounded-full transition-colors duration-200 flex items-center px-0.5 ${
+                                  variant.visible !== false ? 'bg-primary dark:bg-[#e2bd6c]' : 'bg-outline-variant/30 dark:bg-white/10'
+                                }`}>
+                                  <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                                    variant.visible !== false ? 'translate-x-3.5' : 'translate-x-0'
+                                  }`} />
+                                </div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                                  variant.visible !== false 
+                                    ? 'text-primary dark:text-[#e2bd6c]' 
+                                    : 'text-outline/70 dark:text-gray-400'
+                                }`}>
+                                  <span className="material-symbols-outlined text-xs">
+                                    {variant.visible !== false ? 'visibility' : 'visibility_off'}
+                                  </span>
+                                  <span>{variant.visible !== false ? 'Visible en Catálogo' : 'Oculto en Catálogo'}</span>
+                                </span>
+                              </button>
+
+                              <div className="flex items-center gap-1.5 shrink-0 bg-surface-container-lowest/60 dark:bg-black/20 px-2.5 py-1 rounded-xl border border-outline-variant/10 dark:border-white/5">
+                                <span className="text-[9px] font-bold text-outline dark:text-gray-400 uppercase">Stock:</span>
+                                <span className={`text-xs font-black ${Number(variant.stock || 0) <= 0 ? 'text-error' : 'text-primary dark:text-[#e2bd6c]'}`}>
+                                  {variant.stock || 0} u.
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Fila 3: Fotos dedicadas con Reordenar y Vista Previa */}
                             <div className="pt-2 border-t border-outline-variant/15 dark:border-white/5 flex flex-wrap items-center justify-between gap-2">
                               <div className="flex items-center gap-1.5">
                                 <span className="material-symbols-outlined text-[13px] text-primary dark:text-[#e2bd6c]">photo_camera</span>
@@ -4446,28 +4709,97 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-2">
-                                {/* Miniaturas de fotos cargadas */}
+                              <div className="flex items-center gap-2.5 flex-wrap pt-1">
                                 {variantFotos.map((fUrl, fIdx) => (
-                                  <div key={fIdx} className="relative group w-12 h-12 rounded-xl border border-outline-variant/30 dark:border-white/10 overflow-hidden bg-surface-container dark:bg-black/40 shadow-sm shrink-0">
-                                    <img src={fUrl} alt={`Foto ${fIdx + 1} de ${variant.nombre}`} className="w-full h-full object-cover" />
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleRemoveVariantPhoto(index, fIdx)}
-                                      className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                      title="Quitar esta foto"
+                                  <div 
+                                    key={fIdx} 
+                                    className="relative group w-14 h-14 rounded-xl border border-outline-variant/30 dark:border-white/10 bg-surface-container dark:bg-black/40 shadow-sm shrink-0 select-none touch-pan-y"
+                                    onTouchStart={() => handlePhotoTouchStart(index, fIdx, variant.nombre, fUrl)}
+                                    onTouchEnd={handlePhotoTouchEnd}
+                                    onTouchMove={handlePhotoTouchEnd}
+                                    onMouseDown={() => handlePhotoTouchStart(index, fIdx, variant.nombre, fUrl)}
+                                    onMouseUp={handlePhotoTouchEnd}
+                                    onMouseLeave={handlePhotoTouchEnd}
+                                  >
+                                    {/* Imagen: Toque simple para ampliar / Mantener presionado para borrar */}
+                                    <div 
+                                      className="w-full h-full rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                                      onClick={() => {
+                                        if (isLongPressTriggeredRef.current) {
+                                          isLongPressTriggeredRef.current = false;
+                                          return;
+                                        }
+                                        setExpandedImage(fUrl);
+                                      }}
+                                      title="Toca para ampliar / Mantén presionado para borrar"
                                     >
-                                      <span className="material-symbols-outlined text-sm text-red-400">delete</span>
+                                      <img 
+                                        src={fUrl} 
+                                        alt={`Foto ${fIdx + 1} de ${variant.nombre}`} 
+                                        className="w-full h-full object-cover pointer-events-none"
+                                      />
+                                    </div>
+
+                                    {/* Botón X de eliminar foto con confirmación previa */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPhotoToDelete({ 
+                                          variantIndex: index, 
+                                          photoIndex: fIdx, 
+                                          variantNombre: variant.nombre || 'este color', 
+                                          fUrl 
+                                        });
+                                      }}
+                                      className="absolute -top-1.5 -right-1.5 z-20 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center shadow-md active:scale-90 border border-white dark:border-zinc-800 transition-all cursor-pointer"
+                                      title="Quitar foto"
+                                    >
+                                      <span className="material-symbols-outlined text-[13px] font-black leading-none">close</span>
                                     </button>
-                                    {fIdx === 0 && (
-                                      <span className="absolute bottom-0 inset-x-0 bg-primary/90 text-[7px] text-white font-black text-center uppercase tracking-tighter py-0.5 leading-none">
+
+                                    {/* Badge o Controles de Orden (Flechas para reordenar en móvil y desktop) */}
+                                    {variantFotos.length > 1 ? (
+                                      <div 
+                                        className="absolute bottom-0 inset-x-0 bg-black/75 backdrop-blur-xs flex items-center justify-between px-1 py-0.5 rounded-b-xl z-10"
+                                        onClick={e => e.stopPropagation()}
+                                      >
+                                        <button
+                                          type="button"
+                                          disabled={fIdx === 0}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleMoveVariantPhoto(index, fIdx, fIdx - 1);
+                                          }}
+                                          className="w-3.5 h-3.5 rounded flex items-center justify-center bg-white/20 active:bg-white/40 text-white disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                                          title="Mover foto a la izquierda"
+                                        >
+                                          <span className="material-symbols-outlined text-[10px]">chevron_left</span>
+                                        </button>
+                                        <span className="text-[8px] font-black uppercase tracking-tight text-white/90">
+                                          {fIdx === 0 ? <span className="text-[#e2bd6c]">★ Portada</span> : `#${fIdx + 1}`}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          disabled={fIdx === variantFotos.length - 1}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleMoveVariantPhoto(index, fIdx, fIdx + 1);
+                                          }}
+                                          className="w-3.5 h-3.5 rounded flex items-center justify-center bg-white/20 active:bg-white/40 text-white disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                                          title="Mover foto a la derecha"
+                                        >
+                                          <span className="material-symbols-outlined text-[10px]">chevron_right</span>
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className="absolute bottom-0 inset-x-0 bg-primary/90 dark:bg-[#e2bd6c] text-[8px] text-white dark:text-black font-black text-center uppercase tracking-tighter py-0.5 rounded-b-xl leading-none pointer-events-none z-10">
                                         Portada
                                       </span>
                                     )}
                                   </div>
                                 ))}
 
-                                {/* Botón Subir Foto si faltan fotos para llegar a 3 */}
                                 {variantFotos.length < 3 && (
                                   <label className={`h-12 px-2.5 rounded-xl border-2 border-dashed border-primary/40 dark:border-[#e2bd6c]/40 hover:border-primary dark:hover:border-[#e2bd6c] hover:bg-primary/5 dark:hover:bg-[#e2bd6c]/5 flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${uploadingVariantIndex === index ? 'opacity-50 pointer-events-none' : ''}`}>
                                     {uploadingVariantIndex === index ? (
@@ -4495,7 +4827,6 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                   </label>
                                 )}
 
-                                {/* Botón Link URL */}
                                 {variantFotos.length < 3 && (
                                   <button
                                     type="button"
@@ -4726,32 +5057,103 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       {!editingId ? 'Stock Inicial' : 'Control de Stock'}
                     </label>
                     {!editingId ? (
-                      <div className="w-full md:w-1/3">
-                        <input 
-                          type="number" 
-                          value={form.variantes?.length > 0 ? form.variantes.reduce((sum, v) => sum + Number(v.stock), 0) : form.stock} 
-                          onChange={e => {
-                            const val = e.target.value;
-                            setForm(prev => {
-                              const nextLotes = [...(prev.lotesProveedores || [])];
-                              if (nextLotes[activeLotIndex]) {
-                                nextLotes[activeLotIndex] = {
-                                  ...nextLotes[activeLotIndex],
-                                  stock: Number(val) || 0
+                      form.variantes && form.variantes.length > 0 ? (
+                        /* Ingreso de Stock por cada color / variante al crear producto nuevo */
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between pb-1 border-b border-outline-variant/10 dark:border-white/10">
+                            <span className="text-[11px] font-bold text-outline dark:text-gray-400">
+                              Ingresa las unidades disponibles para cada color:
+                            </span>
+                            <span className="text-xs font-black text-primary dark:text-[#e2bd6c] bg-primary/10 dark:bg-[#e2bd6c]/15 px-3 py-1 rounded-lg border border-primary/20 dark:border-[#e2bd6c]/30">
+                              Stock Total: {form.variantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)} u.
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {form.variantes.map((v, vIdx) => {
+                              const detectedHex = getHexColor(v.nombre);
+                              return (
+                                <div key={vIdx} className="flex items-center justify-between gap-3 bg-surface-container-lowest dark:bg-[#1a1a1a] p-3 rounded-2xl border border-outline-variant/20 dark:border-white/10 shadow-sm">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    {detectedHex && (
+                                      <span className="w-4 h-4 rounded-full border border-black/20 dark:border-white/20 shrink-0 shadow-sm" style={{ backgroundColor: detectedHex }} />
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold truncate text-on-surface dark:text-white">
+                                        {v.nombre || `Color ${vIdx + 1}`}
+                                      </p>
+                                      <p className="text-[9px] font-mono text-outline dark:text-gray-400">
+                                        {v.sku || `VAR-${vIdx + 1}`}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[10px] font-bold text-outline uppercase">Stock:</span>
+                                    <input 
+                                      type="number"
+                                      min="0"
+                                      value={v.stock === 0 ? '' : v.stock}
+                                      placeholder="0"
+                                      onChange={e => {
+                                        const val = Math.max(0, parseInt(e.target.value) || 0);
+                                        const nextV = [...form.variantes];
+                                        nextV[vIdx] = { ...nextV[vIdx], stock: val };
+                                        const totalCalc = nextV.reduce((s, item) => s + (Number(item.stock) || 0), 0);
+                                        setForm(prev => {
+                                          const nextLotes = [...(prev.lotesProveedores || [])];
+                                          if (nextLotes[activeLotIndex]) {
+                                            nextLotes[activeLotIndex] = {
+                                              ...nextLotes[activeLotIndex],
+                                              stock: totalCalc
+                                            };
+                                          }
+                                          return {
+                                            ...prev,
+                                            variantes: nextV,
+                                            stock: totalCalc,
+                                            lotesProveedores: nextLotes
+                                          };
+                                        });
+                                      }}
+                                      className="w-20 bg-surface-container-low dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-bold text-center focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] dark:text-white shadow-inner"
+                                    />
+                                    <span className="text-[10px] font-bold text-outline">u.</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Producto sin variantes: input de stock directo */
+                        <div className="w-full md:w-1/3">
+                          <input 
+                            type="number" 
+                            min="0"
+                            value={form.stock === 0 ? '' : form.stock} 
+                            placeholder="0"
+                            onChange={e => {
+                              const val = Math.max(0, parseInt(e.target.value) || 0);
+                              setForm(prev => {
+                                const nextLotes = [...(prev.lotesProveedores || [])];
+                                if (nextLotes[activeLotIndex]) {
+                                  nextLotes[activeLotIndex] = {
+                                    ...nextLotes[activeLotIndex],
+                                    stock: val
+                                  };
+                                }
+                                return {
+                                  ...prev,
+                                  stock: val,
+                                  lotesProveedores: nextLotes
                                 };
-                              }
-                              return {
-                                ...prev,
-                                stock: val,
-                                lotesProveedores: nextLotes
-                              };
-                            });
-                          }}
-                          readOnly={form.variantes?.length > 0}
-                          className={`w-full border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white ${form.variantes?.length > 0 ? 'bg-surface-variant/30 dark:bg-white/5 text-outline dark:text-gray-500' : 'bg-surface-container-lowest dark:bg-[#181818]'}`}
-                          placeholder="0"
-                        />
-                      </div>
+                              });
+                            }}
+                            className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] font-bold shadow-sm dark:text-white"
+                          />
+                        </div>
+                      )
                     ) : (
                       <div className="space-y-3">
                         {/* SI EL PRODUCTO TIENE VARIANTES */}
@@ -5643,23 +6045,66 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                 </button>
               </div>
 
-              {/* Botones de Acción */}
-              <div className="flex gap-3 w-full sm:w-auto sm:min-w-[280px]">
-                <button 
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/5"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="button"
-                  onClick={handleSave}
-                  className="flex-[2] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary text-on-primary shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-base">{editingId ? 'save' : 'add_circle'}</span>
-                  {editingId ? 'Guardar Cambios' : 'Registrar Producto'}
-                </button>
+              {/* Botones de Acción adaptados a flujo de 2 Pasos al Crear y Normal al Editar */}
+              <div className="flex gap-3 w-full sm:w-auto sm:min-w-[300px]">
+                {!editingId ? (
+                  activeTabModal === 'editar' ? (
+                    <>
+                      <button 
+                        type="button"
+                        onClick={() => setShowModal(false)}
+                        className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/10 cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={handleGoToStep2Product}
+                        className="flex-[1.8] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span>Continuar a Stock y Costos</span>
+                        <span className="material-symbols-outlined text-base">arrow_forward</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        type="button"
+                        onClick={() => setActiveTabModal('editar')}
+                        className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/10 flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-base">arrow_back</span>
+                        <span>Volver a Datos</span>
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={handleSave}
+                        className="flex-[1.8] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-base">add_circle</span>
+                        <span>Registrar Producto</span>
+                      </button>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <button 
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="flex-1 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest text-on-surface-variant dark:text-white/60 hover:bg-surface-variant dark:hover:bg-white/5 transition-all active:scale-95 border border-outline-variant/10 dark:border-white/10 cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={handleSave}
+                      className="flex-[1.8] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-base">save</span>
+                      <span>Guardar Cambios</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
