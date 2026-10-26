@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { doc, getDoc, setDoc, query, collection, where, getDocs, onSnapshot } from 'firebase/firestore'
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth'
 import { db } from '../config/firebase'
+import { APP_VERSION, RELEASE_DATE, LATEST_CHANGES } from '../config/updates'
 
 const navItems = [
   { to: '/dashboard',  icon: 'dashboard',        label: 'Inicio' },
@@ -26,9 +27,15 @@ function Icon({ name, filled = false, className = '' }) {
 }
 
 // ── Centro de Usuario (Perfil + Tutorial) ──
-function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme }) {
+function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme, initialTab = 0 }) {
   const { currentUser, logout } = useAuth()
-  const [activeTab, setActiveTab] = useState(0) // 0: Perfil, 1: Ayuda
+  const [activeTab, setActiveTab] = useState(initialTab) // 0: Perfil, 1: Ayuda, 2: Novedades
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab)
+    }
+  }, [isOpen, initialTab])
   
   // State Perfil
   const [profileData, setProfileData] = useState({ nombre: '', username: '', telefono: '' })
@@ -221,13 +228,21 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme }) 
             Ayuda y Guía
             {activeTab === 1 && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary dark:bg-[#e2bd6c] animate-in slide-in-from-bottom-1" />}
           </button>
+          <button 
+            onClick={() => setActiveTab(2)}
+            className={`flex-1 py-6 font-label text-[10px] font-bold uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-2 relative ${activeTab === 2 ? 'text-primary dark:text-[#e2bd6c] bg-white dark:bg-[#121212]' : 'text-on-surface-variant dark:text-gray-500 hover:bg-surface-variant/50 dark:hover:bg-white/5'}`}
+          >
+            <Icon name="new_releases" filled={activeTab === 2} className={activeTab === 2 ? 'scale-110 text-primary dark:text-[#e2bd6c]' : 'opacity-50'} />
+            Novedades v{APP_VERSION}
+            {activeTab === 2 && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary dark:bg-[#e2bd6c] animate-in slide-in-from-bottom-1" />}
+          </button>
           <button onClick={onClose} className="px-6 text-on-surface-variant dark:text-gray-500 hover:text-error transition-colors">
             <Icon name="close" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 md:p-10 bg-white dark:bg-[#1e1e1e] luxe-scrollbar">
-          {activeTab === 0 ? (
+          {activeTab === 0 && (
             <div className="animate-in fade-in slide-in-from-left-4 duration-300">
               <h3 className="font-headline text-3xl italic text-secondary dark:text-[#e2bd6c] mb-1">Tu Cuenta</h3>
               <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-8">Administra tus accesos y datos personales</p>
@@ -379,7 +394,9 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme }) 
                 </form>
               )}
             </div>
-          ) : (
+          )}
+
+          {activeTab === 1 && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
               <h3 className="font-headline text-3xl italic text-secondary dark:text-[#e2bd6c] mb-1">Manual de Usuario</h3>
               <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mb-8">Aprende a dominar tu herramienta</p>
@@ -418,6 +435,91 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme }) 
               </div>
             </div>
           )}
+
+          {activeTab === 2 && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant/10 dark:border-white/10 pb-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className="px-3 py-1 bg-primary/10 dark:bg-[#e2bd6c]/15 text-primary dark:text-[#e2bd6c] rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20 dark:border-[#e2bd6c]/20 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-primary dark:bg-[#e2bd6c] animate-pulse" />
+                      Versión {APP_VERSION}
+                    </span>
+                    <span className="text-[10px] text-outline dark:text-gray-400 font-bold tracking-wider">
+                      • {RELEASE_DATE}
+                    </span>
+                  </div>
+                  <h3 className="font-headline text-2xl md:text-3xl italic text-secondary dark:text-[#e2bd6c]">Novedades del Sistema</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-500 mt-0.5">Historial completo de optimizaciones activas en tu plataforma</p>
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-xl bg-surface-container-high dark:bg-white/5 text-[10px] font-bold uppercase tracking-widest text-outline dark:text-gray-400 border border-outline-variant/10 dark:border-white/5">
+                    {LATEST_CHANGES.length} Módulos Nuevos
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {LATEST_CHANGES.map((change, idx) => (
+                  <div 
+                    key={idx}
+                    className="p-5 md:p-6 rounded-2xl bg-surface-container-low dark:bg-white/[0.03] border border-outline-variant/10 dark:border-white/5 space-y-3.5 hover:border-primary/30 dark:hover:border-[#e2bd6c]/30 transition-all group"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <Icon name={change.icon} className="text-2xl" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-[9px] font-extrabold uppercase tracking-widest text-primary dark:text-[#e2bd6c] bg-primary/10 dark:bg-[#e2bd6c]/10 px-2 py-0.5 rounded-md border border-primary/20 dark:border-[#e2bd6c]/20">
+                            {change.tag}
+                          </span>
+                          <h4 className="font-bold text-sm md:text-base text-on-surface dark:text-white leading-tight">
+                            {change.title}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-on-surface-variant dark:text-gray-300 font-medium leading-relaxed">
+                          {change.summary}
+                        </p>
+                      </div>
+                    </div>
+
+                    {change.details && change.details.length > 0 && (
+                      <div className="pl-0 sm:pl-16 pt-2 border-t border-outline-variant/5 dark:border-white/5">
+                        <ul className="space-y-2 text-[11px] text-outline dark:text-gray-400">
+                          {change.details.map((detail, dIdx) => (
+                            <li key={dIdx} className="flex items-start gap-2 leading-relaxed">
+                              <span className="text-primary dark:text-[#e2bd6c] font-black shrink-0 mt-0.5">•</span>
+                              <span className="text-on-surface/90 dark:text-gray-200">{detail}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-5 rounded-2xl bg-secondary/5 dark:bg-[#e2bd6c]/5 border border-secondary/10 dark:border-[#e2bd6c]/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-secondary/10 dark:bg-[#e2bd6c]/10 text-secondary dark:text-[#e2bd6c] flex items-center justify-center shrink-0">
+                    <Icon name="verified" className="text-xl" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-secondary dark:text-[#e2bd6c]">Plataforma al día</p>
+                    <p className="text-[10px] text-outline dark:text-gray-400">Todas las funciones de la versión {APP_VERSION} están operativas en tu entorno.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(0)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-secondary dark:bg-[#e2bd6c] text-white dark:text-black rounded-xl font-bold uppercase text-[9px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all shrink-0"
+                >
+                  Volver a Mi Perfil
+                </button>
+              </div>
+            </div>
+)}
         </div>
 
         {/* Modal de Confirmación por Contraseña para Backup/Restaurar */}
@@ -608,6 +710,18 @@ export default function Layout() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [userMenuTab, setUserMenuTab] = useState(0)
+
+  // Escucha para abrir pestaña de notas de actualización o perfil desde cualquier componente
+  useEffect(() => {
+    const handleOpenTab = (e) => {
+      const targetTab = e.detail?.tab ?? 0
+      setUserMenuTab(targetTab)
+      setShowUserMenu(true)
+    }
+    window.addEventListener('open-user-profile-tab', handleOpenTab)
+    return () => window.removeEventListener('open-user-profile-tab', handleOpenTab)
+  }, [])
   const [tourActive, setTourActive] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false) // Estado para ocultar sidebar
   const [dbUser, setDbUser] = useState(null)
