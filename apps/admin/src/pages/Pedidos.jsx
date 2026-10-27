@@ -249,6 +249,28 @@ export default function Pedidos() {
     }
   }, [pedidos])
 
+  // Ocultar barra superior y navegación inferior en móvil cuando el modal está abierto
+  useEffect(() => {
+    if (showModal) {
+      document.body.classList.add('modal-open')
+    } else {
+      document.body.classList.remove('modal-open')
+    }
+    return () => {
+      document.body.classList.remove('modal-open')
+    }
+  }, [showModal])
+
+  // Desvanecer alertas de restricción/error automáticamente a los 2 segundos
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => {
+        setErrorMsg('')
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [errorMsg])
+
   const renderPaginationControls = (currentPage, totalItems, setPage) => {
     const itemsPerPage = 20;
     const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
@@ -2885,8 +2907,8 @@ END:VCALENDAR`
 
       {/* Modal CRUD con Asistente en 2 Pasos (Móvil / Desktop) */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-md p-3 sm:p-4">
-          <div className="bg-surface dark:bg-[#121212] w-full max-w-lg rounded-[32px] shadow-2xl border border-outline-variant/20 dark:border-white/10 flex flex-col h-full md:h-auto max-h-[95vh] md:max-h-[88vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 dark:bg-black/85 backdrop-blur-md p-2 sm:p-4">
+          <div className="bg-surface dark:bg-[#121212] w-full max-w-lg rounded-[28px] sm:rounded-[32px] shadow-2xl border border-outline-variant/20 dark:border-white/10 flex flex-col h-[94dvh] sm:h-auto max-h-[94dvh] sm:max-h-[88vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Header del Modal */}
             <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-outline-variant/10 dark:border-white/5 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3.5">
@@ -3612,7 +3634,7 @@ END:VCALENDAR`
                     onClick={handleGoToStep2}
                     className="flex-[1.5] py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black shadow-md shadow-primary/20 dark:shadow-[#e2bd6c]/10 hover:opacity-95 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Continuar a Productos</span>
+                    <span>Continuar</span>
                     <span className="material-symbols-outlined text-base">arrow_forward</span>
                   </button>
                 </>

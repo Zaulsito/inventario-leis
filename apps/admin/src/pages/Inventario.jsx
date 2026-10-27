@@ -1133,6 +1133,16 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }, [showModal])
 
+  // Desvanecer alertas de restricción/error automáticamente a los 2 segundos
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => {
+        setErrorMsg('')
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [errorMsg])
+
   // --- Back button closing for mobile/browser history ---
   useEffect(() => {
     const handlePopState = (event) => {
@@ -6375,7 +6385,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                         onClick={handleGoToStep2Product}
                         className="flex-[1.8] py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-widest bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <span>Continuar a Stock y Costos</span>
+                        <span>Continuar</span>
                         <span className="material-symbols-outlined text-base">arrow_forward</span>
                       </button>
                     </>
