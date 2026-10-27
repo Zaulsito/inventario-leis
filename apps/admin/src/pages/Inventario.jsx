@@ -9,6 +9,7 @@ import { getLocalDateString, calcularEstado, formatDateDMA } from '../utils/date
 import Footer from '../components/Footer'
 import { getOptimizedImageUrl } from '../utils/image'
 import { useAuth } from '../context/AuthContext'
+import { CLOUDINARY_CONFIG } from '../config/cloudinary'
 
 const estadoConfig = {
   disponible: { label: 'Disponible', cls: 'bg-[#8b6b3e]/10 text-[#8b6b3e] dark:bg-[#8b6b3e]/20 dark:text-[#c4a484] border border-[#8b6b3e]/20 backdrop-blur-sm font-bold shadow-sm' },
@@ -2877,22 +2878,22 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
       await Promise.all(filesToUpload.map(async (file) => {
         const compressedFile = await compressImage(file, 1000, 0.8);
         const formData = new FormData();
-        formData.append('image', compressedFile);
+        formData.append('file', compressedFile);
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
         
         try {
-           const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+           const response = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
             method: 'POST',
             body: formData,
            });
            const data = await response.json();
-           if (data.success) {
-             const optUrl = data.data.medium?.url || data.data.display_url || data.data.url;
-             newUrls.push(optUrl);
+           if (data.secure_url) {
+             newUrls.push(data.secure_url);
              completados++;
              setUploadProgress(`Subiendo ${completados} de ${filesToUpload.length}...`);
            }
         } catch (err) {
-           console.error("Error subiendo una imagen", err);
+           console.error("Error subiendo una imagen a Cloudinary", err);
         }
       }));
 
@@ -2929,20 +2930,20 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
       await Promise.all(filesToUpload.map(async (file) => {
         const compressedFile = await compressImage(file, 1000, 0.8);
         const formData = new FormData();
-        formData.append('image', compressedFile);
+        formData.append('file', compressedFile);
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
 
         try {
-          const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+          const response = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
             method: 'POST',
             body: formData,
           });
           const data = await response.json();
-          if (data.success) {
-            const optUrl = data.data.medium?.url || data.data.display_url || data.data.url;
-            newUrls.push(optUrl);
+          if (data.secure_url) {
+            newUrls.push(data.secure_url);
           }
         } catch (err) {
-          console.error("Error subiendo foto de variante:", err);
+          console.error("Error subiendo foto de variante a Cloudinary:", err);
         }
       }));
 
@@ -3088,16 +3089,16 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
             const compressed = await compressImage(file, 800, 0.75);
 
             const formData = new FormData();
-            formData.append('image', compressed);
+            formData.append('file', compressed);
+            formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
 
-            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            const response = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
               method: 'POST',
               body: formData,
             });
             const data = await response.json();
-            if (data.success) {
-              const optUrl = data.data.medium?.url || data.data.display_url || data.data.url;
-              newFotos.push(optUrl);
+            if (data.secure_url) {
+              newFotos.push(data.secure_url);
             } else {
               newFotos.push(url);
             }
