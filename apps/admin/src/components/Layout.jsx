@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, query, collection, where, getDocs, onSnapshot } fr
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth'
 import { db } from '../config/firebase'
 import { APP_VERSION, RELEASE_DATE, LATEST_CHANGES } from '../config/updates'
+import JSZip from 'jszip'
 
 const navItems = [
   { to: '/dashboard',  icon: 'dashboard',        label: 'Inicio' },
@@ -52,6 +53,7 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme, in
   const [isVerifying, setIsVerifying] = useState(false)
   const [verifyError, setVerifyError] = useState('')
   const [fileToRestore, setFileToRestore] = useState(null)
+  const [photosProgress, setPhotosProgress] = useState(null) // null | { current, total, text }
 
   const handleExecuteBackup = async () => {
     if (!verifyPasswordInput) {
@@ -157,6 +159,135 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme, in
     } catch (err) {
       console.error("Error al restaurar backup:", err)
       setVerifyError(err.message.includes('auth/') ? 'Contraseña incorrecta. Acceso denegado.' : 'Error al restaurar: ' + err.message)
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+
+  const handleExecutePhotosBackup = async () => {
+    if (!verifyPasswordInput) {
+      setVerifyError('Ingresa tu contraseña para continuar.')
+      return
+    }
+    setIsVerifying(true)
+    setVerifyError('')
+
+    try {
+      const credential = EmailAuthProvider.credential(currentUser.email, verifyPasswordInput)
+      await reauthenticateWithCredential(currentUser, credential)
+      
+      setShowAuthModal(false)
+      setVerifyPasswordInput('')
+      
+      setPhotosProgress({ current: 0, total: 0, text: 'Consultando productos en la base de datos...' })
+      
+      const snap = await getDocs(collection(db, 'productos'))
+      const productos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      
+      const sanitize = (str) => (str || '').replace(/[\\/:*?"<>|]/g, '').trim() || 'Sin_Nombre'
+      
+      const tasks = []
+      for (const prod of productos) {
+        const catName = sanitize(prod.coleccion || 'Sin Categoría')
+        const prodName = sanitize(prod.nombre || ('Producto_' + prod.id))
+        const seenUrls = new Set()
+        
+        // Fotos principales
+        const fotosList = Array.isArray(prod.fotos) ? prod.fotos : (prod.fotoUrl ? [prod.fotoUrl] : [])
+        fotosList.forEach((url, idx) => {
+          if (url && typeof url === 'string' && !seenUrls.has(url)) {
+            seenUrls.add(url)
+            tasks.push({
+              url,
+              category: catName,
+              product: prodName,
+              filename: 'Principal_' + (idx + 1) + '.jpg'
+            })
+          }
+        })
+        
+        // Fotos de variantes
+        if (Array.isArray(prod.variantes)) {
+          prod.variantes.forEach(v => {
+            const vName = sanitize(v.nombre || 'Color')
+            const vFotos = Array.isArray(v.fotos) ? v.fotos : (v.fotoUrl ? [v.fotoUrl] : [])
+            vFotos.forEach((url, idx) => {
+              if (url && typeof url === 'string' && !seenUrls.has(url)) {
+                seenUrls.add(url)
+                tasks.push({
+                  url,
+                  category: catName,
+                  product: prodName,
+                  filename: vName + '_' + (idx + 1) + '.jpg'
+                })
+              }
+            })
+          })
+        }
+      }
+      
+      if (tasks.length === 0) {
+        setPhotosProgress(null)
+        setMessage('⚠️ No se encontraron fotos registradas en tus productos.')
+        setTimeout(() => setMessage(''), 4000)
+        return
+      }
+      
+      const zip = new JSZip()
+      let completadas = 0
+      setPhotosProgress({ current: 0, total: tasks.length, text: 'Iniciando descarga de ' + tasks.length + ' fotos...' })
+      
+      const BATCH_SIZE = 4
+      for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+        const batch = tasks.slice(i, i + BATCH_SIZE)
+        await Promise.all(batch.map(async (t) => {
+          try {
+            const res = await fetch(t.url)
+            if (res.ok) {
+              const blob = await res.blob()
+              // Guardar en 2 niveles: Categoria / Nombre_Producto / Archivo.jpg
+              zip.folder(t.category).folder(t.product).file(t.filename, blob)
+            }
+          } catch (e) {
+            console.warn('No se pudo descargar la foto de ' + t.product + ':', e)
+          } finally {
+            completadas++
+            setPhotosProgress({
+              current: completadas,
+              total: tasks.length,
+              text: 'Descargando ' + completadas + ' de ' + tasks.length + ' (' + t.category + ' > ' + t.product + ')...'
+            })
+          }
+        }))
+      }
+      
+      setPhotosProgress({ current: tasks.length, total: tasks.length, text: 'Comprimiendo archivo ZIP por carpetas...' })
+      
+      const zipBlob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      })
+      
+      const dateStr = new Date().toISOString().split('T')[0]
+      const link = document.createElement('a')
+      const blobUrl = URL.createObjectURL(zipBlob)
+      link.href = blobUrl
+      link.download = 'respaldo_fotos_leis_' + dateStr + '.zip'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+      
+      setPhotosProgress(null)
+      setMessage('✅ ' + completadas + ' fotos organizadas por carpetas y descargadas en ZIP exitosamente.')
+      setTimeout(() => setMessage(''), 5000)
+      
+    } catch (err) {
+      console.error('Error al generar respaldo de fotos:', err)
+      setPhotosProgress(null)
+      setVerifyError(err.message.includes('auth/') ? 'Contraseña incorrecta. Acceso denegado.' : 'Error: ' + err.message)
     } finally {
       setIsVerifying(false)
     }
@@ -365,7 +496,39 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme, in
                           }}
                         />
                       </label>
+
+                      <button
+                        type="button"
+                        disabled={photosProgress !== null}
+                        onClick={() => {
+                          setAuthModalAction('download-photos');
+                          setVerifyError('');
+                          setVerifyPasswordInput('');
+                          setShowAuthModal(true);
+                        }}
+                        className="sm:col-span-2 w-full flex items-center justify-center gap-2.5 py-3.5 px-4 bg-primary/10 dark:bg-[#e2bd6c]/10 border border-primary/30 dark:border-[#e2bd6c]/30 hover:bg-primary/20 dark:hover:bg-[#e2bd6c]/20 text-primary dark:text-[#e2bd6c] rounded-2xl font-bold text-xs transition-all shadow-sm group active:scale-[0.99] disabled:opacity-50"
+                      >
+                        <Icon name="folder_zip" className="text-xl group-hover:scale-110 transition-transform" />
+                        Descargar Fotos en ZIP (.zip por carpetas)
+                      </button>
                     </div>
+
+                    {photosProgress && (
+                      <div className="p-4 rounded-2xl bg-primary/10 dark:bg-[#e2bd6c]/10 border border-primary/20 dark:border-[#e2bd6c]/20 space-y-2 animate-in fade-in duration-200">
+                        <div className="flex justify-between items-center text-xs font-bold text-primary dark:text-[#e2bd6c]">
+                          <span className="truncate pr-2">{photosProgress.text}</span>
+                          {photosProgress.total > 0 && (
+                            <span className="shrink-0">{Math.round((photosProgress.current / photosProgress.total) * 100)}%</span>
+                          )}
+                        </div>
+                        <div className="w-full h-2 bg-surface-container-highest dark:bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary dark:bg-[#e2bd6c] transition-all duration-300 rounded-full"
+                            style={{ width: `${photosProgress.total > 0 ? (photosProgress.current / photosProgress.total) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {message && (
@@ -543,7 +706,9 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme, in
 
               <p className="text-xs text-on-surface/80 dark:text-white/80 leading-relaxed font-medium">
                 {authModalAction === 'download' 
-                  ? 'Por seguridad, ingresa tu contraseña de acceso para autorizar la descarga del archivo de respaldo completo.'
+                  ? 'Por seguridad, ingresa tu contraseña de acceso para autorizar la descarga del archivo de respaldo completo (.json).'
+                  : authModalAction === 'download-photos'
+                  ? 'Por seguridad, ingresa tu contraseña de acceso para autorizar la descarga del archivo ZIP con todas las imágenes organizadas en carpetas.'
                   : `Por seguridad, ingresa tu contraseña de acceso para autorizar la restauración del archivo (${fileToRestore?.name}).`}
               </p>
 
@@ -551,6 +716,8 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme, in
                 e.preventDefault();
                 if (authModalAction === 'download') {
                   handleExecuteBackup();
+                } else if (authModalAction === 'download-photos') {
+                  handleExecutePhotosBackup();
                 } else {
                   handleExecuteRestore();
                 }
@@ -587,7 +754,7 @@ function UserCenterModal({ isOpen, onClose, onStartTour, isDark, toggleTheme, in
                     disabled={isVerifying || !verifyPasswordInput}
                     className="flex-1 py-3.5 bg-primary dark:bg-[#e2bd6c] text-on-primary dark:text-black rounded-2xl font-bold uppercase text-[10px] tracking-widest shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                   >
-                    {isVerifying ? 'Verificando...' : (authModalAction === 'download' ? 'Descargar' : 'Restaurar')}
+                    {isVerifying ? 'Verificando...' : (authModalAction === 'download' ? 'Descargar' : authModalAction === 'download-photos' ? 'Descargar Fotos' : 'Restaurar')}
                   </button>
                 </div>
               </form>

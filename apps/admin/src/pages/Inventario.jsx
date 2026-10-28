@@ -883,38 +883,37 @@ REGLAS DE FORMATO ESTRICTAS:
     let validLogs = (editProductHistory || []).slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
 
     if (hasMultipleSuppliers && activeProv) {
-      const logsProv = validLogs.filter(l => {
-        const lp = (l.proveedor || '').trim().toUpperCase();
+      validLogs = validLogs.filter(l => {
+        if (Number(l.cambio) < 0 && l.proveedoresDesglose) {
+          return Boolean(l.proveedoresDesglose[activeProv]);
+        }
+        const lp = (l.proveedorNorm || l.proveedor || (activeProv === firstProv ? firstProv : '')).trim().toUpperCase();
         return lp && (lp === activeProv || lp.includes(activeProv) || activeProv.includes(lp));
       });
-      if (logsProv.length > 0) {
-        validLogs = logsProv;
-      }
     }
 
     const entradas = validLogs.filter(l => Number(l.cambio) > 0)
     const sumaEntradas = entradas.reduce((acc, l) => acc + (Number(l.cambio) || 0), 0)
-    const salidasTotal = validLogs.filter(l => Number(l.cambio) < 0).reduce((acc, l) => acc + Math.abs(Number(l.cambio) || 0), 0)
+    const salidasTotal = validLogs.filter(l => Number(l.cambio) < 0).reduce((acc, l) => {
+      if (hasMultipleSuppliers && activeProv && l.proveedoresDesglose && l.proveedoresDesglose[activeProv] !== undefined) {
+        return acc + Math.abs(Number(l.proveedoresDesglose[activeProv]) || 0);
+      }
+      return acc + Math.abs(Number(l.cambio) || 0);
+    }, 0)
     const stockNetoLogs = Math.max(0, sumaEntradas - salidasTotal)
 
-    const stockActualForm = Number(form.stock) || 0
-    // El stock previo no contabilizado es la diferencia real entre el stock actual y lo que justifican los logs existentes
-    const stockNoContabilizado = Math.max(0, stockActualForm - stockNetoLogs)
+    const activeLot = hasMultipleSuppliers && Array.isArray(form.lotesProveedores) ? form.lotesProveedores[activeLotIndex] : null;
+    const currentLotStock = activeLot && activeLot.stock !== undefined ? Number(activeLot.stock || 0) : (Number(form.stock) || 0);
+    // El stock previo no contabilizado es la diferencia real entre el stock actual del lote y lo que justifican los logs existentes
+    const stockNoContabilizado = Math.max(0, currentLotStock - stockNetoLogs);
 
-    // Verificar si el historial ya incluye un registro de creación inicial
-    const tieneCreacionInicialEnLogs = validLogs.some(l => 
-      Number(l.stockAnterior) === 0 || 
-      (l.motivo && l.motivo.toLowerCase().includes('nuevo producto')) ||
-      (l.accion && l.accion.toLowerCase().includes('creación inicial'))
-    )
-
-    // Determinar stock inicial base previo a los registros de Firestore
-    let cantInicialBase = 0
-    if (!tieneCreacionInicialEnLogs && stockActualForm > 0 && stockNoContabilizado > 0) {
+    // Solo considerar stock inicial base previo si este lote NO tiene compras/entradas registradas en el historial
+    let cantInicialBase = 0;
+    if (entradas.length === 0 && currentLotStock > 0 && stockNoContabilizado > 0) {
       if (hasMultipleSuppliers && activeProv && firstProv && activeProv !== firstProv) {
-        cantInicialBase = 0
+        cantInicialBase = currentLotStock;
       } else {
-        cantInicialBase = stockNoContabilizado
+        cantInicialBase = stockNoContabilizado;
       }
     }
 
@@ -1243,20 +1242,29 @@ REGLAS DE FORMATO ESTRICTAS:
       }
     }
 
+    const firstLot = lotes.length > 0 ? lotes[0] : null;
+    const initLotProv = (firstLot?.proveedor || p.proveedor || '').trim().toUpperCase();
+    const initLotStock = firstLot && firstLot.stock !== undefined ? Number(firstLot.stock || 0) : stockNum;
+    const initLotCost = firstLot && firstLot.precioCosto !== undefined ? firstLot.precioCosto : (p.precioCosto || '');
+    const initLotPrice = firstLot && (firstLot.precioVenta !== undefined || firstLot.precio !== undefined)
+      ? (firstLot.precioVenta !== undefined ? firstLot.precioVenta : firstLot.precio)
+      : (p.precio || '');
+    const initLotDate = firstLot?.fechaIngreso || fechaIng;
+
     setForm({ 
       nombre: p.nombre, 
       sku: p.sku, 
       coleccion: (p.coleccion || '').trim().toUpperCase(), 
-      proveedor: (p.proveedor || '').trim().toUpperCase(),
+      proveedor: initLotProv, 
       marca: (p.marca || '').trim().toUpperCase(),
-      precio: p.precio, 
-      precioCosto: p.precioCosto || '',
-      stock: p.stock, 
+      precio: initLotPrice, 
+      precioCosto: initLotCost,
+      stock: initLotStock, 
       lotesProveedores: lotes,
       ajusteStock: '',
       motivoAjuste: '',
       notaAjuste: '',
-      fechaIngreso: fechaIng, 
+      fechaIngreso: initLotDate, 
       fotoUrl: p.fotoUrl || '',
       fotos: p.fotos ? [...p.fotos] : (p.fotoUrl ? [p.fotoUrl] : []),
       descripcion: p.descripcion || '',
@@ -1266,10 +1274,10 @@ REGLAS DE FORMATO ESTRICTAS:
     setActiveLotIndex(0)
     setVarianteAjuste(vars[0]?.nombre || '')
     setInitialProductData({ 
-      stock: stockNum, 
-      precioCosto: costNum, 
-      fechaIngreso: fechaIng,
-      proveedor: (p.proveedor || '').trim().toUpperCase(),
+      stock: initLotStock, 
+      precioCosto: Number(initLotCost) || costNum, 
+      fechaIngreso: initLotDate,
+      proveedor: initLotProv,
       lotesProveedores: lotes.map(l => ({ ...l }))
     })
     setEditingId(p.id)
@@ -1375,7 +1383,7 @@ REGLAS DE FORMATO ESTRICTAS:
       const combined = Array.from(logsMap.values())
       combined.sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
 
-      // Limpiar y deduplicar registros gemelos accidentales creados con diferencia menor a 4 segundos (solo en historial_inventario)
+      // Deduplicar y ordenar registros
       const sanitizedLogs = [];
       for (const log of combined) {
         if (log.esPedidoReal || log.esMermaReal) {
@@ -1398,6 +1406,67 @@ REGLAS DE FORMATO ESTRICTAS:
           sanitizedLogs.push(log);
         }
       }
+
+      // Ordenar cronológicamente para aplicar FIFO exacto igual que en Historial.jsx
+      sanitizedLogs.sort((a, b) => {
+        const diff = new Date(a.fecha) - new Date(b.fecha);
+        if (diff !== 0) return diff;
+        const cantA = Number(a.cambio) || 0;
+        const cantB = Number(b.cambio) || 0;
+        if (cantA > 0 && cantB < 0) return -1;
+        if (cantA < 0 && cantB > 0) return 1;
+        return 0;
+      });
+
+      const firstProv = (Array.isArray(lotes) && lotes[0]?.proveedor || p.proveedor || '').trim().toUpperCase();
+      const supplierLots = [];
+      if (Array.isArray(lotes) && lotes.length > 0) {
+        const lotesSorted = [...lotes].sort((x, y) => new Date(x.fechaIngreso || '2000-01-01') - new Date(y.fechaIngreso || '2000-01-01'));
+        lotesSorted.forEach(l => {
+          const pName = (l.proveedor || firstProv).trim().toUpperCase();
+          if (pName && !supplierLots.some(sl => sl.proveedor === pName)) {
+            supplierLots.push({ proveedor: pName, rem: 0 });
+          }
+        });
+      }
+
+      sanitizedLogs.forEach(log => {
+        const c = Number(log.cambio) || 0;
+        if (c > 0) {
+          const pName = (log.proveedor || firstProv).trim().toUpperCase();
+          log.proveedorNorm = pName;
+          let lot = supplierLots.find(l => l.proveedor === pName);
+          if (!lot) {
+            lot = { proveedor: pName, rem: 0 };
+            supplierLots.push(lot);
+          }
+          lot.rem += c;
+          log.proveedoresDesglose = { [pName]: c };
+        } else if (c < 0) {
+          let req = Math.abs(c);
+          const desglose = {};
+          for (const lot of supplierLots) {
+            if (req <= 0) break;
+            if (lot.rem > 0) {
+              const take = Math.min(lot.rem, req);
+              lot.rem -= take;
+              req -= take;
+              desglose[lot.proveedor] = (desglose[lot.proveedor] || 0) + take;
+            }
+          }
+          if (req > 0) {
+            const activeLot = supplierLots.find(l => l.rem > 0) || supplierLots[supplierLots.length - 1];
+            const fallbackProv = (activeLot?.proveedor || log.proveedor || firstProv || 'S/P').trim().toUpperCase();
+            desglose[fallbackProv] = (desglose[fallbackProv] || 0) + req;
+            if (activeLot) {
+              activeLot.rem = Math.max(0, activeLot.rem - req);
+            }
+          }
+          log.proveedoresDesglose = desglose;
+          const topProv = Object.keys(desglose)[0] || firstProv;
+          log.proveedorNorm = topProv;
+        }
+      });
 
       setEditProductHistory(sanitizedLogs)
     } catch (e) {
@@ -2006,7 +2075,15 @@ REGLAS DE FORMATO ESTRICTAS:
 
       const docRef = await addDoc(collection(db, 'historial_inventario'), logData);
 
-      const prodUpdate = { stock: stockNuevo };
+      const totalStockProd = Array.isArray(updatedLotesProveedores) && updatedLotesProveedores.length > 0
+        ? updatedLotesProveedores.reduce((sum, l) => sum + Number(l.stock || 0), 0)
+        : stockNuevo;
+
+      const activeLotStock = Array.isArray(updatedLotesProveedores) && updatedLotesProveedores[activeLotIndex]
+        ? Number(updatedLotesProveedores[activeLotIndex].stock || 0)
+        : stockNuevo;
+
+      const prodUpdate = { stock: totalStockProd };
       if (hasVariants && updatedVariantes) {
         prodUpdate.variantes = updatedVariantes;
       }
@@ -2025,14 +2102,14 @@ REGLAS DE FORMATO ESTRICTAS:
       loteJustAddedSessionRef.current = true;
       setProductos(prev => prev.map(p => p.id === editingId ? {
         ...p,
-        stock: stockNuevo,
+        stock: totalStockProd,
         lotesProveedores: updatedLotesProveedores,
         ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {})
       } : p));
-      setInitialProductData(prev => ({ ...prev, stock: stockNuevo }));
+      setInitialProductData(prev => ({ ...prev, stock: activeLotStock }));
       setForm(prev => ({
         ...prev,
-        stock: stockNuevo,
+        stock: activeLotStock,
         ...(updatedLotesProveedores ? { lotesProveedores: updatedLotesProveedores } : {}),
         ...(hasVariants && updatedVariantes ? { variantes: updatedVariantes } : {}),
         ajusteStock: '',
@@ -5467,6 +5544,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                           (() => {
                             const selectedName = varianteAjuste || (form.variantes[0]?.nombre || '');
                             const targetVar = form.variantes.find(v => v.nombre === selectedName) || form.variantes[0];
+                            const targetVarPhoto = targetVar?.fotoUrl || (Array.isArray(targetVar?.fotos) && targetVar.fotos[0]) || '';
                             const vStockActual = Number(targetVar?.stock || 0);
                             const vStockNuevo = Math.max(0, vStockActual + Number(form.ajusteStock || 0));
                             const totStockActual = form.variantes.reduce((sum, v) => sum + Number(v.stock || 0), 0);
@@ -5478,17 +5556,36 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                                   <span className="block text-[9px] font-bold uppercase tracking-wider text-outline dark:text-[#e2bd6c]/65 mb-1 ml-1">
                                     Variante / Color a Ajustar
                                   </span>
-                                  <select
-                                    value={varianteAjuste || (form.variantes[0]?.nombre || '')}
-                                    onChange={e => setVarianteAjuste(e.target.value)}
-                                    className="w-full bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-3 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] shadow-sm dark:text-white cursor-pointer"
-                                  >
-                                    {form.variantes.map((v, i) => (
-                                      <option key={i} value={v.nombre || `Variante ${i + 1}`}>
-                                        🎨 {v.nombre || `Variante ${i + 1}`} (Stock actual: {v.stock || 0})
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <div className="flex items-center gap-2">
+                                    {targetVarPhoto && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedImage(targetVarPhoto)}
+                                        title="Ver foto de la variante en tamaño completo"
+                                        className="w-11 h-11 shrink-0 rounded-xl overflow-hidden border border-outline-variant/30 dark:border-white/10 hover:border-primary dark:hover:border-[#e2bd6c] transition-all bg-surface-variant/30 flex items-center justify-center group relative cursor-zoom-in shadow-sm"
+                                      >
+                                        <img 
+                                          src={targetVarPhoto} 
+                                          alt={targetVar?.nombre || 'Variante'} 
+                                          className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+                                        />
+                                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                          <span className="material-symbols-outlined text-white text-[14px]">zoom_in</span>
+                                        </div>
+                                      </button>
+                                    )}
+                                    <select
+                                      value={varianteAjuste || (form.variantes[0]?.nombre || '')}
+                                      onChange={e => setVarianteAjuste(e.target.value)}
+                                      className="flex-1 min-w-0 bg-surface-container-lowest dark:bg-[#181818] border border-outline-variant/30 dark:border-white/10 rounded-xl px-3.5 py-3 text-xs font-bold focus:outline-none focus:border-primary dark:focus:border-[#e2bd6c] shadow-sm dark:text-white cursor-pointer"
+                                    >
+                                      {form.variantes.map((v, i) => (
+                                        <option key={i} value={v.nombre || `Variante ${i + 1}`}>
+                                          🎨 {v.nombre || `Variante ${i + 1}`} (Stock actual: {v.stock || 0})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
                                 </div>
 
                                 <div>
@@ -5737,7 +5834,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                       </div>
                     ) : (
                       <p className="text-[10px] italic text-outline/70 dark:text-gray-400 text-center py-2 font-bold">
-                        Sin compras históricas registradas aún para este producto.
+                        Sin compras históricas registradas aún {Array.isArray(form.lotesProveedores) && form.lotesProveedores.length > 1 && form.proveedor ? `para el proveedor "${form.proveedor}"` : 'para este producto'}.
                       </p>
                     )}
                   </div>
