@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { getOptimizedImageUrl } from '../../utils/image'
+import { esJoyería } from '../../utils/categories'
 
 export default function HeroBanner({
   isDark,
@@ -164,30 +165,28 @@ export default function HeroBanner({
           <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2.5">
             <button
               onClick={() => {
-                const catJoya = categoriasUnicas.find(c => c.includes('JOYA') || c.includes('ANILLO') || c.includes('AROS')) || 'JOYAS';
-                setFiltroCategoria(catJoya);
+                setFiltroCategoria('JOYERIA');
               }}
               className={`px-4 py-2.5 rounded-2xl text-[11px] md:text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border ${
-                filtroCategoria.includes('JOYA') || filtroCategoria.includes('ANILLO') || filtroCategoria.includes('AROS')
+                filtroCategoria === 'JOYERIA' || filtroCategoria === 'JOYAS' || (esJoyería(filtroCategoria) && filtroCategoria !== 'TODAS')
                   ? (isDark ? 'bg-[#e2bd6c] text-black border-[#e2bd6c]' : 'bg-primary text-on-primary border-primary')
                   : (isDark ? 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-[#e2bd6c]/40' : 'bg-white/80 border-[#e2bd6c]/30 text-[#2a1b0a] hover:bg-white')
               }`}
             >
-              <span>✨ Ver Joyería</span>
+              <span>{heroBannerConfig?.botonJoyeriaTexto || '✨ Ver Joyería'}</span>
             </button>
 
             <button
               onClick={() => {
-                const catCapilar = categoriasUnicas.find(c => c.includes('CAPILAR') || c.includes('CABELLO') || c.includes('COSMETICA') || c.includes('SHOCK')) || 'CAPILAR';
-                setFiltroCategoria(catCapilar);
+                setFiltroCategoria('CAPILAR');
               }}
               className={`px-4 py-2.5 rounded-2xl text-[11px] md:text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border ${
-                filtroCategoria.includes('CAPILAR') || filtroCategoria.includes('CABELLO')
-                  ? (isDark ? 'bg-[#e2bd6c] text-black border-[#e2bd6c]' : 'bg-primary text-on-primary border-primary')
-                  : (isDark ? 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-[#e2bd6c]/40' : 'bg-white/80 border-[#e2bd6c]/30 text-[#2a1b0a] hover:bg-white')
+                filtroCategoria === 'CAPILAR' || (heroBannerConfig?.categoriasCapilarMenu?.includes(filtroCategoria) && filtroCategoria !== 'TODAS') || (filtroCategoria.includes('CAPILAR') && filtroCategoria !== 'TODAS')
+                  ? (isDark ? 'bg-emerald-400 text-black border-emerald-400' : 'bg-emerald-600 text-white border-emerald-600')
+                  : (isDark ? 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-emerald-400/40' : 'bg-white/80 border-emerald-400/30 text-[#2a1b0a] hover:bg-white')
               }`}
             >
-              <span>🌿 Cuidado Capilar</span>
+              <span>{heroBannerConfig?.botonCapilarTexto || '🌿 Cuidado Capilar'}</span>
             </button>
 
             <button
@@ -206,48 +205,68 @@ export default function HeroBanner({
           </div>
         </div>
 
-        {/* COLUMNA DERECHA ESCRITORIO: COMPOSICIÓN FOTOGRÁFICA */}
+        {/* COLUMNA DERECHA ESCRITORIO: COMPOSICIÓN FOTOGRÁFICA CON CROSSFADE SUAVE */}
         <div className="hidden md:flex items-center justify-center shrink-0 relative w-72 lg:w-96 h-56 lg:h-64 select-none">
-          {img1Url && (
+          {list1Images.length > 0 && (
             <div 
               onClick={() => heroProd1 && setProductoParaVer(heroProd1)}
-              className={`absolute left-1 top-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd1 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} -rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+              className={`absolute left-1 top-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd1 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} -rotate-6 hover:rotate-0 ${
                 isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
               }`}
               title={heroProd1 ? `Ver ${heroProd1.nombre}` : 'Destacado 1'}
             >
-              <img 
-                src={getOptimizedImageUrl(img1Url, 600)} 
-                alt="Destacado 1"
-                className="w-full h-full object-cover" 
-              />
-              <span className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-[#e2bd6c] text-black shadow-md uppercase tracking-wider backdrop-blur-md">
+              {list1Images.map((img, idx) => {
+                const isCurrent = (heroIndex % list1Images.length) === idx;
+                return (
+                  <img 
+                    key={img + idx}
+                    src={getOptimizedImageUrl(img, 600)} 
+                    alt="Destacado 1"
+                    className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+                      isCurrent 
+                        ? 'opacity-100 scale-100 z-10' 
+                        : 'opacity-0 scale-110 z-0 pointer-events-none'
+                    }`} 
+                  />
+                );
+              })}
+              <span className="absolute top-2 left-2 z-20 px-2.5 py-1 rounded-full text-[9px] font-black bg-[#e2bd6c] text-black shadow-md uppercase tracking-wider backdrop-blur-md">
                 {label1}
               </span>
             </div>
           )}
 
-          {img2Url && (
+          {list2Images.length > 0 && (
             <div 
               onClick={() => heroProd2 && setProductoParaVer(heroProd2)}
-              className={`absolute right-1 bottom-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd2 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} rotate-6 hover:rotate-0 animate-in fade-in zoom-in-90 ${
+              className={`absolute right-1 bottom-2 w-36 lg:w-44 aspect-square rounded-2xl overflow-hidden border-2 shadow-2xl transition-all duration-700 ease-out ${heroProd2 ? 'cursor-pointer hover:z-30 hover:scale-110' : ''} rotate-6 hover:rotate-0 ${
                 isDark ? 'border-[#e2bd6c]/50 bg-[#1e1e1e] shadow-black/80' : 'border-[#e2bd6c]/60 bg-white shadow-black/20'
               }`}
               title={heroProd2 ? `Ver ${heroProd2.nombre}` : 'Destacado 2'}
             >
-              <img 
-                src={getOptimizedImageUrl(img2Url, 600)} 
-                alt="Destacado 2"
-                className="w-full h-full object-cover" 
-              />
-              <span className="absolute top-2 right-2 px-2.5 py-1 rounded-full text-[9px] font-black bg-emerald-500 text-white shadow-md uppercase tracking-wider backdrop-blur-md">
+              {list2Images.map((img, idx) => {
+                const isCurrent = ((heroIndex + 1) % list2Images.length) === idx;
+                return (
+                  <img 
+                    key={img + idx}
+                    src={getOptimizedImageUrl(img, 600)} 
+                    alt="Destacado 2"
+                    className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${
+                      isCurrent 
+                        ? 'opacity-100 scale-100 z-10' 
+                        : 'opacity-0 scale-110 z-0 pointer-events-none'
+                    }`} 
+                  />
+                );
+              })}
+              <span className="absolute top-2 right-2 z-20 px-2.5 py-1 rounded-full text-[9px] font-black bg-emerald-500 text-white shadow-md uppercase tracking-wider backdrop-blur-md">
                 {label2}
               </span>
             </div>
           )}
 
           {/* Badge flotante central */}
-          <div className={`absolute bottom-0 z-20 px-3.5 py-1 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-1.5 select-none ${
+          <div className={`absolute bottom-0 z-30 px-3.5 py-1 rounded-full border backdrop-blur-md shadow-xl flex items-center gap-1.5 select-none ${
             isDark ? 'bg-black/80 border-[#e2bd6c]/40 text-[#e2bd6c]' : 'bg-white/90 border-[#e2bd6c]/50 text-[#785427]'
           }`}>
             <span className="material-symbols-outlined text-xs animate-pulse text-[#e2bd6c]">auto_awesome</span>

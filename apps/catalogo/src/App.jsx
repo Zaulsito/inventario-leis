@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from './config/firebase'
 import CheckoutModal from './components/cart/CheckoutModal'
 import CartDrawerModal from './components/cart/CartDrawerModal'
 import { VideoTutorialModal, OrderStepsTutorial, InteractiveMascotTour } from './components/tutorial'
@@ -43,6 +45,17 @@ export default function CatalogoPublico() {
   
   const mainScrollRef = useRef(null)
 
+  // Configuración en tiempo real del Banner Hero (título, botones y categorías de joyería y capilar)
+  const [heroBannerConfig, setHeroBannerConfig] = useState(null)
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'configuracion', 'heroBanner'), (docSnap) => {
+      if (docSnap.exists()) {
+        setHeroBannerConfig(docSnap.data())
+      }
+    })
+    return () => unsub()
+  }, [])
+
   // Catalog Filters Hook
   const {
     filtroCategoria,
@@ -82,12 +95,10 @@ export default function CatalogoPublico() {
     productosPaginados,
     paginasVisibles,
     scrollCategories
-  } = useCatalogFilters({ productos, mainScrollRef })
+  } = useCatalogFilters({ productos, mainScrollRef, heroBannerConfig })
 
-  // Estado del Tutorial de Compra interactivo
-  const [showTutorial, setShowTutorial] = useState(() => {
-    return localStorage.getItem('hide_catalogo_tutorial') !== 'true';
-  })
+  // Estado del Tutorial de Compra interactivo (oculto por defecto al entrar)
+  const [showTutorial, setShowTutorial] = useState(false)
 
   // Paso actual del Viaje de Compra guiado (0 = inactivo, 1 a 7 = pasos)
   const [tourStep, setTourStep] = useState(0)
@@ -435,11 +446,15 @@ export default function CatalogoPublico() {
               setSoloDisponibles={setSoloDisponibles}
               productos={productos}
               setProductoParaVer={setProductoParaVer}
+              heroBannerConfig={heroBannerConfig}
             />
 
             {/* ── ENCABEZADO DE CATEGORÍA / PRODUCTOS (DEBAJO DEL HERO BANNER) ── */}
             <CatalogHeaderControls
               filtroCategoria={filtroCategoria}
+              setFiltroCategoria={setFiltroCategoria}
+              categoryCounts={categoryCounts}
+              heroBannerConfig={heroBannerConfig}
               isDark={isDark}
               totalProductos={productosFiltrados.length}
               ordenamiento={ordenamiento}

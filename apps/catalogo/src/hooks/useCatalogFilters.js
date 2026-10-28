@@ -1,19 +1,21 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { esJoyería } from '../utils/categories'
 
-export const ITEMS_POR_PAGINA = 20
+export const ITEMS_POR_PAGINA_DEFAULT = 20
 
 /**
  * Custom hook para gestionar filtros, ordenamiento, búsqueda,
  * categorías y paginación en el catálogo público.
  */
-export function useCatalogFilters({ productos = [], mainScrollRef = null } = {}) {
+export function useCatalogFilters({ productos = [], mainScrollRef = null, heroBannerConfig = null } = {}) {
   // Filtros Avanzados
   const [filtroCategoria, setFiltroCategoria] = useState('TODAS')
   const [ordenamiento, setOrdenamiento] = useState('destacados')
   const [isSortOpen, setIsSortOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  // En PC (escritorio), el filtro permanece oculto por defecto
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [precioMin, setPrecioMin] = useState('')
   const [precioMax, setPrecioMax] = useState('')
   const [soloDisponibles, setSoloDisponibles] = useState(false)
@@ -21,15 +23,30 @@ export function useCatalogFilters({ productos = [], mainScrollRef = null } = {})
   const [categorySearchTerm, setCategorySearchTerm] = useState('')
   const categoryContainerRef = useRef(null)
 
-  // Paginación
-  const [paginaActual, setPaginaActual] = useState(1)
-  const [itemsVisiblesTodas, setItemsVisiblesTodas] = useState(ITEMS_POR_PAGINA)
+  // Paginación adaptable: 30 en PC (>= 768px), 20 en Móvil
+  const [itemsPorPagina, setItemsPorPagina] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      return 30
+    }
+    return 20
+  })
 
-  // Reset de página al cambiar categoría
+  useEffect(() => {
+    const handleResize = () => {
+      setItemsPorPagina(window.innerWidth >= 768 ? 30 : 20)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [itemsVisiblesTodas, setItemsVisiblesTodas] = useState(itemsPorPagina)
+
+  // Reset de página al cambiar categoría o items por página
   useEffect(() => {
     setPaginaActual(1)
-    setItemsVisiblesTodas(ITEMS_POR_PAGINA)
-  }, [filtroCategoria])
+    setItemsVisiblesTodas(itemsPorPagina)
+  }, [filtroCategoria, itemsPorPagina])
 
   // Scroll al inicio al cambiar de página
   useEffect(() => {
@@ -43,28 +60,72 @@ export function useCatalogFilters({ productos = [], mainScrollRef = null } = {})
     return productos.filter(p => p.visibleEnCatalogo !== false)
   }, [productos])
 
+  // Categorías de Joyería configuradas (o por defecto)
+  const categoriasJoyeriaConfig = useMemo(() => {
+    return (heroBannerConfig?.categoriasJoyeriaMenu && heroBannerConfig.categoriasJoyeriaMenu.length > 0)
+      ? heroBannerConfig.categoriasJoyeriaMenu
+      : ['AROS', 'COLLAR', 'CONJUNTO', 'ANILLOS'];
+  }, [heroBannerConfig?.categoriasJoyeriaMenu]);
+
+  // Categorías de Capilar / Cosmética configuradas (o por defecto)
+  const categoriasCapilarConfig = useMemo(() => {
+    return (heroBannerConfig?.categoriasCapilarMenu && heroBannerConfig.categoriasCapilarMenu.length > 0)
+      ? heroBannerConfig.categoriasCapilarMenu
+      : ['CUIDADO CAPILAR'];
+  }, [heroBannerConfig?.categoriasCapilarMenu]);
+
   const categoriasUnicas = useMemo(() => {
-    return ['TODAS', ...new Set(productosVisibles.map(p => (p.coleccion || '').trim().toUpperCase()).filter(Boolean))].sort((a, b) => {
+    const rawCats = Array.from(new Set(productosVisibles.map(p => (p.coleccion || '').trim().toUpperCase()).filter(Boolean)))
+    const hayJoyas = productosVisibles.some(p => esJoyería((p.coleccion || '').trim().toUpperCase()))
+    const catsSet = new Set(rawCats)
+    if (hayJoyas) {
+      catsSet.add('JOYERIA')
+    }
+    return ['TODAS', ...catsSet].sort((a, b) => {
       if (a === 'TODAS') return -1
       if (b === 'TODAS') return 1
+      if (a === 'JOYERIA') return -1
+      if (b === 'JOYERIA') return 1
       return a.localeCompare(b)
     })
   }, [productosVisibles])
 
   const categoryCounts = useMemo(() => {
     const counts = { TODAS: productosVisibles.length }
+    let totalJoyas = 0
+    let totalCapilar = 0
     productosVisibles.forEach(p => {
       const cat = (p.coleccion || '').trim().toUpperCase()
       if (cat) {
         counts[cat] = (counts[cat] || 0) + 1
       }
+      if (esJoyería(cat) || categoriasJoyeriaConfig.includes(cat)) {
+        totalJoyas++
+      }
+      const esDeCapilar = categoriasCapilarConfig.some(c => c.trim().toUpperCase() === cat) || cat.includes('CAPILAR');
+      if (esDeCapilar) {
+        totalCapilar++
+      }
     })
+    counts['JOYERIA'] = totalJoyas
+    counts['JOYAS'] = totalJoyas
+    counts['CAPILAR'] = totalCapilar
     return counts
-  }, [productosVisibles])
+  }, [productosVisibles, categoriasJoyeriaConfig, categoriasCapilarConfig])
 
   const productosFiltrados = useMemo(() => {
     return productosVisibles.filter(p => {
-      if (filtroCategoria !== 'TODAS' && (p.coleccion || '').trim().toUpperCase() !== filtroCategoria) return false
+      const pCat = (p.coleccion || '').trim().toUpperCase();
+      if (filtroCategoria !== 'TODAS') {
+        if (filtroCategoria === 'JOYERIA' || filtroCategoria === 'JOYAS') {
+          if (!esJoyería(pCat) && !categoriasJoyeriaConfig.includes(pCat)) return false;
+        } else if (filtroCategoria === 'CAPILAR') {
+          const esDeCapilar = categoriasCapilarConfig.some(c => c.trim().toUpperCase() === pCat) || pCat.includes('CAPILAR');
+          if (!esDeCapilar) return false;
+        } else if (pCat !== filtroCategoria) {
+          return false;
+        }
+      }
 
       if (searchTerm.trim()) {
         const s = searchTerm.toLowerCase()
@@ -110,16 +171,16 @@ export function useCatalogFilters({ productos = [], mainScrollRef = null } = {})
       if (!aTieneFoto && bTieneFoto) return 1
       return 0
     })
-  }, [productosVisibles, filtroCategoria, searchTerm, precioMin, precioMax, soloDisponibles, ordenamiento])
+  }, [productosVisibles, filtroCategoria, searchTerm, precioMin, precioMax, soloDisponibles, ordenamiento, categoriasJoyeriaConfig, categoriasCapilarConfig])
 
   // Paginación derivada
   const isTodas = filtroCategoria === 'TODAS'
-  const totalPaginas = isTodas ? 1 : Math.ceil(productosFiltrados.length / ITEMS_POR_PAGINA)
+  const totalPaginas = isTodas ? 1 : Math.ceil(productosFiltrados.length / itemsPorPagina)
   const productosPaginados = useMemo(() => {
     return isTodas
       ? productosFiltrados.slice(0, itemsVisiblesTodas)
-      : productosFiltrados.slice((paginaActual - 1) * ITEMS_POR_PAGINA, paginaActual * ITEMS_POR_PAGINA)
-  }, [isTodas, productosFiltrados, itemsVisiblesTodas, paginaActual])
+      : productosFiltrados.slice((paginaActual - 1) * itemsPorPagina, paginaActual * itemsPorPagina)
+  }, [isTodas, productosFiltrados, itemsVisiblesTodas, paginaActual, itemsPorPagina])
 
   // Lógica de páginas visibles (mostrar máximo 3 páginas)
   const paginasVisibles = useMemo(() => {
@@ -183,7 +244,7 @@ export function useCatalogFilters({ productos = [], mainScrollRef = null } = {})
     setPaginaActual,
     itemsVisiblesTodas,
     setItemsVisiblesTodas,
-    ITEMS_POR_PAGINA,
+    ITEMS_POR_PAGINA: itemsPorPagina,
     productosVisibles,
     categoriasUnicas,
     categoryCounts,
