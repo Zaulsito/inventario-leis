@@ -77,12 +77,13 @@ export function AuthProvider({ children }) {
     operatorName,
     signup,
     login,
-    logout
+    logout,
+    loading
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

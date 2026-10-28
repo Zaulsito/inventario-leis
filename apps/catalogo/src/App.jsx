@@ -9,6 +9,7 @@ import { ProductCard, ProductDetailModal, QuickVariantModal, ImageViewerModal, C
 import { FilterSidebar, Header, Footer } from './components/layout'
 import { HeroBanner } from './components/hero'
 import { AutoDemoScreens } from './components/demo'
+import SplashScreen from './components/common/SplashScreen'
 import {
   useAutoDemo,
   useAuth,
@@ -24,6 +25,7 @@ const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
 
 export default function CatalogoPublico() {
   const { productos, loading } = useProducts()
+  const [showSplash, setShowSplash] = useState(true)
 
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme')
@@ -354,12 +356,17 @@ export default function CatalogoPublico() {
     || productos.find(p => p.fotoUrl)) : null;
   const demoProd2 = isAutoDemo && demoProd1 ? productos.find(p => p.id !== demoProd1.id && p.fotoUrl && (p.stock > 0 || (p.variantes && p.variantes.some(v => v.stock > 0)))) : null;
 
-  if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-surface text-on-surface">Cargando catálogo...</div>
-  }
-
   return (
     <div className={`flex h-[100dvh] ${isDark ? 'bg-[#0c0c0c]' : 'bg-surface'} relative overflow-hidden transition-colors duration-500`}>
+      {/* ── PANTALLA DE INICIO / BIENVENIDA CON ANIMACIÓN DE LOGO ── */}
+      {showSplash && (
+        <SplashScreen
+          isDark={isDark}
+          isLoading={loading}
+          duration={2000}
+          onFinish={() => setShowSplash(false)}
+        />
+      )}
 
       {/* ── PANEL LATERAL (SIDEBAR DE FILTROS) ── */}
       <FilterSidebar
