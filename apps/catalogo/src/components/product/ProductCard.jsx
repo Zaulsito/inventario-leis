@@ -105,9 +105,6 @@ export default function ProductCard({
               </span>
             </div>
             <div className="flex items-center gap-0.5 shrink-0 text-outline">
-              <span className={`text-[10px] font-bold ${activeVar && Number(activeVar.stock) <= 0 ? 'text-rose-400' : 'opacity-70'}`}>
-                ({activeVar ? Number(activeVar.stock) : 0})
-              </span>
               <span className={`material-symbols-outlined text-base transition-transform duration-200 ${openColorDropdownId === p.id ? 'rotate-180' : ''}`}>
                 expand_more
               </span>
@@ -164,7 +161,7 @@ export default function ProductCard({
                             ? (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700') 
                             : (isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600')
                         }`}>
-                          {hasStock ? `${v.stock} un.` : 'Agotado'}
+                          {hasStock ? 'Disponible' : 'Agotado'}
                         </span>
                         {isSelected && (
                           <span className="material-symbols-outlined text-sm font-black">check</span>

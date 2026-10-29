@@ -250,7 +250,7 @@ export default function ProductDetailModal({
                             <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: vHex }} />
                           ) : null}
                           <span className="text-xs font-bold uppercase">{v.nombre}</span>
-                          <span className="text-[10px] opacity-60">({v.stock} un.)</span>
+                          
                         </button>
                       );
                     })}
@@ -428,32 +428,6 @@ export default function ProductDetailModal({
                       </p>
                     </div>
                   )}
-                </div>
-              </div>
-
-              {/* STOCK CON DISEÑO DE TARJETA */}
-              <div className="animate-in fade-in slide-in-from-right duration-500 delay-400">
-                <div className={`backdrop-blur-sm p-6 md:p-10 rounded-[40px] border relative overflow-hidden group shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] ${
-                  isDark ? 'bg-white/0 border-white/5' : 'bg-gradient-to-br from-white to-[#f5f5f5] border-outline-variant/10'
-                }`}>
-                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700">
-                    <span className={`material-symbols-outlined text-8xl transform rotate-12 ${isDark ? 'text-white' : 'text-primary'}`}>inventory_2</span>
-                  </div>
-                  <div className="flex items-center gap-6 relative z-10">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
-                      isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c]' : 'bg-secondary/5 text-secondary'
-                    }`}>
-                      <span className="material-symbols-outlined text-4xl">inventory_2</span>
-                    </div>
-                    <div>
-                      <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.3em] mb-2 ${isDark ? 'text-gray-400' : 'text-outline'}`}>Disponibilidad en Bodega</p>
-                      <p className={`text-xl md:text-3xl font-black ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                        {productoParaVer.variantes?.length > 0 
-                          ? `${productoParaVer.variantes.reduce((sum, v) => sum + Number(v.stock), 0)} UNIDADES`
-                          : `${productoParaVer.stock} UNIDADES`}
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

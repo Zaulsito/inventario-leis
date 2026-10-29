@@ -385,7 +385,7 @@ export default function Inventario() {
     }
   }
 
-  async function autoFillWithAI() {
+  async function autoFillWithAI(modo = 'corta') {
     setErrorMsg('');
     const apiKey = localStorage.getItem('gemini_api_key');
     if (!apiKey) {
@@ -415,7 +415,105 @@ export default function Inventario() {
         throw new Error('Por favor escribe el nombre del producto o sube una imagen de muestra para que la IA pueda identificar el producto.');
       }
 
-      const promptText = `Eres un experto en marketing y cosmética premium para la marca Leis. Tu tarea es analizar el nombre del producto "${form.nombre || 'desconocido'}" y la imagen del producto (si está disponible) y redactar una descripción detallada, atractiva y profesional estructurada exactamente en las siguientes 5 secciones numeradas. Es FUNDAMENTAL que respetes el formato con números exactos y saltos de línea para que nuestro renderizador de catálogo lo formatee automáticamente como tarjetas separadas.
+      // Detección automática de Joyería vs Cosmética
+      const categoriasJoyeria = ['JOYAS', 'JOYERIA', 'JOYERÍA', 'ANILLOS', 'ANILLO', 'AROS', 'ARO', 'COLLAR', 'COLLARES', 'CONJUNTO', 'CONJUNTOS', 'PULSERA', 'PULSERAS'];
+      const colUpper = (form.coleccion || '').trim().toUpperCase();
+      const nomUpper = (form.nombre || '').trim().toUpperCase();
+      const esJoyeria = categoriasJoyeria.some(j => colUpper === j || colUpper.includes(j)) ||
+        ['ARO', 'AROS', 'COLLAR', 'ANILLO', 'PULSERA', 'CONJUNTO', 'PLATA', 'JOYAS', 'JOYERIA'].some(kw => nomUpper.includes(kw));
+
+      let promptText = '';
+
+      if (esJoyeria) {
+        if (modo === 'corta') {
+          promptText = `Eres un experto en alta joyería para la marca Leis. Tu tarea es redactar una descripción CONCISA, ELEGANTE Y DE LUJO para la joya "${form.nombre || 'desconocido'}" para lectura rápida en teléfonos móviles. Es OBLIGATORIO destacar que la joya está elaborada en PLATA 925 auténtica.
+
+Es FUNDAMENTAL que respetes exactamente el formato numerado en 3 secciones limpias para que el catálogo lo organice automáticamente en tarjetas:
+
+1. Descripción
+[Escribe en 1 o máximo 2 oraciones atractivas y directas qué es esta joya, su diseño y que está fabricada en Plata 925 legítima. Sin rodeos ni párrafos largos].
+
+2. Detalles Clave
+• **Material:** Plata 925 legítima y certificada con acabado pulido brillante.
+• **Propiedades:** Hipoalergénica (libre de níquel), no irrita la piel y es ideal para uso diario.
+• **Diseño:** [1 frase breve sobre su versatilidad, elegancia o acabado de la pieza].
+
+3. Cuidados de la Joya
+• **Cuidado:** [1 instrucción breve y práctica para conservar el brillo eterno de la Plata 925 (guardar en lugar seco, evitar contacto directo con perfumes y limpiar con paño suave)].
+
+INSTRUCCIÓN IMPORTANTE PARA EL NOMBRE DEL PRODUCTO:
+Si el nombre no está definido o es 'desconocido', identifícalo o propón un nombre elegante de joyería (ej: "Collar Corazón Plata 925", "Aros Argollas Plata 925") y colócalo en la primera línea como "PRODUCTO: [Nombre]". Luego da dos saltos de línea y comienza directamente con "1. Descripción".
+Si ya hay un nombre definido, puedes omitir la línea "PRODUCTO:".
+
+REGLAS DE FORMATO ESTRICTAS:
+- Mantén el texto CORTO, ÁGIL Y ELEGANTE (máximo 3 secciones).
+- Comienza directamente con "1. Descripción" o la línea "PRODUCTO:".
+- En la sección 3 usa obligatoriamente el título "3. Cuidados de la Joya" y la viñeta "• **Cuidado:**".
+- Usa exactamente negritas con doble asterisco \**Texto\** en los detalles.`;
+        } else {
+          promptText = `Eres un experto en alta joyería para la marca Leis. Tu tarea es redactar una ficha técnica detallada, atractiva y profesional para la joya "${form.nombre || 'desconocido'}", destacando su manufactura de excelencia en PLATA 925.
+
+Usa exactamente la siguiente estructura de números y títulos:
+
+1. Descripción & Estilo
+[Describe en un párrafo elegante la pieza, su concepto, belleza y fabricación en Plata 925 legítima].
+
+2. Especificaciones de la Joya
+• **Material:** Plata 925 de ley certificada con sello de autenticidad y alta pureza.
+• **Acabado & Brillo:** Pulido espejo de alta gama resistente al uso cotidiano.
+• **Seguridad & Confort:** Composición 100% hipoalergénica libre de níquel y plomo, suave al contacto con la piel.
+
+3. Atributos & Ocasiones
+• **Versatilidad:** [Diseño sofisticado ideal para lucir en el día a día o destacar en eventos especiales].
+• **Durabilidad:** [La plata 925 conserva su valor, estructura y brillo intacto con el paso del tiempo].
+• **Regalo Perfecto:** [Pieza emblemática ideal para obsequiar a personas especiales].
+
+4. Guía de Cuidados de la Plata
+• **Guardado:** Almacenar en un joyero o estuche en lugar seco, protegido de la humedad.
+• **Protección:** Aplicar perfumes, cosméticos o lacas antes de colocarse la joya para evitar empañamiento.
+• **Limpieza:** Frotar periódicamente con un paño de microfibra para devolverle su resplandor natural.
+
+5. ¿Para quién es ideal?
+[Explica brevemente qué estilo de persona o personalidad lucirá espectacular con esta joya].
+
+INSTRUCCIÓN PARA EL NOMBRE:
+Si no hay nombre, escribe en la primera línea "PRODUCTO: [Nombre sugerido con Plata 925]" y luego inicia con "1. Descripción & Estilo".
+
+REGLAS DE FORMATO ESTRICTAS:
+- Comienza directamente con "1. Descripción & Estilo" o la línea "PRODUCTO:".
+- Usa negritas con doble asterisco \**Texto\** para resaltar los puntos.`;
+        }
+      } else {
+        // COSMÉTICA, CUIDADO CAPILAR Y BELLEZA
+        if (modo === 'corta') {
+          promptText = `Eres un experto redactor de cosmética y cuidado personal para la marca Leis. Tu tarea es analizar el producto "${form.nombre || 'desconocido'}" y redactar una descripción CONCISA, ELEGANTE Y FÁCIL DE LEER EN CELULAR, con pocos detalles pero muy persuasiva y vendedora.
+
+Es FUNDAMENTAL que respetes exactamente el formato numerado en 3 secciones limpias para que el catálogo lo organice automáticamente en tarjetas:
+
+1. Descripción
+[Escribe en 1 o máximo 2 oraciones atractivas y directas qué es este producto y su principal beneficio. Sin rodeos ni párrafos largos].
+
+2. Beneficios Clave
+• **[Beneficio 1]:** [1 frase corta y directa]
+• **[Beneficio 2]:** [1 frase corta y directa]
+• **[Beneficio 3]:** [1 frase corta y directa]
+
+3. Modo de Uso
+• **Aplicación:** [Instrucción simple y práctica de aplicación en 1 o 2 líneas].
+
+INSTRUCCIÓN IMPORTANTE PARA EL NOMBRE DEL PRODUCTO:
+Si el nombre del producto no está definido en el formulario (o sea, es 'desconocido'), identifícalo directamente de la etiqueta de la botella/pote en la imagen de muestra (por ejemplo: "Crema Collagen").
+Si has identificado el nombre desde la imagen (o deseas proponer una versión corregida y atractiva), escribe obligatoriamente en la primera línea de tu respuesta la palabra "PRODUCTO:" seguido del nombre identificado (ejemplo: "PRODUCTO: Mascarilla de Colágeno"). Luego da dos saltos de línea y comienza directamente con "1. Descripción".
+Si ya hay un nombre definido y no deseas cambiarlo, puedes omitir la línea "PRODUCTO:".
+
+REGLAS DE FORMATO ESTRICTAS:
+- Mantén el texto CORTO, ÁGIL Y SIN DETALLES TÉCNICOS EXCESIVOS (máximo 3 secciones).
+- Comienza directamente con "1. Descripción" o la línea "PRODUCTO:".
+- En la sección 3 usa obligatoriamente "• **Aplicación:**" (nunca uses "Paso 1:").
+- Usa exactamente negritas con doble asterisco \**Texto\** en los beneficios.
+- No uses otros títulos ni agregues introducciones.`;
+        } else {
+          promptText = `Eres un experto en marketing y cosmética premium para la marca Leis. Tu tarea es analizar el nombre del producto "${form.nombre || 'desconocido'}" y la imagen del producto (si está disponible) y redactar una descripción detallada, atractiva y profesional estructurada exactamente en las siguientes 5 secciones numeradas. Es FUNDAMENTAL que respetes el formato con números exactos y saltos de línea para que nuestro renderizador de catálogo lo formatee automáticamente como tarjetas separadas.
 
 Usa exactamente la siguiente estructura de números y títulos (no uses otros números ni títulos):
 
@@ -447,8 +545,10 @@ Si ya hay un nombre definido y no deseas cambiarlo, puedes omitir la línea "PRO
 
 REGLAS DE FORMATO ESTRICTAS:
 - No agregues introducciones ni conclusiones. Comienza directamente con "1. Propósito Principal" o la línea "PRODUCTO:".
-- Asegúrate de usar el formato de negritas con doble asterisco \`**Texto**\` exactamente como se muestra para que el renderizador de catálogo resalte los nombres de los ingredientes y beneficios.
+- Asegúrate de usar el formato de negritas con doble asterisco \**Texto\** exactamente como se muestra para que el renderizador de catálogo resalte los nombres de los ingredientes y beneficios.
 - No antes del título uses otros números o negrita como \`###\` o \`**1. Propósito Principal**\`. Usa exactamente "1. Propósito Principal" en la cabecera (el número y punto es lo que activa el formateo en el frontend).`;
+        }
+      }
 
       const contents = [
         {
@@ -571,6 +671,22 @@ REGLAS DE FORMATO ESTRICTAS:
   
   // AI generation states
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [showAiDropdown, setShowAiDropdown] = useState(false)
+  const aiDropdownRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (aiDropdownRef.current && !aiDropdownRef.current.contains(event.target)) {
+        setShowAiDropdown(false);
+      }
+    }
+    if (showAiDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAiDropdown]);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [tempApiKey, setTempApiKey] = useState('')
   const [isUpdatingVisibilidad, setIsUpdatingVisibilidad] = useState(false)
@@ -5964,18 +6080,67 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 
                       {/* Barra de herramientas */}
                       <div className="flex flex-wrap gap-1.5 p-2 bg-surface-container-low dark:bg-black/25 rounded-2xl border border-outline-variant/15 dark:border-white/5">
-                        <button
-                          type="button"
-                          onClick={autoFillWithAI}
-                          disabled={isGeneratingAI}
-                          title="Rellenar información automáticamente con IA usando el nombre y fotos"
-                          className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 dark:hover:bg-purple-500/30 border border-purple-500/20 dark:border-purple-500/30 transition-all flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-40 shadow-sm shrink-0"
-                        >
-                          <span className={`material-symbols-outlined text-[12px] ${isGeneratingAI ? 'animate-spin' : 'animate-pulse'}`}>
-                            {isGeneratingAI ? 'progress_activity' : 'psychology'}
-                          </span>
-                          {isGeneratingAI ? 'Generando...' : 'Generar con IA'}
-                        </button>
+                        {/* Botón con dropdown para Generar con IA */}
+                        <div className="relative shrink-0" ref={aiDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => setShowAiDropdown(prev => !prev)}
+                            disabled={isGeneratingAI}
+                            title="Rellenar información automáticamente con IA usando el nombre y fotos"
+                            className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 dark:hover:bg-purple-500/30 border border-purple-500/20 dark:border-purple-500/30 transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 disabled:opacity-40 shadow-sm"
+                          >
+                            <span className={`material-symbols-outlined text-[12px] ${isGeneratingAI ? 'animate-spin' : 'animate-pulse'}`}>
+                              {isGeneratingAI ? 'progress_activity' : 'psychology'}
+                            </span>
+                            <span>{isGeneratingAI ? 'Generando...' : 'Generar con IA'}</span>
+                            <span className="material-symbols-outlined text-[11px] opacity-70">
+                              {showAiDropdown ? 'expand_less' : 'expand_more'}
+                            </span>
+                          </button>
+
+                          {showAiDropdown && (
+                            <div className="absolute left-0 top-full mt-1.5 w-64 rounded-xl bg-surface-container-high dark:bg-[#1a1a1a] border border-outline-variant/30 dark:border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowAiDropdown(false);
+                                  autoFillWithAI('corta');
+                                }}
+                                className="w-full text-left p-2 rounded-lg hover:bg-purple-500/10 dark:hover:bg-purple-500/20 transition-all flex items-start gap-2.5 group cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-amber-500 text-base shrink-0 mt-0.5">bolt</span>
+                                <div>
+                                  <div className="text-[11px] font-bold text-on-surface dark:text-white flex items-center gap-1.5">
+                                    <span>Corta / Rápida</span>
+                                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Recomendada</span>
+                                  </div>
+                                  <p className="text-[10px] text-on-surface-variant/80 dark:text-gray-400 leading-tight mt-0.5">
+                                    Ágil y concisa. Ideal para celular (descripción breve, beneficios y uso simple).
+                                  </p>
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowAiDropdown(false);
+                                  autoFillWithAI('detallada');
+                                }}
+                                className="w-full text-left p-2 rounded-lg hover:bg-purple-500/10 dark:hover:bg-purple-500/20 transition-all flex items-start gap-2.5 group cursor-pointer mt-1 border-t border-outline-variant/10 dark:border-white/5 pt-1.5"
+                              >
+                                <span className="material-symbols-outlined text-purple-500 text-base shrink-0 mt-0.5">article</span>
+                                <div>
+                                  <div className="text-[11px] font-bold text-on-surface dark:text-white">
+                                    Detallada
+                                  </div>
+                                  <p className="text-[10px] text-on-surface-variant/80 dark:text-gray-400 leading-tight mt-0.5">
+                                    Ficha completa y extensa con ingredientes clave, beneficios a fondo y modo de uso.
+                                  </p>
+                                </div>
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
                         <button
                           type="button"
@@ -6343,31 +6508,7 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               </div>
                             </div>
 
-                            {/* Stock status card */}
-                            <div className={`p-3 rounded-2xl border relative overflow-hidden group shadow-sm ${
-                              isDark ? 'bg-white/0 border-white/5' : 'bg-gradient-to-br from-white to-[#f9f9f9] border-outline-variant/10'
-                            }`}>
-                              <div className="absolute top-0 right-0 p-3 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-500">
-                                <span className="material-symbols-outlined text-5xl transform rotate-12">inventory_2</span>
-                              </div>
-                              <div className="flex items-center gap-3 relative z-10">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                  isDark ? 'bg-[#e2bd6c]/10 text-[#e2bd6c]' : 'bg-secondary/5 text-secondary'
-                                }`}>
-                                  <span className="material-symbols-outlined text-xl">inventory_2</span>
-                                </div>
-                                <div>
-                                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-outline/80 mb-0.5">
-                                    Disponibilidad en Bodega
-                                  </p>
-                                  <p className={`text-xs md:text-sm font-black ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                                    {form.variantes?.length > 0 
-                                      ? `${form.variantes.reduce((sum, v) => sum + Number(v.stock), 0)} UNIDADES`
-                                      : `${form.stock || 0} UNIDADES`}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+
 
                           </div>
 

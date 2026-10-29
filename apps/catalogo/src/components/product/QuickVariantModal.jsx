@@ -113,7 +113,7 @@ export default function QuickVariantModal({
                 <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
                   isDark ? 'text-[#e2bd6c] bg-[#e2bd6c]/10' : 'text-secondary bg-secondary/10'
                 }`}>
-                  {v.stock} disp.
+                  Disponible
                 </span>
               </button>
             );
