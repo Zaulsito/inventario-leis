@@ -8,6 +8,7 @@ import { getLocalDateString } from '../utils/date'
 import { calcularEstado } from '../utils/date'
 import Footer from '../components/Footer'
 import { useAuth } from '../context/AuthContext'
+import GastosEnvios from '../components/reportes/GastosEnvios'
 
 const PERIODOS = ['Semana Actual', 'Mes Actual', 'Seleccionar Mes', 'Histórico Anual', 'Personalizado']
 
@@ -154,6 +155,7 @@ const normalizeText = (text) => {
 export default function Reportes() {
   const { currentUser, operatorName } = useAuth() || {}
   const currentOperator = operatorName || 'Por sistema'
+  const [activeReportTab, setActiveReportTab] = useState('metricas')
   const [periodo, setPeriodo] = useState(1) // Por defecto: Mes Actual
   const [chartMode, setChartMode] = useState('ambas')
   const [mesSeleccionado, setMesSeleccionado] = useState(() => {
@@ -1138,14 +1140,53 @@ export default function Reportes() {
 
       <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-10 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 mb-12">
         <div className="relative text-center mx-auto">
-          <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">Centro de Control Financiero</p>
-          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter luxe-reveal">Métricas y Mermas</h1>
+          <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">
+            {activeReportTab === 'envios' ? 'Logística y Gastos de Transporte' : 'Centro de Control Financiero'}
+          </p>
+          <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter luxe-reveal">
+            {activeReportTab === 'envios' ? 'Gastos por Envío' : 'Métricas y Mermas'}
+          </h1>
           <p className="mt-4 text-outline dark:text-gray-400 font-body max-w-lg mx-auto leading-relaxed text-[11px] uppercase tracking-widest font-bold">
-            Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.
+            {activeReportTab === 'envios'
+              ? 'Control de fletes, couriers y costos de entrega por pedido con sumas independientes.'
+              : 'Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.'}
           </p>
           <div className="absolute left-1/2 -bottom-6 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
+
+          {/* SELECTOR DE PESTAÑAS (MÉTRICAS VS GASTOS POR ENVÍO) */}
+          <div className="mt-8 flex items-center p-1.5 rounded-2xl bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 shadow-lg relative z-20">
+            <button
+              type="button"
+              onClick={() => setActiveReportTab('metricas')}
+              className={`px-5 py-2.5 rounded-xl font-headline font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                activeReportTab === 'metricas'
+                  ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black shadow-md scale-[1.02]'
+                  : 'text-on-surface-variant dark:text-gray-400 hover:text-on-surface dark:hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">analytics</span>
+              <span>Reporte de Métricas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab('envios')}
+              className={`px-5 py-2.5 rounded-xl font-headline font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                activeReportTab === 'envios'
+                  ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black shadow-md scale-[1.02]'
+                  : 'text-on-surface-variant dark:text-gray-400 hover:text-on-surface dark:hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">local_shipping</span>
+              <span>Gastos por Envío</span>
+            </button>
+          </div>
         </div>
       </header>
+
+      {activeReportTab === 'envios' ? (
+        <GastosEnvios currentOperator={currentOperator} />
+      ) : (
+        <>
 
       {/* Gráfico principal - Luxe Glass Redesign */}
       <section className="mb-10 w-full min-h-[600px] md:min-h-[650px] bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2.5rem] p-6 md:p-10 border border-outline-variant/10 dark:border-white/5 flex flex-col relative z-10 tour-reportes-grafico shadow-xl overflow-hidden">
@@ -2108,6 +2149,8 @@ export default function Reportes() {
           </div>
         )}
       </section>
+      </>
+      )}
 
       {/* Modal de Confirmación para Deshacer */}
       {registroADeshacer && (

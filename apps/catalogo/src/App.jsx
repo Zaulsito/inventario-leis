@@ -10,6 +10,7 @@ import { FilterSidebar, Header, Footer } from './components/layout'
 import { HeroBanner } from './components/hero'
 import { AutoDemoScreens } from './components/demo'
 import SplashScreen from './components/common/SplashScreen'
+import WhatsAppButton from './components/common/WhatsAppButton'
 import {
   useAutoDemo,
   useAuth,
@@ -21,7 +22,7 @@ import {
 } from './hooks'
 
 // Número de WhatsApp al que llegarán los pedidos (formato internacional sin el +)
-const WHATSAPP_NUMBER = "56921648127" // ¡Cambia esto por tu número real!
+const WHATSAPP_NUMBER = "56973000390"
 
 export default function CatalogoPublico() {
   const { productos, loading } = useProducts()
@@ -757,6 +758,11 @@ export default function CatalogoPublico() {
         isDark={isDark}
       />
 
+      {/* ── BOTÓN FLOTANTE OFICIAL DE WHATSAPP CON MENSAJE ── */}
+      <WhatsAppButton
+        phoneNumber={WHATSAPP_NUMBER}
+        isDark={isDark}
+      />
 
     </div>
   )

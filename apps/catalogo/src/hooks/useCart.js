@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { doc, setDoc } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
-const DEFAULT_WHATSAPP_NUMBER = "56921648127"
+const DEFAULT_WHATSAPP_NUMBER = "56973000390"
 
 export function useCart({
   currentUser,
