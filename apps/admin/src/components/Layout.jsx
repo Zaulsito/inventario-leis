@@ -12,6 +12,7 @@ const navItems = [
   { to: '/inventario', icon: 'inventory_2',       label: 'Inventario' },
   { to: '/historial',  icon: 'history',          label: 'Historial' },
   { to: '/pedidos',    icon: 'local_shipping',    label: 'Pedidos' },
+  { to: '/registro',   icon: 'receipt_long',      label: 'Registros' },
   { to: '/reportes',   icon: 'analytics',         label: 'Reportes' },
   { type: 'action',    icon: 'person',            label: 'Perfil', action: 'openUserMenu' },
 ]
@@ -1151,12 +1152,13 @@ export default function Layout() {
 
       {/* ── Bottom Nav Mobile ── */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full z-[100] bg-background/95 dark:bg-[#141414]/95 backdrop-blur-2xl px-2 pt-2 pb-6 shadow-[0_-8px_30px_rgba(0,0,0,0.2)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.7)] rounded-t-[2rem] border-t border-outline-variant/15 dark:border-white/10 transition-transform duration-300 [.modal-open_&]:translate-y-full">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto items-center">
+        <div className="grid grid-cols-6 gap-0.5 max-w-lg mx-auto items-center">
           {[
             { to: '/dashboard',  icon: 'dashboard',     label: 'Inicio' },
             { to: '/inventario', icon: 'inventory_2',    label: 'Inventario' },
             { to: '/historial',  icon: 'history',       label: 'Historial' },
             { to: '/pedidos',    icon: 'local_shipping', label: 'Pedidos' },
+            { to: '/registro',   icon: 'receipt_long',   label: 'Registros' },
             { to: '/reportes',   icon: 'analytics',      label: 'Reportes' },
           ].map((item) => (
             <NavLink

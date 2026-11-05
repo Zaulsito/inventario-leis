@@ -8,7 +8,6 @@ import { getLocalDateString } from '../utils/date'
 import { calcularEstado } from '../utils/date'
 import Footer from '../components/Footer'
 import { useAuth } from '../context/AuthContext'
-import GastosEnvios from '../components/reportes/GastosEnvios'
 
 const PERIODOS = ['Semana Actual', 'Mes Actual', 'Seleccionar Mes', 'Histórico Anual', 'Personalizado']
 
@@ -28,12 +27,6 @@ function getNombreMesSeleccionado(mesISO) {
   return `${meses[m]} ${y}`
 }
 
-const CATEGORIAS_GASTOS = [
-  { id: 'transporte', label: 'Pasajes / Transporte', icon: 'directions_bus', color: 'text-blue-500' },
-  { id: 'comida', label: 'Comida / Alimentación', icon: 'restaurant', color: 'text-amber-500' },
-  { id: 'insumos', label: 'Insumos / Embalaje', icon: 'package_2', color: 'text-purple-500' },
-  { id: 'otros', label: 'Otros / Gastos Varios', icon: 'payments', color: 'text-emerald-500' }
-]
 
 function parseLocalDate(fString) {
   if (!fString) return null
@@ -155,7 +148,6 @@ const normalizeText = (text) => {
 export default function Reportes() {
   const { currentUser, operatorName } = useAuth() || {}
   const currentOperator = operatorName || 'Por sistema'
-  const [activeReportTab, setActiveReportTab] = useState('metricas')
   const [periodo, setPeriodo] = useState(1) // Por defecto: Mes Actual
   const [chartMode, setChartMode] = useState('ambas')
   const [mesSeleccionado, setMesSeleccionado] = useState(() => {
@@ -181,18 +173,7 @@ export default function Reportes() {
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [mermas, setMermas] = useState([])
-  const [gastos, setGastos] = useState([])
   const [historialInventario, setHistorialInventario] = useState([])
-  
-  // Para el módulo de Gastos Operativos
-  const [showGastoModal, setShowGastoModal] = useState(false)
-  const [gastoForm, setGastoForm] = useState({
-    categoria: 'transporte',
-    monto: '',
-    descripcion: '',
-    fecha: getLocalDateString()
-  })
-  const [gastoProcesando, setGastoProcesando] = useState(false)
 
   // Para la tabla manual "Conteo Semanal de Ventas"
   const [conteo, setConteo] = useState([])
@@ -262,62 +243,15 @@ export default function Reportes() {
       setMermas(data)
     })
 
-    const unsubGasto = onSnapshot(collection(db, 'gastos'), snap => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setGastos(data)
-    })
-
     const unsubHist = onSnapshot(collection(db, 'historial_inventario'), snap => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setHistorialInventario(data)
     })
 
-    return () => { unsubProd(); unsubPed(); unsubMerma(); unsubGasto(); unsubHist(); }
+    return () => { unsubProd(); unsubPed(); unsubMerma(); unsubHist(); }
   }, [])
 
-  // Guardar nuevo gasto operativo
-  async function handleGuardarGasto(e) {
-    if (e) e.preventDefault();
-    const montoNum = Math.floor(Number(gastoForm.monto)) || 0;
-    if (montoNum <= 0) {
-      alert("Por favor ingresa un monto válido mayor a 0.");
-      return;
-    }
-    setGastoProcesando(true);
-    try {
-      await addDoc(collection(db, 'gastos'), {
-        categoria: gastoForm.categoria,
-        monto: montoNum,
-        descripcion: gastoForm.descripcion.trim() || 'Gasto operativo',
-        fecha: gastoForm.fecha || getLocalDateString(),
-        createdAt: new Date().toISOString(),
-        usuario: currentOperator,
-        usuarioEmail: currentUser?.email || null
-      });
-      setGastoForm({
-        categoria: 'transporte',
-        monto: '',
-        descripcion: '',
-        fecha: getLocalDateString()
-      });
-      setShowGastoModal(false);
-    } catch (err) {
-      console.error("Error guardando gasto:", err);
-      alert("Hubo un error al guardar el gasto.");
-    } finally {
-      setGastoProcesando(false);
-    }
-  }
 
-  async function handleEliminarGasto(gastoId) {
-    if (!window.confirm("¿Estás seguro de eliminar este registro de gasto?")) return;
-    try {
-      await deleteDoc(doc(db, 'gastos', gastoId));
-    } catch (err) {
-      console.error("Error eliminando gasto:", err);
-      alert("No se pudo eliminar el gasto.");
-    }
-  }
 
   // Filtrado de pedidos, mermas y gastos combinados
   const registrosFiltrados = useMemo(() => {
@@ -373,8 +307,7 @@ export default function Reportes() {
     const combinados = [
       ...pedidos.map(p => ({ ...p, _tipo: 'venta' })),
       ...mermas.map(m => ({ ...m, _tipo: 'merma' })),
-      ...mermasFromHistorial,
-      ...gastos.map(g => ({ ...g, _tipo: 'gasto' }))
+      ...mermasFromHistorial
     ]
 
     return combinados.filter(p => {
@@ -420,7 +353,7 @@ export default function Reportes() {
       const fB = parseLocalDate(b.fechaEntrega || b.fecha || b.fechaCreacion) || new Date(0)
       return fB - fA // Más recientes primero
     })
-  }, [pedidos, mermas, gastos, historialInventario, productos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
+  }, [pedidos, mermas, historialInventario, productos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
 
   // Cálculo del gráfico
   const chartData = useMemo(() => {
@@ -434,7 +367,7 @@ export default function Reportes() {
         const temp = new Date(start)
         temp.setDate(temp.getDate() + i)
         const iso = temp.getFullYear() + '-' + String(temp.getMonth() + 1).padStart(2, '0') + '-' + String(temp.getDate()).padStart(2, '0')
-        map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+        map[iso] = { Ganancia: 0, Pérdida: 0 }
       }
     } else if (periodo === 1) {
       // Mes Actual: de día 1 a fin de mes
@@ -442,7 +375,7 @@ export default function Reportes() {
       const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
-        map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+        map[iso] = { Ganancia: 0, Pérdida: 0 }
       }
     } else if (periodo === 2) {
       // Seleccionar Mes
@@ -454,7 +387,7 @@ export default function Reportes() {
         const end = new Date(y, m + 1, 0)
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
-          map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+          map[iso] = { Ganancia: 0, Pérdida: 0 }
         }
       }
     } else if (periodo === 3) {
@@ -463,7 +396,7 @@ export default function Reportes() {
       const mesesLabels = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
       for (let m = 0; m < 12; m++) {
         const mKey = `${y}-${String(m + 1).padStart(2, '0')}`
-        map[mKey] = { label: mesesLabels[m], Ganancia: 0, Pérdida: 0, Gasto: 0 }
+        map[mKey] = { label: mesesLabels[m], Ganancia: 0, Pérdida: 0 }
       }
     } else if (periodo === 4) {
       // Personalizado: de fechaInicio a fechaFin
@@ -472,7 +405,7 @@ export default function Reportes() {
       if (start && end && start <= end) {
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
-          map[iso] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+          map[iso] = { Ganancia: 0, Pérdida: 0 }
         }
       }
     }
@@ -492,16 +425,12 @@ export default function Reportes() {
         })
       }
       if (map[targetKey] === undefined) {
-        map[targetKey] = { Ganancia: 0, Pérdida: 0, Gasto: 0 }
+        map[targetKey] = { Ganancia: 0, Pérdida: 0 }
       }
       
       if (p._tipo === 'venta') {
         let gananciaReal = Number(p.total) || sum;
         map[targetKey].Ganancia += gananciaReal;
-      } else if (p._tipo === 'gasto') {
-        let montoGasto = Number(p.monto) || 0;
-        map[targetKey].Gasto += montoGasto;
-        map[targetKey].Pérdida += montoGasto;
       } else {
         map[targetKey].Pérdida += sum;
       }
@@ -514,8 +443,7 @@ export default function Reportes() {
           label: map[mKey].label || mKey,
           Ganancia: map[mKey].Ganancia,
           Pérdida: -map[mKey].Pérdida,
-          Gasto: map[mKey].Gasto,
-          Total: map[mKey].Ganancia - map[mKey].Pérdida
+                    Total: map[mKey].Ganancia - map[mKey].Pérdida
         }
       })
     }
@@ -529,19 +457,13 @@ export default function Reportes() {
         label: periodo === 0 ? nombreDia.toUpperCase() : `${day}-${m}-${y}`,
         Ganancia: map[dateStr].Ganancia,
         Pérdida: -map[dateStr].Pérdida,
-        Gasto: map[dateStr].Gasto,
-        Total: map[dateStr].Ganancia - map[dateStr].Pérdida
+                Total: map[dateStr].Ganancia - map[dateStr].Pérdida
       }
     })
   }, [registrosFiltrados, productos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
 
   const totalMonetario = chartData.reduce((acc, curr) => acc + curr.Ganancia, 0)
   const totalPerdidaMonetario = chartData.reduce((acc, curr) => acc + Math.abs(curr.Pérdida), 0)
-  const totalGastosMonetario = useMemo(() => {
-    return registrosFiltrados
-      .filter(x => x._tipo === 'gasto')
-      .reduce((acc, g) => acc + (Number(g.monto) || 0), 0)
-  }, [registrosFiltrados])
 
   // Metricas extraídas
   const totalVendidosUnidades = useMemo(() => {
@@ -876,7 +798,7 @@ export default function Reportes() {
   // --- Reporte y PDF (Estilo Luxe Ejecutivo) ---
   function exportarPDF() {
     const docPdf = new jsPDF({ unit: 'mm', format: 'a4' })
-    const totalNetoReal = totalMonetario - totalPerdidaMonetario - totalGastosMonetario
+    const totalNetoReal = totalMonetario - totalPerdidaMonetario
     const labelPeriodo = PERIODOS[periodo] || 'Reporte'
     let infoPeriodo = labelPeriodo
     if (periodo === 2 && mesSeleccionado) {
@@ -914,11 +836,11 @@ export default function Reportes() {
     docPdf.setFont('helvetica', 'bold')
     docPdf.text(`Rango: ${infoPeriodo}`, 196, 24, { align: 'right' })
 
-    // 2. Tarjetas de Resumen KPI (4 cuadros superiores)
+    // 2. Tarjetas de Resumen KPI (3 cuadros ejecutivos)
     const cardY = 42
     const cardH = 18
-    const cardW = 43.5
-    const gap = 3
+    const cardW = 58
+    const gap = 4
     let startX = 14
 
     // KPI 1: Ventas Totales
@@ -930,21 +852,9 @@ export default function Reportes() {
     docPdf.setFont('helvetica', 'bold')
     docPdf.text("VENTAS TOTALES", startX + 4, cardY + 6)
     docPdf.setFontSize(11)
-    docPdf.text(`+$${totalMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
+    docPdf.text(`+${totalMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
 
-    // KPI 2: Gastos Operativos
-    startX += cardW + gap
-    docPdf.setFillColor(255, 251, 235)
-    docPdf.setDrawColor(254, 243, 199)
-    docPdf.roundedRect(startX, cardY, cardW, cardH, 2, 2, 'FD')
-    docPdf.setFontSize(7)
-    docPdf.setTextColor(180, 83, 9)
-    docPdf.setFont('helvetica', 'bold')
-    docPdf.text("GASTOS OPERATIVOS", startX + 4, cardY + 6)
-    docPdf.setFontSize(11)
-    docPdf.text(`-$${totalGastosMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
-
-    // KPI 3: Mermas / Pérdidas
+    // KPI 2: Mermas / Pérdidas
     startX += cardW + gap
     docPdf.setFillColor(254, 242, 242)
     docPdf.setDrawColor(254, 202, 202)
@@ -954,9 +864,9 @@ export default function Reportes() {
     docPdf.setFont('helvetica', 'bold')
     docPdf.text("MERMAS Y PÉRDIDAS", startX + 4, cardY + 6)
     docPdf.setFontSize(11)
-    docPdf.text(`-$${totalPerdidaMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
+    docPdf.text(`-${totalPerdidaMonetario.toLocaleString('es-CL')}`, startX + 4, cardY + 13)
 
-    // KPI 4: Balance Neto Real
+    // KPI 3: Balance Neto Real
     startX += cardW + gap
     docPdf.setFillColor(30, 30, 30)
     docPdf.setDrawColor(226, 189, 108)
@@ -967,23 +877,11 @@ export default function Reportes() {
     docPdf.text("BALANCE NETO REAL", startX + 4, cardY + 6)
     docPdf.setFontSize(11)
     docPdf.setTextColor(totalNetoReal < 0 ? 239 : 226, totalNetoReal < 0 ? 68 : 189, totalNetoReal < 0 ? 68 : 108)
-    docPdf.text(`${totalNetoReal < 0 ? '-' : '+'}$${Math.abs(totalNetoReal).toLocaleString('es-CL')}`, startX + 4, cardY + 13)
+    docPdf.text(`${totalNetoReal < 0 ? '-' : '+'}${Math.abs(totalNetoReal).toLocaleString('es-CL')}`, startX + 4, cardY + 13)
 
     // 3. Tabla Estilizada de Registro de Movimientos
     const tableData = registrosFiltrados.map(p => {
       const fecha = getLocalStr(p)
-      if (p._tipo === 'gasto') {
-        const catObj = CATEGORIAS_GASTOS.find(c => c.id === p.categoria)
-        const catLabel = catObj ? catObj.label : 'Gasto Operativo'
-        return [
-          fecha, 
-          'GASTO OPERATIVO', 
-          `${catLabel} — ${p.descripcion || 'Sin nota'}`, 
-          '-', 
-          `-$${Number(p.monto).toLocaleString('es-CL')}`,
-          `-$${Number(p.monto).toLocaleString('es-CL')}`
-        ]
-      }
       const desc = p.productos ? p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(', ') : ''
       let gananciaVenta = 0
       if (p.productos && Array.isArray(p.productos)) {
@@ -1075,7 +973,7 @@ export default function Reportes() {
   // --- Exportar Excel Estructurado (.csv con UTF-8 BOM y Cabecera Ejecutiva) ---
   function exportarCSV() {
     const fechaHora = `${new Date().toLocaleDateString('es-CL')} ${new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`
-    const totalNetoReal = totalMonetario - totalPerdidaMonetario - totalGastosMonetario
+    const totalNetoReal = totalMonetario - totalPerdidaMonetario
     let infoPeriodo = PERIODOS[periodo] || 'Reporte'
     if (periodo === 2 && mesSeleccionado) infoPeriodo += ` (${getNombreMesSeleccionado(mesSeleccionado)})`
     else if (periodo === 3) infoPeriodo += ` (Año ${anoSeleccionado})`
@@ -1089,7 +987,6 @@ export default function Reportes() {
       `Fecha de Emisión:;${fechaHora}`,
       `Periodo de Análisis:;${infoPeriodo}`,
       `Total Ventas Brutas:;$${totalMonetario.toLocaleString('es-CL')}`,
-      `Total Gastos Operativos:;-$${totalGastosMonetario.toLocaleString('es-CL')}`,
       `Total Mermas y Pérdidas:;-$${totalPerdidaMonetario.toLocaleString('es-CL')}`,
       `Balance Neto Real:;${totalNetoReal < 0 ? '-' : '+'}$${Math.abs(totalNetoReal).toLocaleString('es-CL')}`,
       '=====================================================================================',
@@ -1100,12 +997,6 @@ export default function Reportes() {
 
     registrosFiltrados.forEach(p => {
       const fecha = getLocalStr(p)
-      if (p._tipo === 'gasto') {
-        const catObj = CATEGORIAS_GASTOS.find(c => c.id === p.categoria)
-        const catLabel = catObj ? catObj.label : 'Gasto Operativo'
-        const monto = Number(p.monto) || 0
-        lineas.push(`"${fecha}";"GASTO OPERATIVO";"${catLabel}";"${p.descripcion || ''}";0;${monto};${-monto}`)
-      } else {
         const desc = p.productos ? p.productos.map(x => `${x.cantidad}x ${x.nombre}`).join(' | ') : ''
         let gananciaVenta = 0
         if (p.productos && Array.isArray(p.productos)) {
@@ -1121,7 +1012,6 @@ export default function Reportes() {
         } else {
           lineas.push(`"${fecha}";"VENTA REGISTRADA";"${p.cliente || 'Cliente'}";"${desc}";${gananciaVenta};0;${gananciaVenta}`)
         }
-      }
     })
 
     const csvContent = "\uFEFF" + lineas.join("\n")
@@ -1141,52 +1031,17 @@ export default function Reportes() {
       <header className="sticky top-0 z-30 bg-surface/80 dark:bg-[#121212]/80 backdrop-blur-md px-8 md:px-10 py-10 flex flex-col items-center justify-center border-b border-outline-variant/20 dark:border-white/5 mb-12">
         <div className="relative text-center mx-auto">
           <p className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary/60 dark:text-[#e2bd6c]/60 mb-2">
-            {activeReportTab === 'envios' ? 'Logística y Gastos de Transporte' : 'Centro de Control Financiero'}
+            Centro de Control Financiero
           </p>
           <h1 className="font-headline text-5xl text-secondary dark:text-white italic leading-tight tracking-tighter luxe-reveal">
-            {activeReportTab === 'envios' ? 'Gastos por Envío' : 'Métricas y Mermas'}
+            Métricas y Mermas
           </h1>
           <p className="mt-4 text-outline dark:text-gray-400 font-body max-w-lg mx-auto leading-relaxed text-[11px] uppercase tracking-widest font-bold">
-            {activeReportTab === 'envios'
-              ? 'Control de fletes, couriers y costos de entrega por pedido con sumas independientes.'
-              : 'Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.'}
+            Supervisa el crecimiento, exporta reportes y sincroniza salidas y pérdidas de stock.
           </p>
           <div className="absolute left-1/2 -bottom-6 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-primary/20 dark:via-[#e2bd6c]/20 to-transparent rounded-full" />
-
-          {/* SELECTOR DE PESTAÑAS (MÉTRICAS VS GASTOS POR ENVÍO) */}
-          <div className="mt-8 flex items-center p-1.5 rounded-2xl bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 shadow-lg relative z-20">
-            <button
-              type="button"
-              onClick={() => setActiveReportTab('metricas')}
-              className={`px-5 py-2.5 rounded-xl font-headline font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-                activeReportTab === 'metricas'
-                  ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black shadow-md scale-[1.02]'
-                  : 'text-on-surface-variant dark:text-gray-400 hover:text-on-surface dark:hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-base">analytics</span>
-              <span>Reporte de Métricas</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveReportTab('envios')}
-              className={`px-5 py-2.5 rounded-xl font-headline font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-                activeReportTab === 'envios'
-                  ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black shadow-md scale-[1.02]'
-                  : 'text-on-surface-variant dark:text-gray-400 hover:text-on-surface dark:hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-base">local_shipping</span>
-              <span>Gastos por Envío</span>
-            </button>
-          </div>
         </div>
       </header>
-
-      {activeReportTab === 'envios' ? (
-        <GastosEnvios currentOperator={currentOperator} />
-      ) : (
-        <>
 
       {/* Gráfico principal - Luxe Glass Redesign */}
       <section className="mb-10 w-full min-h-[600px] md:min-h-[650px] bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2.5rem] p-6 md:p-10 border border-outline-variant/10 dark:border-white/5 flex flex-col relative z-10 tour-reportes-grafico shadow-xl overflow-hidden">
@@ -1214,36 +1069,18 @@ export default function Reportes() {
               </div>
             )}
             {chartMode === 'ambas' && (
-              <>
-                {totalGastosMonetario > 0 && (
-                  <div className="bg-amber-500/10 px-3.5 py-1.5 rounded-xl flex flex-col items-end border border-amber-500/20 shadow-sm">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Gastos Operativos</span>
-                    <span className="font-headline font-extrabold text-sm md:text-base text-amber-600 dark:text-amber-400">-${totalGastosMonetario.toLocaleString('es-CL')}</span>
-                  </div>
-                )}
-                <div className="bg-surface-container dark:bg-white/5 px-3.5 py-1.5 rounded-xl flex flex-col items-end border border-outline-variant/20 dark:border-white/10 shadow-sm">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">Total Neto Real</span>
-                  <span className={`font-headline font-extrabold text-sm md:text-base ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary dark:text-[#e2bd6c]'}`}>
-                    {totalMonetario - totalPerdidaMonetario < 0 ? '-' : '+'}${Math.abs(totalMonetario - totalPerdidaMonetario).toLocaleString('es-CL')}
-                  </span>
-                </div>
-              </>
+              <div className="bg-surface-container dark:bg-white/5 px-3.5 py-1.5 rounded-xl flex flex-col items-end border border-outline-variant/20 dark:border-white/10 shadow-sm">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-outline dark:text-gray-400">Total Neto Real</span>
+                <span className={`font-headline font-extrabold text-sm md:text-base ${totalMonetario - totalPerdidaMonetario < 0 ? 'text-error' : 'text-secondary dark:text-[#e2bd6c]'}`}>
+                  {totalMonetario - totalPerdidaMonetario < 0 ? '-' : '+'}${Math.abs(totalMonetario - totalPerdidaMonetario).toLocaleString('es-CL')}
+                </span>
+              </div>
             )}
           </div>
         </div>
 
         {/* Toolbar de Controles (En una sola fila ordenada directamente arriba del gráfico) */}
         <div className="flex flex-wrap items-center gap-2.5 w-full mb-6 relative z-20 border-b border-outline-variant/10 dark:border-white/5 pb-4">
-            {/* Botón para Registrar Gasto Operativo */}
-            <button
-              onClick={() => setShowGastoModal(true)}
-              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-[#e2bd6c] border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs font-headline italic tracking-wide transition-all flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0"
-              title="Registrar gastos de transporte, comida, insumos, otros"
-            >
-              <span className="material-symbols-outlined text-sm">payments</span>
-              <span className="whitespace-nowrap">+ Registrar Gasto</span>
-            </button>
-
             {/* Custom Mode Dropdown */}
             <div className="relative shrink-0">
               <button 
@@ -1776,227 +1613,6 @@ export default function Reportes() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-8 mb-10 relative z-10 w-full">
-
-        {/* Mermas MANUAL - Luxe Redesign */}
-        <section className="bg-gradient-to-br from-error/10 to-surface dark:from-error/5 dark:to-[#1a1a1a] rounded-[2.5rem] p-6 md:p-10 border border-error/20 dark:border-white/5 flex flex-col min-h-[700px] h-auto relative overflow-hidden tour-reportes-mermas shadow-2xl">
-          {/* Fondo decorativo interno */}
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-error/10 blur-[100px] rounded-full pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-error/5 blur-[100px] rounded-full pointer-events-none" />
-          <div className="flex justify-between items-center mb-6 shrink-0">
-            <div>
-              <h3 className="font-headline text-2xl text-error dark:text-red-400">Registrar Pérdida</h3>
-              <p className="text-[10px] text-error/70 dark:text-red-400/60 font-label uppercase tracking-widest mt-1">Registra productos dañados o mermas.</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-8 shrink-0">
-            {/* Selector de Motivo del Ajuste */}
-            <div className="flex-1">
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-error/40 dark:text-red-400/40 mb-3 ml-1">Motivo del Ajuste</p>
-              <div className="flex flex-wrap gap-2">
-                {['Dañado', 'Regalo', 'Devolución'].map(m => (
-                  <button
-                    key={m}
-                    onClick={() => setMotivoMerma(m)}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border-2 flex items-center gap-2
-                      ${motivoMerma === m 
-                        ? 'bg-error border-transparent text-white shadow-lg shadow-error/20 scale-105' 
-                        : 'bg-transparent border-error/10 text-error/50 hover:bg-error/5 dark:hover:bg-red-950/20'}`}
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      {m === 'Dañado' ? 'inventory_2' : m === 'Regalo' ? 'featured_seasonal_and_gifts' : 'assignment_return'}
-                    </span>
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Selector de Fecha */}
-            <div className="flex flex-col gap-2 min-w-[200px]">
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-error/40 dark:text-red-400/40 ml-1">Fecha del Movimiento</p>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-error/50 text-base">calendar_today</span>
-                <input 
-                  type="date"
-                  value={fechaMerma}
-                  onChange={e => setFechaMerma(e.target.value)}
-                  className="w-full bg-surface-container-highest dark:bg-[#121212] border border-error/20 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[11px] font-bold text-error dark:text-red-400 focus:outline-none focus:border-error transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Buscador de mermas */}
-          <div className="mb-4 relative z-50">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-error/50 text-lg">search</span>
-              <input
-                type="text"
-                placeholder="Buscar producto dañado..."
-                value={searchMerma}
-                onChange={e => setSearchMerma(e.target.value)}
-                className="w-full bg-surface-container-lowest dark:bg-[#121212] border border-error/20 dark:border-error/30 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-error transition-all dark:text-white"
-              />
-            </div>
-            {searchMerma && (
-              <div className="absolute top-full left-0 right-0 mt-3 bg-surface dark:bg-[#1e1e1e] border border-error/20 dark:border-error/30 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
-                {productos
-                  .filter(p => {
-                    const searchTerm = normalizeText(searchMerma);
-                    const nameMatch = normalizeText(p.nombre).includes(searchTerm);
-                    const skuMatch = normalizeText(p.sku).includes(searchTerm);
-                    const variantMatch = p.variantes?.some(v => normalizeText(v.nombre).includes(searchTerm));
-                    return nameMatch || skuMatch || variantMatch;
-                  })
-                  .flatMap(p => {
-                    if (p.variantes && p.variantes.length > 0) {
-                      return p.variantes.map(v => (
-                        <button
-                          key={`${p.id}-${v.nombre}`}
-                          onMouseDown={(e) => { e.preventDefault(); addItemMerma(p, v.nombre); }}
-                          className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-error/10 dark:hover:bg-error/20 transition-colors flex justify-between items-center border-b border-error/5 dark:border-error/10 group"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-error dark:text-red-400 group-hover:scale-105 transition-transform origin-left">{p.nombre}</span>
-                              <div className="flex items-center gap-1.5 bg-error/5 dark:bg-white/5 px-2 py-0.5 rounded-full border border-error/10 dark:border-white/10">
-                                <div 
-                                  className="w-2 h-2 rounded-full border border-black/5 dark:border-white/10"
-                                  style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
-                                />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-error/60 dark:text-red-400/60">{v.nombre}</span>
-                              </div>
-                            </div>
-                            <span className="text-[9px] text-outline/50 uppercase tracking-widest">{p.sku}</span>
-                          </div>
-                          <span className="text-[10px] text-error dark:text-red-400/60 opacity-60 bg-error/5 px-2 py-0.5 rounded-full font-extrabold">Stock: {v.stock}</span>
-                        </button>
-                      ));
-                    }
-                    return (
-                      <button
-                        key={p.id}
-                        onMouseDown={(e) => { e.preventDefault(); addItemMerma(p); }}
-                        className="w-full px-5 py-4 text-left text-[11px] font-bold hover:bg-error/10 dark:hover:bg-error/20 transition-colors flex justify-between items-center border-b border-error/5 dark:border-error/10 group"
-                      >
-                        <div className="flex flex-col gap-1">
-                          <span className="text-error dark:text-red-400 group-hover:scale-105 transition-transform origin-left">{p.nombre}</span>
-                          <span className="text-[9px] text-outline/50 uppercase tracking-widest">{p.sku}</span>
-                        </div>
-                        <span className="text-[10px] text-error dark:text-red-400/60 opacity-60 bg-error/5 px-2 py-0.5 rounded-full font-extrabold">Stock: {p.stock}</span>
-                      </button>
-                    );
-                  })
-                }
-                {productos.filter(p => {
-                    const searchTerm = normalizeText(searchMerma);
-                    const nameMatch = normalizeText(p.nombre).includes(searchTerm);
-                    const skuMatch = normalizeText(p.sku).includes(searchTerm);
-                    const variantMatch = p.variantes?.some(v => normalizeText(v.nombre).includes(searchTerm));
-                    return nameMatch || skuMatch || variantMatch;
-                  }).length === 0 && (
-                  <div className="px-5 py-6 text-[10px] text-error/50 italic text-center font-bold uppercase tracking-widest">No se encontraron productos</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Tabla de mermas seleccionadas - Luxe Glass Effect */}
-          <div className="flex-1 min-h-[300px] bg-white/5 dark:bg-black/40 backdrop-blur-md rounded-[2rem] border border-error/10 dark:border-white/5 relative z-10 p-2 luxe-scrollbar overflow-y-auto">
-            {/* El modal se movió al final del componente para ser 'fixed' */}
-
-            <table className="w-full text-left">
-              <thead className="sticky top-0 bg-error/5 dark:bg-red-950/40 backdrop-blur-md px-2 z-20">
-                <tr className="border-b border-error/10 dark:border-error/20">
-                  <th className="py-4 pl-5 font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80 rounded-tl-2xl">Producto</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80">Stock</th>
-                  <th className="py-4 text-center font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80">Cant.</th>
-                  <th className="py-4 pr-5 text-right font-label text-[9px] font-extrabold uppercase tracking-widest text-[#a6403c] dark:text-red-400/80 rounded-tr-2xl">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-error/5">
-                {conteoMerma.map((p) => (
-                  <tr key={p.id} className="hover:bg-error/10 dark:hover:bg-red-900/20 transition-colors border-b border-error/5 dark:border-white/5 group">
-                    <td className="py-4 pl-5 text-[11px] font-bold truncate max-w-[180px] md:max-w-none text-[#5e2220] dark:text-red-200 group-hover:text-error dark:group-hover:text-red-400 transition-colors flex flex-col gap-1">
-                      <span>{p.producto}</span>
-                      {p.variante && (
-                        <div className="flex items-center gap-1.5 bg-error/5 dark:bg-white/5 px-2 py-0.5 rounded-full border border-error/10 dark:border-white/10 w-fit">
-                          <div 
-                            className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10"
-                            style={{ backgroundColor: getHexColor(p.variante) || '#ccc' }}
-                          />
-                          <span className="text-[8px] font-black uppercase tracking-widest text-error/60 dark:text-red-400/60">{p.variante}</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 text-center font-body text-[11px] font-bold text-[#5e2220] dark:text-red-300/80">{p.stockFin.toLocaleString()}</td>
-                    <td className="py-3 text-center">
-                      <input
-                        type="number" min="0" max={p.stockIni} value={p.vendido}
-                        onChange={e => handleMermado(p.id, e.target.value)}
-                        className="w-14 bg-surface dark:bg-[#121212] border border-error/30 dark:border-white/10 rounded-md px-2 py-1 text-[11px] font-bold text-error dark:text-red-400 focus:outline-none focus:border-error text-center"
-                      />
-                    </td>
-                    <td className="py-3 pr-4 text-right">
-                      <button 
-                        onClick={() => removeItemMerma(p.id)}
-                        className="text-error/30 hover:text-error transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {conteoMerma.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="py-10 text-center text-[10px] text-error/60 dark:text-red-400/60 font-bold uppercase tracking-widest italic">
-                      Busca productos para registrar mermas
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-error/10 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 shrink-0 relative z-10">
-            <div className="flex items-center gap-3">
-              {conteoMerma.length > 0 && (
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-error/40 dark:text-white/30">Total a ajustar</span>
-                  <span className="text-xl font-headline font-bold text-error dark:text-red-400">
-                    {conteoMerma.reduce((acc, curr) => acc + curr.vendido, 0)} <span className="text-xs italic opacity-60">unidades</span>
-                  </span>
-                </div>
-              )}
-              {guardadoMerma && (
-                <span className="flex items-center gap-2 bg-error/10 px-4 py-2 rounded-full text-[10px] text-error font-black uppercase tracking-widest animate-in fade-in zoom-in duration-300">
-                  <span className="material-symbols-outlined text-error text-[16px] animate-bounce">verified</span>
-                  Stock Actualizado
-                </span>
-              )}
-            </div>
-            <button
-              onClick={guardarMerma}
-              disabled={conteoMerma.length === 0 || procesando}
-              className={`group relative overflow-hidden px-10 py-5 rounded-2xl font-label text-[12px] font-black uppercase tracking-[0.25em] transition-all duration-500 shadow-2xl
-                ${conteoMerma.length === 0 || procesando 
-                  ? 'bg-outline/10 text-outline/40 grayscale cursor-not-allowed border border-white/5' 
-                  : 'bg-error text-white hover:scale-[1.05] active:scale-95 shadow-error/30'}`}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              <div className="flex items-center gap-3 relative z-10">
-                <span className="material-symbols-outlined text-xl group-hover:rotate-12 transition-transform">
-                  {procesando ? 'sync' : 'delete_sweep'}
-                </span>
-                {procesando ? 'PROCESANDO...' : 'CONFIRMAR AJUSTE'}
-              </div>
-            </button>
-          </div>
-        </section>
-      </div>
-
       {/* HISTORIAL GENERAL (ANCHO COMPLETO) */}
       <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2rem] p-8 border border-outline-variant/10 dark:border-white/5 flex flex-col mb-16 relative z-10">
         <div className="flex justify-between items-center mb-6 shrink-0">
@@ -2010,16 +1626,11 @@ export default function Reportes() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max">
           {registrosFiltrados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v) => {
-            const isGasto = v._tipo === 'gasto'
             const isMerma = v._tipo === 'merma'
-            const esVentaDirecta = v.cliente === "Venta Directa" && !isMerma && !isGasto
-
-            const catInfo = isGasto ? (CATEGORIAS_GASTOS.find(c => c.id === v.categoria) || CATEGORIAS_GASTOS[3]) : null;
+            const esVentaDirecta = v.cliente === "Venta Directa" && !isMerma
 
             let flujoMonetario = 0
-            if (isGasto) {
-              flujoMonetario = Number(v.monto) || 0;
-            } else if (v.productos && Array.isArray(v.productos)) {
+            if (v.productos && Array.isArray(v.productos)) {
               v.productos.forEach(item => {
                 const prod = productos.find(xd => xd.id === item.productoId)
                 const precio = prod ? (Number(prod.precio) || Number(prod.precioCosto) || 0) : (Number(item.precioCosto) || Number(item.precio) || 0);
@@ -2031,77 +1642,66 @@ export default function Reportes() {
             return (
               <div 
                 key={v.id} 
-                className={`p-5 rounded-2xl shadow-sm border flex flex-col gap-3 transition-colors hover:shadow-md ${isGasto ? 'bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/20 dark:border-amber-500/30' : (isMerma ? 'bg-error/5 dark:bg-error/10 border-error/20 dark:border-error/30' : 'bg-surface dark:bg-[#121212] border-outline-variant/10 dark:border-white/5')}`}
+                className={`p-5 rounded-3xl border flex flex-col gap-3.5 transition-all duration-200 hover:scale-[1.01] ${
+                  isMerma 
+                    ? 'bg-red-500/[0.04] dark:bg-red-500/10 border-red-500/35 dark:border-red-500/30 shadow-md shadow-red-500/5 hover:border-red-500/60' 
+                    : 'bg-white dark:bg-[#161616] border-outline-variant/35 dark:border-white/10 shadow-md shadow-black/[0.04] dark:shadow-none hover:shadow-xl hover:border-primary/50 dark:hover:border-[#e2bd6c]/50'
+                }`}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                     <span className={`material-symbols-outlined text-[16px] ${isGasto ? 'text-amber-500' : (isMerma ? 'text-error dark:text-red-400' : (esVentaDirecta ? 'text-primary dark:text-[#e2bd6c]' : 'text-secondary dark:text-[#e2bd6c]'))}`}>
-                       {isGasto ? catInfo.icon : (isMerma ? 'remove_shopping_cart' : (esVentaDirecta ? 'storefront' : 'local_shipping'))}
+                <div className="flex justify-between items-start pb-2.5 border-b border-outline-variant/15 dark:border-white/5">
+                  <div className="flex items-center gap-2 min-w-0">
+                     <span className={`material-symbols-outlined text-[17px] shrink-0 ${isMerma ? 'text-error dark:text-red-400' : (esVentaDirecta ? 'text-primary dark:text-[#e2bd6c]' : 'text-secondary dark:text-[#e2bd6c]')}`}>
+                       {isMerma ? 'remove_shopping_cart' : (esVentaDirecta ? 'storefront' : 'local_shipping')}
                      </span>
-                     <span className={`font-bold text-[11px] uppercase tracking-widest ${isGasto ? 'text-amber-600 dark:text-amber-400' : (isMerma ? 'text-error dark:text-red-400' : 'text-on-surface-variant dark:text-white/80')}`}>
-                       {isGasto ? catInfo.label : (isMerma ? v.motivo : (esVentaDirecta ? 'Venta Directa' : v.cliente))}
+                     <span className={`font-headline font-bold text-xs uppercase tracking-wider truncate ${isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-white'}`}>
+                       {isMerma ? v.motivo : (esVentaDirecta ? 'Venta Directa' : v.cliente)}
                      </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-extrabold uppercase text-outline/80">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[9px] font-extrabold uppercase text-outline/80 dark:text-gray-400 bg-surface-container dark:bg-white/5 px-2 py-0.5 rounded-lg border border-outline-variant/10">
                        {getLocalStr(v)}
                     </span>
-                    {isGasto ? (
-                      <button 
-                        onClick={() => handleEliminarGasto(v.id)}
-                        className="text-outline/40 hover:text-error transition-colors focus:outline-none"
-                        title="Eliminar gasto operativo"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">delete</span>
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => deshacerRegistro(v)}
-                        disabled={procesando}
-                        className={`transition-colors focus:outline-none ${procesando ? 'opacity-50 cursor-not-allowed' : 'text-outline/40 hover:text-error'}`}
-                        title="Deshacer registro y devolver al inventario"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">undo</span>
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => deshacerRegistro(v)}
+                      disabled={procesando}
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                        procesando 
+                          ? 'opacity-40 cursor-not-allowed' 
+                          : 'text-outline/60 hover:text-error hover:bg-error/10 dark:hover:bg-red-500/10 active:scale-90'
+                      }`}
+                      title="Deshacer registro y devolver al inventario"
+                    >
+                      <span className="material-symbols-outlined text-[15px]">undo</span>
+                    </button>
                   </div>
                 </div>
 
-                {isGasto ? (
-                  <div className="my-2 px-3 py-2 rounded-xl bg-surface-container/50 dark:bg-white/5 border border-outline-variant/10">
-                    <p className="text-xs font-semibold text-on-surface dark:text-white/90 italic">
-                      "{v.descripcion}"
-                    </p>
-                  </div>
-                ) : (
-                  <ul className="text-xs space-y-1 pl-6 mt-1 mb-2">
-                    {v.productos && v.productos.map((prodItem, idx) => {
-                      const baseProd = productos.find(xd => xd.id === prodItem.productoId)
-                      const unitPrice = baseProd ? (Number(baseProd.precio) || Number(baseProd.precioCosto) || 0) : (Number(prodItem.precioCosto) || Number(prodItem.precio) || 0)
-                      return (
-                        <li key={idx} className={`${isMerma ? 'text-[#82322e] dark:text-red-300/80' : 'text-on-surface/80 dark:text-white/70'}`}>
-                          <strong className={isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}>{prodItem.cantidad}x</strong> {prodItem.nombre || baseProd?.nombre || 'Producto'} 
+                <ul className="text-xs space-y-1.5 pl-1 my-1">
+                  {v.productos && v.productos.map((prodItem, idx) => {
+                    const baseProd = productos.find(xd => xd.id === prodItem.productoId)
+                    const unitPrice = baseProd ? (Number(baseProd.precio) || Number(baseProd.precioCosto) || 0) : (Number(prodItem.precioCosto) || Number(prodItem.precio) || 0)
+                    return (
+                      <li key={idx} className={`flex justify-between items-center text-xs ${isMerma ? 'text-red-950 dark:text-red-300/90' : 'text-on-surface dark:text-white/85'}`}>
+                        <span className="truncate pr-2 font-medium">
+                          <strong className={`${isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}`}>{prodItem.cantidad}x</strong> {prodItem.nombre || baseProd?.nombre || 'Producto'} 
                           {prodItem.variante && (
-                            <div className="inline-flex items-center gap-1 ml-1.5 bg-primary/5 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10">
-                              <div 
-                                className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm"
-                                style={{ backgroundColor: getHexColor(prodItem.variante) || '#ccc' }}
-                              />
-                              <span className="text-[9px] font-black uppercase tracking-[0.1em] text-primary/70 dark:text-[#e2bd6c]/70">
-                                {prodItem.variante}
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center gap-1 ml-1.5 bg-primary/5 dark:bg-[#e2bd6c]/10 px-1.5 py-0.5 rounded border border-primary/10 dark:border-[#e2bd6c]/10 text-[9px] font-black uppercase">
+                              {prodItem.variante}
+                            </span>
                           )}
-                          <span className="opacity-60 text-[10px] ml-1">(${unitPrice.toLocaleString('es-CL')} c/u)</span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
+                        </span>
+                        <span className="shrink-0 font-bold text-outline dark:text-gray-400 text-[11px]">
+                          (${unitPrice.toLocaleString('es-CL')} c/u)
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
 
-                <div className="mt-auto flex justify-end">
-                   <span className={`font-headline font-bold text-lg ${isGasto ? 'text-amber-600 dark:text-amber-400' : (isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]')}`}>
-                     {isGasto || isMerma ? `-$${flujoMonetario.toLocaleString('es-CL')}` : `+$${flujoMonetario.toLocaleString('es-CL')}`}
+                <div className="mt-auto pt-2.5 border-t border-outline-variant/15 dark:border-white/5 flex items-center justify-between">
+                   <span className="text-[10px] font-black uppercase tracking-wider text-outline dark:text-gray-400">Total Flujo</span>
+                   <span className={`font-headline font-black text-xl ${isMerma ? 'text-error dark:text-red-400' : 'text-secondary dark:text-[#e2bd6c]'}`}>
+                     {isMerma ? `-$${flujoMonetario.toLocaleString('es-CL')}` : `+$${flujoMonetario.toLocaleString('es-CL')}`}
                    </span>
                 </div>
               </div>
@@ -2149,8 +1749,6 @@ export default function Reportes() {
           </div>
         )}
       </section>
-      </>
-      )}
 
       {/* Modal de Confirmación para Deshacer */}
       {registroADeshacer && (
@@ -2189,120 +1787,6 @@ export default function Reportes() {
                 {procesando ? 'Procesando...' : 'Sí, deshacer'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-      {/* Modal de Registro de Gasto Operativo */}
-      {showGastoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-[2rem] max-w-lg w-full p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-outline-variant/10 dark:border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-[#e2bd6c]">
-                  <span className="material-symbols-outlined text-xl">payments</span>
-                </div>
-                <div>
-                  <h3 className="font-headline font-bold text-xl text-on-surface dark:text-white">Registrar Gasto Operativo</h3>
-                  <p className="text-[10px] uppercase tracking-widest text-outline dark:text-gray-400 font-bold">Pasajes, Comida, Embalaje, Varios</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowGastoModal(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-variant dark:hover:bg-white/10 text-outline dark:text-gray-400 transition-colors"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleGuardarGasto} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
-                  Categoría del Gasto
-                </label>
-                <select
-                  value={gastoForm.categoria}
-                  onChange={e => setGastoForm(prev => ({ ...prev, categoria: e.target.value }))}
-                  className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-                >
-                  {CATEGORIAS_GASTOS.map(cat => (
-                    <option key={cat.id} value={cat.id} className="bg-surface dark:bg-[#1e1e1e] text-on-surface dark:text-white">
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
-                    Monto ($ CLP)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="ej: 3500"
-                    value={gastoForm.monto}
-                    onChange={e => setGastoForm(prev => ({ ...prev, monto: e.target.value }))}
-                    className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
-                    Fecha del Gasto
-                  </label>
-                  <input
-                    type="date"
-                    value={gastoForm.fecha}
-                    onChange={e => setGastoForm(prev => ({ ...prev, fecha: e.target.value }))}
-                    className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-outline dark:text-gray-400 mb-1.5">
-                  Descripción / Detalle
-                </label>
-                <input
-                  type="text"
-                  placeholder="ej: Pasaje bus para despacho de pedido a Santiago"
-                  value={gastoForm.descripcion}
-                  onChange={e => setGastoForm(prev => ({ ...prev, descripcion: e.target.value }))}
-                  className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-                  required
-                />
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowGastoModal(false)}
-                  className="px-5 py-2.5 rounded-xl border border-outline-variant/20 dark:border-white/10 text-xs font-extrabold uppercase tracking-wider text-outline dark:text-gray-400 hover:bg-surface-variant dark:hover:bg-white/5 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={gastoProcesando}
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white dark:text-black font-extrabold text-xs uppercase tracking-widest shadow-md transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  {gastoProcesando ? (
-                    <>
-                      <span className="material-symbols-outlined text-sm animate-spin">sync</span>
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-sm">check</span>
-                      Guardar Gasto
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

@@ -27,10 +27,10 @@ export default function Dashboard() {
   const { isDark } = useOutletContext()
   const [productos, setProductos] = useState([])
   const [pedidos, setPedidos] = useState([])
-  const [showAlerta, setShowAlerta] = useState(true)
+  const [registrosEnvios, setRegistrosEnvios] = useState([])
+  const [tabDeudas, setTabDeudas] = useState('cobrar') // 'cobrar' | 'pagar'
   const [showMoreBajos, setShowMoreBajos] = useState(false)
   const [showHeroModal, setShowHeroModal] = useState(false)
-  const prevCriticos = useRef(0)
 
   useEffect(() => {
     const unsubProd = onSnapshot(collection(db, 'productos'), (snapshot) => {
@@ -39,7 +39,31 @@ export default function Dashboard() {
     const unsubPed = onSnapshot(collection(db, 'pedidos'), (snapshot) => {
       setPedidos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     })
-    return () => { unsubProd(); unsubPed(); }
+
+    let listReg = []
+    let listGas = []
+    const updateRegistros = () => {
+      const map = new Map()
+      ;[...listReg, ...listGas].forEach(item => {
+        if (!map.has(item.id)) map.set(item.id, item)
+      })
+      setRegistrosEnvios(Array.from(map.values()))
+    }
+    const unsubReg = onSnapshot(collection(db, 'registros_envios'), (snap) => {
+      listReg = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      updateRegistros()
+    })
+    const unsubGas = onSnapshot(collection(db, 'gastos_envios'), (snap) => {
+      listGas = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      updateRegistros()
+    })
+
+    return () => {
+      unsubProd();
+      unsubPed();
+      unsubReg();
+      unsubGas();
+    }
   }, [])
 
   // Calculos
@@ -51,12 +75,93 @@ export default function Dashboard() {
   const bajosDeStock = productos.filter(p => (p.estado === 'bajo' || p.estado === 'critico'))
   const criticos = bajosDeStock.filter(p => p.estado === 'critico').length
 
-  useEffect(() => {
-    if (criticos > 0 && criticos !== prevCriticos.current) {
-      setShowAlerta(true)
-    }
-    prevCriticos.current = criticos
-  }, [criticos])
+  // Deudas por cobrar (Pedidos de clientes sin pagar o saldo parcial)
+  const deudasClientes = useMemo(() => {
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+
+    return pedidos
+      .filter(p => p.pagoEstado !== 'pagado')
+      .map(p => {
+        const total = Number(p.total) || 0
+        const abono = Number(p.abono) || 0
+        const saldo = p.saldoPendiente !== undefined ? Number(p.saldoPendiente) : Math.max(0, total - abono)
+        const montoDeuda = saldo > 0 ? saldo : total
+
+        let diasFaltantes = 0
+        if (p.fechaEntrega) {
+          const [y, m, d] = p.fechaEntrega.split('-').map(Number)
+          const fEntrega = new Date(y, m - 1, d)
+          fEntrega.setHours(0, 0, 0, 0)
+          diasFaltantes = Math.round((fEntrega - hoy) / (1000 * 60 * 60 * 24))
+        }
+
+        const telefono = p.telefono || p.clienteTelefono || ''
+        const waClean = telefono.replace(/\D/g, '')
+        const waLink = waClean
+          ? `https://wa.me/${waClean.startsWith('56') ? waClean : '56' + waClean}?text=${encodeURIComponent(
+              `Hola ${p.cliente || ''}, te saludamos de LEY'S. Te recordamos el saldo pendiente de tu pedido por ${montoDeuda.toLocaleString('es-CL')}. ¡Muchas gracias!`
+            )}`
+          : null
+
+        return {
+          ...p,
+          montoDeuda,
+          diasFaltantes,
+          isAtrasado: diasFaltantes < 0,
+          isHoy: diasFaltantes === 0,
+          waLink
+        }
+      })
+      .sort((a, b) => a.diasFaltantes - b.diasFaltantes)
+  }, [pedidos])
+
+  const totalPorCobrar = useMemo(() => {
+    return deudasClientes.reduce((acc, p) => acc + (p.montoDeuda || 0), 0)
+  }, [deudasClientes])
+
+  // Cuotas de compras a crédito de boletas/registros por pagar
+  const cuotasPorPagar = useMemo(() => {
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    const list = []
+
+    registrosEnvios.forEach(reg => {
+      if (reg.medioPago === 'credito' && Array.isArray(reg.cuotas)) {
+        reg.cuotas.forEach((c, idx) => {
+          if (!c.pagada && c.fecha) {
+            const [y, m, d] = c.fecha.split('-').map(Number)
+            const fCuota = new Date(y, m - 1, d)
+            fCuota.setHours(0, 0, 0, 0)
+            const diasFaltantes = Math.round((fCuota - hoy) / (1000 * 60 * 60 * 24))
+
+            list.push({
+              id: `${reg.id}_${idx}`,
+              registroId: reg.id,
+              nombreRegistro: reg.nombreRegistro || reg.nombreBoleta || 'Registro',
+              proveedor: reg.proveedor || 'Proveedor General',
+              tarjeta: reg.nombreTarjeta || 'Tarjeta de Crédito',
+              numeroCuota: c.numero || (idx + 1),
+              totalCuotas: reg.cuotas.length,
+              monto: Number(c.monto) || 0,
+              fecha: c.fecha,
+              fechaLabel: c.fechaLabel || formatDateDMA(c.fecha),
+              diasFaltantes,
+              isAtrasado: diasFaltantes < 0,
+              isHoy: diasFaltantes === 0
+            })
+          }
+        })
+      }
+    })
+
+    return list.sort((a, b) => a.diasFaltantes - b.diasFaltantes)
+  }, [registrosEnvios])
+
+  const totalPorPagar = useMemo(() => {
+    return cuotasPorPagar.reduce((acc, c) => acc + (c.monto || 0), 0)
+  }, [cuotasPorPagar])
+
 
   const metricas = [
     { icon: 'trending_up',  label: 'Valor inventario', valor: `$${valorTotal.toLocaleString('es-CL')}`, sub: `COSTO: $${valorTotalCosto.toLocaleString('es-CL')} | GANANCIA: +$${(valorTotal - valorTotalCosto).toLocaleString('es-CL')}` },
@@ -249,106 +354,241 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Panel derecho */}
+        {/* Panel derecho: Centro de Control de Deudas y Vencimientos */}
         <div className="space-y-4">
-          {/* Alerta - Estilo Cristal */}
-          {criticos > 0 && showAlerta && (
-            <div className="p-7 rounded-3xl bg-error/10 backdrop-blur-xl border border-error/20 text-error relative overflow-hidden shadow-xl shadow-error/5">
-              <div className="flex justify-between items-start relative z-10">
-                <h3 className="font-headline text-xl mb-3">Alerta de Stock</h3>
-                <button onClick={() => setShowAlerta(false)} className="text-error/40 hover:text-error transition-colors" title="Cerrar alerta">
-                  <span className="material-symbols-outlined text-sm">close</span>
-                </button>
+          <div className="p-6 md:p-7 rounded-3xl bg-surface-container-low dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/5 flex flex-col min-h-[380px] shadow-sm">
+            
+            {/* Cabecera del Módulo */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-headline font-bold text-base md:text-lg text-secondary dark:text-white leading-tight flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary dark:text-[#e2bd6c] text-xl">payments</span>
+                  <span>Deudas & Vencimientos</span>
+                </h4>
+                <p className="text-[10px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                  {tabDeudas === 'cobrar'
+                    ? `Por Cobrar: ${totalPorCobrar.toLocaleString('es-CL')}`
+                    : `Por Pagar: ${totalPorPagar.toLocaleString('es-CL')}`}
+                </p>
               </div>
-              <p className="text-sm text-error/80 mb-5 relative z-10 font-bold">{criticos} {criticos === 1 ? 'producto ha' : 'productos han'} alcanzado el nivel crítico.</p>
-              <Link to="/inventario" className="inline-block px-5 py-2 bg-error text-white rounded-full font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform relative z-10 shadow-lg shadow-error/20">
-                Gestionar
-              </Link>
-              <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none">
-                <span className="material-symbols-outlined text-[120px]">warning</span>
-              </div>
-            </div>
-          )}
 
-          {/* Próximas entregas y atrasadas */}
-          <div className="p-7 rounded-3xl bg-surface-container-low dark:bg-[#1e1e1e] border border-outline-variant/20 dark:border-white/5 flex flex-col min-h-[180px]">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="font-label font-bold text-[10px] uppercase tracking-[0.15em] text-on-surface-variant dark:text-[#e2bd6c]/80 flex items-center gap-1.5">
-                Próximas Entregas y Atrasadas
-              </h4>
-              <Link to="/pedidos" className="text-secondary dark:text-[#e2bd6c] hover:text-primary transition-colors tooltip flex items-center justify-center" title="Ver todos">
-                <span className="material-symbols-outlined text-sm">open_in_new</span>
+              <Link 
+                to={tabDeudas === 'cobrar' ? "/pedidos" : "/registro"} 
+                className="text-secondary dark:text-[#e2bd6c] hover:text-primary transition-colors p-1.5 rounded-xl hover:bg-surface-container dark:hover:bg-white/5 flex items-center justify-center" 
+                title={tabDeudas === 'cobrar' ? "Ir a Pedidos" : "Ir a Registros"}
+              >
+                <span className="material-symbols-outlined text-base">open_in_new</span>
               </Link>
+            </div>
+
+            {/* Selector de Pestañas: Por Cobrar vs Por Pagar */}
+            <div className="flex gap-2 p-1 bg-surface-container dark:bg-white/5 rounded-2xl mb-4 border border-outline-variant/15 dark:border-white/5">
+              <button
+                type="button"
+                onClick={() => setTabDeudas('cobrar')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  tabDeudas === 'cobrar'
+                    ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black shadow-md'
+                    : 'text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">attach_money</span>
+                <span>Por Cobrar</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                  tabDeudas === 'cobrar'
+                    ? 'bg-white/20 text-white dark:bg-black/20 dark:text-black'
+                    : 'bg-outline-variant/20 dark:bg-white/10'
+                }`}>
+                  {deudasClientes.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTabDeudas('pagar')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  tabDeudas === 'pagar'
+                    ? 'bg-primary text-white dark:bg-[#e2bd6c] dark:text-black shadow-md'
+                    : 'text-outline hover:text-on-surface dark:text-gray-400 dark:hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">credit_card</span>
+                <span>Por Pagar</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                  tabDeudas === 'pagar'
+                    ? 'bg-white/20 text-white dark:bg-black/20 dark:text-black'
+                    : 'bg-outline-variant/20 dark:bg-white/10'
+                }`}>
+                  {cuotasPorPagar.length}
+                </span>
+              </button>
             </div>
             
-            <div className="overflow-y-auto flex-1 pr-2 space-y-3 max-h-[260px]">
-              {(() => {
-                const pendientes = pedidos
-                  .filter(p => p.pagoEstado !== 'pagado')
-                  .filter(p => {
-                    const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-                    return diasFaltantes <= 3
-                  })
-                  .sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega))
-
-                if (pendientes.length === 0) {
-                  return (
-                    <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center py-6">
-                      <span className="material-symbols-outlined text-3xl mb-2 text-outline dark:text-gray-600">done_all</span>
-                      <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant dark:text-gray-400">Libre de entregas pendientes</p>
+            {/* Contenido según pestaña activa */}
+            <div className="overflow-y-auto flex-1 pr-1 space-y-2.5 max-h-[300px] custom-scrollbar">
+              
+              {/* TAB 1: POR COBRAR A CLIENTES */}
+              {tabDeudas === 'cobrar' && (
+                <>
+                  {deudasClientes.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center py-8">
+                      <span className="material-symbols-outlined text-3xl mb-2 text-emerald-500">verified</span>
+                      <p className="text-[11px] uppercase tracking-widest font-bold text-on-surface-variant dark:text-gray-400">
+                        ¡Al día! No hay cobros pendientes a clientes
+                      </p>
                     </div>
-                  )
-                }
+                  ) : (
+                    deudasClientes.map(p => (
+                      <div 
+                        key={p.id}
+                        className={`p-3.5 rounded-2xl border transition-all hover:scale-[1.01] flex items-center justify-between gap-3 ${
+                          p.isAtrasado 
+                            ? 'bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400' 
+                            : p.isHoy 
+                              ? 'bg-amber-500/10 border-amber-500/30' 
+                              : 'bg-surface-container dark:bg-white/5 border-outline-variant/20 dark:border-white/10'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            {p.isAtrasado && (
+                              <span className="material-symbols-outlined text-red-500 text-sm animate-pulse">warning</span>
+                            )}
+                            <p className="font-headline font-black text-xs md:text-sm text-secondary dark:text-white uppercase truncate">
+                              {p.cliente || 'Cliente sin nombre'}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-baseline gap-2 mt-0.5">
+                            <span className="font-headline font-black text-sm text-emerald-600 dark:text-emerald-400">
+                              ${(p.montoDeuda || 0).toLocaleString('es-CL')}
+                            </span>
+                            <span className="text-[9px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider">
+                              Deuda
+                            </span>
+                          </div>
 
-                return pendientes.map(p => {
-                  const diasFaltantes = Math.floor((new Date(p.fechaEntrega) - new Date()) / (1000 * 60 * 60 * 24)) + 1
-                  const isAtrasado = diasFaltantes < 0
-                  const isHoy = diasFaltantes === 0
-
-                  return (
-                    <Link 
-                      key={p.id} 
-                      to="/pedidos" 
-                      className={`p-3 rounded-xl border flex justify-between items-center transition-all hover:scale-[1.01] block ${
-                        isAtrasado 
-                          ? 'bg-error/10 border-error/30 dark:bg-red-500/10 dark:border-red-500/30' 
-                          : 'bg-surface-container dark:bg-white/5 border-outline-variant/20 dark:border-white/10'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          {isAtrasado && (
-                            <span className="material-symbols-outlined text-error text-sm">warning</span>
-                          )}
-                          <p className="font-bold text-sm text-on-surface dark:text-white/90 truncate max-w-[140px] uppercase">{p.cliente}</p>
+                          <p className="text-[9px] text-outline dark:text-gray-400 font-medium mt-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[11px]">calendar_month</span>
+                            <span>{p.fechaEntrega ? formatDateDMA(p.fechaEntrega) : 'Fecha no definida'}</span>
+                          </p>
                         </div>
-                        <p className="text-[10px] text-on-surface-variant dark:text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                          {(p.productos || []).length} items • ${ (p.total || 0).toLocaleString('es-CL') }
-                        </p>
+
+                        {/* Estado de tiempo y acción de cobro por WhatsApp */}
+                        <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
+                          {p.isAtrasado ? (
+                            <span className="px-2 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase rounded-full tracking-wider animate-pulse inline-block">
+                              Atrasado ({Math.abs(p.diasFaltantes)}d)
+                            </span>
+                          ) : p.isHoy ? (
+                            <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-black uppercase rounded-full tracking-wider inline-block">
+                              ¡Cobrar Hoy!
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-amber-500/20 text-amber-700 dark:text-[#e2bd6c] border border-amber-500/30 text-[9px] font-black uppercase rounded-full tracking-wider inline-block">
+                              Cobrar en {p.diasFaltantes}d
+                            </span>
+                          )}
+
+                          {p.waLink ? (
+                            <a
+                              href={p.waLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                              title="Recordar cobro por WhatsApp"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">chat</span>
+                              <span>Cobrar</span>
+                            </a>
+                          ) : (
+                            <Link
+                              to="/pedidos"
+                              className="px-2 py-1 rounded-xl bg-surface-container-highest dark:bg-white/10 hover:bg-primary hover:text-white dark:hover:bg-[#e2bd6c] dark:hover:text-black text-on-surface-variant dark:text-gray-300 text-[9px] font-black uppercase tracking-wider transition-all"
+                            >
+                              Ver Pedido
+                            </Link>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right shrink-0 flex flex-col items-end">
-                        {isAtrasado ? (
-                          <span className="px-2 py-0.5 bg-error text-white text-[9px] font-extrabold uppercase rounded-full tracking-widest animate-pulse inline-block mb-1">
-                            Atrasado ({Math.abs(diasFaltantes)}d)
+                    ))
+                  )}
+                </>
+              )}
+
+              {/* TAB 2: POR PAGAR (CUOTAS DE COMPRAS A CRÉDITO) */}
+              {tabDeudas === 'pagar' && (
+                <>
+                  {cuotasPorPagar.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center opacity-60 h-full w-full text-center py-8">
+                      <span className="material-symbols-outlined text-3xl mb-2 text-emerald-500">task_alt</span>
+                      <p className="text-[11px] uppercase tracking-widest font-bold text-on-surface-variant dark:text-gray-400">
+                        ¡Excelente! No tienes cuotas pendientes de pago
+                      </p>
+                    </div>
+                  ) : (
+                    cuotasPorPagar.map(c => (
+                      <Link
+                        key={c.id}
+                        to="/registro"
+                        className={`p-3.5 rounded-2xl border transition-all hover:scale-[1.01] flex items-center justify-between gap-3 block ${
+                          c.isAtrasado
+                            ? 'bg-red-500/10 border-red-500/30'
+                            : c.isHoy
+                              ? 'bg-amber-500/10 border-amber-500/30'
+                              : 'bg-surface-container dark:bg-white/5 border-outline-variant/20 dark:border-white/10'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-primary dark:text-[#e2bd6c]">
+                              {c.nombreRegistro}
+                            </span>
+                            <span className="text-[9px] text-outline font-bold truncate">
+                              • {c.tarjeta}
+                            </span>
+                          </div>
+
+                          <div className="flex items-baseline gap-2 mt-0.5">
+                            <span className="font-headline font-black text-sm text-amber-600 dark:text-amber-400">
+                              ${c.monto.toLocaleString('es-CL')}
+                            </span>
+                            <span className="text-[9px] text-outline dark:text-gray-400 font-bold uppercase tracking-wider">
+                              Cuota #{c.numeroCuota} de {c.totalCuotas}
+                            </span>
+                          </div>
+
+                          <p className="text-[9px] text-outline dark:text-gray-400 font-medium mt-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[11px]">event</span>
+                            <span>Vence: {c.fechaLabel}</span>
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                          {c.isAtrasado ? (
+                            <span className="px-2 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase rounded-full tracking-wider animate-pulse inline-block">
+                              Vencida ({Math.abs(c.diasFaltantes)}d)
+                            </span>
+                          ) : c.isHoy ? (
+                            <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-black uppercase rounded-full tracking-wider inline-block">
+                              ¡Pagar Hoy!
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-amber-500/20 text-amber-700 dark:text-[#e2bd6c] border border-amber-500/30 text-[9px] font-black uppercase rounded-full tracking-wider inline-block">
+                              Vence en {c.diasFaltantes}d
+                            </span>
+                          )}
+                          <span className="text-[9px] text-primary dark:text-[#e2bd6c] font-black uppercase tracking-wider flex items-center gap-0.5">
+                            <span>Gestionar</span>
+                            <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
                           </span>
-                        ) : isHoy ? (
-                          <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-extrabold uppercase rounded-full tracking-widest inline-block mb-1">
-                            ¡Hoy!
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-700 dark:text-[#e2bd6c] text-[9px] font-extrabold uppercase rounded-full tracking-widest inline-block mb-1">
-                            ¡Faltan {diasFaltantes} d!
-                          </span>
-                        )}
-                        <p className="text-[10px] font-bold text-on-surface-variant dark:text-gray-400 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[12px]">calendar_month</span>
-                          {formatDateDMA(p.fechaEntrega)}
-                        </p>
-                      </div>
-                    </Link>
-                  )
-                })
-              })()}
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </>
+              )}
+
             </div>
           </div>
         </div>

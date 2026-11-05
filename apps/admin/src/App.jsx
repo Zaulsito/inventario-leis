@@ -47,8 +47,11 @@ function AppContent() {
           <Route path="historial"  element={<Historial />} />
           <Route path="pedidos"    element={<Pedidos />} />
           <Route path="registro"   element={<Registro />} />
+          <Route path="registros"  element={<Registro />} />
           <Route path="reportes"   element={<Reportes />} />
+          <Route path="*"          element={<Navigate to="/dashboard" replace />} />
         </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   );
