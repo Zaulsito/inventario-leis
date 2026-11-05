@@ -203,35 +203,36 @@ export default function ProductDetailModal({
               </div>
 
               {/* SELECTOR INTERACTIVO DE COLOR / VARIANTE */}
-              {productoParaVer.variantes && productoParaVer.variantes.length > 0 && (
-                <div className="space-y-3 p-5 rounded-3xl border backdrop-blur-sm animate-in fade-in slide-in-from-right duration-500 delay-200 border-outline-variant/15 dark:border-white/5 bg-surface-container-lowest/50 dark:bg-white/[0.02]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-lg ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>palette</span>
-                      <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                        Color: <span className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>{varianteDetalle?.nombre || 'Seleccionar'}</span>
-                      </p>
+              {productoParaVer.variantes && productoParaVer.variantes.length > 0 && (() => {
+                const hasGeneralPhoto = (productoParaVer.fotos && productoParaVer.fotos.length > 0) || Boolean(productoParaVer.fotoUrl);
+                const generalCover = (productoParaVer.fotos && productoParaVer.fotos[0]) || productoParaVer.fotoUrl;
+
+                return (
+                  <div className="space-y-3 p-5 rounded-3xl border backdrop-blur-sm animate-in fade-in slide-in-from-right duration-500 delay-200 border-outline-variant/15 dark:border-white/5 bg-surface-container-lowest/50 dark:bg-white/[0.02]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`material-symbols-outlined text-lg ${isDark ? 'text-[#e2bd6c]' : 'text-primary'}`}>palette</span>
+                        <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.2em] ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                          Color: <span className={isDark ? 'text-[#e2bd6c]' : 'text-primary'}>
+                            {varianteDetalle ? varianteDetalle.nombre : (hasGeneralPhoto ? 'Todas (Vista previa)' : 'Seleccionar')}
+                          </span>
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-outline opacity-75">
+                        {productoParaVer.variantes.filter(v => v.visible !== false).length} colores disponibles
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold text-outline opacity-75">
-                      {productoParaVer.variantes.filter(v => v.visible !== false).length} colores disponibles
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {productoParaVer.variantes.filter(v => v.visible !== false).map((v, i) => {
-                      const isSelected = (varianteDetalle?.nombre || productoParaVer.variantes[0]?.nombre) === v.nombre;
-                      const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
-                      const vHex = getHexColor(v.nombre);
-                      const hasStock = Number(v.stock) > 0;
-                      return (
+                    <div className="flex flex-wrap gap-2">
+                      {/* Opción "Todas / Vista General" */}
+                      {hasGeneralPhoto && (
                         <button
-                          key={i}
                           type="button"
                           onClick={() => {
-                            if (varianteDetalle?.nombre !== v.nombre) {
+                            if (varianteDetalle !== null) {
                               setAnimacion('hoja-pasar-adelante-salir');
                               setTimeout(() => {
-                                setVarianteDetalle(v);
-                                setSelectedColorByProduct(prev => ({ ...prev, [productoParaVer.id]: v.nombre }));
+                                setVarianteDetalle(null);
+                                setSelectedColorByProduct(prev => ({ ...prev, [productoParaVer.id]: 'TODAS' }));
                                 setIndexImagenActual(0);
                                 setAnimacion('hoja-pasar-adelante-entrar');
                                 setTimeout(() => setAnimacion(''), 320);
@@ -239,24 +240,61 @@ export default function ProductDetailModal({
                             }
                           }}
                           className={`flex items-center gap-2 px-3.5 py-2 rounded-full border-2 transition-all cursor-pointer ${
-                            isSelected 
+                            varianteDetalle === null 
                               ? (isDark ? 'border-[#e2bd6c] bg-[#e2bd6c]/15 text-[#e2bd6c] shadow-lg scale-105' : 'border-primary bg-primary/10 text-primary shadow-md scale-105') 
                               : (isDark ? 'border-white/10 hover:border-white/20 bg-white/5 text-white/80' : 'border-outline-variant/30 hover:border-primary/40 bg-white text-on-surface')
-                          } ${!hasStock ? 'opacity-40' : ''}`}
+                          }`}
                         >
-                          {vCover ? (
-                            <img src={getOptimizedImageUrl(vCover, 100)} alt={v.nombre} className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
-                          ) : vHex ? (
-                            <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: vHex }} />
-                          ) : null}
-                          <span className="text-xs font-bold uppercase">{v.nombre}</span>
-                          
+                          {generalCover ? (
+                            <img src={getOptimizedImageUrl(generalCover, 100)} alt="Todas" className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
+                          ) : (
+                            <span className="material-symbols-outlined text-sm text-[#e2bd6c]">palette</span>
+                          )}
+                          <span className="text-xs font-bold uppercase">Todas</span>
                         </button>
-                      );
-                    })}
+                      )}
+
+                      {productoParaVer.variantes.filter(v => v.visible !== false).map((v, i) => {
+                        const isSelected = varianteDetalle?.nombre === v.nombre;
+                        const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
+                        const vHex = getHexColor(v.nombre);
+                        const hasStock = Number(v.stock) > 0;
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              if (varianteDetalle?.nombre !== v.nombre) {
+                                setAnimacion('hoja-pasar-adelante-salir');
+                                setTimeout(() => {
+                                  setVarianteDetalle(v);
+                                  setSelectedColorByProduct(prev => ({ ...prev, [productoParaVer.id]: v.nombre }));
+                                  setIndexImagenActual(0);
+                                  setAnimacion('hoja-pasar-adelante-entrar');
+                                  setTimeout(() => setAnimacion(''), 320);
+                                }, 280);
+                              }
+                            }}
+                            className={`flex items-center gap-2 px-3.5 py-2 rounded-full border-2 transition-all cursor-pointer ${
+                              isSelected 
+                                ? (isDark ? 'border-[#e2bd6c] bg-[#e2bd6c]/15 text-[#e2bd6c] shadow-lg scale-105' : 'border-primary bg-primary/10 text-primary shadow-md scale-105') 
+                                : (isDark ? 'border-white/10 hover:border-white/20 bg-white/5 text-white/80' : 'border-outline-variant/30 hover:border-primary/40 bg-white text-on-surface')
+                            } ${!hasStock ? 'opacity-40' : ''}`}
+                          >
+                            {vCover ? (
+                              <img src={getOptimizedImageUrl(vCover, 100)} alt={v.nombre} className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
+                            ) : vHex ? (
+                              <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: vHex }} />
+                            ) : null}
+                            <span className="text-xs font-bold uppercase">{v.nombre}</span>
+                            
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* DESCRIPCIÓN REFINADA */}
               <div className="space-y-5 animate-in fade-in slide-in-from-right duration-500 delay-300">
@@ -452,9 +490,15 @@ export default function ProductDetailModal({
                   onClick={(e) => {
                     const hasVariants = productoParaVer.variantes && productoParaVer.variantes.length > 0;
                     if (hasVariants) {
-                      const chosenVariant = varianteDetalle || productoParaVer.variantes.find(v => v.nombre === selectedColorByProduct[productoParaVer.id]) || productoParaVer.variantes[0];
-                      if (chosenVariant && Number(chosenVariant.stock) <= 0) {
-                        alert('La variante seleccionada no tiene stock disponible.');
+                      const preselectedName = selectedColorByProduct[productoParaVer.id];
+                      const chosenVariant = varianteDetalle || (preselectedName && preselectedName !== 'TODAS' ? productoParaVer.variantes.find(v => v.nombre === preselectedName) : null);
+                      
+                      if (!chosenVariant) {
+                        alert('Por favor selecciona uno de los colores o variantes disponibles antes de agregarlo al carro.');
+                        return;
+                      }
+                      if (Number(chosenVariant.stock) <= 0) {
+                        alert('El color seleccionado no tiene stock disponible.');
                         return;
                       }
                       const photoToFly = (chosenVariant?.fotos && chosenVariant.fotos[0]) || chosenVariant?.fotoUrl || productoParaVer.fotoUrl;
@@ -478,7 +522,11 @@ export default function ProductDetailModal({
                 >
                   <div className="relative flex justify-center items-center gap-3">
                     <span className="material-symbols-outlined text-2xl md:text-3xl group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300">shopping_cart_checkout</span>
-                    <span>Añadir al Pedido</span>
+                    <span>
+                      {productoParaVer.variantes && productoParaVer.variantes.length > 0 && !varianteDetalle
+                        ? 'Elige un color para Añadir' 
+                        : 'Añadir al Pedido'}
+                    </span>
                   </div>
                 </button>
               </div>

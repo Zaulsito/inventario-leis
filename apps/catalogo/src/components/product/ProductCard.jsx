@@ -39,12 +39,24 @@ export default function ProductCard({
     (autoDemoStep === 6 && (p.id === demoProd1?.id || p.id === demoProd2?.id))
   );
 
+  const generalFoto = (p.fotos && p.fotos.length > 0 && p.fotos[0]) || p.fotoUrl || '';
   const activeVarName = selectedColorByProduct[p.id];
+  
+  // Si no se ha elegido un color específico (o se seleccionó explícitamente 'TODAS') y hay foto general, se muestra "Todas"
+  const isTodas = tieneVariantes && !!generalFoto && (!activeVarName || activeVarName === 'TODAS');
+  
   const activeVar = tieneVariantes
-    ? (p.variantes.find(v => v.nombre === activeVarName) || p.variantes[0])
+    ? (isTodas ? null : (p.variantes.find(v => v.nombre === activeVarName) || p.variantes[0]))
     : null;
-  const cardFoto = (activeVar?.fotos && activeVar.fotos[0]) || activeVar?.fotoUrl || p.fotoUrl;
-  const activeVarCover = (activeVar?.fotos && activeVar.fotos[0]) || activeVar?.fotoUrl;
+
+  const cardFoto = isTodas
+    ? generalFoto
+    : ((activeVar?.fotos && activeVar.fotos[0]) || activeVar?.fotoUrl || generalFoto);
+
+  const activeVarCover = isTodas
+    ? generalFoto
+    : ((activeVar?.fotos && activeVar.fotos[0]) || activeVar?.fotoUrl);
+
   const activeVarHex = activeVar ? getHexColor(activeVar.nombre) : null;
 
   return (
@@ -93,7 +105,13 @@ export default function ProductCard({
             }`}
           >
             <div className="flex items-center gap-1.5 truncate">
-              {activeVarCover ? (
+              {isTodas ? (
+                generalFoto ? (
+                  <img src={getOptimizedImageUrl(generalFoto, 100)} alt="Todas" className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
+                ) : (
+                  <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">palette</span>
+                )
+              ) : activeVarCover ? (
                 <img src={getOptimizedImageUrl(activeVarCover, 100)} alt={activeVar?.nombre} className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
               ) : activeVarHex ? (
                 <span className="w-3 h-3 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: activeVarHex }} />
@@ -101,7 +119,7 @@ export default function ProductCard({
                 <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">palette</span>
               )}
               <span className="truncate">
-                Color: <span className={isDark ? 'text-[#e2bd6c] font-black' : 'text-primary font-black'}>{activeVar?.nombre || 'Elegir'}</span>
+                Color: <span className={isDark ? 'text-[#e2bd6c] font-black' : 'text-primary font-black'}>{isTodas ? 'Todas' : (activeVar?.nombre || 'Elegir')}</span>
               </span>
             </div>
             <div className="flex items-center gap-0.5 shrink-0 text-outline">
@@ -119,7 +137,7 @@ export default function ProductCard({
                 onClick={(e) => { e.stopPropagation(); setOpenColorDropdownId(null); }} 
               />
               <div 
-                className={`absolute left-3 right-3 top-full mt-1.5 z-40 rounded-2xl p-1.5 shadow-2xl border backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 max-h-52 overflow-y-auto custom-scrollbar ${
+                className={`absolute left-3 right-3 top-full mt-1.5 z-40 rounded-2xl p-1.5 shadow-2xl border backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 max-h-56 overflow-y-auto custom-scrollbar ${
                   isDark ? 'bg-[#181818]/95 border-white/15 shadow-black/80' : 'bg-white/95 border-outline-variant/30 shadow-black/15'
                 }`}
                 onClick={(e) => e.stopPropagation()}
@@ -127,8 +145,40 @@ export default function ProductCard({
                 <div className="px-2 py-1 text-[9px] font-black uppercase tracking-wider text-outline/80 border-b border-outline-variant/10 mb-1">
                   Colores Disponibles
                 </div>
+
+                {/* Opción Todas / Vista Previa General */}
+                {generalFoto && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedColorByProduct(prev => ({ ...prev, [p.id]: 'TODAS' }));
+                      setOpenColorDropdownId(null);
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer mb-1 ${
+                      isTodas 
+                        ? (isDark ? 'bg-[#e2bd6c]/20 text-[#e2bd6c]' : 'bg-primary/10 text-primary font-black') 
+                        : (isDark ? 'hover:bg-white/5 text-white/80' : 'hover:bg-black/5 text-on-surface')
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <img src={getOptimizedImageUrl(generalFoto, 100)} alt="Todas" className="w-5 h-5 rounded-full object-cover border border-white/20 shrink-0" />
+                      <span className="truncate">Todas (Vista previa)</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
+                        isDark ? 'bg-white/10 text-white/70' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        Portada
+                      </span>
+                      {isTodas && (
+                        <span className="material-symbols-outlined text-sm font-black">check</span>
+                      )}
+                    </div>
+                  </button>
+                )}
+
                 {p.variantes.filter(v => v.visible !== false).map((v, vIdx) => {
-                  const isSelected = activeVar?.nombre === v.nombre;
+                  const isSelected = !isTodas && activeVar?.nombre === v.nombre;
                   const vCover = (v.fotos && v.fotos[0]) || v.fotoUrl;
                   const vHex = getHexColor(v.nombre);
                   const hasStock = Number(v.stock) > 0;

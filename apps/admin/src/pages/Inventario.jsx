@@ -5480,9 +5480,11 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             </button>
                           </div>
                           {index === 0 && (
-                            <div className="text-[10px] text-primary dark:text-[#e2bd6c] font-semibold flex items-center gap-1 pl-12 pt-0.5 pb-1">
-                              <span className="material-symbols-outlined text-[12px]">info</span>
-                              Esta será la imagen de portada que se mostrará en el catálogo
+                            <div className="text-[10px] text-primary dark:text-[#e2bd6c] font-bold flex items-center gap-1.5 pl-12 pt-0.5 pb-1">
+                              <span className="material-symbols-outlined text-[13px]">stars</span>
+                              {Array.isArray(form.variantes) && form.variantes.length > 0 
+                                ? "Foto de Portada General (Vista previa 'Todas' en el catálogo)" 
+                                : "Esta será la imagen de portada que se mostrará en el catálogo"}
                             </div>
                           )}
                         </div>

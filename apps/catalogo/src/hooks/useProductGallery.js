@@ -90,8 +90,19 @@ export function useProductGallery({ selectedColorByProduct = {} } = {}) {
     if (productoParaVer) {
       if (productoParaVer.variantes && productoParaVer.variantes.length > 0) {
         const preselectedName = selectedColorRef.current[productoParaVer.id]
-        const initial = productoParaVer.variantes.find(v => v.nombre === preselectedName) || productoParaVer.variantes[0]
-        setVarianteDetalle(initial)
+        const hasGeneralPhoto = (productoParaVer.fotos && productoParaVer.fotos.length > 0) || Boolean(productoParaVer.fotoUrl)
+        
+        if (!preselectedName || preselectedName === 'TODAS') {
+          // Si tiene foto general de portada, mostrar vista previa general "Todas"
+          if (hasGeneralPhoto) {
+            setVarianteDetalle(null)
+          } else {
+            setVarianteDetalle(productoParaVer.variantes[0])
+          }
+        } else {
+          const initial = productoParaVer.variantes.find(v => v.nombre === preselectedName) || productoParaVer.variantes[0]
+          setVarianteDetalle(initial)
+        }
       } else {
         setVarianteDetalle(null)
       }
