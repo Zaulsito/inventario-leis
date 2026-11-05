@@ -94,6 +94,8 @@ export default function Registro() {
   });
   const [savingGasto, setSavingGasto] = useState(false);
   const [gastoAEliminar, setGastoAEliminar] = useState(null);
+  const [searchTermGasto, setSearchTermGasto] = useState('');
+  const [filtroCategoriaGasto, setFiltroCategoriaGasto] = useState('TODAS');
 
   // Datos principales
   const [registros, setRegistros] = useState([]);
@@ -617,6 +619,21 @@ export default function Registro() {
   }
 
   // Cálculos de KPIs de Gastos Operativos
+  const gastosFiltrados = useMemo(() => {
+    return gastosOperativosList.filter(g => {
+      if (filtroCategoriaGasto !== 'TODAS' && g.categoria !== filtroCategoriaGasto) {
+        return false;
+      }
+      if (searchTermGasto.trim()) {
+        const q = searchTermGasto.toLowerCase();
+        const desc = (g.descripcion || '').toLowerCase();
+        const cat = (g.categoria || '').toLowerCase();
+        return desc.includes(q) || cat.includes(q);
+      }
+      return true;
+    });
+  }, [gastosOperativosList, filtroCategoriaGasto, searchTermGasto]);
+
   const kpisGastos = useMemo(() => {
     let totalGeneral = 0;
     let totalTransporte = 0;
@@ -776,168 +793,8 @@ export default function Registro() {
         </div>
       </header>
 
-      {/* ── SISTEMA DE NOTIFICACIÓN DE PAGOS INTELIGENTE ── */}
-      {notificacionesCuotas.length > 0 && (
-        <section className="mb-8 animate-in fade-in duration-200">
-          <div className="p-5 md:p-6 rounded-3xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-xl shadow-lg shadow-amber-500/5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-bold shadow-md">
-                  <span className="material-symbols-outlined text-xl">notifications_active</span>
-                </div>
-                <div>
-                  <h3 className="font-headline font-bold text-base md:text-lg text-secondary dark:text-white leading-tight">
-                    Notificaciones de Pagos ({notificacionesCuotas.length})
-                  </h3>
-                  <p className="text-[10px] text-amber-700 dark:text-[#e2bd6c] font-bold uppercase tracking-wider mt-0.5">
-                    Cuotas de crédito vencidas o con vencimiento en los próximos 10 días
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {notificacionesCuotas.map((n, i) => (
-                <div
-                  key={i}
-                  className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                    n.isAtrasado
-                      ? 'bg-red-500/10 border-red-500/30'
-                      : n.isHoy
-                        ? 'bg-amber-500/20 border-amber-500/40'
-                        : 'bg-surface dark:bg-white/5 border-outline-variant/20 dark:border-white/10'
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black uppercase text-primary dark:text-[#e2bd6c]">
-                        {n.nombreRegistro}
-                      </span>
-                      <span className="text-[9px] text-outline font-bold truncate">
-                        • {n.tarjeta}
-                      </span>
-                    </div>
-
-                    <p className="font-headline font-black text-sm text-secondary dark:text-white mt-0.5">
-                      ${n.monto.toLocaleString('es-CL')}
-                      <span className="text-[9px] text-outline font-bold ml-1 font-sans">
-                        (Cuota #${n.numeroCuota}/${n.totalCuotas})
-                      </span>
-                    </p>
-
-                    <p className="text-[9px] font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                      {n.isAtrasado ? (
-                        <span className="text-red-600 dark:text-red-400 font-black animate-pulse flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[11px]">warning</span>
-                          Vencida hace ${Math.abs(n.diasFaltantes)} días (${n.fechaLabel})
-                        </span>
-                      ) : n.isHoy ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-black flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[11px]">alarm</span>
-                          ¡Vence Hoy! (${n.fechaLabel})
-                        </span>
-                      ) : (
-                        <span className="text-outline dark:text-gray-400">
-                          Vence en ${n.diasFaltantes} días (${n.fechaLabel})
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => toggleCuotaPagada(n.registroId, n.cuotaIndex)}
-                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider shadow-sm transition-all shrink-0 flex items-center gap-1 cursor-pointer active:scale-95"
-                    title="Marcar esta cuota como pagada"
-                  >
-                    <span className="material-symbols-outlined text-[12px]">check</span>
-                    <span>Pagada</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── TARJETAS DE KPIS FINANCIEROS ── */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-        
-        {/* Total Boletas */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-primary/40 dark:hover:border-[#e2bd6c]/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Total en Boletas</span>
-            <div className="w-9 h-9 rounded-2xl bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">receipt_long</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-secondary dark:text-white">
-              ${kpis.totalBoletas.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              {registrosFiltrados.length} registro{registrosFiltrados.length !== 1 ? 's' : ''} en el periodo
-            </p>
-          </div>
-        </div>
-
-        {/* Total Envíos (Integrado) */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-blue-500/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Envíos (Integrados)</span>
-            <div className="w-9 h-9 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">local_shipping</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-blue-600 dark:text-blue-400">
-              ${kpis.totalEnvios.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              Incluido dentro del Total pagado
-            </p>
-          </div>
-        </div>
-
-        {/* Cuotas Pendientes de Crédito */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-amber-500/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Cuotas por Pagar</span>
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">credit_card</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-amber-600 dark:text-amber-400">
-              ${kpis.cuotasPendientesMonto.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              {kpis.cuotasPendientesCount} cuota{kpis.cuotasPendientesCount !== 1 ? 's' : ''} pendiente{kpis.cuotasPendientesCount !== 1 ? 's' : ''} ({kpis.cuotasPagadasCount} pagadas)
-            </p>
-          </div>
-        </div>
-
-        {/* Total Artículos Recibidos */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-emerald-500/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Total Productos</span>
-            <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">inventory_2</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-emerald-600 dark:text-emerald-400">
-              {kpis.totalProductos.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              Unidades físicas recibidas
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* ── SELECTOR PRINCIPAL DE MÓDULOS EN REGISTRO ── */}
-      <div className="flex gap-2 p-1.5 bg-surface-container dark:bg-white/5 rounded-2xl mb-8 border border-outline-variant/15 dark:border-white/5 max-w-xl mx-auto shadow-sm">
+      <div className="flex gap-2 p-1.5 bg-surface-container dark:bg-white/5 rounded-2xl mb-8 border border-outline-variant/15 dark:border-white/5 max-w-xl mx-auto w-full shadow-sm">
         <button
           type="button"
           onClick={() => setTabPrincipal('boletas')}
@@ -979,478 +836,662 @@ export default function Registro() {
         </button>
       </div>
 
-      {/* ── BARRA DE CONTROLES: FILTROS + BOTÓN REGISTRAR ── */}
-      <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl p-4 md:p-6 border border-outline-variant/15 dark:border-white/5 mb-8 shadow-sm flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
-        
-        {/* Buscador y Filtros */}
-        <div className="flex flex-1 flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline/60 text-lg">search</span>
-            <input 
-              type="text" 
-              placeholder="Buscar por Registro, proveedor o producto..." 
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl pl-10 pr-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-[#e2bd6c]/40"
-            />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+      {/* ════════════════════════════════════════════════════════════
+          ── VISTA 1: BOLETAS & ENVÍOS
+          ════════════════════════════════════════════════════════════ */}
+      {tabPrincipal === 'boletas' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          
+          {/* ── SISTEMA DE NOTIFICACIÓN DE PAGOS INTELIGENTE ── */}
+          {notificacionesCuotas.length > 0 && (
+            <section className="animate-in fade-in duration-200">
+              <div className="p-5 md:p-6 rounded-3xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-xl shadow-lg shadow-amber-500/5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-bold shadow-md">
+                      <span className="material-symbols-outlined text-xl">notifications_active</span>
+                    </div>
+                    <div>
+                      <h3 className="font-headline font-bold text-base md:text-lg text-secondary dark:text-white leading-tight">
+                        Notificaciones de Pagos ({notificacionesCuotas.length})
+                      </h3>
+                      <p className="text-[10px] text-amber-700 dark:text-[#e2bd6c] font-bold uppercase tracking-wider mt-0.5">
+                        Cuotas de crédito vencidas o con vencimiento en los próximos 10 días
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {notificacionesCuotas.map((n, i) => (
+                    <div
+                      key={i}
+                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                        n.isAtrasado
+                          ? 'bg-red-500/10 border-red-500/30'
+                          : n.isHoy
+                            ? 'bg-amber-500/20 border-amber-500/40'
+                            : 'bg-surface dark:bg-white/5 border-outline-variant/20 dark:border-white/10'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black uppercase text-primary dark:text-[#e2bd6c]">
+                            {n.nombreRegistro}
+                          </span>
+                          <span className="text-[9px] text-outline font-bold truncate">
+                            • {n.tarjeta}
+                          </span>
+                        </div>
+
+                        <p className="font-headline font-black text-sm text-secondary dark:text-white mt-0.5">
+                          ${n.monto.toLocaleString('es-CL')}
+                          <span className="text-[9px] text-outline font-bold ml-1 font-sans">
+                            (Cuota #{n.numeroCuota}/{n.totalCuotas})
+                          </span>
+                        </p>
+
+                        <p className="text-[9px] font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
+                          {n.isAtrasado ? (
+                            <span className="text-red-600 dark:text-red-400 font-black animate-pulse flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[11px]">warning</span>
+                              Vencida hace {Math.abs(n.diasFaltantes)} días ({n.fechaLabel})
+                            </span>
+                          ) : n.isHoy ? (
+                            <span className="text-amber-600 dark:text-amber-400 font-black flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[11px]">alarm</span>
+                              ¡Vence Hoy! ({n.fechaLabel})
+                            </span>
+                          ) : (
+                            <span className="text-outline dark:text-gray-400">
+                              Vence en {n.diasFaltantes} días ({n.fechaLabel})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleCuotaPagada(n.registroId, n.cuotaIndex)}
+                        className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider shadow-sm transition-all shrink-0 flex items-center gap-1 cursor-pointer active:scale-95"
+                        title="Marcar esta cuota como pagada"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">check</span>
+                        <span>Pagada</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ── TARJETAS DE KPIS FINANCIEROS (BOLETAS) ── */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {/* Total Boletas */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-primary/40 dark:hover:border-[#e2bd6c]/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Total en Boletas</span>
+                <div className="w-9 h-9 rounded-2xl bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">receipt_long</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-secondary dark:text-white">
+                  ${kpis.totalBoletas.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  {registrosFiltrados.length} registro{registrosFiltrados.length !== 1 ? 's' : ''} en el periodo
+                </p>
+              </div>
+            </div>
+
+            {/* Total Envíos (Integrado) */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-blue-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Envíos (Integrados)</span>
+                <div className="w-9 h-9 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">local_shipping</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-blue-600 dark:text-blue-400">
+                  ${kpis.totalEnvios.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  Incluido dentro del Total pagado
+                </p>
+              </div>
+            </div>
+
+            {/* Cuotas Pendientes de Crédito */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-amber-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Cuotas por Pagar</span>
+                <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">credit_card</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-amber-600 dark:text-amber-400">
+                  ${kpis.cuotasPendientesMonto.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  {kpis.cuotasPendientesCount} cuota{kpis.cuotasPendientesCount !== 1 ? 's' : ''} pendiente{kpis.cuotasPendientesCount !== 1 ? 's' : ''} ({kpis.cuotasPagadasCount} pagadas)
+                </p>
+              </div>
+            </div>
+
+            {/* Total Artículos Recibidos */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-emerald-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Total Productos</span>
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">inventory_2</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-emerald-600 dark:text-emerald-400">
+                  {kpis.totalProductos.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  Unidades físicas recibidas
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* ── BARRA DE CONTROLES: FILTROS + BOTÓN REGISTRAR COMPRA ── */}
+          <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl p-4 md:p-6 border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+            <div className="flex flex-1 flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
+                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline/60 text-lg">search</span>
+                <input 
+                  type="text" 
+                  placeholder="Buscar por Registro, proveedor o producto..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl pl-10 pr-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-[#e2bd6c]/40"
+                />
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+                  >
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                )}
+              </div>
+
+              <select 
+                value={filtroMes}
+                onChange={e => setFiltroMes(e.target.value)}
+                className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none cursor-pointer"
               >
-                <span className="material-symbols-outlined text-sm">close</span>
+                <option value="TODOS">Todos los Meses</option>
+                {mesesDisponibles.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+
+              <select 
+                value={filtroMedio}
+                onChange={e => setFiltroMedio(e.target.value)}
+                className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none cursor-pointer"
+              >
+                <option value="TODOS">Todos los Pagos</option>
+                <option value="credito">Crédito</option>
+                <option value="debito">Débito / Transf.</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button 
+                type="button"
+                onClick={exportarPDF}
+                title="Exportar Reporte en PDF"
+                className="px-3.5 py-2.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 hover:bg-surface-variant dark:hover:bg-white/5 text-on-surface dark:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base text-red-500">picture_as_pdf</span>
+                <span className="hidden sm:inline">PDF</span>
               </button>
-            )}
-          </div>
 
-          <select 
-            value={filtroMes}
-            onChange={e => setFiltroMes(e.target.value)}
-            className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none cursor-pointer"
-          >
-            <option value="TODOS">Todos los Meses</option>
-            {mesesDisponibles.map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
+              <button 
+                type="button"
+                onClick={exportarCSV}
+                title="Exportar Planilla Excel / CSV"
+                className="px-3.5 py-2.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 hover:bg-surface-variant dark:hover:bg-white/5 text-on-surface dark:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base text-emerald-500">table_view</span>
+                <span className="hidden sm:inline">Excel</span>
+              </button>
 
-          <select 
-            value={filtroMedio}
-            onChange={e => setFiltroMedio(e.target.value)}
-            className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none cursor-pointer"
-          >
-            <option value="TODOS">Todos los Pagos</option>
-            <option value="credito">Crédito</option>
-            <option value="debito">Débito / Transf.</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
+              <button 
+                type="button"
+                onClick={handleAbrirNuevo}
+                className="px-5 py-2.5 rounded-2xl bg-primary text-white dark:bg-[#e2bd6c] dark:text-black font-black text-xs uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">add_circle</span>
+                <span>+ Registrar Compra</span>
+              </button>
+            </div>
+          </section>
 
-        {/* Botones de Acción */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button 
-            type="button"
-            onClick={exportarPDF}
-            title="Exportar Reporte en PDF"
-            className="px-3.5 py-2.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 hover:bg-surface-variant dark:hover:bg-white/5 text-on-surface dark:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base text-red-500">picture_as_pdf</span>
-            <span className="hidden sm:inline">PDF</span>
-          </button>
-
-          <button 
-            type="button"
-            onClick={exportarCSV}
-            title="Exportar Planilla Excel / CSV"
-            className="px-3.5 py-2.5 rounded-2xl border border-outline-variant/20 dark:border-white/10 hover:bg-surface-variant dark:hover:bg-white/5 text-on-surface dark:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base text-emerald-500">table_view</span>
-            <span className="hidden sm:inline">Excel</span>
-          </button>
-
-          {tabPrincipal === 'boletas' ? (
-            <button 
-              type="button"
-              onClick={handleAbrirNuevo}
-              className="px-5 py-2.5 rounded-2xl bg-primary text-white dark:bg-[#e2bd6c] dark:text-black font-black text-xs uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-base">add_circle</span>
-              <span>+ Registrar Compra</span>
-            </button>
+          {/* ── LISTADO PRINCIPAL DE REGISTROS DE BOLETAS ── */}
+          {loading ? (
+            <div className="py-24 flex flex-col items-center justify-center gap-3">
+              <span className="w-8 h-8 border-4 border-primary/20 dark:border-[#e2bd6c]/20 border-t-primary dark:border-t-[#e2bd6c] rounded-full animate-spin" />
+              <p className="text-xs font-bold uppercase tracking-widest text-outline">Cargando registros...</p>
+            </div>
+          ) : registrosFiltrados.length === 0 ? (
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl p-12 text-center border border-outline-variant/15 dark:border-white/5 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] flex items-center justify-center mx-auto">
+                <span className="material-symbols-outlined text-3xl">receipt_long</span>
+              </div>
+              <h3 className="font-headline font-bold text-xl text-secondary dark:text-white">No hay registros creados</h3>
+              <p className="text-xs text-outline dark:text-gray-400 max-w-md mx-auto">
+                {searchTerm || filtroMes !== 'TODOS' || filtroMedio !== 'TODOS'
+                  ? 'No se encontraron resultados con los filtros aplicados. Prueba limpiar la búsqueda.'
+                  : 'Comienza agregando tu primer registro de compra con sus productos y flete integrado.'}
+              </p>
+              <button 
+                onClick={handleAbrirNuevo}
+                className="px-6 py-3 rounded-2xl bg-primary text-white dark:bg-[#e2bd6c] dark:text-black font-black text-xs uppercase tracking-wider shadow-md hover:scale-105 active:scale-95 transition-all inline-flex items-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">add</span>
+                <span>Crear Primer Registro</span>
+              </button>
+            </div>
           ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
+              {registrosFiltrados.map(reg => {
+                const numCuotas = reg.numCuotas || 1;
+                const cuotasList = Array.isArray(reg.cuotas) ? reg.cuotas : [];
+                const cuotasPagadas = cuotasList.filter(c => c.pagada).length;
+                const todasPagadas = reg.medioPago === 'credito' ? (cuotasPagadas === numCuotas && numCuotas > 0) : true;
+                const envioNum = Number(reg.costoEnvio) || 0;
+                const totalNum = Number(reg.totalBoleta) || 0;
+                const tituloRegistro = reg.nombreRegistro || `Registro ${reg.numeroRegistro || 1}`;
+
+                return (
+                  <div 
+                    key={reg.id}
+                    className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl border border-outline-variant/15 dark:border-white/5 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group"
+                  >
+                    <div>
+                      {/* Fila Superior: Nombre Registro Correlativo, Proveedor y Fecha */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                          <span className="text-xs font-black uppercase tracking-wider text-primary dark:text-[#e2bd6c] block">
+                            {tituloRegistro}
+                          </span>
+                          <h4 className="font-headline font-bold text-base text-secondary dark:text-white leading-tight">
+                            {reg.proveedor || 'Proveedor General'}
+                          </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-outline dark:text-gray-400 bg-surface dark:bg-white/5 px-2.5 py-1 rounded-xl shrink-0">
+                          {formatDateDMA(reg.fecha)}
+                        </span>
+                      </div>
+
+                      {/* Fila de Totales: Total con Envío Integrado */}
+                      <div className="bg-surface dark:bg-[#141414] p-3.5 rounded-2xl border border-outline-variant/10 dark:border-white/5 mb-4">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <span className="text-[9px] font-black uppercase tracking-wider text-outline block">Total Pagado</span>
+                            <span className="font-headline font-black text-xl text-secondary dark:text-white">
+                              ${totalNum.toLocaleString('es-CL')}
+                            </span>
+                          </div>
+                          {envioNum > 0 && (
+                            <div className="text-right">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-blue-500 block">Envío Integrado</span>
+                              <span className="font-headline font-bold text-sm text-blue-600 dark:text-blue-400">
+                                ${envioNum.toLocaleString('es-CL')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Medio de Pago & Cuotas */}
+                      <div className="flex flex-wrap items-center gap-2 mb-4 text-[10px]">
+                        <span className="font-black uppercase tracking-wider px-2.5 py-1 rounded-xl bg-surface dark:bg-white/5 text-secondary dark:text-white flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">
+                            {reg.medioPago === 'credito' ? 'credit_card' : 'account_balance_wallet'}
+                          </span>
+                          {reg.medioPago === 'credito' ? 'Tarjeta Crédito' : 'Tarjeta Débito'}
+                        </span>
+
+                        {reg.nombreTarjeta && (
+                          <span className="font-bold px-2 py-0.5 rounded-lg bg-surface dark:bg-white/5 text-outline">
+                            {reg.nombreTarjeta}
+                          </span>
+                        )}
+
+                        {reg.medioPago === 'credito' && (
+                          <button
+                            type="button"
+                            onClick={() => setRegistroCuotasVer(reg)}
+                            className={`font-black uppercase tracking-wider px-2.5 py-1 rounded-xl flex items-center gap-1 cursor-pointer transition-all ${
+                              todasPagadas
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
+                            }`}
+                            title="Gestionar cuotas individuales"
+                          >
+                            <span className="material-symbols-outlined text-xs">calendar_month</span>
+                            <span>{cuotasPagadas}/{numCuotas} Pagadas</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Resumen de Productos Físicos Asignados */}
+                      {Array.isArray(reg.productos) && reg.productos.length > 0 && (
+                        <div className="space-y-1.5 mb-4">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-outline block">
+                            Productos en este registro ({reg.productos.reduce((acc, p) => acc + (Number(p.cantidad) || 0), 0)} u.)
+                          </span>
+                          <div className="bg-surface/50 dark:bg-white/[0.02] rounded-xl p-2.5 border border-outline-variant/10 dark:border-white/5 max-h-32 overflow-y-auto space-y-1">
+                            {reg.productos.map((prod, pIdx) => (
+                              <div key={pIdx} className="flex items-center justify-between text-xs">
+                                <span className="font-medium text-secondary dark:text-gray-300 truncate max-w-[75%]">
+                                  {prod.nombre || 'Producto'}
+                                </span>
+                                <span className="font-black text-primary dark:text-[#e2bd6c]">
+                                  x{prod.cantidad}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Notas opcionales */}
+                      {reg.notas && (
+                        <p className="text-[11px] text-outline dark:text-gray-400 italic line-clamp-2 bg-surface dark:bg-[#141414] p-2 rounded-xl mb-4">
+                          "{reg.notas}"
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Fila Inferior: Operador y Acciones */}
+                    <div className="flex items-center justify-between pt-3 border-t border-outline-variant/10 dark:border-white/5 text-[10px]">
+                      <span className="text-outline/70 font-medium italic">
+                        {reg.operador ? `Por ${reg.operador}` : 'Sistema'}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        {reg.medioPago === 'credito' && (
+                          <button 
+                            type="button"
+                            onClick={() => setRegistroCuotasVer(reg)}
+                            title="Ver / Gestionar Cuotas"
+                            className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-xs">schedule</span>
+                            <span>Cuotas</span>
+                          </button>
+                        )}
+                        <button 
+                          type="button"
+                          onClick={() => handleEditar(reg)}
+                          title="Editar Registro"
+                          className="w-8 h-8 rounded-xl bg-surface hover:bg-surface-variant dark:bg-white/5 dark:hover:bg-white/10 text-on-surface dark:text-white flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setRegistroAEliminar(reg)}
+                          title="Eliminar Registro"
+                          className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════
+          ── VISTA 2: MÓDULO INDEPENDIENTE DE GASTOS OPERATIVOS
+          ════════════════════════════════════════════════════════════ */}
+      {tabPrincipal === 'gastos' && (
+        <div className="space-y-8 animate-in fade-in duration-200 mb-12">
+          
+          {/* TARJETAS KPIS DE GASTOS OPERATIVOS */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {/* Total Gastos */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-amber-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Total Gastos Op.</span>
+                <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">payments</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-secondary dark:text-white">
+                  ${kpisGastos.totalGeneral.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  {gastosOperativosList.length} registro{gastosOperativosList.length !== 1 ? 's' : ''} en total
+                </p>
+              </div>
+            </div>
+
+            {/* Total Pasajes */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-blue-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Pasajes / Transporte</span>
+                <div className="w-9 h-9 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">directions_bus</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-blue-600 dark:text-blue-400">
+                  ${kpisGastos.totalTransporte.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  Metro, micros, viajes de compras
+                </p>
+              </div>
+            </div>
+
+            {/* Total Comida */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-amber-600/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Comida / Alimentación</span>
+                <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">restaurant</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-amber-600 dark:text-amber-400">
+                  ${kpisGastos.totalComida.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  Colaciones en gestión de compras
+                </p>
+              </div>
+            </div>
+
+            {/* Total Otros */}
+            <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-emerald-500/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Otros / Gastos Varios</span>
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-lg">receipt</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-headline font-black text-2xl md:text-3xl text-emerald-600 dark:text-emerald-400">
+                  ${kpisGastos.totalOtros.toLocaleString('es-CL')}
+                </p>
+                <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
+                  Gastos menores no clasificados
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* BARRA DE CONTROLES: BUSCADOR DE GASTOS, FILTRO CATEGORÍA Y BOTÓN NUEVO GASTO */}
+          <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl p-4 md:p-6 border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
+            <div className="flex flex-1 flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
+                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline/60 text-lg">search</span>
+                <input 
+                  type="text" 
+                  placeholder="Buscar gasto por detalle o motivo..." 
+                  value={searchTermGasto}
+                  onChange={e => setSearchTermGasto(e.target.value)}
+                  className="w-full bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl pl-10 pr-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-[#e2bd6c]/40"
+                />
+                {searchTermGasto && (
+                  <button 
+                    onClick={() => setSearchTermGasto('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+                  >
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                )}
+              </div>
+
+              <select 
+                value={filtroCategoriaGasto}
+                onChange={e => setFiltroCategoriaGasto(e.target.value)}
+                className="bg-surface dark:bg-[#121212] border border-outline-variant/20 dark:border-white/10 rounded-2xl px-4 py-2.5 text-xs font-bold text-on-surface dark:text-white focus:outline-none cursor-pointer"
+              >
+                <option value="TODAS">Todas las Categorías</option>
+                <option value="transporte">Pasajes / Transporte</option>
+                <option value="comida">Comida / Alimentación</option>
+                <option value="otros">Otros / Varios</option>
+              </select>
+            </div>
+
             <button 
               type="button"
               onClick={handleAbrirNuevoGasto}
-              className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white dark:text-black font-black text-xs uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white dark:text-black font-black text-xs uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined text-base">add_circle</span>
               <span>+ Registrar Gasto</span>
             </button>
-          )}
-        </div>
-      </section>
+          </section>
 
-{tabPrincipal === 'boletas' && (
-    <>
-      {/* ── LISTADO PRINCIPAL DE REGISTROS ── */}
-      {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center gap-3">
-          <span className="w-8 h-8 border-4 border-primary/20 dark:border-[#e2bd6c]/20 border-t-primary dark:border-t-[#e2bd6c] rounded-full animate-spin" />
-          <p className="text-xs font-bold uppercase tracking-widest text-outline">Cargando registros...</p>
-        </div>
-      ) : registrosFiltrados.length === 0 ? (
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl p-12 text-center border border-outline-variant/15 dark:border-white/5 space-y-4">
-          <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-[#e2bd6c]/10 text-primary dark:text-[#e2bd6c] flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-3xl">receipt_long</span>
-          </div>
-          <h3 className="font-headline font-bold text-xl text-secondary dark:text-white">No hay registros creados</h3>
-          <p className="text-xs text-outline dark:text-gray-400 max-w-md mx-auto">
-            {searchTerm || filtroMes !== 'TODOS' || filtroMedio !== 'TODOS'
-              ? 'No se encontraron resultados con los filtros aplicados. Prueba limpiar la búsqueda.'
-              : 'Comienza agregando tu primer registro de compra con sus productos y flete integrado.'}
-          </p>
-          <button 
-            onClick={handleAbrirNuevo}
-            className="px-6 py-3 rounded-2xl bg-primary text-white dark:bg-[#e2bd6c] dark:text-black font-black text-xs uppercase tracking-wider shadow-md hover:scale-105 active:scale-95 transition-all inline-flex items-center gap-2 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base">add</span>
-            <span>Crear Primer Registro</span>
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
-          {registrosFiltrados.map(reg => {
-            const numCuotas = reg.numCuotas || 1;
-            const cuotasList = Array.isArray(reg.cuotas) ? reg.cuotas : [];
-            const cuotasPagadas = cuotasList.filter(c => c.pagada).length;
-            const todasPagadas = reg.medioPago === 'credito' ? (cuotasPagadas === numCuotas && numCuotas > 0) : true;
-            const envioNum = Number(reg.costoEnvio) || 0;
-            const totalNum = Number(reg.totalBoleta) || 0;
-            const tituloRegistro = reg.nombreRegistro || `Registro ${reg.numeroRegistro || 1}`;
-
-            return (
-              <div 
-                key={reg.id}
-                className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-3xl border border-outline-variant/15 dark:border-white/5 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group"
+          {/* LISTADO DE GASTOS OPERATIVOS */}
+          {gastosOperativosList.length === 0 ? (
+            <div className="p-12 text-center rounded-3xl border border-dashed border-outline-variant/20 dark:border-white/10 bg-surface-container-low/40">
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4">
+                <span className="material-symbols-outlined text-3xl">directions_bus</span>
+              </div>
+              <h3 className="font-headline font-bold text-xl text-secondary dark:text-white mb-2">
+                No hay gastos operativos registrados
+              </h3>
+              <p className="text-xs text-outline dark:text-gray-400 max-w-md mx-auto mb-5">
+                Registra pasajes de metro, micro o alimentación incurridos durante la gestión de compras o despacho.
+              </p>
+              <button 
+                type="button"
+                onClick={handleAbrirNuevoGasto}
+                className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white dark:text-black font-black text-xs uppercase tracking-wider shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
               >
-                <div>
-                  {/* Fila Superior: Nombre Registro Correlativo, Proveedor y Fecha */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
+                <span className="material-symbols-outlined text-base">add</span>
+                <span>Registrar Primer Gasto</span>
+              </button>
+            </div>
+          ) : gastosFiltrados.length === 0 ? (
+            <div className="p-12 text-center rounded-3xl border border-dashed border-outline-variant/20 dark:border-white/10 bg-surface-container-low/40">
+              <span className="material-symbols-outlined text-3xl text-outline mb-2">search_off</span>
+              <h3 className="font-headline font-bold text-lg text-secondary dark:text-white mb-1">
+                No se encontraron gastos
+              </h3>
+              <p className="text-xs text-outline dark:text-gray-400">
+                Prueba cambiando los términos de búsqueda o el filtro de categoría.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {gastosFiltrados.map(g => {
+                const isTransporte = g.categoria === 'transporte';
+                const isComida = g.categoria === 'comida';
+                const montoNum = Number(g.monto) || 0;
+
+                return (
+                  <div 
+                    key={g.id}
+                    className="bg-white dark:bg-[#1e1e1e] rounded-3xl border border-outline-variant/35 dark:border-white/10 p-5 shadow-md shadow-black/[0.04] dark:shadow-none hover:shadow-xl hover:scale-[1.01] transition-all flex flex-col justify-between group"
+                  >
                     <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-primary dark:text-[#e2bd6c] block">
-                        {tituloRegistro}
-                      </span>
-                      <h4 className="font-headline font-bold text-base text-secondary dark:text-white leading-tight">
-                        {reg.proveedor || 'Proveedor General'}
-                      </h4>
-                    </div>
-                    <span className="text-[10px] font-bold text-outline dark:text-gray-400 bg-surface dark:bg-white/5 px-2.5 py-1 rounded-xl shrink-0">
-                      {formatDateDMA(reg.fecha)}
-                    </span>
-                  </div>
-
-                  {/* Fila de Totales: Total con Envío Integrado */}
-                  <div className="bg-surface dark:bg-[#141414] p-3.5 rounded-2xl border border-outline-variant/10 dark:border-white/5 mb-4">
-                    <div className="flex items-baseline justify-between">
-                      <div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-outline block">Total Pagado</span>
-                        <span className="font-headline font-black text-xl text-secondary dark:text-white">
-                          ${totalNum.toLocaleString('es-CL')}
-                        </span>
-                      </div>
-                      {envioNum > 0 && (
-                        <div className="text-right">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-blue-500 block">Envío Integrado</span>
-                          <span className="font-headline font-bold text-sm text-blue-600 dark:text-blue-400">
-                            ${envioNum.toLocaleString('es-CL')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    {envioNum > 0 && (
-                      <div className="mt-2 pt-2 border-t border-outline-variant/10 flex justify-between text-[10px] text-outline">
-                        <span>Neto Productos:</span>
-                        <span className="font-bold text-on-surface dark:text-gray-300">
-                          ${Math.max(0, totalNum - envioNum).toLocaleString('es-CL')}
-                        </span>
-                      </div>
-                    )}
-                    {reg.totalGastosOperativos > 0 && (
-                      <div className="mt-2 pt-2 border-t border-outline-variant/10 dark:border-white/5 flex items-center justify-between text-[10px]">
-                        <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[13px]">directions_bus</span>
-                          Gastos Op. (Pasajes/Comida):
-                        </span>
-                        <span className="font-headline font-black text-amber-600 dark:text-amber-400">
-                          +${(reg.totalGastosOperativos || 0).toLocaleString('es-CL')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Medio de Pago y Estado de Cuotas */}
-                  <div className="mb-4">
-                    {reg.medioPago === 'credito' ? (
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-2.5 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="material-symbols-outlined text-amber-500 text-base shrink-0">credit_card</span>
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase truncate">
-                              Crédito ({numCuotas} cuotas) {reg.nombreTarjeta ? `• ${reg.nombreTarjeta}` : ''}
-                            </p>
-                            <p className="text-[9px] text-outline font-medium">
-                              ${Math.round(totalNum / numCuotas).toLocaleString('es-CL')} c/u
-                            </p>
+                      <div className="flex items-start justify-between gap-3 pb-3 border-b border-outline-variant/10 dark:border-white/5 mb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold ${
+                            isTransporte 
+                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+                              : isComida 
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                            <span className="material-symbols-outlined text-xl">
+                              {isTransporte ? 'directions_bus' : isComida ? 'restaurant' : 'payments'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-outline block">
+                              {isTransporte ? 'Pasajes / Transporte' : isComida ? 'Comida / Alimentación' : 'Gasto Varios'}
+                            </span>
+                            <h4 className="font-headline font-bold text-base text-secondary dark:text-white leading-tight">
+                              {g.descripcion || (isTransporte ? 'Pasajes' : isComida ? 'Comida' : 'Gasto operativo')}
+                            </h4>
                           </div>
                         </div>
+
                         <button
                           type="button"
-                          onClick={() => setRegistroCuotasVer(reg)}
-                          className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase transition-all shrink-0 cursor-pointer ${
-                            todasPagadas
-                              ? 'bg-emerald-500 text-white shadow-sm'
-                              : 'bg-amber-500 text-black hover:brightness-110 shadow-sm'
-                          }`}
+                          onClick={() => setGastoAEliminar(g)}
+                          className="w-8 h-8 rounded-xl text-outline/50 hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-all cursor-pointer"
+                          title="Eliminar gasto"
                         >
-                          {todasPagadas ? 'Pagadas (100%)' : `${cuotasPagadas}/${numCuotas} Pagadas`}
+                          <span className="material-symbols-outlined text-base">delete</span>
                         </button>
                       </div>
-                    ) : (
-                      <div className="bg-surface dark:bg-white/5 border border-outline-variant/10 rounded-2xl p-2.5 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-outline text-base">account_balance</span>
-                        <span className="text-[10px] font-bold text-outline dark:text-gray-300 uppercase">
-                          Tarjeta de Débito {reg.nombreTarjeta ? `• ${reg.nombreTarjeta}` : ''}
+
+                      <div className="flex items-baseline justify-between pt-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-outline">
+                          Monto Pagado
                         </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Desglose de Productos (Sin precios, solo cantidades) */}
-                  <div className="border-t border-outline-variant/10 dark:border-white/5 pt-3 mb-3">
-                    <p className="text-[9px] font-black uppercase tracking-wider text-outline mb-1.5">
-                      Productos Incluidos ({(reg.productos || []).reduce((acc, p) => acc + (Number(p.cantidad) || 0), 0)} u.)
-                    </p>
-                    <ul className="space-y-1 max-h-24 overflow-y-auto custom-scrollbar pr-1">
-                      {(reg.productos || []).map((p, pIdx) => (
-                        <li key={pIdx} className="text-xs flex items-center justify-between text-on-surface/90 dark:text-gray-300">
-                          <span className="truncate pr-2">• {p.nombre}</span>
-                          <span className="font-bold text-[11px] bg-surface dark:bg-white/5 px-2 py-0.5 rounded-md shrink-0">
-                            {p.cantidad} u.
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Notas */}
-                  {reg.notas && (
-                    <p className="text-[11px] italic text-outline dark:text-gray-400 bg-surface/50 dark:bg-white/[0.02] p-2 rounded-xl border border-outline-variant/10 mb-3">
-                      "{reg.notas}"
-                    </p>
-                  )}
-                </div>
-
-                {/* Fila Inferior de Acciones */}
-                <div className="border-t border-outline-variant/10 dark:border-white/5 pt-3 flex items-center justify-between gap-2 mt-2">
-                  <span className="text-[9px] text-outline font-medium">
-                    Por {reg.operador || 'Sistema'}
-                  </span>
-
-                  <div className="flex items-center gap-1">
-                    {reg.medioPago === 'credito' && (
-                      <button 
-                        type="button"
-                        onClick={() => setRegistroCuotasVer(reg)}
-                        title="Ver y Marcar Cuotas"
-                        className="w-8 h-8 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 flex items-center justify-center transition-colors cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-sm">calendar_month</span>
-                      </button>
-                    )}
-                    <button 
-                      type="button"
-                      onClick={() => handleEditar(reg)}
-                      title="Editar Registro"
-                      className="w-8 h-8 rounded-xl bg-surface hover:bg-surface-variant dark:bg-white/5 dark:hover:bg-white/10 text-on-surface dark:text-white flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">edit</span>
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setRegistroAEliminar(reg)}
-                      title="Eliminar Registro"
-                      className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">delete</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-
-    </>
-  )}
-
-  {/* ── VISTA DEDICADA: MÓDULO INDEPENDIENTE DE GASTOS OPERATIVOS ── */}
-  {tabPrincipal === 'gastos' && (
-    <div className="space-y-8 animate-in fade-in duration-200 mb-12">
-      
-      {/* TARJETAS KPIS DE GASTOS OPERATIVOS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* Total Gastos */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-amber-500/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-outline dark:text-gray-400">Total Gastos Op.</span>
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">payments</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-secondary dark:text-white">
-              $${kpisGastos.totalGeneral.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              {gastosOperativosList.length} registro${gastosOperativosList.length !== 1 ? 's' : ''} en total
-            </p>
-          </div>
-        </div>
-
-        {/* Total Pasajes */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-blue-500/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Pasajes / Transporte</span>
-            <div className="w-9 h-9 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">directions_bus</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-blue-600 dark:text-blue-400">
-              $${kpisGastos.totalTransporte.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              Metro, micros, viajes de compras
-            </p>
-          </div>
-        </div>
-
-        {/* Total Comida */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-amber-600/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Comida / Alimentación</span>
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">restaurant</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-amber-600 dark:text-amber-400">
-              $${kpisGastos.totalComida.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              Colaciones en gestión de compras
-            </p>
-          </div>
-        </div>
-
-        {/* Total Otros */}
-        <div className="bg-surface-container-low dark:bg-[#1e1e1e] p-5 rounded-3xl border border-outline-variant/15 dark:border-white/5 shadow-sm flex flex-col justify-between group hover:border-emerald-500/40 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Otros / Gastos Varios</span>
-            <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">receipt</span>
-            </div>
-          </div>
-          <div>
-            <p className="font-headline font-black text-2xl md:text-3xl text-emerald-600 dark:text-emerald-400">
-              $${kpisGastos.totalOtros.toLocaleString('es-CL')}
-            </p>
-            <p className="text-[10px] text-outline/80 dark:text-gray-400 font-medium mt-1">
-              Gastos menores no clasificados
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* LISTADO DE GASTOS OPERATIVOS */}
-      {gastosOperativosList.length === 0 ? (
-        <div className="p-12 text-center rounded-3xl border border-dashed border-outline-variant/20 dark:border-white/10 bg-surface-container-low/40">
-          <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-3xl">directions_bus</span>
-          </div>
-          <h3 className="font-headline font-bold text-xl text-secondary dark:text-white mb-2">
-            No hay gastos operativos registrados
-          </h3>
-          <p className="text-xs text-outline dark:text-gray-400 max-w-md mx-auto mb-5">
-            Registra pasajes de metro, micro o alimentación incurridos durante la gestión de compras o despacho.
-          </p>
-          <button 
-            type="button"
-            onClick={handleAbrirNuevoGasto}
-            className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white dark:text-black font-black text-xs uppercase tracking-wider shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base">add</span>
-            <span>Registrar Primer Gasto</span>
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {gastosOperativosList.map(g => {
-            const isTransporte = g.categoria === 'transporte';
-            const isComida = g.categoria === 'comida';
-            const montoNum = Number(g.monto) || 0;
-
-            return (
-              <div 
-                key={g.id}
-                className="bg-white dark:bg-[#1e1e1e] rounded-3xl border border-outline-variant/35 dark:border-white/10 p-5 shadow-md shadow-black/[0.04] dark:shadow-none hover:shadow-xl hover:scale-[1.01] transition-all flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 pb-3 border-b border-outline-variant/10 dark:border-white/5 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold ${
-                        isTransporte 
-                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
-                          : isComida 
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      }`}>
-                        <span className="material-symbols-outlined text-xl">
-                          {isTransporte ? 'directions_bus' : isComida ? 'restaurant' : 'payments'}
+                        <span className="font-headline font-black text-2xl text-amber-600 dark:text-amber-400">
+                          ${montoNum.toLocaleString('es-CL')}
                         </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-outline block">
-                          {isTransporte ? 'Pasajes / Transporte' : isComida ? 'Comida / Alimentación' : 'Gasto Varios'}
-                        </span>
-                        <h4 className="font-headline font-bold text-base text-secondary dark:text-white leading-tight">
-                          {g.descripcion || (isTransporte ? 'Pasajes' : isComida ? 'Comida' : 'Gasto operativo')}
-                        </h4>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setGastoAEliminar(g)}
-                      className="w-8 h-8 rounded-xl text-outline/50 hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-all cursor-pointer"
-                      title="Eliminar gasto"
-                    >
-                      <span className="material-symbols-outlined text-base">delete</span>
-                    </button>
+                    <div className="mt-4 pt-3 border-t border-outline-variant/10 dark:border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="font-bold text-outline dark:text-gray-400 flex items-center gap-1 bg-surface dark:bg-white/5 px-2.5 py-1 rounded-xl">
+                        <span className="material-symbols-outlined text-[12px]">calendar_month</span>
+                        {formatDateDMA(g.fecha)}
+                      </span>
+                      {g.operador && (
+                        <span className="text-outline/70 font-medium italic">
+                          Por {g.operador}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
 
-                  <div className="flex items-baseline justify-between pt-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-outline">
-                      Monto Pagado
-                    </span>
-                    <span className="font-headline font-black text-2xl text-amber-600 dark:text-amber-400">
-                      $${montoNum.toLocaleString('es-CL')}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-outline-variant/10 dark:border-white/5 flex items-center justify-between text-[10px]">
-                  <span className="font-bold text-outline dark:text-gray-400 flex items-center gap-1 bg-surface dark:bg-white/5 px-2.5 py-1 rounded-xl">
-                    <span className="material-symbols-outlined text-[12px]">calendar_month</span>
-                    {formatDateDMA(g.fecha)}
-                  </span>
-                  {g.operador && (
-                    <span className="text-outline/70 font-medium italic">
-                      Por {g.operador}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
-
-    </div>
-  )}
 
       {/* ── MODAL DE CREAR / EDITAR REGISTRO ── */}
       {isModalOpen && (
