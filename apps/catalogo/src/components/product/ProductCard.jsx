@@ -32,6 +32,14 @@ export default function ProductCard({
     ? p.variantes.some(v => Number(v.stock) > 0)
     : Number(p.stock) > 0;
 
+  const numVariantesVisibles = tieneVariantes 
+    ? p.variantes.filter(v => v.visible !== false).length 
+    : 0;
+  const stockTotal = tieneVariantes
+    ? p.variantes.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+    : (Number(p.stock) || 0);
+  const esStockCritico = tieneStock && stockTotal > 0 && stockTotal <= 3;
+
   const isStep3Highlight = tourStep === 3 && pIndex === 0;
   const isGrayscaleTour = tourStep === 3 && pIndex !== 0;
   const isDemoHighlightedProduct = isAutoDemo && (
@@ -61,19 +69,47 @@ export default function ProductCard({
 
   return (
     <div 
-      className={`rounded-[24px] overflow-hidden border shadow-sm flex flex-col group hover:shadow-md transition-all ${
-        isDark ? 'bg-[#1e1e1e] border-white/5' : 'bg-surface-container-low border-outline-variant/20'
-      } ${!tieneStock ? 'grayscale opacity-70' : ''} ${
+      className={`rounded-[26px] overflow-hidden border flex flex-col group transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${
+        isDark 
+          ? 'bg-[#181818] border-white/10 shadow-black/40 hover:border-[#e2bd6c]/40 hover:shadow-[#e2bd6c]/5' 
+          : 'bg-white border-outline-variant/35 shadow-black/[0.04] hover:shadow-black/10 hover:border-primary/40'
+      } ${!tieneStock ? 'grayscale opacity-75' : ''} ${
         isGrayscaleTour ? 'grayscale opacity-30 hover:grayscale-0 hover:opacity-90 duration-500 shadow-none border-dashed' : ''
       } ${isDemoHighlightedProduct ? 'demo-highlight' : ''}`}
     >
-      {/* Imagen con Aspect Ratio Uniforme (Square 1:1) */}
+      {/* Imagen con Aspect Ratio Uniforme (Square 1:1) y Badges Flotantes Luxe */}
       <div 
         className={`w-full aspect-square shrink-0 relative overflow-hidden flex items-center justify-center cursor-pointer ${
-          isDark ? 'bg-white/5' : 'bg-white/60'
+          isDark ? 'bg-white/5' : 'bg-[#fcfbf9]'
         }`}
         onClick={() => setProductoParaVer(p)}
       >
+        {/* Badges Flotantes en la Imagen */}
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none">
+          {!tieneStock ? (
+            <span className="px-2.5 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-black/85 text-white backdrop-blur-md shadow-md border border-white/15 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+              Agotado
+            </span>
+          ) : esStockCritico ? (
+            <span className="px-2.5 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-wider bg-amber-500 text-black backdrop-blur-md shadow-md flex items-center gap-1 animate-pulse">
+              <span className="material-symbols-outlined text-[12px]">bolt</span>
+              ¡Últimas {stockTotal}!
+            </span>
+          ) : numVariantesVisibles > 1 ? (
+            <span className="px-2.5 py-1 rounded-full text-[9px] md:text-[10px] font-bold tracking-wide bg-black/50 text-white backdrop-blur-md border border-white/20 shadow-sm flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px] text-[#e2bd6c]">palette</span>
+              {numVariantesVisibles} Tonos
+            </span>
+          ) : null}
+        </div>
+
+        {/* Botón flotante para ver detalle rápido (Aparece al pasar el mouse en desktop) */}
+        <div className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-md flex items-center justify-center text-on-surface dark:text-white opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-md hover:scale-110">
+          <span className="material-symbols-outlined text-sm">visibility</span>
+        </div>
+
+        {/* Imagen del producto */}
         {cardFoto ? (
           <img 
             key={cardFoto}
@@ -87,9 +123,12 @@ export default function ProductCard({
         ) : (
           <ProductImagePlaceholder isDark={isDark} iconSize="text-3xl" text="LEIS" />
         )}
+
+        {/* Viñeta degradada sutil al hacer hover */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
 
-      {/* DESPLEGABLE REDONDEADO DE COLOR (NO CUADRADO, ESTILO BOUTIQUE) */}
+      {/* DESPLEGABLE REDONDEADO DE COLOR (ESTILO BOUTIQUE SATINADO) */}
       {tieneVariantes && (
         <div className="relative px-3 pt-2.5 pb-0 z-20">
           <button
@@ -100,26 +139,26 @@ export default function ProductCard({
             }}
             className={`w-full flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold tracking-wide transition-all shadow-sm cursor-pointer select-none active:scale-95 ${
               isDark 
-                ? 'bg-[#181818] border-white/10 hover:border-[#e2bd6c]/50 text-white/90 shadow-black/30' 
-                : 'bg-white border-outline-variant/30 hover:border-primary/50 text-on-surface shadow-sm'
+                ? 'bg-[#202020] border-white/15 hover:border-[#e2bd6c]/50 text-white/90 shadow-black/30' 
+                : 'bg-white border-outline-variant/40 hover:border-primary/50 text-on-surface shadow-sm'
             }`}
           >
             <div className="flex items-center gap-1.5 truncate">
               {isTodas ? (
                 generalFoto ? (
-                  <img src={getOptimizedImageUrl(generalFoto, 100)} alt="Todas" className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
+                  <img src={getOptimizedImageUrl(generalFoto, 100)} alt="Todas" className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0 shadow-xs" />
                 ) : (
                   <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">palette</span>
                 )
               ) : activeVarCover ? (
-                <img src={getOptimizedImageUrl(activeVarCover, 100)} alt={activeVar?.nombre} className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" />
+                <img src={getOptimizedImageUrl(activeVarCover, 100)} alt={activeVar?.nombre} className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0 shadow-xs" />
               ) : activeVarHex ? (
-                <span className="w-3 h-3 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: activeVarHex }} />
+                <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-xs" style={{ backgroundColor: activeVarHex }} />
               ) : (
                 <span className="material-symbols-outlined text-[13px] text-[#e2bd6c]">palette</span>
               )}
               <span className="truncate">
-                Color: <span className={isDark ? 'text-[#e2bd6c] font-black' : 'text-primary font-black'}>{isTodas ? 'Todas' : (activeVar?.nombre || 'Elegir')}</span>
+                Tono: <span className={isDark ? 'text-[#e2bd6c] font-black' : 'text-primary font-black'}>{isTodas ? 'Todos' : (activeVar?.nombre || 'Elegir')}</span>
               </span>
             </div>
             <div className="flex items-center gap-0.5 shrink-0 text-outline">
@@ -143,7 +182,7 @@ export default function ProductCard({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="px-2 py-1 text-[9px] font-black uppercase tracking-wider text-outline/80 border-b border-outline-variant/10 mb-1">
-                  Colores Disponibles
+                  Tonos Disponibles
                 </div>
 
                 {/* Opción Todas / Vista Previa General */}
@@ -162,7 +201,7 @@ export default function ProductCard({
                   >
                     <div className="flex items-center gap-2 truncate">
                       <img src={getOptimizedImageUrl(generalFoto, 100)} alt="Todas" className="w-5 h-5 rounded-full object-cover border border-white/20 shrink-0" />
-                      <span className="truncate">Todas (Vista previa)</span>
+                      <span className="truncate">Todos (Vista previa)</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
@@ -206,7 +245,7 @@ export default function ProductCard({
                         <span className="truncate">{v.nombre}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
                           hasStock 
                             ? (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700') 
                             : (isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600')
@@ -226,21 +265,21 @@ export default function ProductCard({
         </div>
       )}
       
-      {/* Info */}
-      <div className="p-4 flex flex-col flex-1">
-        {/* Marca: Reserva de espacio vertical constante (h-4) */}
+      {/* Información del Producto */}
+      <div className="p-4 md:p-4.5 flex flex-col flex-1">
+        {/* Marca Editorial */}
         <div className="h-4 flex items-center mb-1">
-          <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate ${
-            isDark ? 'text-[#e2bd6c]/70' : 'text-[#78350f]/60'
+          <p className={`text-[9.5px] md:text-[10px] font-extrabold uppercase tracking-[0.2em] truncate ${
+            isDark ? 'text-[#e2bd6c]' : 'text-primary'
           }`}>
             {p.marca || 'LEIS COLLECTION'}
           </p>
         </div>
 
-        {/* Título: Altura fija constante para 2 líneas con font-size optimizado */}
+        {/* Título en Fuente Headline Serif */}
         <h3 
-          className={`font-headline font-bold text-xs sm:text-sm md:text-base leading-snug line-clamp-2 h-[2.5rem] md:h-[2.75rem] flex items-start mb-1 cursor-pointer transition-colors ${
-            isDark ? 'text-white hover:text-[#e2bd6c]' : 'text-on-surface hover:text-primary'
+          className={`font-headline font-bold text-xs sm:text-sm md:text-[15px] leading-snug line-clamp-2 h-[2.5rem] md:h-[2.75rem] flex items-start mb-1 cursor-pointer transition-colors ${
+            isDark ? 'text-white group-hover:text-[#e2bd6c]' : 'text-on-surface group-hover:text-primary'
           }`}
           onClick={() => setProductoParaVer(p)}
           title={toTitleCase(p.nombre)}
@@ -248,21 +287,28 @@ export default function ProductCard({
           {toTitleCase(p.nombre)}
         </h3>
 
-        {/* Categoría: Truncada a 1 línea */}
-        <p className={`text-[10px] md:text-xs uppercase tracking-wider mb-2 truncate ${
-          isDark ? 'text-[#e2bd6c]/60' : 'text-outline'
+        {/* Categoría o Colección */}
+        <p className={`text-[10px] md:text-[11px] font-semibold uppercase tracking-wider mb-2 truncate ${
+          isDark ? 'text-gray-400' : 'text-outline/80'
         }`}>
-          {(p.coleccion || 'JOYAS').toUpperCase()}
+          {(p.coleccion || 'CUIDADO FACIAL').toUpperCase()}
         </p>
         
-        {/* Contenedor Inferior: mt-auto para alineación horizontal exacta del precio y botón */}
+        {/* Contenedor Inferior: Precio y Botón alineados en la base */}
         <div className="mt-auto pt-2 flex flex-col justify-end">
-          <div className="flex items-baseline justify-between mb-2">
-            <p className={`font-bold text-base md:text-xl ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
-              ${(p.precio || 0).toLocaleString('es-CL')}
-            </p>
+          <div className="flex items-baseline justify-between mb-2.5">
+            <div>
+              {tieneVariantes && (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-outline dark:text-gray-400 block -mb-0.5">
+                  Desde
+                </span>
+              )}
+              <p className={`font-headline font-black text-lg md:text-2xl tracking-tight ${isDark ? 'text-[#e2bd6c]' : 'text-secondary'}`}>
+                ${(p.precio || 0).toLocaleString('es-CL')}
+              </p>
+            </div>
             {cartItem && (
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-500 animate-in fade-in">
+              <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 animate-in fade-in">
                 <span className="material-symbols-outlined text-xs">check_circle</span>
                 En carro ({cartItem.cantidad})
               </span>
@@ -273,7 +319,7 @@ export default function ProductCard({
           {!tieneStock ? (
             <button 
               disabled
-              className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest opacity-60 cursor-not-allowed ${
+              className={`w-full py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest opacity-60 cursor-not-allowed ${
                 isDark ? 'bg-white/5 border border-white/10 text-gray-400' : 'bg-surface-variant text-on-surface-variant'
               }`}
             >
@@ -283,7 +329,7 @@ export default function ProductCard({
           ) : tieneVariantes ? (
             <button 
               onClick={() => abrirModalAñadir(p)}
-              className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider cursor-pointer ${
+              className={`w-full py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-wider cursor-pointer ${
                 totalEnCarritoVariants > 0
                   ? (isDark 
                       ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30' 
@@ -294,15 +340,15 @@ export default function ProductCard({
               } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(142,109,60,0.8)] scale-105') : ''}`}
             >
               <span className="material-symbols-outlined text-sm md:text-base">tune</span>
-              <span>Opciones</span>
+              <span>Elegir Opción</span>
               {totalEnCarritoVariants > 0 && (
-                <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white shadow-sm flex items-center gap-0.5">
+                <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white shadow-sm flex items-center gap-0.5">
                   <span className="material-symbols-outlined text-[10px]">check</span> {totalEnCarritoVariants}
                 </span>
               )}
             </button>
           ) : cartItem ? (
-            <div className={`w-full flex items-center justify-between p-1 rounded-xl h-10 border transition-all animate-in zoom-in-95 ${
+            <div className={`w-full flex items-center justify-between p-1 rounded-2xl h-11 border transition-all animate-in zoom-in-95 shadow-sm ${
               isDark ? 'bg-white/5 border-[#e2bd6c]/40 text-white' : 'bg-primary/5 border-primary/30 text-primary'
             }`}>
               <button 
@@ -310,33 +356,33 @@ export default function ProductCard({
                   if (cartItem.cantidad === 1) eliminarDelCarrito(cartItem.idCart);
                   else actualizarCantidad(cartItem.idCart, -1);
                 }} 
-                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-95 ${
                   cartItem.cantidad === 1 
                     ? 'hover:bg-red-500/20 text-red-500' 
                     : (isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-primary/10 text-primary')
                 }`}
                 title={cartItem.cantidad === 1 ? "Quitar del carrito" : "Restar uno"}
               >
-                <span className="material-symbols-outlined text-[16px]">
+                <span className="material-symbols-outlined text-[17px]">
                   {cartItem.cantidad === 1 ? 'delete' : 'remove'}
                 </span>
               </button>
 
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-xs text-emerald-500 font-bold">check_circle</span>
-                <span className={`font-extrabold text-xs ${isDark ? 'text-white' : 'text-on-surface'}`}>
-                  {cartItem.cantidad} <span className="text-[10px] font-semibold opacity-75">en carro</span>
+              <div className="flex items-center gap-1.5 px-2">
+                <span className="material-symbols-outlined text-sm text-emerald-500 font-bold">check_circle</span>
+                <span className={`font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-on-surface'}`}>
+                  {cartItem.cantidad} <span className="text-[10px] font-bold opacity-75">en carro</span>
                 </span>
               </div>
 
               <button 
                 onClick={() => actualizarCantidad(cartItem.idCart, 1)} 
-                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-95 ${
                   isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-primary/10 text-primary'
                 }`}
                 title="Agregar otro"
               >
-                <span className="material-symbols-outlined text-[16px]">add</span>
+                <span className="material-symbols-outlined text-[17px]">add</span>
               </button>
             </div>
           ) : (
@@ -345,14 +391,14 @@ export default function ProductCard({
                 animateFlyToCart(e, p.fotoUrl);
                 añadirAlCarrito(p, null);
               }}
-              className={`w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider cursor-pointer ${
+              className={`w-full py-2.5 px-3 rounded-2xl flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-95 transition-all text-[10px] md:text-xs font-black uppercase tracking-wider cursor-pointer ${
                 isDark 
                   ? 'bg-[#e2bd6c] text-black hover:bg-[#e2bd6c]/90 shadow-[#e2bd6c]/20' 
-                  : 'bg-primary text-on-primary hover:bg-primary/90 shadow-primary/20'
+                  : 'bg-primary text-on-primary hover:bg-primary/90 shadow-primary/25'
               } ${isStep3Highlight ? (isDark ? 'ring-4 ring-[#e2bd6c] animate-pulse shadow-[0_0_20px_rgba(226,189,108,0.8)] scale-105' : 'ring-4 ring-primary animate-pulse shadow-[0_0_20px_rgba(142,109,60,0.8)] scale-105') : ''}`}
             >
               <span className="material-symbols-outlined text-sm md:text-base">add_shopping_cart</span>
-              <span>Agregar</span>
+              <span>Agregar al Carro</span>
             </button>
           )}
         </div>

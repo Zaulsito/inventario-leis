@@ -438,6 +438,11 @@ export default function CatalogoPublico() {
           tourStep={tourStep}
           isAutoDemo={isAutoDemo}
           autoDemoStep={autoDemoStep}
+          onScrollToTop={() => {
+            if (mainScrollRef.current) {
+              mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
         />
 
         {/* MAIN SCROLLABLE AREA */}
