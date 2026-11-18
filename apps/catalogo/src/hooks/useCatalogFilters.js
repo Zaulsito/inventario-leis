@@ -164,12 +164,20 @@ export function useCatalogFilters({ productos = [], mainScrollRef = null, heroBa
         if (ventasB !== ventasA) return ventasB - ventasA
       }
 
-      // Por defecto (Destacados): productos con fotos primero
-      const aTieneFoto = !!(a.fotoUrl || (a.fotos && a.fotos.length > 0 && a.fotos[0]))
-      const bTieneFoto = !!(b.fotoUrl || (b.fotos && b.fotos.length > 0 && b.fotos[0]))
-      if (aTieneFoto && !bTieneFoto) return -1
-      if (!aTieneFoto && bTieneFoto) return 1
-      return 0
+      // Por defecto (Destacados): productos con fotos primero (portada o variantes), ordenados alfabéticamente A-Z
+      const tieneFoto = (prod) => {
+        if (prod.fotoUrl || (prod.fotos && prod.fotos.length > 0 && prod.fotos[0])) return true;
+        if (prod.variantes && prod.variantes.length > 0) {
+          return prod.variantes.some(v => v.fotoUrl || (v.fotos && v.fotos.length > 0 && v.fotos[0]));
+        }
+        return false;
+      };
+
+      const aTieneFoto = tieneFoto(a);
+      const bTieneFoto = tieneFoto(b);
+      if (aTieneFoto && !bTieneFoto) return -1;
+      if (!aTieneFoto && bTieneFoto) return 1;
+      return (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' });
     })
   }, [productosVisibles, filtroCategoria, searchTerm, precioMin, precioMax, soloDisponibles, ordenamiento, categoriasJoyeriaConfig, categoriasCapilarConfig])
 

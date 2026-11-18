@@ -69,34 +69,67 @@ export default function HeroBanner({
     setHeroIndex(idx)
   }, [resetHeroTimer])
 
-  // Filtrado y armado de listas de fotos destacadas
-  const productosConFoto = productos.filter(p => p.fotoUrl || (p.fotos && p.fotos.length > 0))
+  // Helper para verificar stock disponible
+  const tieneStock = (p) => {
+    if (p.variantes && p.variantes.length > 0) {
+      return p.variantes.some(v => Number(v.stock) > 0)
+    }
+    return Number(p.stock) > 0
+  }
+
+  // Helper para obtener la foto más representativa / actualizada
+  const getFotoProducto = (p) => {
+    if (p.fotoUrl) return p.fotoUrl
+    if (p.fotos && p.fotos.length > 0 && p.fotos[0]) return p.fotos[0]
+    if (p.variantes && p.variantes.length > 0) {
+      const vConFoto = p.variantes.find(v => (v.fotos && v.fotos[0]) || v.fotoUrl)
+      if (vConFoto) return (vConFoto.fotos && vConFoto.fotos[0]) || vConFoto.fotoUrl
+    }
+    return null
+  }
+
+  // Ordenar por fecha más reciente
+  const ordenarPorRecientes = (a, b) => {
+    const timeA = new Date(a.fechaIngreso || a.createdAt || a.fechaCreacion || a.updatedAt || 0).getTime()
+    const timeB = new Date(b.fechaIngreso || b.createdAt || b.fechaCreacion || b.updatedAt || 0).getTime()
+    return timeB - timeA
+  }
+
+  // Categorías configuradas o por defecto
+  const categoriasJoyeriaConfig = heroBannerConfig?.categoriasJoyeriaMenu || ['AROS', 'COLLAR', 'CONJUNTO', 'ANILLOS']
+  const categoriasCapilarConfig = heroBannerConfig?.categoriasCapilarMenu || ['CUIDADO CAPILAR']
+
+  // Solo productos visibles, con stock y con foto disponible
+  const productosValidos = productos.filter(p => p.visibleEnCatalogo !== false && tieneStock(p) && Boolean(getFotoProducto(p)))
   
-  const prodJoyaList = productosConFoto.filter(p => {
-    const cat = (p.coleccion || '').toUpperCase()
-    const nom = (p.nombre || '').toUpperCase()
-    return cat.includes('JOYA') || cat.includes('ANILLO') || cat.includes('AROS') || cat.includes('COLLAR') || nom.includes('ARO') || nom.includes('PLATA')
-  })
+  const prodJoyaList = productosValidos.filter(p => {
+    const cat = (p.coleccion || '').toUpperCase().trim()
+    const nom = (p.nombre || '').toUpperCase().trim()
+    const matchConfig = categoriasJoyeriaConfig.some(cj => cat === cj.toUpperCase() || cat.includes(cj.toUpperCase()))
+    return matchConfig || esJoyería(p.coleccion) || nom.includes('PLATA 925')
+  }).sort(ordenarPorRecientes)
 
-  const prodCapilarList = productosConFoto.filter(p => {
-    const cat = (p.coleccion || '').toUpperCase()
-    const nom = (p.nombre || '').toUpperCase()
-    return cat.includes('CAPILAR') || cat.includes('CABELLO') || cat.includes('COSMETICA') || nom.includes('ACEITE') || nom.includes('SHOCK') || nom.includes('KERATINA')
-  })
+  const prodCapilarList = productosValidos.filter(p => {
+    const cat = (p.coleccion || '').toUpperCase().trim()
+    const nom = (p.nombre || '').toUpperCase().trim()
+    const matchConfig = categoriasCapilarConfig.some(cc => cat === cc.toUpperCase() || cat.includes(cc.toUpperCase()))
+    const esCapilarKeyword = cat.includes('CAPILAR') || cat.includes('CABELLO') || cat.includes('COSMETICA') || nom.includes('ACEITE') || nom.includes('SHOCK') || nom.includes('KERATINA') || nom.includes('SHIMMER') || nom.includes('BRILLO')
+    return matchConfig || esCapilarKeyword
+  }).sort(ordenarPorRecientes)
 
-  const list1 = prodJoyaList.length > 0 ? prodJoyaList : productosConFoto
-  const list2 = prodCapilarList.length > 0 ? prodCapilarList : (productosConFoto.length > 1 ? productosConFoto.slice(1) : productosConFoto)
+  const list1 = prodJoyaList.length > 0 ? prodJoyaList : productosValidos
+  const list2 = prodCapilarList.length > 0 ? prodCapilarList : (productosValidos.length > 1 ? productosValidos.slice(1) : productosValidos)
 
   const heroProd1 = list1.length > 0 ? list1[heroIndex % list1.length] : null
   const heroProd2 = list2.length > 0 ? list2[(heroIndex + 1) % list2.length] : null
 
   const list1Images = (heroBannerConfig?.imagenes1 && heroBannerConfig.imagenes1.length > 0)
     ? heroBannerConfig.imagenes1
-    : (heroBannerConfig?.imagen1Url ? [heroBannerConfig.imagen1Url] : list1.map(p => p.fotoUrl).filter(Boolean))
+    : (heroBannerConfig?.imagen1Url ? [heroBannerConfig.imagen1Url] : list1.map(getFotoProducto).filter(Boolean))
 
   const list2Images = (heroBannerConfig?.imagenes2 && heroBannerConfig.imagenes2.length > 0)
     ? heroBannerConfig.imagenes2
-    : (heroBannerConfig?.imagen2Url ? [heroBannerConfig.imagen2Url] : list2.map(p => p.fotoUrl).filter(Boolean))
+    : (heroBannerConfig?.imagen2Url ? [heroBannerConfig.imagen2Url] : list2.map(getFotoProducto).filter(Boolean))
 
   const img1Url = list1Images.length > 0 ? list1Images[heroIndex % list1Images.length] : null
   const img2Url = list2Images.length > 0 ? list2Images[(heroIndex + 1) % list2Images.length] : null

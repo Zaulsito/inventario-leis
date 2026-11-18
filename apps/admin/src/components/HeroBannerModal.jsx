@@ -48,6 +48,7 @@ const optimizeImageFile = (file) => {
 }
 
 export default function HeroBannerModal({ isOpen, onClose, isDark }) {
+  const [activeTab, setActiveTab] = useState('textos')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
@@ -252,6 +253,64 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
     return { categoriasJoyeríaTienda: joyas, categoriasCapilarTienda: capilares }
   }, [productos])
 
+  // Helper para extraer la foto más reciente y de mayor calidad de un producto
+  const obtenerFotoRecienteProducto = (p) => {
+    if (!p) return null
+    if (p.fotoUrl) return p.fotoUrl
+    if (p.fotos && p.fotos.length > 0 && p.fotos[0]) return p.fotos[0]
+    if (p.variantes && p.variantes.length > 0) {
+      const vConFoto = p.variantes.find(v => (v.fotos && v.fotos[0]) || v.fotoUrl)
+      if (vConFoto) return (vConFoto.fotos && vConFoto.fotos[0]) || vConFoto.fotoUrl
+    }
+    return null
+  }
+
+  // Productos de Joyería disponibles (SOLO con stock disponible > 0 y con foto, ordenados por más recientes)
+  const productosJoyeriaDisponibles = useMemo(() => {
+    return productos.filter(p => {
+      const tieneStock = p.variantes && p.variantes.length > 0 
+        ? p.variantes.some(v => Number(v.stock) > 0)
+        : Number(p.stock) > 0
+      if (!tieneStock) return false
+
+      const tieneFoto = Boolean(obtenerFotoRecienteProducto(p))
+      if (!tieneFoto) return false
+
+      const cat = (p.coleccion || '').toUpperCase().trim()
+      const nom = (p.nombre || '').toUpperCase().trim()
+      const matchConfig = categoriasJoyeriaMenu.some(cj => cat === cj.toUpperCase() || cat.includes(cj.toUpperCase()))
+      const esJoyaKw = cat.includes('JOYA') || cat.includes('ANILLO') || cat.includes('ARO') || cat.includes('COLLAR') || cat.includes('CONJUNTO') || cat.includes('PULSERA') || nom.includes('PLATA')
+      return matchConfig || esJoyaKw
+    }).sort((a, b) => {
+      const timeA = new Date(a.fechaIngreso || a.createdAt || a.fechaCreacion || a.updatedAt || 0).getTime()
+      const timeB = new Date(b.fechaIngreso || b.createdAt || b.fechaCreacion || b.updatedAt || 0).getTime()
+      return timeB - timeA
+    })
+  }, [productos, categoriasJoyeriaMenu])
+
+  // Productos de Cosmética & Capilar disponibles (SOLO con stock disponible > 0 y con foto, ordenados por más recientes)
+  const productosCapilarDisponibles = useMemo(() => {
+    return productos.filter(p => {
+      const tieneStock = p.variantes && p.variantes.length > 0 
+        ? p.variantes.some(v => Number(v.stock) > 0)
+        : Number(p.stock) > 0
+      if (!tieneStock) return false
+
+      const tieneFoto = Boolean(obtenerFotoRecienteProducto(p))
+      if (!tieneFoto) return false
+
+      const cat = (p.coleccion || '').toUpperCase().trim()
+      const nom = (p.nombre || '').toUpperCase().trim()
+      const matchConfig = categoriasCapilarMenu.some(cc => cat === cc.toUpperCase() || cat.includes(cc.toUpperCase()))
+      const esCapilarKw = cat.includes('CAPILAR') || cat.includes('CABELLO') || cat.includes('COSMETICA') || nom.includes('ACEITE') || nom.includes('SHOCK') || nom.includes('KERATINA') || nom.includes('SHIMMER') || nom.includes('BRILLO') || nom.includes('CREMA')
+      return matchConfig || esCapilarKw
+    }).sort((a, b) => {
+      const timeA = new Date(a.fechaIngreso || a.createdAt || a.fechaCreacion || a.updatedAt || 0).getTime()
+      const timeB = new Date(b.fechaIngreso || b.createdAt || b.fechaCreacion || b.updatedAt || 0).getTime()
+      return timeB - timeA
+    })
+  }, [productos, categoriasCapilarMenu])
+
   const toggleCategoriaJoyeria = (catId) => {
     setCategoriasJoyeriaMenu(prev => {
       if (prev.includes(catId)) return prev.filter(c => c !== catId)
@@ -348,44 +407,116 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
               </div>
             )}
 
-            {/* SECCIÓN TEXTOS */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-[#e2bd6c]">Textos Principales</h3>
-              
-              <div>
-                <label className="block text-xs font-bold mb-1">Título del Banner</label>
-                <input 
-                  type="text"
-                  value={titulo}
-                  onChange={e => setTitulo(e.target.value)}
-                  placeholder="Ej: NUEVA COLECCIÓN & CUIDADO PERSONAL"
-                  className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all ${
-                    isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'
-                  }`}
-                  required
-                />
-              </div>
+            {/* BARRA DE PESTAÑAS / TABS MODULARES */}
+            <div className="flex items-center gap-1.5 p-1.5 rounded-2xl border overflow-x-auto custom-scrollbar shrink-0 bg-black/5 dark:bg-white/5 border-outline-variant/20 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => setActiveTab('textos')}
+                className={`flex-1 min-w-[105px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'textos'
+                    ? (isDark ? 'bg-[#e2bd6c] text-black shadow-md' : 'bg-primary text-white shadow-sm')
+                    : (isDark ? 'text-gray-400 hover:text-white hover:bg-white/5' : 'text-outline hover:text-on-surface hover:bg-black/5')
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">title</span>
+                <span>Textos</span>
+              </button>
 
-              <div>
-                <label className="block text-xs font-bold mb-1">Subtítulo Descriptivo</label>
-                <textarea 
-                  rows={2}
-                  value={subtitulo}
-                  onChange={e => setSubtitulo(e.target.value)}
-                  placeholder="Ej: Joyería en Plata 925 y cosmética capilar seleccionada..."
-                  className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all ${
-                    isDark ? 'bg-white/5 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-surface-container-low border-outline-variant/30 text-on-surface focus:border-primary/50'
-                  }`}
-                  required
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('joyeria')}
+                className={`flex-1 min-w-[125px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'joyeria'
+                    ? (isDark ? 'bg-[#e2bd6c] text-black shadow-md' : 'bg-primary text-white shadow-sm')
+                    : (isDark ? 'text-gray-400 hover:text-white hover:bg-white/5' : 'text-outline hover:text-on-surface hover:bg-black/5')
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">diamond</span>
+                <span>Joyería ({categoriasJoyeriaMenu.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('capilar')}
+                className={`flex-1 min-w-[150px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'capilar'
+                    ? (isDark ? 'bg-emerald-400 text-black shadow-md' : 'bg-emerald-600 text-white shadow-sm')
+                    : (isDark ? 'text-gray-400 hover:text-white hover:bg-white/5' : 'text-outline hover:text-on-surface hover:bg-black/5')
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">spa</span>
+                <span>Capilar & Cosmética ({categoriasCapilarMenu.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('fotos')}
+                className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === 'fotos'
+                    ? (isDark ? 'bg-[#e2bd6c] text-black shadow-md' : 'bg-primary text-white shadow-sm')
+                    : (isDark ? 'text-gray-400 hover:text-white hover:bg-white/5' : 'text-outline hover:text-on-surface hover:bg-black/5')
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">photo_library</span>
+                <span>Galerías ({imagenes1.length + imagenes2.length})</span>
+              </button>
             </div>
 
-            {/* SECCIÓN MENÚ DE CATEGORÍAS RÁPIDAS (SUB-FILTROS DE JOYERÍA Y CUIDADO CAPILAR) */}
-            <div className="space-y-6 pt-4 border-t border-outline-variant/10 dark:border-white/5">
-              
-              {/* SUB-FILTROS DE JOYERÍA */}
-              <div className="space-y-3">
+            {/* ── MÓDULO 1: TEXTOS PRINCIPALES ── */}
+            {activeTab === 'textos' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-[#e2bd6c] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm">title</span>
+                    Textos del Banner Principal
+                  </h3>
+                  <span className="text-[11px] opacity-60">Visible en la cabecera del catálogo</span>
+                </div>
+                
+                <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-low border-outline-variant/20'}`}>
+                  <div>
+                    <label className="block text-xs font-bold mb-1.5">Título del Banner</label>
+                    <input 
+                      type="text"
+                      value={titulo}
+                      onChange={e => setTitulo(e.target.value)}
+                      placeholder="Ej: NUEVA COLECCIÓN & CUIDADO PERSONAL"
+                      className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all ${
+                        isDark ? 'bg-black/20 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-white border-outline-variant/30 text-on-surface focus:border-primary/50'
+                      }`}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold mb-1.5">Subtítulo Descriptivo</label>
+                    <textarea 
+                      rows={3}
+                      value={subtitulo}
+                      onChange={e => setSubtitulo(e.target.value)}
+                      placeholder="Ej: Joyería en Plata 925 y cosmética capilar seleccionada para realzar tu estilo..."
+                      className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none transition-all ${
+                        isDark ? 'bg-black/20 border-white/10 text-white focus:border-[#e2bd6c]/50' : 'bg-white border-outline-variant/30 text-on-surface focus:border-primary/50'
+                      }`}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* VISTA PREVIA RÁPIDA DE LOS TEXTOS */}
+                <div className={`p-4 rounded-2xl border border-dashed flex flex-col gap-1 ${
+                  isDark ? 'border-white/15 bg-black/30' : 'border-outline-variant/30 bg-surface-variant/30'
+                }`}>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-outline mb-1">Vista Previa Estimada:</span>
+                  <h4 className="font-headline font-black text-base md:text-lg tracking-tight uppercase text-primary dark:text-[#e2bd6c]">{titulo || 'Sin título'}</h4>
+                  <p className="text-xs text-on-surface-variant dark:text-gray-300 opacity-90">{subtitulo || 'Sin subtítulo'}</p>
+                </div>
+              </div>
+            )}
+
+            {/* ── MÓDULO 2: SUB-FILTROS DE JOYERÍA ── */}
+            {activeTab === 'joyeria' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-[#e2bd6c] flex items-center gap-1.5">
@@ -393,7 +524,7 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                       Sub-filtros para Joyería
                     </h3>
                     <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                      Personaliza el botón del banner y las categorías que aparecerán como sub-filtros rápidos.
+                      Personaliza el botón del banner y las categorías que aparecerán como sub-filtros rápidos en la sección de joyería.
                     </p>
                   </div>
                   <button
@@ -410,9 +541,9 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                   </button>
                 </div>
 
-                <div className={`p-4 rounded-2xl border space-y-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-low border-outline-variant/20'}`}>
+                <div className={`p-5 rounded-2xl border space-y-5 ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-low border-outline-variant/20'}`}>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1.5 text-gray-400">
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-gray-400">
                       Texto del Botón en el Banner (Hero)
                     </label>
                     <input
@@ -420,17 +551,23 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                       value={botonJoyeriaTexto}
                       onChange={e => setBotonJoyeriaTexto(e.target.value)}
                       placeholder="Ej: ✨ Ver Joyería"
-                      className={`w-full sm:w-80 border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none transition-all ${
+                      className={`w-full sm:w-80 border rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition-all ${
                         isDark ? 'bg-black/20 border-white/15 text-[#e2bd6c] focus:border-[#e2bd6c]' : 'bg-white border-outline-variant/30 text-primary focus:border-primary'
                       }`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-400">
-                      Categorías visibles en el catálogo (Haz clic para activar / desactivar):
-                    </label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Categorías activas en el catálogo (Haz clic para activar / desactivar):
+                      </label>
+                      <span className="text-[11px] text-outline font-medium">
+                        {categoriasJoyeriaMenu.length} seleccionada(s)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2.5">
                       {categoriasJoyeríaTienda.map(cat => {
                         const isSelected = categoriasJoyeriaMenu.includes(cat.id)
                         return (
@@ -438,7 +575,7 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                             key={cat.id}
                             type="button"
                             onClick={() => toggleCategoriaJoyeria(cat.id)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border select-none ${
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border select-none ${
                               isSelected
                                 ? (isDark 
                                     ? 'bg-[#e2bd6c] text-black border-[#e2bd6c] shadow-[0_0_12px_rgba(226,189,108,0.25)]' 
@@ -466,9 +603,11 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* SUB-FILTROS DE CUIDADO CAPILAR & COSMÉTICA */}
-              <div className="space-y-3">
+            {/* ── MÓDULO 3: SUB-FILTROS DE CUIDADO CAPILAR & COSMÉTICA ── */}
+            {activeTab === 'capilar' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
@@ -476,7 +615,7 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                       Sub-filtros para Cuidado Capilar & Cosmética
                     </h3>
                     <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-outline'}`}>
-                      Personaliza el botón del banner y las categorías que aparecerán como sub-filtros rápidos.
+                      Personaliza el botón del banner y las categorías que aparecerán como sub-filtros rápidos en la sección capilar.
                     </p>
                   </div>
                   <button
@@ -493,9 +632,9 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                   </button>
                 </div>
 
-                <div className={`p-4 rounded-2xl border space-y-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-low border-outline-variant/20'}`}>
+                <div className={`p-5 rounded-2xl border space-y-5 ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-low border-outline-variant/20'}`}>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1.5 text-gray-400">
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-2 text-gray-400">
                       Texto del Botón en el Banner (Hero)
                     </label>
                     <input
@@ -503,17 +642,23 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                       value={botonCapilarTexto}
                       onChange={e => setBotonCapilarTexto(e.target.value)}
                       placeholder="Ej: 🌿 Cuidado Capilar"
-                      className={`w-full sm:w-80 border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none transition-all ${
+                      className={`w-full sm:w-80 border rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition-all ${
                         isDark ? 'bg-black/20 border-white/15 text-emerald-400 focus:border-emerald-400' : 'bg-white border-outline-variant/30 text-emerald-700 focus:border-emerald-600'
                       }`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-400">
-                      Categorías visibles en el catálogo (Haz clic para activar / desactivar):
-                    </label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Categorías activas en el catálogo (Haz clic para activar / desactivar):
+                      </label>
+                      <span className="text-[11px] text-outline font-medium">
+                        {categoriasCapilarMenu.length} seleccionada(s)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2.5">
                       {categoriasCapilarTienda.map(cat => {
                         const isSelected = categoriasCapilarMenu.includes(cat.id)
                         return (
@@ -521,7 +666,7 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                             key={cat.id}
                             type="button"
                             onClick={() => toggleCategoriaCapilar(cat.id)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border select-none ${
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border select-none ${
                               isSelected
                                 ? (isDark 
                                     ? 'bg-emerald-400 text-black border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.3)]' 
@@ -549,12 +694,20 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                   </div>
                 </div>
               </div>
+            )}
 
-            </div>
-
-            {/* SECCIÓN IMÁGENES FLOTANTES */}
-            <div className="space-y-6 pt-2 border-t border-outline-variant/10 dark:border-white/5">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-[#e2bd6c]">Galerías de Fotos Flotantes (Arrastrar & Soltar con Optimización)</h3>
+            {/* ── MÓDULO 4: GALERÍAS DE FOTOS FLOTANTES ── */}
+            {activeTab === 'fotos' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-[#e2bd6c] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm">photo_library</span>
+                    Galerías de Fotos Flotantes (Arrastrar & Soltar con Optimización)
+                  </h3>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-outline'}`}>
+                    Arrastra imágenes desde tu PC o asocia productos existentes para rotar dinámicamente en el banner.
+                  </p>
+                </div>
               
               {/* GALERÍA 1 (FLOTANTE 1 - IZQUIERDA/SUPERIOR) */}
               <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-surface-container-low border-outline-variant/20'}`}>
@@ -630,7 +783,7 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                 {/* Opciones secundarias (Producto o URL) 1 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="block text-[11px] font-bold mb-1">O agregar foto de producto existente:</label>
+                    <label className="block text-[11px] font-bold mb-1">O agregar Joyería en stock con fotos recientes:</label>
                     <select
                       value={selectedProd1}
                       onChange={e => {
@@ -638,16 +791,19 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                         setSelectedProd1(pId)
                         if (pId) {
                           const p = productos.find(x => x.id === pId)
-                          if (p && p.fotoUrl) handleAddImg1(p.fotoUrl)
+                          const foto = obtenerFotoRecienteProducto(p)
+                          if (foto) handleAddImg1(foto)
                         }
                       }}
                       className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none ${
                         isDark ? 'bg-[#151515] border-white/10 text-white' : 'bg-white border-outline-variant/30 text-on-surface'
                       }`}
                     >
-                      <option value="">-- Seleccionar producto --</option>
-                      {productos.map(p => (
-                        <option key={p.id} value={p.id}>{p.nombre} ({p.coleccion || 'General'})</option>
+                      <option value="">-- Seleccionar Joyería disponible ({productosJoyeriaDisponibles.length}) --</option>
+                      {productosJoyeriaDisponibles.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre} ({p.coleccion || 'Joyería'}) - Stock: {p.stock || 'Variantes'}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -750,7 +906,7 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                 {/* Opciones secundarias (Producto o URL) 2 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="block text-[11px] font-bold mb-1">O agregar foto de producto existente:</label>
+                    <label className="block text-[11px] font-bold mb-1">O agregar Cosmética en stock con fotos recientes:</label>
                     <select
                       value={selectedProd2}
                       onChange={e => {
@@ -758,16 +914,19 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                         setSelectedProd2(pId)
                         if (pId) {
                           const p = productos.find(x => x.id === pId)
-                          if (p && p.fotoUrl) handleAddImg2(p.fotoUrl)
+                          const foto = obtenerFotoRecienteProducto(p)
+                          if (foto) handleAddImg2(foto)
                         }
                       }}
                       className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none ${
                         isDark ? 'bg-[#151515] border-white/10 text-white' : 'bg-white border-outline-variant/30 text-on-surface'
                       }`}
                     >
-                      <option value="">-- Seleccionar producto --</option>
-                      {productos.map(p => (
-                        <option key={p.id} value={p.id}>{p.nombre} ({p.coleccion || 'General'})</option>
+                      <option value="">-- Seleccionar Cosmética disponible ({productosCapilarDisponibles.length}) --</option>
+                      {productosCapilarDisponibles.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre} ({p.coleccion || 'Cosmética'}) - Stock: {p.stock || 'Variantes'}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -796,6 +955,7 @@ export default function HeroBannerModal({ isOpen, onClose, isDark }) {
                 </div>
               </div>
             </div>
+            )}
 
             {/* BOTONES ACCIÓN */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-outline-variant/20 dark:border-white/10">

@@ -12,6 +12,16 @@ export default function WhatsAppButton({
     }
   });
 
+  // Temporizador para auto-ocultar el mensaje después de 5 segundos
+  useEffect(() => {
+    if (!showTooltip) return;
+    const timer = setTimeout(() => {
+      setShowTooltip(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [showTooltip]);
+
   const handleCloseTooltip = (e) => {
     e.stopPropagation();
     setShowTooltip(false);
