@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useOutletContext, useNavigate, useLocation } from 'react-router-dom'
+import { useOutletContext, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, doc, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { getLocalDateString, formatDateDMA } from '../utils/date'
@@ -16,7 +16,10 @@ export default function Historial() {
   const initializedFromStateRef = useRef(false)
 
   const [productos, setProductos] = useState([])
-  const [selectedProductId, setSelectedProductId] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [selectedProductId, setSelectedProductId] = useState(() => {
+    return new URLSearchParams(window.location.search).get('productoId') || ''
+  })
   const [activeSubTab, setActiveSubTab] = useState('kardex') // 'kardex' | 'lotes'
   const [historyFilter, setHistoryFilter] = useState('todos') // 'todos' | 'entradas' | 'salidas' | 'ventas' | 'mermas' | 'reposicion'
   const [historyLogs, setHistoryLogs] = useState([])
@@ -74,16 +77,23 @@ export default function Historial() {
     return () => unsub()
   }, [])
 
-  // 2. Si venimos con un productoId desde state (ej. clic desde Inventario)
+  // 2. Sincronizar producto seleccionado con la URL para navegación Atrás / Adelante
   useEffect(() => {
-    if (!initializedFromStateRef.current && location.state && location.state.productoId) {
-      initializedFromStateRef.current = true
-      setSelectedProductId(location.state.productoId)
-      navigate(location.pathname, { replace: true, state: null })
-    } else if (!selectedProductId && productos.length > 0) {
-      setSelectedProductId(productos[0].id)
+    const pIdFromUrl = searchParams.get('productoId');
+    if (pIdFromUrl && pIdFromUrl !== selectedProductId) {
+      setSelectedProductId(pIdFromUrl);
+    } else if (!pIdFromUrl && !selectedProductId && productos.length > 0) {
+      setSelectedProductId(productos[0].id);
+      setSearchParams({ productoId: productos[0].id }, { replace: true });
     }
-  }, [location.state, productos, navigate, selectedProductId])
+  }, [searchParams, productos]);
+
+  useEffect(() => {
+    if (location.state?.productoId && location.state.productoId !== selectedProductId) {
+      setSelectedProductId(location.state.productoId);
+      setSearchParams({ productoId: location.state.productoId }, { replace: true });
+    }
+  }, [location.state]);
 
   const selectedProduct = useMemo(() => {
     return productos.find(p => p.id === selectedProductId) || null
@@ -1045,7 +1055,10 @@ export default function Historial() {
                         key={p.id}
                         type="button"
                         onClick={() => {
-                          setSelectedProductId(p.id)
+                          if (p.id !== selectedProductId) {
+                            setSelectedProductId(p.id)
+                            navigate(`/historial?productoId=${p.id}`)
+                          }
                           setSupplierFilter('TODOS')
                           setShowSupplierFilterDropdown(false)
                           setShowProductDropdown(false)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { useOutletContext, useNavigate, useLocation } from 'react-router-dom'
+import { useOutletContext, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { collection, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, doc, query, where, orderBy, getDocs, getDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { jsPDF } from 'jspdf'
@@ -458,8 +458,8 @@ Es FUNDAMENTAL que respetes exactamente el formato numerado en 3 secciones limpi
 • **Cuidado:** [1 instrucción breve y práctica para conservar el brillo eterno de la Plata 925 (guardar en lugar seco, evitar contacto directo con perfumes y limpiar con paño suave)].
 
 INSTRUCCIÓN IMPORTANTE PARA EL NOMBRE DEL PRODUCTO:
-Si el nombre no está definido o es 'desconocido', identifícalo o propón un nombre elegante de joyería (ej: "Collar Corazón Plata 925", "Aros Argollas Plata 925") y colócalo en la primera línea como "PRODUCTO: [Nombre]". Luego da dos saltos de línea y comienza directamente con "1. Descripción".
-Si ya hay un nombre definido, puedes omitir la línea "PRODUCTO:".
+Si el producto YA TIENE un nombre asignado (es decir, diferente de 'desconocido' o vacío), está ESTRICTAMENTE PROHIBIDO modificarlo, proponer variaciones o incluir la línea "PRODUCTO:". Comienza directamente con "1. Descripción".
+Solo si el nombre es 'desconocido' o está vacío, identifícalo o propón un nombre elegante de joyería (ej: "Collar Corazón Plata 925", "Aros Argollas Plata 925") y colócalo en la primera línea como "PRODUCTO: [Nombre]". Luego da dos saltos de línea y comienza con "1. Descripción".
 
 REGLAS DE FORMATO ESTRICTAS:
 - Mantén el texto CORTO, ÁGIL Y ELEGANTE (máximo 3 secciones).
@@ -493,7 +493,7 @@ Usa exactamente la siguiente estructura de números y títulos:
 [Explica brevemente qué estilo de persona o personalidad lucirá espectacular con esta joya].
 
 INSTRUCCIÓN PARA EL NOMBRE:
-Si no hay nombre, escribe en la primera línea "PRODUCTO: [Nombre sugerido con Plata 925]" y luego inicia con "1. Descripción & Estilo".
+Si el producto YA TIENE un nombre asignado, está ESTRICTAMENTE PROHIBIDO modificarlo o agregar la línea "PRODUCTO:". Inicia directamente con "1. Descripción & Estilo". Solo si no hay nombre o es 'desconocido', escribe en la primera línea "PRODUCTO: [Nombre sugerido con Plata 925]" y luego inicia con "1. Descripción & Estilo".
 
 REGLAS DE FORMATO ESTRICTAS:
 - Comienza directamente con "1. Descripción & Estilo" o la línea "PRODUCTO:".
@@ -518,9 +518,8 @@ Es FUNDAMENTAL que respetes exactamente el formato numerado en 3 secciones limpi
 • **Aplicación:** [Instrucción simple y práctica de aplicación en 1 o 2 líneas].
 
 INSTRUCCIÓN IMPORTANTE PARA EL NOMBRE DEL PRODUCTO:
-Si el nombre del producto no está definido en el formulario (o sea, es 'desconocido'), identifícalo directamente de la etiqueta de la botella/pote en la imagen de muestra (por ejemplo: "Crema Collagen").
-Si has identificado el nombre desde la imagen (o deseas proponer una versión corregida y atractiva), escribe obligatoriamente en la primera línea de tu respuesta la palabra "PRODUCTO:" seguido del nombre identificado (ejemplo: "PRODUCTO: Mascarilla de Colágeno"). Luego da dos saltos de línea y comienza directamente con "1. Descripción".
-Si ya hay un nombre definido y no deseas cambiarlo, puedes omitir la línea "PRODUCTO:".
+Si el producto YA TIENE un nombre asignado (es decir, diferente de 'desconocido' o vacío), está ESTRICTAMENTE PROHIBIDO modificarlo, corregirlo, embellecerlo o incluir la línea "PRODUCTO:". Debes conservar el nombre intacto y comenzar tu respuesta directamente con "1. Descripción".
+Únicamente si el producto no tiene nombre o es 'desconocido', identifícalo directamente de la etiqueta en la imagen y escribe en la primera línea la palabra "PRODUCTO:" seguido del nombre identificado (ejemplo: "PRODUCTO: Mascarilla de Colágeno"). Luego da dos saltos de línea y comienza directamente con "1. Descripción".
 
 REGLAS DE FORMATO ESTRICTAS:
 - Mantén el texto CORTO, ÁGIL Y SIN DETALLES TÉCNICOS EXCESIVOS (máximo 3 secciones).
@@ -555,9 +554,8 @@ Usa exactamente la siguiente estructura de números y títulos (no uses otros n�
 [Explica brevemente qué tipo de persona, tipo de piel, tipo de cabello o necesidad particular se beneficiará al máximo de este producto].
 
 INSTRUCCIÓN IMPORTANTE PARA EL NOMBRE DEL PRODUCTO:
-Si el nombre del producto no está definido en el formulario (o sea, es 'desconocido'), identifícalo directamente de la etiqueta de la botella/pote en la imagen de muestra (por ejemplo: "Crema Collagen", "Mascarilla de Colágeno Absolute Hair Beauty").
-Si has identificado el nombre del producto desde la imagen (o deseas proponer una versión corregida y atractiva), escribe obligatoriamente en la primera línea de tu respuesta la palabra "PRODUCTO:" seguido del nombre identificado (ejemplo: "PRODUCTO: Mascarilla de Colágeno"). Luego da dos saltos de línea y comienza directamente con "1. Propósito Principal".
-Si ya hay un nombre definido y no deseas cambiarlo, puedes omitir la línea "PRODUCTO:".
+Si el producto YA TIENE un nombre asignado, está ESTRICTAMENTE PROHIBIDO modificarlo, corregirlo o incluir la línea "PRODUCTO:". Conserva el nombre y comienza directamente con "1. Propósito Principal".
+Únicamente si el producto no tiene nombre o es 'desconocido', puedes identificarlo directamente de la etiqueta en la imagen y escribir en la primera línea la palabra "PRODUCTO:" seguido del nombre identificado (ejemplo: "PRODUCTO: Mascarilla de Colágeno"). Luego da dos saltos de línea y comienza directamente con "1. Propósito Principal".
 
 REGLAS DE FORMATO ESTRICTAS:
 - No agregues introducciones ni conclusiones. Comienza directamente con "1. Propósito Principal" o la línea "PRODUCTO:".
@@ -612,7 +610,8 @@ REGLAS DE FORMATO ESTRICTAS:
 
       setForm(prev => {
         const updated = { ...prev, descripcion: cleanTextResult };
-        if (generatedName) {
+        // Solo adoptar el nombre sugerido si el producto no tenía ningún nombre previamente
+        if (generatedName && !prev.nombre?.trim()) {
           updated.nombre = generatedName;
         }
         return updated;
@@ -645,9 +644,19 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
-  const [busqueda, setBusqueda]   = useState('')
-  const [filtroCol, setFiltroCol] = useState('TODOS')
-  const [orden, setOrden]         = useState('alfabetico-asc')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const [busqueda, setBusqueda] = useState(() => {
+    return searchParams.get('q') || sessionStorage.getItem('leis_inv_busqueda') || ''
+  })
+  const [filtroCol, setFiltroCol] = useState(() => {
+    const fromUrl = searchParams.get('cat')
+    if (fromUrl) return fromUrl.trim().toUpperCase()
+    return sessionStorage.getItem('leis_inv_filtroCol') || 'TODOS'
+  })
+  const [orden, setOrden] = useState(() => {
+    return searchParams.get('orden') || sessionStorage.getItem('leis_inv_orden') || 'alfabetico-asc'
+  })
   const [productos, setProductos] = useState([])
   const [loading, setLoading]     = useState(true)
   const [esNuevaCategoria, setEsNuevaCategoria] = useState(false)
@@ -666,6 +675,31 @@ REGLAS DE FORMATO ESTRICTAS:
   const [busquedaMarca, setBusquedaMarca] = useState('')
   const [showMobileKPIs, setShowMobileKPIs] = useState(false)
   const categoryContainerRef = useRef(null)
+
+  // Sincronizar filtros con la URL y sessionStorage para navegación atrás/adelante
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filtroCol && filtroCol !== 'TODOS') params.set('cat', filtroCol)
+    if (busqueda && busqueda.trim()) params.set('q', busqueda.trim())
+    if (orden && orden !== 'alfabetico-asc') params.set('orden', orden)
+
+    sessionStorage.setItem('leis_inv_filtroCol', filtroCol)
+    sessionStorage.setItem('leis_inv_busqueda', busqueda)
+    sessionStorage.setItem('leis_inv_orden', orden)
+
+    setSearchParams(params, { replace: true })
+  }, [filtroCol, busqueda, orden, setSearchParams])
+
+  // Escuchar botón Atrás/Adelante del navegador en Inventario
+  useEffect(() => {
+    const catFromUrl = searchParams.get('cat')?.trim().toUpperCase() || 'TODOS'
+    const qFromUrl = searchParams.get('q') || ''
+    const ordenFromUrl = searchParams.get('orden') || 'alfabetico-asc'
+
+    if (catFromUrl !== filtroCol) setFiltroCol(catFromUrl)
+    if (qFromUrl !== busqueda) setBusqueda(qFromUrl)
+    if (ordenFromUrl !== orden) setOrden(ordenFromUrl)
+  }, [searchParams])
 
   // Estados del CRUD
   const [showModal, setShowModal] = useState(false)
@@ -1608,7 +1642,7 @@ REGLAS DE FORMATO ESTRICTAS:
   }
 
   function openHistory(pId) {
-    navigate('/historial', { state: { productoId: pId } })
+    navigate(`/historial?productoId=${pId}`, { state: { productoId: pId } })
   }
 
   // Navegación entrante desde Historial u otras vistas para editar o ver un producto específico
@@ -1620,10 +1654,10 @@ REGLAS DE FORMATO ESTRICTAS:
         lastHandledNavTargetRef.current = targetId
         setBusqueda(prod.nombre || '')
         openEdit(prod)
-        navigate(location.pathname, { replace: true, state: null })
+        navigate(location.pathname + location.search, { replace: true, state: null })
       }
     }
-  }, [location.state, productos, navigate])
+  }, [location.state, productos, navigate, location.pathname, location.search])
 
   async function handleDeleteHistoryLog(log) {
     if (!log || !log.id) return

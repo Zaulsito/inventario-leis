@@ -200,6 +200,7 @@ export default function Reportes() {
 
   // Paginación para el Historial Consolidado
   const [currentPage, setCurrentPage] = useState(1)
+  const [busquedaConsolidado, setBusquedaConsolidado] = useState('')
   const itemsPerPage = 20
 
   useEffect(() => {
@@ -354,6 +355,23 @@ export default function Reportes() {
       return fB - fA // Más recientes primero
     })
   }, [pedidos, mermas, historialInventario, productos, periodo, fechaInicio, fechaFin, mesSeleccionado, anoSeleccionado])
+
+  // Filtrado exclusivo para la lista del Historial Consolidado inferior (no afecta la gráfica comercial)
+  const registrosConsolidadosVisibles = useMemo(() => {
+    if (!busquedaConsolidado.trim()) return registrosFiltrados;
+    const term = normalizeText(busquedaConsolidado);
+    return registrosFiltrados.filter(v => {
+      const matchProd = v.productos?.some(item => {
+        const baseProd = productos.find(xd => xd.id === item.productoId);
+        const name = normalizeText(item.nombre || baseProd?.nombre || '');
+        const variant = normalizeText(item.variante || '');
+        return name.includes(term) || variant.includes(term);
+      });
+      const matchCliente = normalizeText(v.cliente || '').includes(term);
+      const matchMotivo = normalizeText(v.motivo || '').includes(term);
+      return matchProd || matchCliente || matchMotivo;
+    });
+  }, [registrosFiltrados, busquedaConsolidado, productos]);
 
   // Cálculo del gráfico
   const chartData = useMemo(() => {
@@ -1615,17 +1633,49 @@ export default function Reportes() {
 
       {/* HISTORIAL GENERAL (ANCHO COMPLETO) */}
       <section className="bg-surface-container-low dark:bg-[#1e1e1e] rounded-[2rem] p-8 border border-outline-variant/10 dark:border-white/5 flex flex-col mb-16 relative z-10">
-        <div className="flex justify-between items-center mb-6 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
           <div>
             <h3 className="font-headline text-2xl text-on-tertiary-fixed-variant dark:text-white/90">Historial Consolidado del Periodo</h3>
             <p className="text-[10px] text-outline dark:text-gray-500 font-label uppercase tracking-widest mt-1">
-              Eventos totales: <strong className="text-secondary dark:text-[#e2bd6c]">{registrosFiltrados.length} registros</strong>
+              Eventos totales: <strong className="text-secondary dark:text-[#e2bd6c]">
+                {registrosConsolidadosVisibles.length} {busquedaConsolidado.trim() ? `de ${registrosFiltrados.length}` : ''} registros
+              </strong>
             </p>
+          </div>
+
+          {/* Buscador exclusivo para el historial consolidado */}
+          <div className="relative w-full sm:w-80">
+            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline/60 dark:text-gray-400 text-lg pointer-events-none">
+              search
+            </span>
+            <input 
+              type="text"
+              placeholder="Buscar por producto, variante o cliente..."
+              value={busquedaConsolidado}
+              onChange={e => {
+                setBusquedaConsolidado(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-white dark:bg-[#161616] border border-outline-variant/30 dark:border-white/10 text-xs font-medium text-on-surface dark:text-white placeholder:text-outline/50 dark:placeholder:text-gray-500 focus:outline-none focus:border-secondary dark:focus:border-[#e2bd6c] transition-all shadow-sm"
+            />
+            {busquedaConsolidado && (
+              <button 
+                type="button"
+                onClick={() => {
+                  setBusquedaConsolidado('')
+                  setCurrentPage(1)
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-outline/15 hover:bg-outline/25 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center text-xs text-outline dark:text-gray-300 transition-colors"
+                title="Limpiar búsqueda"
+              >
+                <span className="material-symbols-outlined text-[13px]">close</span>
+              </button>
+            )}
           </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max">
-          {registrosFiltrados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v) => {
+          {registrosConsolidadosVisibles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((v) => {
             const isMerma = v._tipo === 'merma'
             const esVentaDirecta = v.cliente === "Venta Directa" && !isMerma
 
@@ -1710,7 +1760,7 @@ export default function Reportes() {
         </div>
         
         {/* Paginación UI */}
-        {registrosFiltrados.length > itemsPerPage && (
+        {registrosConsolidadosVisibles.length > itemsPerPage && (
           <div className="mt-10 flex items-center justify-center gap-2">
             <button 
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -1721,7 +1771,7 @@ export default function Reportes() {
             </button>
             
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.ceil(registrosFiltrados.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+              {Array.from({ length: Math.ceil(registrosConsolidadosVisibles.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
@@ -1733,8 +1783,8 @@ export default function Reportes() {
             </div>
 
             <button 
-              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(registrosFiltrados.length / itemsPerPage), prev + 1))}
-              disabled={currentPage === Math.ceil(registrosFiltrados.length / itemsPerPage)}
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(registrosConsolidadosVisibles.length / itemsPerPage), prev + 1))}
+              disabled={currentPage === Math.ceil(registrosConsolidadosVisibles.length / itemsPerPage)}
               className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-high dark:bg-white/5 text-on-surface dark:text-white/60 disabled:opacity-20 hover:bg-surface-variant transition-colors border border-outline-variant/10"
             >
               <span className="material-symbols-outlined">chevron_right</span>
@@ -1742,10 +1792,28 @@ export default function Reportes() {
           </div>
         )}
         
-        {registrosFiltrados.length === 0 && (
+        {registrosConsolidadosVisibles.length === 0 && (
           <div className="flex flex-col items-center justify-center opacity-60 w-full text-center py-20">
-            <span className="material-symbols-outlined text-4xl mb-4 text-outline/60">pending_actions</span>
-            <p className="text-[11px] font-bold text-outline uppercase tracking-widest">No hay historial de movimientos</p>
+            <span className="material-symbols-outlined text-4xl mb-4 text-outline/60">
+              {busquedaConsolidado.trim() ? 'search_off' : 'pending_actions'}
+            </span>
+            <p className="text-[11px] font-bold text-outline uppercase tracking-widest">
+              {busquedaConsolidado.trim() 
+                ? `No se encontraron eventos para "${busquedaConsolidado}"`
+                : 'No hay historial de movimientos en este periodo'}
+            </p>
+            {busquedaConsolidado.trim() && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBusquedaConsolidado('')
+                  setCurrentPage(1)
+                }}
+                className="mt-3 px-4 py-1.5 rounded-xl bg-secondary/10 dark:bg-[#e2bd6c]/20 text-secondary dark:text-[#e2bd6c] text-[10px] font-black uppercase tracking-wider hover:bg-secondary/20 transition-colors"
+              >
+                Limpiar búsqueda
+              </button>
+            )}
           </div>
         )}
       </section>
