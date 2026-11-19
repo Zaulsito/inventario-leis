@@ -114,6 +114,22 @@ const ProductImagePlaceholder = ({ className = "w-full h-full", iconSize = "text
   </div>
 );
 
+// Detección inteligente de imagen para el producto (portada, fotos secundarias o primera variante con foto)
+export const getProductDisplayInfo = (p) => {
+  if (!p) return { url: null, isVariant: false, variantName: null };
+  if (p.fotoUrl) return { url: p.fotoUrl, isVariant: false, variantName: null };
+  if (p.fotos && p.fotos.length > 0 && p.fotos[0]) return { url: p.fotos[0], isVariant: false, variantName: null };
+  
+  if (p.variantes && p.variantes.length > 0) {
+    const vConFoto = p.variantes.find(v => (v.fotos && v.fotos[0]) || v.fotoUrl);
+    if (vConFoto) {
+      const url = (vConFoto.fotos && vConFoto.fotos[0]) || vConFoto.fotoUrl;
+      return { url, isVariant: true, variantName: vConFoto.nombre };
+    }
+  }
+  return { url: null, isVariant: false, variantName: null };
+};
+
 // Utilidad para normalizar texto (quitar acentos y convertir a minúsculas)
 const normalizeText = (text) => {
   if (!text) return '';
@@ -3860,17 +3876,28 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                     onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
                     className="p-4 flex items-center gap-4 active:bg-surface-variant/20 dark:active:bg-white/5 transition-colors cursor-pointer"
                   >
-                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-outline-variant/20 dark:border-white/5 shadow-sm flex items-center justify-center">
-                      {p.fotoUrl ? (
-                        <img 
-                          src={getOptimizedImageUrl(p.fotoUrl, 200)} 
-                          alt={p.nombre} 
-                          className="w-full h-full object-cover"
-                          onClick={(e) => { e.stopPropagation(); setExpandedImage(p.fotoUrl); }}
-                        />
-                      ) : (
-                        <ProductImagePlaceholder iconSize="text-base" showText={false} />
-                      )}
+                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-outline-variant/20 dark:border-white/5 shadow-sm flex items-center justify-center relative">
+                      {(() => {
+                        const display = getProductDisplayInfo(p);
+                        if (display.url) {
+                          return (
+                            <>
+                              <img 
+                                src={getOptimizedImageUrl(display.url, 200)} 
+                                alt={p.nombre} 
+                                className="w-full h-full object-cover"
+                                onClick={(e) => { e.stopPropagation(); setExpandedImage(display.url); }}
+                              />
+                              {display.isVariant && (
+                                <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[7px] text-[#e2bd6c] font-bold text-center py-0.5 truncate px-1 leading-none shadow-xs">
+                                  {display.variantName}
+                                </span>
+                              )}
+                            </>
+                          );
+                        }
+                        return <ProductImagePlaceholder iconSize="text-base" showText={false} />;
+                      })()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-headline font-bold text-base text-on-surface dark:text-white/90 truncate leading-tight mb-0.5 flex items-center gap-2">
@@ -4059,17 +4086,29 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                             </div>
 
                             {/* Imagen del tamaño del cuadro rojo (w-20 h-20) con efecto 50% opacidad al pasar mouse */}
-                            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-surface-variant dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 cursor-pointer shadow-sm group-hover:shadow-md transition-all duration-300 shrink-0">
-                              {p.fotoUrl ? (
-                                <img 
-                                  src={getOptimizedImageUrl(p.fotoUrl, 200)} 
-                                  alt={p.nombre} 
-                                  className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-50" 
-                                  onClick={() => setExpandedImage(p.fotoUrl)}
-                                />
-                              ) : (
-                                <ProductImagePlaceholder iconSize="text-2xl" />
-                              )}
+                            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-surface-variant dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 cursor-pointer shadow-sm group-hover:shadow-md transition-all duration-300 shrink-0 relative">
+                              {(() => {
+                                const display = getProductDisplayInfo(p);
+                                if (display.url) {
+                                  return (
+                                    <>
+                                      <img 
+                                        src={getOptimizedImageUrl(display.url, 200)} 
+                                        alt={p.nombre} 
+                                        className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-50" 
+                                        onClick={() => setExpandedImage(display.url)}
+                                      />
+                                      {display.isVariant && (
+                                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-black/75 text-[#e2bd6c] border border-white/10 backdrop-blur-xs flex items-center gap-1 shadow-xs pointer-events-none">
+                                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getHexColor(display.variantName) || '#e2bd6c' }} />
+                                          <span className="truncate max-w-[50px]">{display.variantName}</span>
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                }
+                                return <ProductImagePlaceholder iconSize="text-2xl" />;
+                              })()}
                             </div>
                           </div>
 
@@ -4092,12 +4131,23 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {p.variantes.map((v, i) => {
                                   const vSku = v.sku || (p.sku ? `${p.sku}-${i + 1}` : `VAR-${i + 1}`);
+                                  const vPhoto = (v.fotos && v.fotos[0]) || v.fotoUrl;
                                   return (
                                     <span key={i} className="inline-flex items-center gap-1.5 text-[8px] bg-surface-variant dark:bg-white/5 px-2 py-0.5 rounded-lg text-on-surface-variant dark:text-white/70 font-bold uppercase border border-outline-variant/5 dark:border-white/5 shadow-xs">
-                                      <div 
-                                        className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10 shrink-0"
-                                        style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
-                                      />
+                                      {vPhoto ? (
+                                        <img 
+                                          src={getOptimizedImageUrl(vPhoto, 50)} 
+                                          alt={v.nombre} 
+                                          className="w-3.5 h-3.5 rounded-full object-cover border border-white/20 shrink-0 cursor-pointer shadow-xs hover:scale-125 transition-transform"
+                                          onClick={(e) => { e.stopPropagation(); setExpandedImage(vPhoto); }}
+                                          title={`Ver foto de ${v.nombre}`}
+                                        />
+                                      ) : (
+                                        <div 
+                                          className="w-1.5 h-1.5 rounded-full border border-black/5 dark:border-white/10 shrink-0"
+                                          style={{ backgroundColor: getHexColor(v.nombre) || '#ccc' }}
+                                        />
+                                      )}
                                       <span>{v.nombre}</span>
                                       <span className="text-[7px] text-primary dark:text-[#e2bd6c] font-mono font-black">[{vSku}]</span>
                                       <span className="text-[7px] text-outline opacity-80">({v.stock} u.)</span>
