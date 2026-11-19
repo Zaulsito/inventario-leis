@@ -79,21 +79,15 @@ export default function Historial() {
 
   // 2. Sincronizar producto seleccionado con la URL para navegación Atrás / Adelante
   useEffect(() => {
-    const pIdFromUrl = searchParams.get('productoId');
-    if (pIdFromUrl && pIdFromUrl !== selectedProductId) {
-      setSelectedProductId(pIdFromUrl);
-    } else if (!pIdFromUrl && !selectedProductId && productos.length > 0) {
+    const pIdFromUrl = searchParams.get('productoId') || location.state?.productoId;
+    if (pIdFromUrl) {
+      if (pIdFromUrl !== selectedProductId) {
+        setSelectedProductId(pIdFromUrl);
+      }
+    } else if (!selectedProductId && productos.length > 0) {
       setSelectedProductId(productos[0].id);
-      setSearchParams({ productoId: productos[0].id }, { replace: true });
     }
-  }, [searchParams, productos]);
-
-  useEffect(() => {
-    if (location.state?.productoId && location.state.productoId !== selectedProductId) {
-      setSelectedProductId(location.state.productoId);
-      setSearchParams({ productoId: location.state.productoId }, { replace: true });
-    }
-  }, [location.state]);
+  }, [searchParams, location.state, productos]);
 
   const selectedProduct = useMemo(() => {
     return productos.find(p => p.id === selectedProductId) || null

@@ -644,18 +644,16 @@ REGLAS DE FORMATO ESTRICTAS:
     }
   }
 
-  const [searchParams, setSearchParams] = useSearchParams()
-
   const [busqueda, setBusqueda] = useState(() => {
-    return searchParams.get('q') || sessionStorage.getItem('leis_inv_busqueda') || ''
+    return new URLSearchParams(window.location.search).get('q') || sessionStorage.getItem('leis_inv_busqueda') || ''
   })
   const [filtroCol, setFiltroCol] = useState(() => {
-    const fromUrl = searchParams.get('cat')
+    const fromUrl = new URLSearchParams(window.location.search).get('cat')
     if (fromUrl) return fromUrl.trim().toUpperCase()
     return sessionStorage.getItem('leis_inv_filtroCol') || 'TODOS'
   })
   const [orden, setOrden] = useState(() => {
-    return searchParams.get('orden') || sessionStorage.getItem('leis_inv_orden') || 'alfabetico-asc'
+    return new URLSearchParams(window.location.search).get('orden') || sessionStorage.getItem('leis_inv_orden') || 'alfabetico-asc'
   })
   const [productos, setProductos] = useState([])
   const [loading, setLoading]     = useState(true)
@@ -676,30 +674,52 @@ REGLAS DE FORMATO ESTRICTAS:
   const [showMobileKPIs, setShowMobileKPIs] = useState(false)
   const categoryContainerRef = useRef(null)
 
-  // Sincronizar filtros con la URL y sessionStorage para navegación atrás/adelante
+  // Sincronizar filtros con sessionStorage y la URL sin disparar bucles de re-renders
   useEffect(() => {
-    const params = new URLSearchParams()
-    if (filtroCol && filtroCol !== 'TODOS') params.set('cat', filtroCol)
-    if (busqueda && busqueda.trim()) params.set('q', busqueda.trim())
-    if (orden && orden !== 'alfabetico-asc') params.set('orden', orden)
-
     sessionStorage.setItem('leis_inv_filtroCol', filtroCol)
     sessionStorage.setItem('leis_inv_busqueda', busqueda)
     sessionStorage.setItem('leis_inv_orden', orden)
 
-    setSearchParams(params, { replace: true })
-  }, [filtroCol, busqueda, orden, setSearchParams])
+    const params = new URLSearchParams(window.location.search)
+    if (filtroCol && filtroCol !== 'TODOS') {
+      params.set('cat', filtroCol)
+    } else {
+      params.delete('cat')
+    }
+    if (busqueda && busqueda.trim()) {
+      params.set('q', busqueda.trim())
+    } else {
+      params.delete('q')
+    }
+    if (orden && orden !== 'alfabetico-asc') {
+      params.set('orden', orden)
+    } else {
+      params.delete('orden')
+    }
 
-  // Escuchar botón Atrás/Adelante del navegador en Inventario
+    const newQuery = params.toString() ? `?${params.toString()}` : ''
+    const newUrl = `${window.location.pathname}${newQuery}`
+    if (window.location.search !== newQuery) {
+      window.history.replaceState(null, '', newUrl)
+    }
+  }, [filtroCol, busqueda, orden])
+
+  // Escuchar cuando el usuario pulsa Atrás o Adelante en su navegador
   useEffect(() => {
-    const catFromUrl = searchParams.get('cat')?.trim().toUpperCase() || 'TODOS'
-    const qFromUrl = searchParams.get('q') || ''
-    const ordenFromUrl = searchParams.get('orden') || 'alfabetico-asc'
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search)
+      const catFromUrl = params.get('cat')?.trim().toUpperCase() || 'TODOS'
+      const qFromUrl = params.get('q') || ''
+      const ordenFromUrl = params.get('orden') || 'alfabetico-asc'
 
-    if (catFromUrl !== filtroCol) setFiltroCol(catFromUrl)
-    if (qFromUrl !== busqueda) setBusqueda(qFromUrl)
-    if (ordenFromUrl !== orden) setOrden(ordenFromUrl)
-  }, [searchParams])
+      setFiltroCol(catFromUrl)
+      setBusqueda(qFromUrl)
+      setOrden(ordenFromUrl)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   // Estados del CRUD
   const [showModal, setShowModal] = useState(false)
